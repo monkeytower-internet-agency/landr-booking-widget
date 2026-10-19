@@ -5,6 +5,7 @@ import { HttpError } from '@/api/client'
 
 import { formatCurrency } from './accommodationCalc'
 import { OfferPage } from './OfferPage'
+import { PENDING_DETAILS } from '@/test/customerDetailsFixtures'
 
 // ─── Mock API ────────────────────────────────────────────────────────────────
 // landr-k9pji.15: HttpError / isPaymentModeNotOnline / paymentModeNotOnlineMode
@@ -15,6 +16,8 @@ const { mocks } = vi.hoisted(() => ({
     getBookingByToken: vi.fn<(token: string) => Promise<unknown>>(),
     initiatePayment: vi.fn<(body: unknown) => Promise<unknown>>(),
     acceptOffer: vi.fn<(token: string) => Promise<unknown>>(),
+    getBookingDetails: vi.fn<(token: string) => Promise<unknown>>(),
+    putBookingDetails: vi.fn<(token: string, body: unknown) => Promise<unknown>>(),
   },
 }))
 
@@ -25,6 +28,8 @@ vi.mock('@/api/client', async () => {
     getBookingByToken: mocks.getBookingByToken,
     initiatePayment: mocks.initiatePayment,
     acceptOffer: mocks.acceptOffer,
+    getBookingDetails: mocks.getBookingDetails,
+    putBookingDetails: mocks.putBookingDetails,
   }
 })
 
@@ -1656,6 +1661,9 @@ describe('OfferPage — offer v3 flow: acceptance + hotel step (landr-bo0wd.5)',
     mocks.getBookingByToken.mockReset()
     mocks.initiatePayment.mockReset()
     mocks.acceptOffer.mockReset()
+    mocks.getBookingDetails.mockReset()
+    mocks.putBookingDetails.mockReset()
+    mocks.getBookingDetails.mockRejectedValue(new Error('no details'))
     resetQueryParams()
   })
 
@@ -1685,6 +1693,104 @@ describe('OfferPage — offer v3 flow: acceptance + hotel step (landr-bo0wd.5)',
       mocks.initiatePayment.mock.invocationCallOrder[0],
     )
     expect(navigatedTo).toBe(INITIATE_RESP.checkout_url)
+  })
+
+  it('details pending: the details form comes first, then PUT, then accept, then payment', async () => {
+    mocks.getBookingByToken.mockResolvedValue({
+      ...BASE, offer_requires_acceptance: true, offer_accepted_at: null, offer_hotel_pending: false,
+    })
+    mocks.getBookingDetails.mockResolvedValue(PENDING_DETAILS)
+    mocks.putBookingDetails.mockResolvedValue({ completed: true })
+    mocks.acceptOffer.mockResolvedValue(ACCEPTED)
+    mocks.initiatePayment.mockResolvedValue(INITIATE_RESP)
+    Object.defineProperty(window.location, 'href', {
+      configurable: true,
+      set() {},
+      get() { return `http://stub.invalid/offer/${TOKEN}` },
+    })
+    await ready()
+    await waitFor(() => screen.getByTestId('offer-details-gate'))
+    // no plain Accept button while details are owed, and nothing sent yet
+    expect(screen.queryByTestId('offer-accept-pay-btn')).not.toBeInTheDocument()
+    expect(mocks.acceptOffer).not.toHaveBeenCalled()
+    expect(mocks.putBookingDetails).not.toHaveBeenCalled()
+
+    const set = (id: string, value: string) =>
+      fireEvent.change(screen.getByTestId(id), { target: { value } })
+    set('cf-participant-0-field-weight_kg', '80')
+    set('cf-participant-1-field-weight_kg', '95')
+    expect(screen.getByTestId('cf-submit')).toHaveTextContent('Save and accept')
+    fireEvent.click(screen.getByTestId('cf-submit'))
+
+    await waitFor(() => expect(mocks.initiatePayment).toHaveBeenCalledOnce())
+    expect(mocks.putBookingDetails).toHaveBeenCalledOnce()
+    expect(mocks.acceptOffer).toHaveBeenCalledWith(TOKEN)
+    expect(mocks.putBookingDetails.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.acceptOffer.mock.invocationCallOrder[0],
+    )
+    expect(mocks.acceptOffer.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.initiatePayment.mock.invocationCallOrder[0],
+    )
+  })
+
+  it('no pending details: Accept is the plain button and the form never shows', async () => {
+    mocks.getBookingByToken.mockResolvedValue({
+      ...BASE, offer_requires_acceptance: true, offer_accepted_at: null, offer_hotel_pending: false,
+    })
+    mocks.getBookingDetails.mockResolvedValue({ pending: false })
+    await ready()
+    await waitFor(() => expect(mocks.getBookingDetails).toHaveBeenCalled())
+    expect(screen.queryByTestId('offer-details-gate')).not.toBeInTheDocument()
+    expect(screen.getByTestId('offer-accept-pay-btn')).toBeInTheDocument()
+  })
+
+  it('accept-offer 422 customer_details_required shows the form instead of an error', async () => {
+    mocks.getBookingByToken.mockResolvedValue({
+      ...BASE, offer_requires_acceptance: true, offer_accepted_at: null, offer_hotel_pending: false,
+    })
+    // the early read says nothing is pending (e.g. it failed); the gate then answers 422
+    mocks.getBookingDetails.mockRejectedValueOnce(new Error('rate limited'))
+    mocks.acceptOffer.mockRejectedValueOnce(
+      new HttpError(422, 'Unprocessable', JSON.stringify({ detail: { error: 'customer_details_required' } })),
+    )
+    mocks.getBookingDetails.mockResolvedValueOnce(PENDING_DETAILS)
+    await ready()
+    fireEvent.click(screen.getByRole('button', { name: /accept & pay/i }))
+    await waitFor(() => screen.getByTestId('offer-details-gate'))
+    expect(screen.queryByTestId('offer-accept-error')).not.toBeInTheDocument()
+    expect(mocks.initiatePayment).not.toHaveBeenCalled()
+  })
+
+  it('details pending but no form left: the empty PUT happens within the Accept click, then accept goes through', async () => {
+    mocks.getBookingByToken.mockResolvedValue({
+      ...BASE, offer_requires_acceptance: true, offer_accepted_at: null, offer_hotel_pending: false,
+    })
+    mocks.getBookingDetails.mockResolvedValue({ ...PENDING_DETAILS, forms: [] })
+    mocks.putBookingDetails.mockResolvedValue({ completed: true })
+    mocks.acceptOffer
+      .mockRejectedValueOnce(
+        new HttpError(422, 'Unprocessable', JSON.stringify({ detail: { error: 'customer_details_required' } })),
+      )
+      .mockResolvedValueOnce(ACCEPTED)
+    mocks.initiatePayment.mockResolvedValue(INITIATE_RESP)
+    Object.defineProperty(window.location, 'href', {
+      configurable: true,
+      set() {},
+      get() { return `http://stub.invalid/offer/${TOKEN}` },
+    })
+    await ready()
+    await waitFor(() => expect(mocks.getBookingDetails).toHaveBeenCalled())
+    // nothing is sent on load
+    expect(mocks.putBookingDetails).not.toHaveBeenCalled()
+    expect(screen.queryByTestId('offer-details-gate')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /accept & pay/i }))
+    await waitFor(() => expect(mocks.initiatePayment).toHaveBeenCalledOnce())
+    expect(mocks.putBookingDetails).toHaveBeenCalledWith(TOKEN, { form_responses: [] })
+    expect(mocks.acceptOffer).toHaveBeenCalledTimes(2)
+    expect(screen.queryByTestId('offer-accept-error')).not.toBeInTheDocument()
+    expect(mocks.putBookingDetails.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.acceptOffer.mock.invocationCallOrder[1],
+    )
   })
 
   it('hotel step pending: Accept only, hotel note, no payment', async () => {

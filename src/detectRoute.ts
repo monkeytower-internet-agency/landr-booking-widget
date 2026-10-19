@@ -8,6 +8,7 @@
  *   /cancel/{token}         → renders CancelPage        (preview + cancel-confirm + POST)
  *   /offer/{token}          → renders OfferPage          (review offer + Accept & Pay)
  *   /pay/{token}            → renders OfferPage in mode="pay" (pay outstanding balance_due)
+ *   /details/{token}        → renders DetailsPage        (customer completes pending forms, landr-kcxx5.4)
  *   /reply/{token}/{intent} → renders ApprovalReplyPage  (hotel YES/NO/CHANGES reply)
  *   /i/{token}              → the booking flow, as an INVITE (landr-5lrov)
  *
@@ -45,6 +46,7 @@ const CANCEL_PATH_RE = /^\/cancel\/([A-Za-z0-9._-]+)\/?$/
 // but we accept any non-empty non-slash sequence so a short test token works.
 const OFFER_PATH_RE = /^\/offer\/([^/]+)\/?$/
 const PAY_PATH_RE = /^\/pay\/([^/]+)\/?$/
+const DETAILS_PATH_RE = /^\/details\/([^/]+)\/?$/
 const REPLY_PATH_RE = /^\/reply\/([^/]+)(?:\/(yes|no|changes))?\/?$/
 // landr-5lrov: the short invite link. `/i/{token}` is NOT a separate page —
 // it is the ordinary booking flow entered through an invite, so it is read by
@@ -64,6 +66,7 @@ export function detectRoute(pathname: string):
   | { kind: 'cancel'; token: string }
   | { kind: 'offer'; token: string }
   | { kind: 'pay'; token: string }
+  | { kind: 'details'; token: string }
   | { kind: 'reply'; token: string; intent?: 'yes' | 'no' | 'changes' }
   | { kind: 'booking' } {
   const cm = CANCEL_PATH_RE.exec(pathname)
@@ -72,6 +75,8 @@ export function detectRoute(pathname: string):
   if (om) return { kind: 'offer', token: om[1] }
   const pm = PAY_PATH_RE.exec(pathname)
   if (pm) return { kind: 'pay', token: pm[1] }
+  const dm = DETAILS_PATH_RE.exec(pathname)
+  if (dm) return { kind: 'details', token: dm[1] }
   const rm = REPLY_PATH_RE.exec(pathname)
   if (rm) {
     return {

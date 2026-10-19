@@ -130,3 +130,23 @@ describe('augmentStaffSubmit — staff path (landr-aoak.4 corrected contract)', 
     expect(out.customer_billing).toEqual(billing)
   })
 })
+
+describe('augmentStaffSubmit — customer completes forms', () => {
+  it('always sends customer_completes_forms: true on the staff path', () => {
+    const out = augmentStaffSubmit(baseBody(), {
+      session: activeSession,
+      forced: false,
+    }) as StaffSubmitBody
+    expect(out.customer_completes_forms).toBe(true)
+  })
+
+  it('does not touch the public body (no session)', () => {
+    const body = baseBody()
+    const out = augmentStaffSubmit(body, {
+      session: INACTIVE_STAFF_SESSION,
+      forced: false,
+    })
+    expect(out).toBe(body)
+    expect(out).not.toHaveProperty('customer_completes_forms')
+  })
+})

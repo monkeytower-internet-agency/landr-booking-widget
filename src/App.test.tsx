@@ -25,6 +25,7 @@ const { mocks } = vi.hoisted(() => ({
     // not listLocations, directly.
     listPickupLocationsForOperator: vi.fn(),
     submitBooking: vi.fn(),
+    submitStaffBooking: vi.fn(),
     // landr-fn4i / landr-5krc: default {ok:true} so DetailsStep's email-blur
     // handler never hits the real (unconfigured-in-tests) network path.
     requestSubscriptionPerkOtp: vi.fn(),
@@ -61,6 +62,7 @@ vi.mock('@/api/client', async (importOriginal) => {
     listLocations: mocks.listLocations,
     listPickupLocationsForOperator: mocks.listPickupLocationsForOperator,
     submitBooking: mocks.submitBooking,
+    submitStaffBooking: mocks.submitStaffBooking,
     requestSubscriptionPerkOtp: mocks.requestSubscriptionPerkOtp,
     getHotelsForOperator: mocks.getHotelsForOperator,
     getHotelRoomsForHotel: mocks.getHotelRoomsForHotel,
@@ -4341,6 +4343,303 @@ describe('App', () => {
       expect(entry.answers.language).toBe('en')
     })
 
+    // landr-kcxx5.8: the submitted entries live in the persisted draft, so a
+    // reload BETWEEN two custom forms keeps the first form's response. Without
+    // it the submit carried only the last form and the API 422'd
+    // form_responses_required.
+    it('submits BOTH forms of a two-form product when the page is reloaded between them (landr-kcxx5.8)', async () => {
+      const today = new Date()
+      today.setHours(12, 0, 0, 0)
+      const iso = today.toISOString().slice(0, 10)
+      const base = declarationsFlow()
+      mocks.getProductFlow.mockResolvedValue({
+        modules: [
+          ...base.modules,
+          {
+            kind: 'custom_form',
+            position: 1,
+            form: {
+              key: 'weight_form',
+              version: 1,
+              name: 'Pilot weight',
+              name_localized: null,
+              fields: [
+                {
+                  key: 'weight_kg',
+                  field_type: 'text',
+                  label: 'Weight in kg',
+                  label_localized: null,
+                  help_text: null,
+                  help_text_localized: null,
+                  required: true,
+                  position: 0,
+                  options: null,
+                  validation: null,
+                  visibility_rule: null,
+                },
+              ],
+            },
+          },
+        ],
+      })
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          product_id: 'svc-1',
+          product_kind: 'service',
+          service_time_shape: 'single_date',
+          name: 'Tandem Flight',
+          needs_pickup: false,
+          hotel_offering: 'none',
+        }),
+      ])
+      mocks.getAvailability.mockResolvedValue([
+        {
+          availability_id: 'a-1',
+          date: iso,
+          start_time: null,
+          end_time: null,
+          capacity: 10,
+          capacity_reserved: 0,
+          available_seats: 10,
+          status: 'open',
+        },
+      ])
+      mocks.submitBooking.mockResolvedValue({
+        booking_id: 'bk-1',
+        status: 'confirmed',
+      })
+      const setInput = (name: string, value: string) =>
+        fireEvent.change(
+          document.querySelector<HTMLInputElement>(`input[name="${name}"]`)!,
+          { target: { value } },
+        )
+
+      const rendered = render(<App />)
+      await pickProduct('Tandem Flight')
+      await waitFor(() =>
+        expect(screen.getByText(/Pick a date/i)).toBeInTheDocument(),
+      )
+      const dayButtons = screen
+        .getAllByRole('gridcell')
+        .map((c) => c.querySelector('button'))
+        .filter((b): b is HTMLButtonElement => !!b && !b.disabled)
+      fireEvent.click(dayButtons[0]!)
+      fireEvent.click(await screen.findByRole('button', { name: /continue/i }))
+      await waitFor(() =>
+        expect(screen.getByText(/your contact details/i)).toBeInTheDocument(),
+      )
+      setInput('booker_first_name', 'Ada')
+      setInput('booker_last_name', 'Lovelace')
+      setInput('booker_email', 'ada@example.com')
+      setInput('booker_phone', '+34 600000000')
+      fillBillingFields()
+      fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+
+      // Form 1: declarations.
+      await passLanguageStep()
+      await waitFor(() =>
+        expect(screen.getByTestId('cf-field-license_valid')).toBeInTheDocument(),
+      )
+      fireEvent.click(screen.getByTestId('cf-checkbox-license_valid-yes'))
+      fireEvent.change(screen.getByTestId('cf-field-language'), {
+        target: { value: 'en' },
+      })
+      fireEvent.click(screen.getByTestId('cf-submit'))
+
+      // Form 2 is showing — now reload: in-memory state is gone, only the
+      // sessionStorage draft survives.
+      await waitFor(() =>
+        expect(screen.getByTestId('cf-field-weight_kg')).toBeInTheDocument(),
+      )
+      rendered.unmount()
+      render(<App />)
+      await waitFor(() =>
+        expect(screen.getByTestId('cf-field-weight_kg')).toBeInTheDocument(),
+      )
+      fireEvent.change(screen.getByTestId('cf-field-weight_kg'), {
+        target: { value: '82' },
+      })
+      fireEvent.click(screen.getByTestId('cf-submit'))
+
+      await waitFor(() =>
+        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
+      )
+      fireEvent.click(screen.getByRole('button', { name: /confirm booking/i }))
+
+      await waitFor(() => expect(mocks.submitBooking).toHaveBeenCalled())
+      const submitBody = mocks.submitBooking.mock.calls[0]![0] as {
+        form_responses?: { form_key: string; answers: Record<string, unknown> }[]
+      }
+      const byKey = Object.fromEntries(
+        (submitBody.form_responses ?? []).map((r) => [r.form_key, r]),
+      )
+      expect(Object.keys(byKey).sort()).toEqual([
+        'customer_declarations',
+        'weight_form',
+      ])
+      expect(byKey.customer_declarations!.answers.license_valid).toEqual(['yes'])
+      expect(byKey.weight_form!.answers.weight_kg).toBe('82')
+    })
+
+    // Staff mode: the custom-form step defaults to "customer completes this".
+    describe('staff mode: customer completes the custom form', () => {
+      const staffToken = `${btoa(JSON.stringify({ operator_id: 'op-staff-1' }))}.sig`
+
+      async function driveToCustomForm() {
+        const today = new Date()
+        today.setHours(12, 0, 0, 0)
+        const iso = today.toISOString().slice(0, 10)
+        window.history.replaceState(
+          {},
+          '',
+          `/?w=${MOCK_TOKEN}&staff_session=${encodeURIComponent(staffToken)}`,
+        )
+        mocks.getProductFlow.mockResolvedValue(declarationsFlow())
+        mocks.listProducts.mockResolvedValue([
+          makeProduct({
+            product_id: 'svc-1',
+            product_kind: 'service',
+            service_time_shape: 'single_date',
+            name: 'Tandem Flight',
+            needs_pickup: false,
+            hotel_offering: 'none',
+          }),
+        ])
+        mocks.getAvailability.mockResolvedValue([
+          {
+            availability_id: 'a-1',
+            date: iso,
+            start_time: null,
+            end_time: null,
+            capacity: 10,
+            capacity_reserved: 0,
+            available_seats: 10,
+            status: 'open',
+          },
+        ])
+        mocks.submitStaffBooking.mockResolvedValue({
+          booking_id: 'bk-staff-1',
+          semantic_state: 'pending',
+          customer_details_pending: true,
+        })
+        const setInput = (name: string, value: string) =>
+          fireEvent.change(
+            document.querySelector<HTMLInputElement>(`input[name="${name}"]`)!,
+            { target: { value } },
+          )
+        const rendered = render(<App />)
+        await waitFor(() => screen.getByText('Tandem Flight'))
+        fireEvent.click(screen.getByRole('button', { name: 'Tandem Flight' }))
+        fireEvent.click(await screen.findByTestId('product-detail-book-cta'))
+        await waitFor(() =>
+          expect(screen.getByText(/Pick a date/i)).toBeInTheDocument(),
+        )
+        const dayButtons = screen
+          .getAllByRole('gridcell')
+          .map((c) => c.querySelector('button'))
+          .filter((b): b is HTMLButtonElement => !!b && !b.disabled)
+        fireEvent.click(dayButtons[0]!)
+        fireEvent.click(await screen.findByRole('button', { name: /continue/i }))
+        await waitFor(() =>
+          expect(screen.getByText(/your contact details/i)).toBeInTheDocument(),
+        )
+        setInput('booker_first_name', 'Ada')
+        setInput('booker_last_name', 'Lovelace')
+        setInput('booker_email', 'ada@example.com')
+        setInput('booker_phone', '+34 600000000')
+        fillBillingFields()
+        fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+        await passLanguageStep()
+        await waitFor(() =>
+          expect(screen.getByTestId('cf-customer-completes')).toBeInTheDocument(),
+        )
+        return rendered
+      }
+
+      it('defaults to the compact card, skips the form and sends customer_completes_forms', async () => {
+        await driveToCustomForm()
+        // The form itself is not asked of the operator.
+        expect(screen.queryByTestId('cf-field-license_valid')).toBeNull()
+        fireEvent.click(screen.getByTestId('cf-submit'))
+
+        await waitFor(() =>
+          expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
+        )
+        expect(screen.getByTestId('review-customer-completes')).toHaveTextContent(
+          /Customer completes:.*Eligibility declarations/i,
+        )
+        fireEvent.click(screen.getByRole('button', { name: /confirm booking/i }))
+
+        await waitFor(() => expect(mocks.submitStaffBooking).toHaveBeenCalled())
+        expect(mocks.submitBooking).not.toHaveBeenCalled()
+        const [operatorId, body] = mocks.submitStaffBooking.mock.calls[0]! as [
+          string,
+          { customer_completes_forms?: boolean; form_responses?: unknown },
+        ]
+        expect(operatorId).toBe('op-staff-1')
+        expect(body.customer_completes_forms).toBe(true)
+        expect(body).not.toHaveProperty('form_responses')
+      })
+
+      it('survives a reload: the flag is still sent and the deferred form has no response', async () => {
+        const rendered = await driveToCustomForm()
+        fireEvent.click(screen.getByTestId('cf-submit'))
+        await waitFor(() =>
+          expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
+        )
+        // Reload: in-memory state is gone, only sessionStorage survives.
+        rendered.unmount()
+        render(<App />)
+        await waitFor(() =>
+          expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
+        )
+        expect(screen.getByTestId('review-customer-completes')).toHaveTextContent(
+          /Customer completes:.*Eligibility declarations/i,
+        )
+        fireEvent.click(screen.getByRole('button', { name: /confirm booking/i }))
+
+        await waitFor(() => expect(mocks.submitStaffBooking).toHaveBeenCalled())
+        const body = mocks.submitStaffBooking.mock.calls[0]![1] as {
+          customer_completes_forms?: boolean
+          form_responses?: unknown
+        }
+        expect(body.customer_completes_forms).toBe(true)
+        expect(body).not.toHaveProperty('form_responses')
+      })
+
+      it('"Fill in now instead" submits the answers as form_responses', async () => {
+        await driveToCustomForm()
+        fireEvent.click(screen.getByTestId('cf-fill-in-now'))
+        await waitFor(() =>
+          expect(screen.getByTestId('cf-field-license_valid')).toBeInTheDocument(),
+        )
+        fireEvent.click(screen.getByTestId('cf-checkbox-license_valid-yes'))
+        fireEvent.change(screen.getByTestId('cf-field-language'), {
+          target: { value: 'en' },
+        })
+        fireEvent.click(screen.getByTestId('cf-submit'))
+
+        await waitFor(() =>
+          expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
+        )
+        expect(screen.queryByTestId('review-customer-completes')).toBeNull()
+        fireEvent.click(screen.getByRole('button', { name: /confirm booking/i }))
+
+        await waitFor(() => expect(mocks.submitStaffBooking).toHaveBeenCalled())
+        const body = mocks.submitStaffBooking.mock.calls[0]![1] as {
+          customer_completes_forms?: boolean
+          form_responses?: { form_key: string; answers: Record<string, unknown> }[]
+        }
+        // Always sent in staff mode: the API computes what is still pending
+        // (nothing here — the operator filled the only form in).
+        expect(body.customer_completes_forms).toBe(true)
+        const entry = body.form_responses!.find(
+          (r) => r.form_key === 'customer_declarations',
+        )!
+        expect(entry.answers.license_valid).toEqual(['yes'])
+      })
+    })
+
     it('zero-config product (no remote flow) goes straight to review — identical legacy flow', async () => {
       const today = new Date()
       today.setHours(12, 0, 0, 0)
@@ -4954,6 +5253,42 @@ describe('App', () => {
       // surface is rendered (the restore landed us mid-funnel, not at start).
       expect(screen.queryByTestId('product-grid')).not.toBeInTheDocument()
       expect(screen.queryByTestId('product-list')).not.toBeInTheDocument()
+    })
+
+    it('fresh=1 skips the restore, clears storage and strips the param (staff Add-booking)', async () => {
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({ product_id: 'p-1', slug: 'tandem', name: 'Tandem' }),
+      ])
+      window.sessionStorage.setItem(
+        BOOKING_PROGRESS_STORAGE_KEY,
+        JSON.stringify({
+          step: {
+            name: 'details',
+            product: makeProduct({
+              product_id: 'p-1',
+              slug: 'tandem',
+              name: 'Tandem',
+              service_time_shape: 'days_range',
+            }),
+            selection: { kind: 'days', selectedDays: ['2026-07-01'] },
+          },
+          bookingDraft: {},
+        }),
+      )
+      window.history.replaceState({}, '', `/?w=${MOCK_TOKEN}&fresh=1`)
+      render(<App />)
+      // Starts at the catalogue, NOT on the stale details step.
+      await waitFor(() => {
+        expect(
+          screen.queryByTestId('product-grid') ??
+            screen.queryByTestId('product-list'),
+        ).toBeInTheDocument()
+      })
+      expect(
+        document.querySelector('input[name="booker_first_name"]'),
+      ).not.toBeInTheDocument()
+      expect(window.sessionStorage.getItem(BOOKING_PROGRESS_STORAGE_KEY)).toBeNull()
+      expect(window.location.search).toBe(`?w=${MOCK_TOKEN}`)
     })
 
     // landr-31fq: a genuine sessionStorage reload-restore repopulates

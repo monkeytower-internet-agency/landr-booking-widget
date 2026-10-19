@@ -9,6 +9,8 @@ import type {
 } from '@/components/booking/detailsTypes'
 import {
   buildBreadcrumb,
+  customFormsWithoutResponse,
+  formResponsesFromDraft,
   deriveAccommodationMode,
   detailsFromDraft,
   draftFromStep,
@@ -1324,5 +1326,79 @@ describe('participants position in the step machine (landr-rmcsu.6)', () => {
     const step = detailsFromDraft(makeProduct(), undefined, draft)
     expect(step.selection).toBeUndefined()
     expect(step.participants).toEqual(party)
+  })
+})
+
+describe('customFormsWithoutResponse (staff review: forms the customer completes)', () => {
+  const flow = (...keys: string[]) => ({
+    modules: keys.map((key, position) => ({
+      kind: 'custom_form' as const,
+      position,
+      form: { key, version: 1, name: `Form ${key}`, name_localized: null, fields: [] },
+    })),
+  })
+  const product = makeProduct({ product_kind: 'service', service_time_shape: 'single_date' })
+
+  it('lists every plan form without a response, in plan order, with names', () => {
+    expect(customFormsWithoutResponse(product, flow('a', 'b'), [])).toEqual([
+      { form_key: 'a', name: 'Form a' },
+      { form_key: 'b', name: 'Form b' },
+    ])
+  })
+
+  it('drops forms that have a response', () => {
+    expect(
+      customFormsWithoutResponse(product, flow('a', 'b'), [{ form_key: 'a' }]),
+    ).toEqual([{ form_key: 'b', name: 'Form b' }])
+  })
+
+  it('is undefined with no flow or when every form was answered', () => {
+    expect(customFormsWithoutResponse(product, null, [])).toBeUndefined()
+    expect(
+      customFormsWithoutResponse(product, flow('a'), [{ form_key: 'a' }]),
+    ).toBeUndefined()
+  })
+
+  it('follows the current product: a different product flow yields its own forms', () => {
+    expect(customFormsWithoutResponse(product, flow('x'), [{ form_key: 'a' }])).toEqual([
+      { form_key: 'x', name: 'Form x' },
+    ])
+  })
+})
+
+describe('formResponsesFromDraft (landr-kcxx5.8)', () => {
+  it('returns the persisted entries, keeping per-person answers', () => {
+    const entries = formResponsesFromDraft({
+      customFormResponses: {
+        a: { form_key: 'a', answers: { x: '1' } },
+        b: {
+          form_key: 'b',
+          answers: {},
+          participant_answers: [{ y: ['q'] }],
+        },
+      },
+    })
+    expect(entries.map((e) => e.form_key)).toEqual(['a', 'b'])
+    expect(entries[1]!.participant_answers).toEqual([{ y: ['q'] }])
+  })
+
+  it('is empty without a slot and skips malformed entries instead of throwing', () => {
+    expect(formResponsesFromDraft(undefined)).toEqual([])
+    expect(formResponsesFromDraft({})).toEqual([])
+    const bad = {
+      customFormResponses: {
+        a: null,
+        b: { form_key: 3, answers: {} },
+        c: { form_key: 'c' },
+        d: { form_key: 'd', answers: [] },
+        e: { form_key: 'e', answers: { k: 'v' } },
+      },
+    } as unknown as Parameters<typeof formResponsesFromDraft>[0]
+    expect(formResponsesFromDraft(bad).map((e) => e.form_key)).toEqual(['e'])
+    expect(
+      formResponsesFromDraft({
+        customFormResponses: [] as never,
+      }),
+    ).toEqual([])
   })
 })

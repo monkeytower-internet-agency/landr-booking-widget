@@ -32,6 +32,8 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { StepBackButton } from '@/components/booking/StepBackButton'
 import { useVariant } from '@/lib/variant'
+import { useStaffMode } from '@/lib/staffMode'
+import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { pickLocalized, browserLocale } from '@/lib/locale'
 import { productFormSubtitle, tr, unsupportedFieldTypeLabel } from '@/lib/strings'
@@ -43,6 +45,7 @@ import type {
   ProductFlowResponse,
 } from '@/api/flowTypes'
 import { ContinueAction } from './ContinueAction'
+import { validateField } from './customFormValidation'
 import { CustomerCommentField } from './CustomerCommentField'
 import { isFieldVisible, pruneHiddenAnswers, type AnswerMap } from './fieldVisibility'
 import {
@@ -58,6 +61,7 @@ import {
   type FormPersonSource,
 } from './formScopes'
 import { RankedLanguagePicker } from './RankedLanguagePicker'
+import type { CustomerCompletesForm } from './staffSubmitAdapter'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -114,7 +118,25 @@ export interface CustomFormStepProps {
    */
   customerComment?: string
   onCustomerCommentChange?: (comment: string) => void
-  onBack: () => void
+  /** Absent → no back button (landr-kcxx5.4: the first form of /details). */
+  onBack?: () => void
+  /**
+   * landr-kcxx5.4: the /details/{token} page reuses this step for the
+   * customer-completes-forms flow. `submitLabel` replaces "Continue" on the
+   * final form ("Submit"); `hideCustomerComment` drops the booking-flow-only
+   * "Anything we should know?" field. Both default to the booking-flow look.
+   */
+  submitLabel?: string
+  hideCustomerComment?: boolean
+  /**
+   * Staff mode only. When supplied AND a staff session is active, the step
+   * defaults to a compact "Customer completes this via their booking link"
+   * card; Continue then calls this instead of onConfirm. The operator can
+   * expand the normal form with "Fill in now instead" (onConfirm as usual),
+   * and from the expanded form hand the form back to the customer. Without a
+   * staff session this prop is ignored and the step is byte-identical.
+   */
+  onCustomerCompletes?: (form: CustomerCompletesForm) => void
   /**
    * Called with the pruned answers + form metadata when the customer submits.
    */
@@ -157,111 +179,6 @@ function findFormInFlow(
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-
-/**
- * Validate a single field's answer. Returns an error string or null.
- * Fail-open: a bad validation blob never hard-errors (landr-71kz.2 §C1).
- */
-function validateField(
-  field: FlowFieldDef,
-  answers: AnswerMap,
-  locale: string,
-): string | null {
-  if (!isFieldVisible(field, answers)) return null
-  const rawVal = answers[field.key]
-  const label = pickLocalized(field.label, field.label_localized, locale) || field.key
-
-  // Required check
-  if (field.required) {
-    if (rawVal === undefined || rawVal === null) {
-      return `${label} is required.`
-    }
-    if (Array.isArray(rawVal) && rawVal.length === 0) {
-      return `${label} is required.`
-    }
-    if (typeof rawVal === 'string' && rawVal.trim() === '') {
-      return `${label} is required.`
-    }
-  }
-
-  // Skip validation rules for empty optional fields.
-  if (rawVal === undefined || rawVal === null) return null
-  if (Array.isArray(rawVal) && rawVal.length === 0) return null
-  if (typeof rawVal === 'string' && rawVal.trim() === '' && !field.required) return null
-
-  const v = field.validation
-  if (!v) return null
-
-  try {
-    const strVal = Array.isArray(rawVal) ? rawVal.join(',') : String(rawVal)
-
-    // min_length / max_length (string fields)
-    if (
-      typeof rawVal === 'string' &&
-      (field.field_type === 'text' || field.field_type === 'textarea')
-    ) {
-      if (typeof v.min_length === 'number' && rawVal.length < v.min_length) {
-        return `${label} must be at least ${v.min_length} characters.`
-      }
-      if (typeof v.max_length === 'number' && rawVal.length > v.max_length) {
-        return `${label} must be at most ${v.max_length} characters.`
-      }
-    }
-
-    // landr-9d82r.4: date fields carry "YYYY-MM-DD" (the native control's value).
-    if (field.field_type === 'date' && !/^\d{4}-\d{2}-\d{2}$/.test(strVal)) {
-      return `${label} must be a valid date.`
-    }
-
-    // min / max (number fields)
-    if (field.field_type === 'number') {
-      const num = Number(rawVal)
-      if (!Number.isNaN(num)) {
-        if (typeof v.min === 'number' && num < v.min) {
-          return `${label} must be at least ${v.min}.`
-        }
-        if (typeof v.max === 'number' && num > v.max) {
-          return `${label} must be at most ${v.max}.`
-        }
-      }
-    }
-
-    // pattern (full-match regex, fail-open on uncompilable)
-    if (typeof v.pattern === 'string' && v.pattern) {
-      try {
-        const re = new RegExp(`^(?:${v.pattern})$`)
-        if (!re.test(strVal)) {
-          return `${label} has an invalid format.`
-        }
-      } catch {
-        // Uncompilable pattern → skip (landr-71kz.2 §C1 fail-open).
-      }
-    }
-
-    // options membership (select / radio / checkbox / multiselect)
-    if (
-      field.options &&
-      field.options.length > 0 &&
-      (field.field_type === 'select' ||
-        field.field_type === 'radio' ||
-        field.field_type === 'language' ||
-        field.field_type === 'checkbox' ||
-        field.field_type === 'multiselect')
-    ) {
-      const validValues = field.options.map((o) => o.value)
-      const vals = Array.isArray(rawVal) ? rawVal : [String(rawVal)]
-      for (const v of vals) {
-        if (!validValues.includes(v)) {
-          return `${label} contains an invalid option.`
-        }
-      }
-    }
-  } catch {
-    // Validation blob is bad → skip (fail-open).
-  }
-
-  return null
-}
 
 /** Convert the initial answers (Record<string, unknown>) into a typed AnswerMap. */
 function normaliseInitial(
@@ -608,8 +525,19 @@ export function CustomFormStep({
   customerComment = '',
   onCustomerCommentChange = () => {},
   onBack,
+  submitLabel,
+  hideCustomerComment = false,
+  onCustomerCompletes,
   onConfirm,
 }: CustomFormStepProps) {
+  // Staff mode: the form defaults to "customer completes this". A restored
+  // draft that already holds answers means the operator filled it in earlier,
+  // so it re-opens expanded. Without a staff session none of this is used.
+  const staff = useStaffMode()
+  const staffDeferrable = staff.active && onCustomerCompletes !== undefined
+  const [fillNow, setFillNow] = useState(
+    () => !!initialAnswers && Object.keys(initialAnswers).length > 0,
+  )
   // landr — English-first: render custom forms in English rather than the
   // customer's browser locale (which made para42's "Customer Declarations"
   // show as German "Erklärungen" to German browsers). pickLocalized falls back
@@ -749,7 +677,7 @@ export function CustomFormStep({
     // Validate all visible booking-level fields.
     const errors: Record<string, string> = {}
     for (const field of bookingScopeFields) {
-      const err = validateField(field, answers, locale)
+      const err = validateField(field, answers, locale, uiLocale)
       if (err) errors[field.key] = err
     }
     // landr-9d82r.4: and every visible field of every person.
@@ -757,7 +685,7 @@ export function CustomFormStep({
     for (const person of people) {
       const evalAnswers = personEvalAnswers(person)
       for (const field of personFields(person)) {
-        const err = validateField(field, evalAnswers, locale)
+        const err = validateField(field, evalAnswers, locale, uiLocale)
         if (err) {
           nextPersonErrors[person.key] = {
             ...(nextPersonErrors[person.key] ?? {}),
@@ -805,7 +733,7 @@ export function CustomFormStep({
     const bookingOk = bookingScopeFields.every(
       (field) =>
         !isFieldVisible(field, answers) ||
-        validateField(field, answers, locale) === null,
+        validateField(field, answers, locale, uiLocale) === null,
     )
     if (!bookingOk) return false
     return people.every((person) => {
@@ -814,7 +742,7 @@ export function CustomFormStep({
         personAnswers[person.key],
       )
       return fieldsForKind(allFields, person.kind).every(
-        (field) => validateField(field, evalAnswers, locale) === null,
+        (field) => validateField(field, evalAnswers, locale, uiLocale) === null,
       )
     })
   }, [
@@ -823,6 +751,7 @@ export function CustomFormStep({
     allFields,
     answers,
     locale,
+    uiLocale,
     people,
     prunedBooking,
     personAnswers,
@@ -849,6 +778,9 @@ export function CustomFormStep({
       ? pickLocalized(formDef.name, formDef.name_localized, locale) || formDef.name
       : tr('additionalInformationTitle', uiLocale)
 
+  const showCustomerCard =
+    staffDeferrable && !fillNow && !loading && !fetchError && !!formDef
+
   return (
     <Card>
       <StepBackButton onBack={onBack} />
@@ -857,7 +789,30 @@ export function CustomFormStep({
         <CardDescription>{productFormSubtitle(productName, uiLocale)}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-5">
-        {loading ? (
+        {showCustomerCard ? (
+          <div
+            className="flex flex-col gap-3 rounded-md border border-border bg-surface-raised p-4"
+            data-testid="cf-customer-completes"
+          >
+            <p className="text-sm font-medium">
+              {tr('staffFormCustomerCompletes', uiLocale)}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {tr('staffFormCustomerCompletesHint', uiLocale)}
+            </p>
+            <div>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => setFillNow(true)}
+                data-testid="cf-fill-in-now"
+              >
+                {tr('staffFormFillInNow', uiLocale)}
+              </Button>
+            </div>
+          </div>
+        ) : loading ? (
           <p className="text-sm text-muted-foreground" data-testid="cf-loading">
             {tr('loadingEllipsis', uiLocale)}
           </p>
@@ -943,25 +898,56 @@ export function CustomFormStep({
           </>
         ) : null}
 
+        {staffDeferrable && fillNow && formDef ? (
+          <div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() =>
+                onCustomerCompletes?.({ form_key: formDef.key, name: formTitle })
+              }
+              data-testid="cf-let-customer-complete"
+            >
+              {tr('staffFormLetCustomerComplete', uiLocale)}
+            </Button>
+          </div>
+        ) : null}
+
         {/* landr-n6ii3: same field DetailsStep collects, editable here too —
             last field before Continue. */}
-        <CustomerCommentField
-          value={customerComment}
-          onChange={onCustomerCommentChange}
-          collapsible
-        />
+        {hideCustomerComment ? null : (
+          <CustomerCommentField
+            value={customerComment}
+            onChange={onCustomerCommentChange}
+            collapsible
+          />
+        )}
 
-        <ContinueAction
-          ready={!loading && !fetchError && isFormComplete}
-          reason={
-            isFormComplete
-              ? tr('readyToContinue', uiLocale)
-              : tr('completeEveryRequiredField', uiLocale)
-          }
-          reasonId="cf-step-gate"
-          onContinue={handleSubmit}
-          data-testid="cf-submit"
-        />
+        {showCustomerCard && formDef ? (
+          <ContinueAction
+            ready
+            reason={tr('readyToContinue', uiLocale)}
+            reasonId="cf-step-gate"
+            onContinue={() =>
+              onCustomerCompletes?.({ form_key: formDef.key, name: formTitle })
+            }
+            data-testid="cf-submit"
+          />
+        ) : (
+          <ContinueAction
+            ready={!loading && !fetchError && isFormComplete}
+            reason={
+              isFormComplete
+                ? tr('readyToContinue', uiLocale)
+                : tr('completeEveryRequiredField', uiLocale)
+            }
+            reasonId="cf-step-gate"
+            onContinue={handleSubmit}
+            {...(submitLabel ? { label: submitLabel } : {})}
+            data-testid="cf-submit"
+          />
+        )}
       </CardContent>
     </Card>
   )

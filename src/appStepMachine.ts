@@ -26,6 +26,7 @@ import type {
   ParticipantDetails,
 } from '@/components/booking/detailsTypes'
 import type { Product, ProductGroup, SubmitBookingResponse } from '@/api/types'
+import type { FormResponseEntry, ProductFlowResponse } from '@/api/flowTypes'
 import {
   buildFlowPlan,
   planHasParticipantsFirst,
@@ -122,6 +123,16 @@ export interface BookingDraft {
   // like every other draft slice. Empty/undefined until the customer answers a
   // custom form.
   customFormAnswers?: Record<string, Record<string, unknown>>
+  /**
+   * landr-kcxx5.8: the SUBMITTED form_responses entries (hidden fields pruned,
+   * per-person answers included), keyed by form_key — what CustomFormStep built
+   * on confirm. `customFormAnswers` above is only the RAW answers for re-seeding
+   * the renderer; without this slot a reload lost the entries of every form the
+   * customer had already confirmed, so a multi-form submit carried only the
+   * last form. Written/cleared in lock-step with `customFormAnswers`; a form the
+   * operator hands to the customer (staff mode) has no entry here.
+   */
+  customFormResponses?: Record<string, FormResponseEntry>
   /**
    * landr-r6e5x.4 / epic decision D3: which offered guide language each party
    * member was assigned to, keyed by stable PartyMemberId (participants and
@@ -529,7 +540,7 @@ function planMiddleKinds(
  * legacy plan never contains a custom_form). Drives the FORWARD routing into the
  * custom-form step chain before review.
  */
-function customFormKeysBeforeReview(
+export function customFormKeysBeforeReview(
   product: Product,
   remoteFlow?: RemoteFlow | null,
 ): string[] {
@@ -539,6 +550,31 @@ function customFormKeysBeforeReview(
       m.kind === 'custom_form' && typeof m.formKey === 'string',
     )
     .map((m) => m.formKey)
+}
+
+/**
+ * Staff mode: the product's custom forms (in plan order) that have no
+ * form_response yet, with their display names. These are the forms the customer
+ * completes via their booking link, derived at render time so a reload (which
+ * drops the in-memory responses) can never disagree with what the submit sends.
+ * `undefined` when there is nothing to list.
+ */
+export function customFormsWithoutResponse(
+  product: Product,
+  flow: ProductFlowResponse | null | undefined,
+  formResponses: readonly { form_key: string }[],
+): { form_key: string; name: string }[] | undefined {
+  const names = new Map<string, string>()
+  for (const m of flow?.modules ?? []) {
+    if (m.kind === 'custom_form' && m.form && typeof m.form.name === 'string') {
+      names.set(m.form.key, m.form.name)
+    }
+  }
+  const answered = new Set(formResponses.map((r) => r.form_key))
+  const left = customFormKeysBeforeReview(product, flow ?? null)
+    .filter((key) => !answered.has(key))
+    .map((key) => ({ form_key: key, name: names.get(key) || key }))
+  return left.length > 0 ? left : undefined
 }
 
 /**
@@ -1468,6 +1504,33 @@ export function mergeCapturedDraft(
       ? { ...prev.customFormAnswers, ...captured.customFormAnswers }
       : prev.customFormAnswers,
   }
+}
+
+/**
+ * landr-kcxx5.8: the submit-payload form_responses list, rebuilt from the
+ * persisted draft slot. Defensive: sessionStorage is untrusted shape (there is
+ * no error boundary — a throw here would blank the widget), so any malformed
+ * entry is skipped rather than thrown on.
+ */
+export function formResponsesFromDraft(
+  draft: BookingDraft | undefined,
+): FormResponseEntry[] {
+  const slot = draft?.customFormResponses
+  if (!slot || typeof slot !== 'object' || Array.isArray(slot)) return []
+  const out: FormResponseEntry[] = []
+  for (const entry of Object.values(slot)) {
+    if (
+      entry &&
+      typeof entry === 'object' &&
+      typeof entry.form_key === 'string' &&
+      entry.answers &&
+      typeof entry.answers === 'object' &&
+      !Array.isArray(entry.answers)
+    ) {
+      out.push(entry)
+    }
+  }
+  return out
 }
 
 /**

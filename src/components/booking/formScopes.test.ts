@@ -83,9 +83,9 @@ describe('parseFormResponseErrors', () => {
       2,
     )
     expect(items).toEqual([
-      { fieldKey: 'weight_kg', message: 'weight_kg is required', partyIndex: 1 },
-      { fieldKey: 'diet', message: 'bad option', partyIndex: 2 },
-      { fieldKey: 'licence', message: 'licence: required', partyIndex: null },
+      { formKey: '', fieldKey: 'weight_kg', code: 'required', message: 'weight_kg is required', partyIndex: 1 },
+      { formKey: '', fieldKey: 'diet', code: 'option', message: 'bad option', partyIndex: 2 },
+      { formKey: '', fieldKey: 'licence', code: 'required', message: 'licence: required', partyIndex: null },
     ])
   })
   it('returns null for any other detail', () => {

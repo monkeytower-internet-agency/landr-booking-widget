@@ -196,6 +196,17 @@ describe('detectRoute', () => {
     expect(detectRoute('/paying')).toEqual({ kind: 'booking' })
   })
 
+  // ── landr-kcxx5.4: /details/{token} ────────────────────────────────────
+  it('returns details for /details/{token}, with or without trailing slash', () => {
+    expect(detectRoute('/details/abc.123.def')).toEqual({ kind: 'details', token: 'abc.123.def' })
+    expect(detectRoute('/details/abc.123.def/')).toEqual({ kind: 'details', token: 'abc.123.def' })
+  })
+
+  it('returns booking for /details without a token and for /detailsx', () => {
+    expect(detectRoute('/details')).toEqual({ kind: 'booking' })
+    expect(detectRoute('/detailsx/abc')).toEqual({ kind: 'booking' })
+  })
+
   it('does not regress /cancel/{token} or /offer/{token} routing', () => {
     expect(detectRoute('/cancel/abc.123.sig_-X')).toEqual({
       kind: 'cancel',

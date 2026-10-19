@@ -24,6 +24,7 @@ import type { AddonSelection } from '@/components/booking/addonsState'
 import { CancelPage } from '@/components/booking/CancelPage'
 import { LegalFooter } from '@/components/LegalFooter'
 import { OfferPage } from '@/components/booking/OfferPage'
+import { DetailsPage } from '@/components/booking/DetailsPage'
 import { ApprovalReplyPage } from '@/components/booking/ApprovalReplyPage'
 import { Confirmation } from '@/components/booking/Confirmation'
 import { DetailsStep } from '@/components/booking/DetailsStep'
@@ -96,6 +97,8 @@ import {
   productEntryStep,
   deriveAccommodationMode,
   detailsFromDraft,
+  customFormsWithoutResponse,
+  formResponsesFromDraft,
   frameBackStep,
   participantsBeforeSelection,
   draftFromStep,
@@ -113,6 +116,7 @@ import type { RemoteFlow } from './flowPlan'
 import { BreadcrumbNavContext } from '@/components/booking/breadcrumbNav'
 import {
   clearStoredProgress,
+  consumeFreshStartParam,
   readStoredProgress,
   writeStoredProgress,
 } from './bookingPersistence'
@@ -283,6 +287,23 @@ function App() {
       </VariantProvider>
     )
   }
+  // landr-kcxx5.4: customer completes pending booking forms from an email link.
+  // Token-scoped like /offer and /pay: no operator query param, no operator fetch.
+  if (route.kind === 'details') {
+    return (
+      <VariantProvider value={variantFromLocation()}>
+        <StaffModeProvider>
+          <TierBadge />
+          <div className="min-h-screen embedded:min-h-0 overscroll-y-contain bg-background text-foreground">
+            <div className="mx-auto flex max-w-md flex-col gap-6 p-6 md:max-w-3xl">
+              <DetailsPage token={route.token} />
+              <LegalFooter />
+            </div>
+          </div>
+        </StaffModeProvider>
+      </VariantProvider>
+    )
+  }
   // landr-em0r.9: hotel room-request reply page. Same unauthenticated,
   // pre-BookingFlowApp shell as cancel/offer above — App never fetches
   // operator/product data for this route, and the branded header comes
@@ -393,10 +414,14 @@ function BookingFlowApp() {
   // refresh) should still resume exactly where the customer left off. The
   // prefill effect below is the one that has to defer to a restore, not
   // this memo — see its comment.
-  const restoredProgress = useMemo(
-    () => (token && !product && !group && !invite ? readStoredProgress() : null),
-    [token, product, group, invite],
-  )
+  // `?fresh=1` (the dashboard's staff Add-booking modal, every open) wins over
+  // any restore: consumeFreshStartParam clears the stored progress and strips
+  // the param so an in-iframe reload mid-session restores normally again.
+  const restoredProgress = useMemo(() => {
+    const fresh = consumeFreshStartParam()
+    if (fresh) return null
+    return token && !product && !group && !invite ? readStoredProgress() : null
+  }, [token, product, group, invite])
   const [step, setStep] = useState<Step>(
     () => restoredProgress?.step ?? { name: 'pick-product' },
   )
@@ -646,7 +671,16 @@ function BookingFlowApp() {
   // by form_key. Each custom-form step merges its entry in on confirm.
   // Cleared on full restart (goToProductStep). Sent to BookingForm for the
   // submit payload.
-  const [formResponses, setFormResponses] = useState<FormResponseEntry[]>([])
+  //
+  // landr-kcxx5.8: DERIVED from the persisted draft (bookingDraft.customFormResponses)
+  // rather than held in component state, so a reload between two custom forms
+  // keeps the first form's entry — the submit then carries every confirmed form
+  // instead of only the last one (a missing form 422s form_responses_required).
+  // A full restart clears the draft and so the responses with it.
+  const formResponses = useMemo(
+    () => formResponsesFromDraft(bookingDraft),
+    [bookingDraft],
+  )
   // landr-zenj.1: mirrors PriceSidebar's live estimate un_priceable flag
   // (see PriceSidebar's onUnPriceableChange prop doc). BookingForm is a
   // sibling of PriceSidebar, not a child, so this is how it learns its
@@ -656,16 +690,25 @@ function BookingFlowApp() {
   // landr-h0opd.3: the same estimate's calculated total, for the staff
   // price-override placeholder in BookingForm (same lifting pattern).
   const [estimateTotal, setEstimateTotal] = useState<CalculatedTotal | null>(null)
-  const mergeFormResponse = useCallback((entry: FormResponseEntry) => {
-    setFormResponses((prev) => {
-      const idx = prev.findIndex((e) => e.form_key === entry.form_key)
-      if (idx >= 0) {
-        const next = [...prev]
-        next[idx] = entry
-        return next
-      }
-      return [...prev, entry]
+  // Staff mode: the operator hands a filled-in form back to the customer —
+  // drop its response. Which forms the customer completes is derived at render
+  // time (the product's forms minus those with a response), never kept here.
+  const dropFormResponse = useCallback((formKey: string) => {
+    setBookingDraft((prev) => {
+      if (!prev.customFormResponses?.[formKey]) return prev
+      const next = { ...prev.customFormResponses }
+      delete next[formKey]
+      return { ...prev, customFormResponses: next }
     })
+  }, [])
+  const mergeFormResponse = useCallback((entry: FormResponseEntry) => {
+    setBookingDraft((prev) => ({
+      ...prev,
+      customFormResponses: {
+        ...prev.customFormResponses,
+        [entry.form_key]: entry,
+      },
+    }))
   }, [])
   // landr-71kz.10: the product's operator-configured remote flow
   // (public_get_product_flow). null = no flow fetched / no flow configured /
@@ -1086,8 +1129,16 @@ function BookingFlowApp() {
       // was chosen for (its own max_party_size and seat counts) — clear it
       // too so a stale "5 of you" doesn't seed the new product's stepper.
       setBookingDraft((prev) =>
-        prev.customFormAnswers || prev.partySize !== undefined
-          ? { ...prev, customFormAnswers: undefined, partySize: undefined }
+        prev.customFormAnswers ||
+        prev.customFormResponses ||
+        prev.partySize !== undefined
+          ? {
+              ...prev,
+              customFormAnswers: undefined,
+              // landr-kcxx5.8: the submitted entries belong to the same product.
+              customFormResponses: undefined,
+              partySize: undefined,
+            }
           : prev,
       )
     }
@@ -1213,8 +1264,8 @@ function BookingFlowApp() {
       // Back-to-catalog) is the ONE place the persistent booking-draft is
       // discarded — the customer is starting a brand-new booking.
       setBookingDraft({})
-      // landr-71kz.4: also clear accumulated form_responses on restart.
-      setFormResponses([])
+      // landr-71kz.4: accumulated form_responses live in the draft
+      // (landr-kcxx5.8), so the setBookingDraft({}) above already cleared them.
       // landr-71kz.10 / landr-iyyf fix-forward: drop the cached remote flow
       // AND its promise cache on a full restart so the next product's flow is
       // fetched fresh (a new product is being chosen) — see
@@ -3040,9 +3091,45 @@ function BookingFlowApp() {
                 ),
               )
             }
+            // Staff mode: hand the form to the customer (the staff default).
+            // CustomFormStep only calls this with an active staff session.
+            onCustomerCompletes={(form) => {
+              dropFormResponse(form.form_key)
+              const nextAnswers = { ...bookingDraft.customFormAnswers }
+              delete nextAnswers[step.formKey]
+              mergeDraft({ customFormAnswers: nextAnswers })
+              setStep(
+                stepAfterCustomForm(
+                  {
+                    product: step.product,
+                    selection: step.selection,
+                    booker: step.booker,
+                    participants: step.participants,
+                    companions: step.companions,
+                    pickupLocationId: step.pickupLocationId,
+                    accommodationRooms: step.accommodationRooms,
+                    addons: step.addons,
+                    hotelLocationId: step.hotelLocationId,
+                    hadServiceAddons: step.hadServiceAddons,
+                    includeHotel: step.includeHotel,
+                    isSharedDouble: step.isSharedDouble,
+                    accommodationMode: step.accommodationMode,
+                    roomAssignment: step.roomAssignment,
+                    occupantAgeMap: step.occupantAgeMap,
+                    perRoomAddons: step.perRoomAddons,
+                    roomProductNames: step.roomProductNames,
+                    breakfastMap: step.breakfastMap,
+                  },
+                  step.formKey,
+                  flowForProduct(step.product.product_id),
+                  nextAnswers,
+                ),
+              )
+            }}
             onConfirm={(entry, rawAnswers) => {
               // Accumulate the form response for the submit payload.
               mergeFormResponse(entry)
+
               // Persist the raw answers in the draft so a breadcrumb jump
               // back to a prior step and re-forward restores the form.
               const nextAnswers = {
@@ -3163,6 +3250,14 @@ function BookingFlowApp() {
             // landr-71kz.4: custom form answers collected by CustomFormStep(s).
             // Only sent when at least one form_response was accumulated.
             formResponses={formResponses.length > 0 ? formResponses : undefined}
+            // landr-kcxx5.10: field labels for localized 422 form errors.
+            productFlow={resolvedFlowForProduct(step.product.product_id)}
+            // Staff mode: forms left for the customer (empty otherwise).
+            customerCompletesForms={customFormsWithoutResponse(
+              step.product,
+              resolvedFlowForProduct(step.product.product_id),
+              formResponses,
+            )}
             // landr-fn4i / landr-5krc: top-level lifted state from
             // DetailsStep — see memberPerkOtp's declaration above for why
             // this isn't threaded through step.* like booker/participants.

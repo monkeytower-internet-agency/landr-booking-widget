@@ -110,12 +110,15 @@ import { Label } from '@/components/ui/label'
 import { browserLocale, browserTimezone } from '@/lib/locale'
 import { StepBackButton } from './StepBackButton'
 import { alignFormResponses, parseFormResponseErrors } from './formScopes'
+import type { ProductFlowResponse } from '@/api/flowTypes'
+import { findFlowField, localizeFieldError } from './formErrorText'
 import { Button } from '@/components/ui/button'
 import { useStaffMode, resolveParentTargetOrigin } from '@/lib/staffMode'
 import { OperatorOverrideBadge } from '@/components/booking/OperatorOverrideBadge'
 import type { CalculatedTotal } from '@/components/booking/PriceSidebar'
 import {
   augmentStaffSubmit,
+  type CustomerCompletesForm,
   isStaffSubmitBody,
   type PriceOverride,
 } from './staffSubmitAdapter'
@@ -301,6 +304,19 @@ interface Props {
    * byte-identical to the pre-71kz path. Optional for backward compat.
    */
   formResponses?: import('@/api/flowTypes').FormResponseEntry[]
+  /**
+   * Staff mode only: the custom forms the operator left for the customer to
+   * complete via their booking link (the default in staff mode). Their names
+   * are listed on the review and the submit sends `customer_completes_forms`.
+   * Ignored without an active staff session, so the public path is unchanged.
+   */
+  customerCompletesForms?: CustomerCompletesForm[]
+  /**
+   * landr-kcxx5.10: the product's already-resolved flow (App's cache), used
+   * only to look up field labels/bounds when a form-answer 422 comes back so
+   * its messages can be shown in the customer's language.
+   */
+  productFlow?: ProductFlowResponse | null
   /**
    * landr-fn4i / landr-5krc: the one-time subscription-perk code the
    * customer typed into DetailsStep's optional inline field, lifted live
@@ -601,6 +617,7 @@ const formatHttpError = (
   memberLabels: string[] = [],
   participantCount: number = 0,
   timedSlot: boolean = false,
+  productFlow: ProductFlowResponse | null | undefined = undefined,
 ): string => {
   // landr-r6e5x.4: the typed per-participant-language rejections come first —
   // they are actionable ("go back and assign X") in a way the generic 422
@@ -702,7 +719,15 @@ const formatHttpError = (
   if (err.status === 422 && formErrors && formErrors.length > 0) {
     const lines = formErrors.slice(0, 6).map((item) => {
       const who = item.partyIndex !== null ? memberLabels[item.partyIndex] : undefined
-      return who && who.trim() ? `${who}: ${item.message}` : item.message
+      // landr-kcxx5.10: known codes read in the customer's language, with the
+      // field label from the product flow App already resolved; a field that
+      // cannot be resolved keeps the server's message.
+      const text = localizeFieldError(
+        { field_key: item.fieldKey, code: item.code, message: item.message },
+        findFlowField(productFlow, item.formKey, item.fieldKey),
+        browserLocale(),
+      )
+      return who && who.trim() ? `${who}: ${text}` : text
     })
     return `${tr('formResponsesInvalidIntro', browserLocale())} ${lines.join('; ')}`
   }
@@ -875,6 +900,8 @@ export function BookingForm({
   roomProductNames,
   breakfastMap = {},
   formResponses,
+  customerCompletesForms,
+  productFlow,
   memberPerkOtp,
   inviteToken,
   joinRef,
@@ -910,6 +937,16 @@ export function BookingForm({
   // landr-v78ap: the fixed-price section is a disclosure, collapsed by default.
   // Collapsing clears both inputs so a hidden value is never submitted.
   const [overrideOpen, setOverrideOpen] = useState(false)
+  // A typed fixed price needs a valid amount and a reason; until then Book is
+  // disabled and the offending input is outlined in place.
+  const overrideAmountNum = Number(overrideAmount)
+  const overrideAmountInvalid =
+    canOverridePrice &&
+    overrideAmount.trim() !== '' &&
+    (!Number.isFinite(overrideAmountNum) || overrideAmountNum < 0)
+  const overrideReasonMissing =
+    canOverridePrice && overrideAmount.trim() !== '' && overrideReason.trim() === ''
+  const overrideBlocked = overrideAmountInvalid || overrideReasonMissing
   const collapseOverride = () => {
     setOverrideAmount('')
     setOverrideReason('')
@@ -1532,13 +1569,9 @@ export function BookingForm({
       let priceOverride: PriceOverride | null = null
       if (!buildOffer && canOverridePrice && overrideAmount.trim() !== '') {
         const grossTotal = Number(overrideAmount)
-        if (!Number.isFinite(grossTotal) || grossTotal < 0) {
-          setServerError('Override price must be a non-negative number.')
-          setSubmitting(false)
-          return
-        }
-        if (overrideReason.trim() === '') {
-          setServerError('Please give a reason for the price override.')
+        // Both cases are surfaced inline as field state (overrideBlocked
+        // disables Book and outlines the input); this guard is a no-op backstop.
+        if (!Number.isFinite(grossTotal) || grossTotal < 0 || overrideReason.trim() === '') {
           setSubmitting(false)
           return
         }
@@ -1597,7 +1630,7 @@ export function BookingForm({
       if (err instanceof HttpError) {
         const timedSlot = selection.kind === 'slot' && !!selection.slot.start_time
         setServerError(
-          formatHttpError(err, partyMemberLabels, participants.length, timedSlot),
+          formatHttpError(err, partyMemberLabels, participants.length, timedSlot, productFlow),
         )
         // A stale start time recovers the same way as a full day/slot: the
         // "change" button returns to the picker, which re-fetches availability.
@@ -1928,6 +1961,20 @@ export function BookingForm({
           </section>
         ) : null}
 
+        {/* Staff mode: custom forms the customer fills in themselves via their
+            booking link. Never rendered without an active staff session. */}
+        {staff.active && (customerCompletesForms?.length ?? 0) > 0 ? (
+          <section
+            data-testid="review-customer-completes"
+            className="rounded-lg border bg-surface-raised p-3 text-sm shadow-elev-1"
+          >
+            <span className="font-semibold">
+              {tr('staffReviewCustomerCompletes', locale)}
+            </span>{' '}
+            {customerCompletesForms!.map((f) => f.name).join(', ')}
+          </section>
+        ) : null}
+
         {/* landr-aoak.2 [S3]: force-book summary — shown only when the operator
             (staff mode) pushed this booking past a gate it would normally have
             been blocked by. Makes the override explicit on the review screen
@@ -2034,10 +2081,14 @@ export function BookingForm({
             with the fixed price at creation, so disabled while an amount is
             entered). Both are hidden entirely for normal customers. */}
         <ContinueAction
-          ready={!submitting && !unPriceable}
+          ready={!submitting && !unPriceable && !overrideBlocked}
           reason={
             unPriceable
               ? UN_PRICEABLE_MESSAGE
+              : overrideAmountInvalid
+              ? 'Enter a valid price'
+              : overrideReasonMissing
+              ? 'Give a reason for the fixed price'
               : overlaps.length > 0 && !submitting
                 ? 'This customer already has a booking on these dates. You can still book.'
                 : submitting
@@ -2098,6 +2149,7 @@ export function BookingForm({
                               ? formatOverridePlaceholder(calculatedTotal)
                               : 'e.g. 250.00'
                           }
+                          aria-invalid={overrideAmountInvalid || undefined}
                           value={overrideAmount}
                           onChange={(e) => setOverrideAmount(e.target.value)}
                         />
@@ -2116,7 +2168,8 @@ export function BookingForm({
                           id="override-reason"
                           data-testid="override-reason"
                           type="text"
-                          placeholder="Reason for the override (required when set)"
+                          placeholder="Reason for the fixed price (required)"
+                          aria-invalid={overrideReasonMissing || undefined}
                           value={overrideReason}
                           onChange={(e) => setOverrideReason(e.target.value)}
                         />
