@@ -98,6 +98,7 @@ import {
   deriveAccommodationMode,
   detailsFromDraft,
   customFormsWithoutResponse,
+  formResponsesFromDraft,
   frameBackStep,
   participantsBeforeSelection,
   draftFromStep,
@@ -670,7 +671,16 @@ function BookingFlowApp() {
   // by form_key. Each custom-form step merges its entry in on confirm.
   // Cleared on full restart (goToProductStep). Sent to BookingForm for the
   // submit payload.
-  const [formResponses, setFormResponses] = useState<FormResponseEntry[]>([])
+  //
+  // landr-kcxx5.8: DERIVED from the persisted draft (bookingDraft.customFormResponses)
+  // rather than held in component state, so a reload between two custom forms
+  // keeps the first form's entry — the submit then carries every confirmed form
+  // instead of only the last one (a missing form 422s form_responses_required).
+  // A full restart clears the draft and so the responses with it.
+  const formResponses = useMemo(
+    () => formResponsesFromDraft(bookingDraft),
+    [bookingDraft],
+  )
   // landr-zenj.1: mirrors PriceSidebar's live estimate un_priceable flag
   // (see PriceSidebar's onUnPriceableChange prop doc). BookingForm is a
   // sibling of PriceSidebar, not a child, so this is how it learns its
@@ -684,18 +694,21 @@ function BookingFlowApp() {
   // drop its response. Which forms the customer completes is derived at render
   // time (the product's forms minus those with a response), never kept here.
   const dropFormResponse = useCallback((formKey: string) => {
-    setFormResponses((prev) => prev.filter((e) => e.form_key !== formKey))
+    setBookingDraft((prev) => {
+      if (!prev.customFormResponses?.[formKey]) return prev
+      const next = { ...prev.customFormResponses }
+      delete next[formKey]
+      return { ...prev, customFormResponses: next }
+    })
   }, [])
   const mergeFormResponse = useCallback((entry: FormResponseEntry) => {
-    setFormResponses((prev) => {
-      const idx = prev.findIndex((e) => e.form_key === entry.form_key)
-      if (idx >= 0) {
-        const next = [...prev]
-        next[idx] = entry
-        return next
-      }
-      return [...prev, entry]
-    })
+    setBookingDraft((prev) => ({
+      ...prev,
+      customFormResponses: {
+        ...prev.customFormResponses,
+        [entry.form_key]: entry,
+      },
+    }))
   }, [])
   // landr-71kz.10: the product's operator-configured remote flow
   // (public_get_product_flow). null = no flow fetched / no flow configured /
@@ -1116,8 +1129,16 @@ function BookingFlowApp() {
       // was chosen for (its own max_party_size and seat counts) — clear it
       // too so a stale "5 of you" doesn't seed the new product's stepper.
       setBookingDraft((prev) =>
-        prev.customFormAnswers || prev.partySize !== undefined
-          ? { ...prev, customFormAnswers: undefined, partySize: undefined }
+        prev.customFormAnswers ||
+        prev.customFormResponses ||
+        prev.partySize !== undefined
+          ? {
+              ...prev,
+              customFormAnswers: undefined,
+              // landr-kcxx5.8: the submitted entries belong to the same product.
+              customFormResponses: undefined,
+              partySize: undefined,
+            }
           : prev,
       )
     }
@@ -1243,8 +1264,8 @@ function BookingFlowApp() {
       // Back-to-catalog) is the ONE place the persistent booking-draft is
       // discarded — the customer is starting a brand-new booking.
       setBookingDraft({})
-      // landr-71kz.4: also clear accumulated form_responses on restart.
-      setFormResponses([])
+      // landr-71kz.4: accumulated form_responses live in the draft
+      // (landr-kcxx5.8), so the setBookingDraft({}) above already cleared them.
       // landr-71kz.10 / landr-iyyf fix-forward: drop the cached remote flow
       // AND its promise cache on a full restart so the next product's flow is
       // fetched fresh (a new product is being chosen) — see

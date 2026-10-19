@@ -26,7 +26,7 @@ import type {
   ParticipantDetails,
 } from '@/components/booking/detailsTypes'
 import type { Product, ProductGroup, SubmitBookingResponse } from '@/api/types'
-import type { ProductFlowResponse } from '@/api/flowTypes'
+import type { FormResponseEntry, ProductFlowResponse } from '@/api/flowTypes'
 import {
   buildFlowPlan,
   planHasParticipantsFirst,
@@ -123,6 +123,16 @@ export interface BookingDraft {
   // like every other draft slice. Empty/undefined until the customer answers a
   // custom form.
   customFormAnswers?: Record<string, Record<string, unknown>>
+  /**
+   * landr-kcxx5.8: the SUBMITTED form_responses entries (hidden fields pruned,
+   * per-person answers included), keyed by form_key — what CustomFormStep built
+   * on confirm. `customFormAnswers` above is only the RAW answers for re-seeding
+   * the renderer; without this slot a reload lost the entries of every form the
+   * customer had already confirmed, so a multi-form submit carried only the
+   * last form. Written/cleared in lock-step with `customFormAnswers`; a form the
+   * operator hands to the customer (staff mode) has no entry here.
+   */
+  customFormResponses?: Record<string, FormResponseEntry>
   /**
    * landr-r6e5x.4 / epic decision D3: which offered guide language each party
    * member was assigned to, keyed by stable PartyMemberId (participants and
@@ -1494,6 +1504,33 @@ export function mergeCapturedDraft(
       ? { ...prev.customFormAnswers, ...captured.customFormAnswers }
       : prev.customFormAnswers,
   }
+}
+
+/**
+ * landr-kcxx5.8: the submit-payload form_responses list, rebuilt from the
+ * persisted draft slot. Defensive: sessionStorage is untrusted shape (there is
+ * no error boundary — a throw here would blank the widget), so any malformed
+ * entry is skipped rather than thrown on.
+ */
+export function formResponsesFromDraft(
+  draft: BookingDraft | undefined,
+): FormResponseEntry[] {
+  const slot = draft?.customFormResponses
+  if (!slot || typeof slot !== 'object' || Array.isArray(slot)) return []
+  const out: FormResponseEntry[] = []
+  for (const entry of Object.values(slot)) {
+    if (
+      entry &&
+      typeof entry === 'object' &&
+      typeof entry.form_key === 'string' &&
+      entry.answers &&
+      typeof entry.answers === 'object' &&
+      !Array.isArray(entry.answers)
+    ) {
+      out.push(entry)
+    }
+  }
+  return out
 }
 
 /**
