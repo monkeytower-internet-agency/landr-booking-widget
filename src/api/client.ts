@@ -16,15 +16,22 @@ import type {
   Location,
   MeetingPoint,
   OperatorSettings,
+  PriceAdjustment,
   Product,
   ProductAddon,
   ProductGroup,
+  SavingLine,
   ServiceRole,
   StaffSubmitBody,
   SubmitBookingBody,
   SubmitBookingResponse,
 } from './types'
 import type { ProductFlowResponse } from './flowTypes'
+import type {
+  CustomerDetails,
+  CustomerDetailsPutBody,
+  DetailsFieldError,
+} from './customerDetailsTypes'
 import {
   mockAvailability,
   mockEstimate,
@@ -1148,6 +1155,24 @@ export interface PublicBookingOffer {
    * alone also covers a hotel that was never asked.
    */
   offer_hotel_confirmed?: boolean | null
+  /**
+   * landr-1l6hl.4 (landr-api #1111): the offer-aware savings block of /pay.
+   * `line_items` stay LIST-priced, so the page reads list price →
+   * `savings` rows (special price / offer discount / group discount / free
+   * spots, or a legacy `price_adjustment`) → `amount_due`. All optional for
+   * rolling deploy; absent (older API, or a booking without a persisted
+   * price breakdown) keeps today's net/tax/amount-due rendering. The
+   * operator's reason for a special price is staff-only and not in here.
+   * `price_source`: 'special_price' | 'custom_offer' | 'imported_price' |
+   * 'price_override' | null. When it is set, `totals.operator_*` already
+   * equal the amount due (re-based onto the offer price).
+   */
+  savings?: SavingLine[] | null
+  savings_total?: string | null
+  subtotal_before_savings?: string | null
+  amount_due?: string | null
+  price_adjustment?: PriceAdjustment | null
+  price_source?: string | null
 }
 
 /**
@@ -1202,6 +1227,50 @@ export async function getBookingByToken(
   return http<PublicBookingOffer>(
     `/api/public/bookings/${encodeURIComponent(token)}`,
   )
+}
+
+/**
+ * landr-kcxx5.4: the forms a customer still owes for this booking (READ ONLY,
+ * so an email-link prefetcher GETting /details/{token} is harmless). 401 bad
+ * token, 404 unknown booking, 429 rate limited. No mock fallback.
+ */
+export async function getBookingDetails(
+  token: string,
+): Promise<CustomerDetails> {
+  return http<CustomerDetails>(
+    `/api/public/bookings/${encodeURIComponent(token)}/details`,
+  )
+}
+
+/**
+ * Save the customer's answers (landr-kcxx5.4). Called ONLY from the Submit
+ * click, never on mount. 422 `form_responses_invalid` (see
+ * `detailsFieldErrors`), 409 `customer_details_already_complete` /
+ * `booking_closed` (see `conflictErrorCode`).
+ */
+export async function putBookingDetails(
+  token: string,
+  body: CustomerDetailsPutBody,
+): Promise<{ completed: boolean }> {
+  return http<{ completed: boolean }>(
+    `/api/public/bookings/${encodeURIComponent(token)}/details`,
+    { method: 'PUT', body: JSON.stringify(body) },
+  )
+}
+
+/** True for accept-offer's 422 "the customer still owes their details". */
+export function isCustomerDetailsRequired(err: unknown): boolean {
+  if (!(err instanceof HttpError) || err.status !== 422) return false
+  const detail = err.detail as { error?: unknown } | undefined
+  return detail?.error === 'customer_details_required'
+}
+
+/** The per-field errors of the PUT's 422 `form_responses_invalid`, else null. */
+export function detailsFieldErrors(err: unknown): DetailsFieldError[] | null {
+  if (!(err instanceof HttpError) || err.status !== 422) return null
+  const detail = err.detail as { error?: unknown; errors?: unknown } | undefined
+  if (detail?.error !== 'form_responses_invalid') return null
+  return Array.isArray(detail.errors) ? (detail.errors as DetailsFieldError[]) : []
 }
 
 /**

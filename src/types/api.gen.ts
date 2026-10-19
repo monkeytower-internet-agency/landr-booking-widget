@@ -2600,6 +2600,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/public/bookings/{token}/details": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Booking Details
+         * @description The forms the customer still owes (or has answered) for this booking.
+         *
+         *     ``pending`` is true while the operator is waiting for the answers. The
+         *     call also works once complete (``pending: false``) so the page can say so.
+         */
+        get: operations["public_get_booking_details"];
+        /**
+         * Put Booking Details
+         * @description Save the customer's answers and clear the pending state.
+         *
+         *     Validated with the booking submit's validators (booking + person scope,
+         *     visibility, required-when-visible); a form left out counts as empty, so a
+         *     missing required answer is 422 ``form_responses_invalid`` (errors carry
+         *     ``booking_participant_id`` for per-person ones). Replaces whatever staff
+         *     pre-filled (``answered_by`` becomes ``customer``). 409
+         *     ``customer_details_already_complete`` when nothing is pending.
+         */
+        put: operations["public_put_booking_details"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/public/briefings/{token}": {
         parameters: {
             query?: never;
@@ -4540,6 +4574,30 @@ export interface paths {
          *     bookings list uses, so a customer name finds its cancelled booking.
          */
         get: operations["staff_list_cancelled_bookings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/bookings/payment-link-missing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Payment Link Missing
+         * @description Booking ids whose ``payment_link_missing`` flag is true.
+         *
+         *     No ``ids`` -> every flagged booking of the operator; with repeated ``ids``
+         *     -> only those among them (the page being rendered). Operator-scoped:
+         *     another operator's ids are never reported.
+         */
+        get: operations["staff_list_payment_link_missing"];
         put?: never;
         post?: never;
         delete?: never;
@@ -12825,6 +12883,8 @@ export interface components {
             lines: components["schemas"]["CustomOfferLineOut"][];
             /** Net Total */
             net_total: string;
+            /** Note */
+            note?: string | null;
             /** Offer Accepted At */
             offer_accepted_at?: string | null;
             /**
@@ -12861,6 +12921,8 @@ export interface components {
             offer_sent_at?: string | null;
             /** Offer Total */
             offer_total?: string | null;
+            /** Origin */
+            origin?: string | null;
             /**
              * Original Total
              * @default 0
@@ -12932,6 +12994,46 @@ export interface components {
             rounding: string;
             /** Target Total */
             target_total: string | null;
+        };
+        /** CustomerDetailsFormIn */
+        CustomerDetailsFormIn: {
+            /** Answers */
+            answers?: {
+                [key: string]: unknown;
+            };
+            /** Form Key */
+            form_key: string;
+            /** People */
+            people?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            };
+        };
+        /** CustomerDetailsIn */
+        CustomerDetailsIn: {
+            /** Form Responses */
+            form_responses?: components["schemas"]["CustomerDetailsFormIn"][];
+        };
+        /** CustomerDetailsOut */
+        CustomerDetailsOut: {
+            /** Answers */
+            answers?: components["schemas"]["DetailsFormAnswers"][];
+            /** Completed At */
+            completed_at?: string | null;
+            /** Forms */
+            forms?: components["schemas"]["DetailsProductForms"][];
+            /** Pending */
+            pending: boolean;
+            /** People */
+            people?: components["schemas"]["DetailsPerson"][];
+            /** Requested At */
+            requested_at?: string | null;
+        };
+        /** CustomerDetailsSavedOut */
+        CustomerDetailsSavedOut: {
+            /** Completed */
+            completed: boolean;
         };
         /** CustomerSignoffIn */
         CustomerSignoffIn: {
@@ -13390,6 +13492,58 @@ export interface components {
             /** Unit Id */
             unit_id?: string | null;
         };
+        /**
+         * DetailsFormAnswers
+         * @description Answers of one form, in the shape PUT takes: booking-scope ``answers``
+         *     plus ``people`` keyed by booking_participant_id.
+         */
+        DetailsFormAnswers: {
+            /** Answers */
+            answers?: {
+                [key: string]: unknown;
+            };
+            /** Form Key */
+            form_key: string;
+            /** People */
+            people?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            };
+        };
+        /**
+         * DetailsPerson
+         * @description One person of the booking. ``booking_participant_id`` is the stable key
+         *     per-person answers travel under; ``participant`` = a guiding participant
+         *     (answers participant- AND guest-scope fields), ``guest`` = a companion
+         *     (guest-scope fields only).
+         */
+        DetailsPerson: {
+            /** Booking Participant Id */
+            booking_participant_id: string;
+            /** Display Name */
+            display_name: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "participant" | "guest";
+        };
+        /**
+         * DetailsProductForms
+         * @description The custom forms of one product line. ``modules`` are the product
+         *     flow's ``custom_form`` modules in the exact shape of
+         *     ``GET /api/public/operators/{token}/products/{id}/flow`` (form key /
+         *     version / name / ordered fields with visibility_rule, scope ...).
+         */
+        DetailsProductForms: {
+            /** Modules */
+            modules?: components["schemas"]["FlowModuleDef"][];
+            /** Product Id */
+            product_id: string;
+            /** Product Name */
+            product_name: string;
+        };
         /** DevToStagingIn */
         DevToStagingIn: {
             /**
@@ -13509,6 +13663,8 @@ export interface components {
         EmailPreview: {
             /** Html */
             html: string;
+            /** Offer Sent */
+            offer_sent?: boolean | null;
             /** Reason */
             reason?: string | null;
             /** Reason Stage */
@@ -14021,6 +14177,8 @@ export interface components {
         FormAnswerOut: {
             /** Answered */
             answered: boolean;
+            /** Answered By */
+            answered_by?: ("customer" | "staff") | null;
             /** Field Key */
             field_key: string;
             /** Field Type */
@@ -16901,6 +17059,10 @@ export interface components {
             override_gross_total: string | null;
             /** Override Reason */
             override_reason: string | null;
+            /** Regular Total */
+            regular_total?: string | null;
+            /** Special Price */
+            special_price?: string | null;
         };
         /** PriceRuleOut */
         PriceRuleOut: {
@@ -17047,12 +17209,24 @@ export interface components {
             /** Line Items */
             line_items?: components["schemas"]["PricingBreakdownLineItem"][];
             multi_day_savings?: components["schemas"]["MultiDaySavingsOut"] | null;
+            /** Offer */
+            offer?: {
+                [key: string]: unknown;
+            } | null;
             /** Operator Total */
             operator_total: string;
+            /** Price Adjustment */
+            price_adjustment?: {
+                [key: string]: string;
+            } | null;
+            /** Price Source */
+            price_source?: string | null;
             /** Savings */
             savings?: components["schemas"]["SavingLineOut"][] | null;
             /** Savings Total */
             savings_total?: string | null;
+            /** Special Price Note */
+            special_price_note?: string | null;
             /** Subtotal Before Savings */
             subtotal_before_savings?: string | null;
         } & {
@@ -17990,6 +18164,8 @@ export interface components {
          *     this forward-compatible with RPC columns not yet consumed here.
          */
         PublicBookingOffer: {
+            /** Amount Due */
+            amount_due?: string | null;
             /** Booking Id */
             booking_id: string;
             /** Cancellation Deadline */
@@ -18027,11 +18203,23 @@ export interface components {
             periods?: {
                 [key: string]: unknown;
             }[];
+            /** Price Adjustment */
+            price_adjustment?: {
+                [key: string]: string;
+            } | null;
+            /** Price Source */
+            price_source?: string | null;
             /** Product Lines */
             product_lines?: components["schemas"]["OfferProductLine"][];
+            /** Savings */
+            savings?: components["schemas"]["SavingLineOut"][] | null;
+            /** Savings Total */
+            savings_total?: string | null;
             /** Show Savings */
             show_savings?: boolean | null;
             stage?: components["schemas"]["CustomerStageLabel"] | null;
+            /** Subtotal Before Savings */
+            subtotal_before_savings?: string | null;
             totals: components["schemas"]["OfferTotals"];
         } & {
             [key: string]: unknown;
@@ -19790,6 +19978,15 @@ export interface components {
             /** Name */
             name: string;
         };
+        /**
+         * SendConfirmationBody
+         * @description ``email_override`` (landr-j6clr.1) plus the payment-link switch.
+         */
+        SendConfirmationBody: {
+            email_override?: components["schemas"]["EmailOverrideIn"] | null;
+            /** Include Payment Link */
+            include_payment_link?: boolean | null;
+        };
         /** SendMessageRequest */
         SendMessageRequest: {
             /** Body */
@@ -20216,6 +20413,11 @@ export interface components {
             customer_billing?: components["schemas"]["BillingAddressIn"] | null;
             /** Customer Comment */
             customer_comment?: string | null;
+            /**
+             * Customer Completes Forms
+             * @default false
+             */
+            customer_completes_forms: boolean;
             /** Customer Declarations */
             customer_declarations?: {
                 [key: string]: boolean;
@@ -20238,6 +20440,8 @@ export interface components {
             customer_preferred_locale?: string | null;
             /** Force Book Reason */
             force_book_reason?: string | null;
+            /** Form Responses */
+            form_responses?: components["schemas"]["FormResponseIn"][] | null;
             /**
              * Ignore Capacity
              * @default false
@@ -20400,12 +20604,18 @@ export interface components {
         };
         /** StageMailOptions */
         StageMailOptions: {
+            /** Already Sent */
+            already_sent?: string[];
+            /** Blocked Reason */
+            blocked_reason?: string | null;
             /** Canonical */
             canonical: boolean;
             /** Customer */
             customer: string[];
             /** Hotel */
             hotel: string[];
+            /** Offer Sent */
+            offer_sent?: boolean | null;
         };
         /**
          * StagingActivityIn
@@ -25216,6 +25426,72 @@ export interface operations {
             };
         };
     };
+    public_get_booking_details: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerDetailsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_put_booking_details: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CustomerDetailsIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerDetailsSavedOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     public_get_briefing: {
         parameters: {
             query?: never;
@@ -28029,6 +28305,41 @@ export interface operations {
             };
         };
     };
+    staff_list_payment_link_missing: {
+        parameters: {
+            query?: {
+                ids?: string[] | null;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string[];
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     quick_create_booking: {
         parameters: {
             query?: never;
@@ -29528,7 +29839,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["SendWithOverrideBody"] | null;
+                "application/json": components["schemas"]["SendConfirmationBody"] | null;
             };
         };
         responses: {

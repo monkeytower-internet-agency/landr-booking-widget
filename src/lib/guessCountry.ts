@@ -4,6 +4,9 @@
  * Chain, first hit wins, each step best-effort (never throws):
  *   (a) GET <widget origin>/geo -> {country} from the Cloudflare Pages
  *       Function functions/geo.ts (request.cf.country), 1500 ms timeout.
+ *   (a') the browser's IANA timezone -> country (landr-3a8mh.1). Stands in for
+ *       (a) when the widget is served from Firebase Hosting, which has no edge
+ *       geo: there /geo hits the SPA rewrite, the HTML fails to parse -> null.
  *   (b) first navigator.languages entry that carries a region subtag
  *       (de-DE -> DE; a bare "de" says nothing about the country -> skipped).
  *   (c) the operator's own country from the widget config (settings).
@@ -48,6 +51,18 @@ export async function geoCountry(origin = widgetOrigin()): Promise<string | null
   }
 }
 
+export async function timezoneCountry(): Promise<string | null> {
+  try {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
+    if (!tz) return null
+    // Lazy: the ~550-zone table stays out of the main bundle.
+    const { TZ_COUNTRIES } = await import('./tzCountries.gen')
+    return normalizeCountryCode(TZ_COUNTRIES[tz])
+  } catch {
+    return null
+  }
+}
+
 export function localeCountry(): string | null {
   if (typeof navigator === 'undefined') return null
   const langs: readonly string[] =
@@ -69,6 +84,9 @@ export async function guessCountry(
   operatorCountry?: string | null,
 ): Promise<string | null> {
   return (
-    (await geoCountry()) ?? localeCountry() ?? normalizeCountryCode(operatorCountry)
+    (await geoCountry()) ??
+    (await timezoneCountry()) ??
+    localeCountry() ??
+    normalizeCountryCode(operatorCountry)
   )
 }

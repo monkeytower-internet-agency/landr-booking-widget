@@ -13,6 +13,7 @@ import type { BookerDetails } from './components/booking/detailsTypes'
 import {
   BOOKING_PROGRESS_STORAGE_KEY,
   clearStoredProgress,
+  consumeFreshStartParam,
   readStoredProgress,
   writeStoredProgress,
 } from './bookingPersistence'
@@ -512,5 +513,40 @@ describe('booker.joins persistence (landr-jiagg.2)', () => {
     const restored = readStoredProgress()!
     expect(restored.bookingDraft.booker!.joins).toBe(true)
     expect((restored.step as unknown as { booker: BookerDetails }).booker.joins).toBe(true)
+  })
+})
+
+describe('consumeFreshStartParam (staff Add-booking fresh start)', () => {
+  afterEach(() => {
+    window.history.replaceState(null, '', '/')
+  })
+
+  it('clears stored progress and strips only the fresh param', async () => {
+    writeStoredProgress({ step: detailsStep, bookingDraft: draft })
+    window.history.replaceState(null, '', '/?w=tok&fresh=1&product=x#h')
+    expect(consumeFreshStartParam()).toBe(true)
+    expect(window.sessionStorage.getItem(BOOKING_PROGRESS_STORAGE_KEY)).toBeNull()
+    expect(window.location.search).toBe('?w=tok&product=x')
+    expect(window.location.hash).toBe('#h')
+    // StrictMode double-invoke in the same pass still reports fresh...
+    expect(consumeFreshStartParam()).toBe(true)
+    // ...but it never leaks into a later mount.
+    await Promise.resolve()
+    expect(consumeFreshStartParam()).toBe(false)
+  })
+
+  it('is a no-op without the param (an in-iframe reload still restores)', () => {
+    writeStoredProgress({ step: detailsStep, bookingDraft: draft })
+    window.history.replaceState(null, '', '/?w=tok')
+    expect(consumeFreshStartParam()).toBe(false)
+    expect(readStoredProgress()).not.toBeNull()
+    expect(window.location.search).toBe('?w=tok')
+  })
+
+  it('ignores fresh values other than 1', () => {
+    writeStoredProgress({ step: detailsStep, bookingDraft: draft })
+    window.history.replaceState(null, '', '/?w=tok&fresh=0')
+    expect(consumeFreshStartParam()).toBe(false)
+    expect(readStoredProgress()).not.toBeNull()
   })
 })

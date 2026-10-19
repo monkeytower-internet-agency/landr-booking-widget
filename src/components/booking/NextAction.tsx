@@ -27,6 +27,8 @@ export interface NextActionProps {
   active: boolean
   /** Lower-case cue after "Next:", e.g. "pick a language for Thomas". */
   cue: string
+  /** Replaces the whole "Next: <cue>" label, e.g. a final step's "Last step: …". */
+  label?: string
   children: ReactNode
   className?: string
   'data-testid'?: string
@@ -35,6 +37,7 @@ export interface NextActionProps {
 export function NextAction({
   active,
   cue,
+  label,
   children,
   className,
   'data-testid': testId,
@@ -51,7 +54,7 @@ export function NextAction({
     >
       {active ? (
         <p className="text-xs font-semibold text-primary" data-testid="next-action-cue">
-          {tr('nextActionPrefix', browserLocale())} {cue}
+          {label ?? `${tr('nextActionPrefix', browserLocale())} ${cue}`}
         </p>
       ) : null}
       {children}

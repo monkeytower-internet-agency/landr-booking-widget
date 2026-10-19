@@ -17,7 +17,7 @@
  *     code into one blob `looksLikeCode` then correctly-but-uselessly
  *     rejected — hiding the genuine text inside it instead of flagging it.
  *  3. `looksLikeCode`'s `/[{}();]/` check treated ANY parenthetical aside
- *     ("Email (optional)", "Reason for the override (required when set)")
+ *     ("Email (optional)", "Reason for the fixed price (required)")
  *     as code, and the attribute scan only covered aria-label/placeholder/
  *     title/alt — missing `label=` and other text-bearing component props
  *     (`heading=` on AddonsList, for one).
@@ -100,7 +100,7 @@ const ALLOWED_LITERALS: Record<string, string[]> = {
     'Set a fixed price instead',
     'Clear the fixed price to build an offer instead',
     'Book &amp; build offer',
-    '[placeholder] Reason for the override (required when set)',
+    '[placeholder] Reason for the fixed price (required)',
     // landr-h0opd.3: staff-only "Calculated: 250.00 EUR" line under the override input.
     'Calculated:',
     // landr-my6fc.7: staff-only overlap warning (overlaps only load in staff mode).

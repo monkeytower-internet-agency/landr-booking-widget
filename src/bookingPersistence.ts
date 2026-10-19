@@ -336,3 +336,39 @@ export function clearStoredProgress(): void {
     // ignore — blocked storage. Nothing was persisted, nothing to clear.
   }
 }
+
+/**
+ * Fresh-start signal. The embedding dashboard's staff "Add booking" modal
+ * opens the widget with `&fresh=1` so every open starts with an empty funnel
+ * (a cross-origin parent cannot clear this origin's sessionStorage itself).
+ *
+ * When the param is present: drop any persisted progress and strip the param
+ * from the URL (history.replaceState) so a later in-iframe reload restores
+ * normal mid-session progress. Returns true when a fresh start was requested.
+ *
+ * Idempotent within one synchronous render pass: React StrictMode invokes
+ * useMemo callbacks twice, and the second call must still see `true` even
+ * though the first already stripped the param. The memo is dropped on the
+ * next microtask so it never leaks into a later, unrelated mount.
+ */
+let freshConsumed: { search: string } | null = null
+
+export function consumeFreshStartParam(): boolean {
+  if (typeof window === 'undefined') return false
+  try {
+    const url = new URL(window.location.href)
+    if (url.searchParams.get('fresh') !== '1') {
+      return freshConsumed?.search === url.search
+    }
+    clearStoredProgress()
+    url.searchParams.delete('fresh')
+    window.history.replaceState(window.history.state, '', url.toString())
+    freshConsumed = { search: new URL(window.location.href).search }
+    queueMicrotask(() => {
+      freshConsumed = null
+    })
+    return true
+  } catch {
+    return false
+  }
+}

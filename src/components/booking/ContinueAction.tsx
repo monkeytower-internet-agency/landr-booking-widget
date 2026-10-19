@@ -37,6 +37,12 @@ export interface ContinueActionProps {
   /** Defaults to `ready`. */
   active?: boolean
   label?: ReactNode
+  /** Replaces the box's "Next: continue" label (see NextAction's `label`). */
+  cueLabel?: string
+  /** Extra controls inside the box, above the reason + button row. */
+  above?: ReactNode
+  /** Extra controls inside the box, below the reason + button row. */
+  below?: ReactNode
   'data-testid'?: string
   /** data-testid for the reason line. */
   reasonTestId?: string
@@ -50,11 +56,20 @@ export function ContinueAction({
   onContinue,
   active = ready,
   label = tr('continueLabel', browserLocale()),
+  cueLabel,
+  above,
+  below,
   'data-testid': testId,
   reasonTestId,
 }: ContinueActionProps) {
   return (
-    <NextAction active={active} cue={tr('continueCue', browserLocale())} className="mt-2">
+    <NextAction
+      active={active}
+      cue={tr('continueCue', browserLocale())}
+      label={cueLabel}
+      className="mt-2"
+    >
+      {above}
       <div className="flex items-center justify-end gap-3">
         <p
           id={reasonId}
@@ -75,6 +90,7 @@ export function ContinueAction({
           {label}
         </Button>
       </div>
+      {below}
     </NextAction>
   )
 }
