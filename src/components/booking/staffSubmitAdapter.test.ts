@@ -132,32 +132,19 @@ describe('augmentStaffSubmit — staff path (landr-aoak.4 corrected contract)', 
 })
 
 describe('augmentStaffSubmit — customer completes forms', () => {
-  it('sends customer_completes_forms: true when a form was left to the customer', () => {
+  it('always sends customer_completes_forms: true on the staff path', () => {
     const out = augmentStaffSubmit(baseBody(), {
       session: activeSession,
       forced: false,
-      customerCompletesForms: true,
     }) as StaffSubmitBody
     expect(out.customer_completes_forms).toBe(true)
   })
 
-  it('omits the flag when every form was filled in (or none left)', () => {
-    for (const customerCompletesForms of [false, undefined]) {
-      const out = augmentStaffSubmit(baseBody(), {
-        session: activeSession,
-        forced: false,
-        customerCompletesForms,
-      })
-      expect(out).not.toHaveProperty('customer_completes_forms')
-    }
-  })
-
-  it('does not touch the public body even if the flag is passed without a session', () => {
+  it('does not touch the public body (no session)', () => {
     const body = baseBody()
     const out = augmentStaffSubmit(body, {
       session: INACTIVE_STAFF_SESSION,
       forced: false,
-      customerCompletesForms: true,
     })
     expect(out).toBe(body)
     expect(out).not.toHaveProperty('customer_completes_forms')

@@ -596,7 +596,7 @@ describe('BookingForm — staff mode', () => {
       )
     }
 
-    it('lists the forms on the review and sends customer_completes_forms on the staff submit', async () => {
+    it('lists the forms on the review; the staff submit always sends customer_completes_forms', async () => {
       renderWithForms(true)
       expect(screen.getByTestId('review-customer-completes')).toHaveTextContent(
         'Customer completes: Intake Form',

@@ -1563,7 +1563,6 @@ export function BookingForm({
         session: staff,
         forced,
         priceOverride,
-        customerCompletesForms: (customerCompletesForms?.length ?? 0) > 0,
       })
       // landr-aoak.4: a staff submit goes to the SEPARATE operator-scoped staff
       // endpoint (POST /api/staff/operators/{operator_id}/bookings/submit) where

@@ -26,6 +26,7 @@ import type {
   ParticipantDetails,
 } from '@/components/booking/detailsTypes'
 import type { Product, ProductGroup, SubmitBookingResponse } from '@/api/types'
+import type { ProductFlowResponse } from '@/api/flowTypes'
 import {
   buildFlowPlan,
   planHasParticipantsFirst,
@@ -529,7 +530,7 @@ function planMiddleKinds(
  * legacy plan never contains a custom_form). Drives the FORWARD routing into the
  * custom-form step chain before review.
  */
-function customFormKeysBeforeReview(
+export function customFormKeysBeforeReview(
   product: Product,
   remoteFlow?: RemoteFlow | null,
 ): string[] {
@@ -539,6 +540,31 @@ function customFormKeysBeforeReview(
       m.kind === 'custom_form' && typeof m.formKey === 'string',
     )
     .map((m) => m.formKey)
+}
+
+/**
+ * Staff mode: the product's custom forms (in plan order) that have no
+ * form_response yet, with their display names. These are the forms the customer
+ * completes via their booking link, derived at render time so a reload (which
+ * drops the in-memory responses) can never disagree with what the submit sends.
+ * `undefined` when there is nothing to list.
+ */
+export function customFormsWithoutResponse(
+  product: Product,
+  flow: ProductFlowResponse | null | undefined,
+  formResponses: readonly { form_key: string }[],
+): { form_key: string; name: string }[] | undefined {
+  const names = new Map<string, string>()
+  for (const m of flow?.modules ?? []) {
+    if (m.kind === 'custom_form' && m.form && typeof m.form.name === 'string') {
+      names.set(m.form.key, m.form.name)
+    }
+  }
+  const answered = new Set(formResponses.map((r) => r.form_key))
+  const left = customFormKeysBeforeReview(product, flow ?? null)
+    .filter((key) => !answered.has(key))
+    .map((key) => ({ form_key: key, name: names.get(key) || key }))
+  return left.length > 0 ? left : undefined
 }
 
 /**

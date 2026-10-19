@@ -81,7 +81,6 @@ import {
   listProducts,
 } from '@/api/client'
 import { CustomFormStep } from '@/components/booking/CustomFormStep'
-import type { CustomerCompletesForm } from '@/components/booking/staffSubmitAdapter'
 import type { FormResponseEntry, ProductFlowResponse } from '@/api/flowTypes'
 import type {
   InvitePrefill,
@@ -98,6 +97,7 @@ import {
   productEntryStep,
   deriveAccommodationMode,
   detailsFromDraft,
+  customFormsWithoutResponse,
   frameBackStep,
   participantsBeforeSelection,
   draftFromStep,
@@ -671,12 +671,6 @@ function BookingFlowApp() {
   // Cleared on full restart (goToProductStep). Sent to BookingForm for the
   // submit payload.
   const [formResponses, setFormResponses] = useState<FormResponseEntry[]>([])
-  // Staff mode: the custom forms the operator left for the customer to fill in
-  // via their booking link (the staff default). Always empty without a staff
-  // session. A form is either here or in `formResponses`, never both.
-  const [customerCompletesForms, setCustomerCompletesForms] = useState<
-    CustomerCompletesForm[]
-  >([])
   // landr-zenj.1: mirrors PriceSidebar's live estimate un_priceable flag
   // (see PriceSidebar's onUnPriceableChange prop doc). BookingForm is a
   // sibling of PriceSidebar, not a child, so this is how it learns its
@@ -686,20 +680,13 @@ function BookingFlowApp() {
   // landr-h0opd.3: the same estimate's calculated total, for the staff
   // price-override placeholder in BookingForm (same lifting pattern).
   const [estimateTotal, setEstimateTotal] = useState<CalculatedTotal | null>(null)
-  // Staff mode: the operator hands a form to the customer (or fills it in
-  // after all) — move it between the two lists so it is never in both.
-  const markCustomerCompletes = useCallback((form: CustomerCompletesForm) => {
-    setCustomerCompletesForms((prev) =>
-      prev.some((f) => f.form_key === form.form_key) ? prev : [...prev, form],
-    )
-    setFormResponses((prev) => prev.filter((e) => e.form_key !== form.form_key))
+  // Staff mode: the operator hands a filled-in form back to the customer —
+  // drop its response. Which forms the customer completes is derived at render
+  // time (the product's forms minus those with a response), never kept here.
+  const dropFormResponse = useCallback((formKey: string) => {
+    setFormResponses((prev) => prev.filter((e) => e.form_key !== formKey))
   }, [])
   const mergeFormResponse = useCallback((entry: FormResponseEntry) => {
-    setCustomerCompletesForms((prev) =>
-      prev.some((f) => f.form_key === entry.form_key)
-        ? prev.filter((f) => f.form_key !== entry.form_key)
-        : prev,
-    )
     setFormResponses((prev) => {
       const idx = prev.findIndex((e) => e.form_key === entry.form_key)
       if (idx >= 0) {
@@ -1258,7 +1245,6 @@ function BookingFlowApp() {
       setBookingDraft({})
       // landr-71kz.4: also clear accumulated form_responses on restart.
       setFormResponses([])
-      setCustomerCompletesForms([])
       // landr-71kz.10 / landr-iyyf fix-forward: drop the cached remote flow
       // AND its promise cache on a full restart so the next product's flow is
       // fetched fresh (a new product is being chosen) — see
@@ -3087,7 +3073,7 @@ function BookingFlowApp() {
             // Staff mode: hand the form to the customer (the staff default).
             // CustomFormStep only calls this with an active staff session.
             onCustomerCompletes={(form) => {
-              markCustomerCompletes(form)
+              dropFormResponse(form.form_key)
               const nextAnswers = { ...bookingDraft.customFormAnswers }
               delete nextAnswers[step.formKey]
               mergeDraft({ customFormAnswers: nextAnswers })
@@ -3244,9 +3230,11 @@ function BookingFlowApp() {
             // Only sent when at least one form_response was accumulated.
             formResponses={formResponses.length > 0 ? formResponses : undefined}
             // Staff mode: forms left for the customer (empty otherwise).
-            customerCompletesForms={
-              customerCompletesForms.length > 0 ? customerCompletesForms : undefined
-            }
+            customerCompletesForms={customFormsWithoutResponse(
+              step.product,
+              resolvedFlowForProduct(step.product.product_id),
+              formResponses,
+            )}
             // landr-fn4i / landr-5krc: top-level lifted state from
             // DetailsStep — see memberPerkOtp's declaration above for why
             // this isn't threaded through step.* like booker/participants.

@@ -4389,7 +4389,7 @@ describe('App', () => {
             document.querySelector<HTMLInputElement>(`input[name="${name}"]`)!,
             { target: { value } },
           )
-        render(<App />)
+        const rendered = render(<App />)
         await waitFor(() => screen.getByText('Tandem Flight'))
         fireEvent.click(screen.getByRole('button', { name: 'Tandem Flight' }))
         fireEvent.click(await screen.findByTestId('product-detail-book-cta'))
@@ -4415,6 +4415,7 @@ describe('App', () => {
         await waitFor(() =>
           expect(screen.getByTestId('cf-customer-completes')).toBeInTheDocument(),
         )
+        return rendered
       }
 
       it('defaults to the compact card, skips the form and sends customer_completes_forms', async () => {
@@ -4442,7 +4443,33 @@ describe('App', () => {
         expect(body).not.toHaveProperty('form_responses')
       })
 
-      it('"Fill in now instead" submits the answers and does not send the flag', async () => {
+      it('survives a reload: the flag is still sent and the deferred form has no response', async () => {
+        const rendered = await driveToCustomForm()
+        fireEvent.click(screen.getByTestId('cf-submit'))
+        await waitFor(() =>
+          expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
+        )
+        // Reload: in-memory state is gone, only sessionStorage survives.
+        rendered.unmount()
+        render(<App />)
+        await waitFor(() =>
+          expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
+        )
+        expect(screen.getByTestId('review-customer-completes')).toHaveTextContent(
+          /Customer completes:.*Eligibility declarations/i,
+        )
+        fireEvent.click(screen.getByRole('button', { name: /confirm booking/i }))
+
+        await waitFor(() => expect(mocks.submitStaffBooking).toHaveBeenCalled())
+        const body = mocks.submitStaffBooking.mock.calls[0]![1] as {
+          customer_completes_forms?: boolean
+          form_responses?: unknown
+        }
+        expect(body.customer_completes_forms).toBe(true)
+        expect(body).not.toHaveProperty('form_responses')
+      })
+
+      it('"Fill in now instead" submits the answers as form_responses', async () => {
         await driveToCustomForm()
         fireEvent.click(screen.getByTestId('cf-fill-in-now'))
         await waitFor(() =>
@@ -4465,7 +4492,9 @@ describe('App', () => {
           customer_completes_forms?: boolean
           form_responses?: { form_key: string; answers: Record<string, unknown> }[]
         }
-        expect(body).not.toHaveProperty('customer_completes_forms')
+        // Always sent in staff mode: the API computes what is still pending
+        // (nothing here — the operator filled the only form in).
+        expect(body.customer_completes_forms).toBe(true)
         const entry = body.form_responses!.find(
           (r) => r.form_key === 'customer_declarations',
         )!

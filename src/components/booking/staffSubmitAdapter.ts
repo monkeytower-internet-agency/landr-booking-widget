@@ -61,12 +61,6 @@ export interface StaffSubmitExtras {
   forced: boolean
   /** Optional operator price-override from the review step. */
   priceOverride?: PriceOverride | null
-  /**
-   * True when at least one custom form was left for the customer to complete
-   * via their booking link. Sent as `customer_completes_forms: true`; the forms
-   * left to the customer carry no `form_responses` entry. Omitted when false.
-   */
-  customerCompletesForms?: boolean
 }
 
 /**
@@ -119,9 +113,11 @@ export function augmentStaffSubmit(
     staffBody.ignore_capacity = true
   }
 
-  if (extras.customerCompletesForms) {
-    staffBody.customer_completes_forms = true
-  }
+  // Always true in staff mode: the API computes the pending state only over
+  // the forms staff did NOT submit that have required-when-visible fields, so
+  // when every form was filled in now nothing is pending. Sending it
+  // unconditionally also survives a reload that lost the in-memory choice.
+  staffBody.customer_completes_forms = true
 
   if (extras.priceOverride) {
     staffBody.override_gross_total = formatOverrideTotal(
