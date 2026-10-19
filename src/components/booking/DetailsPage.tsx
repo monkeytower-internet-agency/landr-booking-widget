@@ -159,7 +159,12 @@ export function DetailsPage({ token }: Props) {
         </CardHeader>
       </Card>
       {details ? (
-        <CustomerDetailsForm token={token} details={details} onSaved={() => setStatus('done')} />
+        <CustomerDetailsForm
+          token={token}
+          details={details}
+          operatorName={operatorName}
+          onSaved={() => setStatus('done')}
+        />
       ) : null}
     </div>
   )

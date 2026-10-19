@@ -1761,6 +1761,38 @@ describe('OfferPage — offer v3 flow: acceptance + hotel step (landr-bo0wd.5)',
     expect(mocks.initiatePayment).not.toHaveBeenCalled()
   })
 
+  it('details pending but no form left: the empty PUT happens within the Accept click, then accept goes through', async () => {
+    mocks.getBookingByToken.mockResolvedValue({
+      ...BASE, offer_requires_acceptance: true, offer_accepted_at: null, offer_hotel_pending: false,
+    })
+    mocks.getBookingDetails.mockResolvedValue({ ...PENDING_DETAILS, forms: [] })
+    mocks.putBookingDetails.mockResolvedValue({ completed: true })
+    mocks.acceptOffer
+      .mockRejectedValueOnce(
+        new HttpError(422, 'Unprocessable', JSON.stringify({ detail: { error: 'customer_details_required' } })),
+      )
+      .mockResolvedValueOnce(ACCEPTED)
+    mocks.initiatePayment.mockResolvedValue(INITIATE_RESP)
+    Object.defineProperty(window.location, 'href', {
+      configurable: true,
+      set() {},
+      get() { return `http://stub.invalid/offer/${TOKEN}` },
+    })
+    await ready()
+    await waitFor(() => expect(mocks.getBookingDetails).toHaveBeenCalled())
+    // nothing is sent on load
+    expect(mocks.putBookingDetails).not.toHaveBeenCalled()
+    expect(screen.queryByTestId('offer-details-gate')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /accept & pay/i }))
+    await waitFor(() => expect(mocks.initiatePayment).toHaveBeenCalledOnce())
+    expect(mocks.putBookingDetails).toHaveBeenCalledWith(TOKEN, { form_responses: [] })
+    expect(mocks.acceptOffer).toHaveBeenCalledTimes(2)
+    expect(screen.queryByTestId('offer-accept-error')).not.toBeInTheDocument()
+    expect(mocks.putBookingDetails.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.acceptOffer.mock.invocationCallOrder[1],
+    )
+  })
+
   it('hotel step pending: Accept only, hotel note, no payment', async () => {
     mocks.getBookingByToken.mockResolvedValue({
       ...BASE, offer_requires_acceptance: true, offer_accepted_at: null, offer_hotel_pending: true,

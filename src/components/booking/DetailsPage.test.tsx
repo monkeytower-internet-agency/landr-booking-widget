@@ -226,6 +226,19 @@ describe('DetailsPage', () => {
     expect(screen.getByTestId('details-problems')).toHaveTextContent(/booking is closed/i)
   })
 
+  it('pending with no forms left: asks for one explicit Confirm, then sends the empty PUT', async () => {
+    mocks.getBookingDetails.mockResolvedValue({ ...PENDING_DETAILS, forms: [] })
+    mocks.putBookingDetails.mockResolvedValue({ completed: true })
+    render(<DetailsPage token={TOKEN} />)
+    await waitFor(() => screen.getByTestId('details-confirm'))
+    // never on load (mail prefetchers)
+    expect(mocks.putBookingDetails).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByTestId('details-confirm-btn'))
+    await waitFor(() => screen.getByTestId('details-done'))
+    expect(mocks.putBookingDetails).toHaveBeenCalledOnce()
+    expect(mocks.putBookingDetails).toHaveBeenCalledWith(TOKEN, { form_responses: [] })
+  })
+
   it('not pending shows the friendly "nothing to complete" state', async () => {
     mocks.getBookingDetails.mockResolvedValue({ pending: false, completed_at: '2026-10-19T09:00:00Z' })
     render(<DetailsPage token={TOKEN} />)

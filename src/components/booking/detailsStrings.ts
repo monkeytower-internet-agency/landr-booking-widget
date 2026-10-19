@@ -30,6 +30,10 @@ export interface DetailsBundle {
   submit: string
   submitAndAccept: string
   saving: string
+  confirmTitle: string
+  confirmBody: string
+  confirmBodyNoOperator: string
+  confirmButton: string
   problemsTitle: string
   saveFailed: string
   bookingClosed: string
@@ -59,6 +63,10 @@ const en: DetailsBundle = {
   submit: 'Submit',
   submitAndAccept: 'Save and accept',
   saving: 'Saving…',
+  confirmTitle: 'No questions left to answer',
+  confirmBody: 'The questions for this booking are no longer needed. Confirm to let {operator} know.',
+  confirmBodyNoOperator: 'The questions for this booking are no longer needed. Confirm to let the organiser know.',
+  confirmButton: 'Confirm',
   problemsTitle: 'Please check these answers',
   saveFailed: 'We could not save your details. Please try again.',
   bookingClosed: 'This booking is closed, so details can no longer be added.',
@@ -88,6 +96,10 @@ const de: DetailsBundle = {
   submit: 'Absenden',
   submitAndAccept: 'Speichern und annehmen',
   saving: 'Wird gespeichert …',
+  confirmTitle: 'Keine Fragen mehr offen',
+  confirmBody: 'Die Fragen zu dieser Buchung werden nicht mehr benötigt. Bestätigen Sie, um {operator} Bescheid zu geben.',
+  confirmBodyNoOperator: 'Die Fragen zu dieser Buchung werden nicht mehr benötigt. Bestätigen Sie, um dem Veranstalter Bescheid zu geben.',
+  confirmButton: 'Bestätigen',
   problemsTitle: 'Bitte prüfen Sie diese Angaben',
   saveFailed: 'Ihre Angaben konnten nicht gespeichert werden. Bitte versuchen Sie es erneut.',
   bookingClosed: 'Diese Buchung ist abgeschlossen, daher können keine Angaben mehr ergänzt werden.',

@@ -19,6 +19,14 @@ import type {
   DetailsFormResponse,
 } from '@/api/customerDetailsTypes'
 import type { FormResponseEntry } from '@/api/flowTypes'
+import { Button } from '@/components/ui/button'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
 import { browserLocale } from '@/lib/locale'
 import { CustomFormStep } from './CustomFormStep'
 import {
@@ -31,6 +39,8 @@ import { fmtDetails, pickDetailsBundle } from './detailsStrings'
 
 interface Props {
   token: string
+  /** For the "nothing left to answer" confirm card wording. */
+  operatorName?: string | null
   details: CustomerDetails
   /** Replaces "Submit" on the final form (offer page: "Save and accept"). */
   submitLabel?: string
@@ -46,6 +56,7 @@ interface Confirmed {
 export function CustomerDetailsForm({
   token,
   details,
+  operatorName,
   submitLabel,
   onSaved,
 }: Props) {
@@ -73,6 +84,8 @@ export function CustomerDetailsForm({
   }
 
   const submit = async (all: Record<string, Confirmed>) => {
+    // No forms (the operator removed them after sending the link): the empty
+    // PUT clears the pending state. Only ever reached from an explicit click.
     if (inFlight.current) return
     inFlight.current = true
     setSaving(true)
@@ -119,8 +132,35 @@ export function CustomerDetailsForm({
   }
 
   if (forms.length === 0) {
-    // Pending but no form to show: nothing the customer can answer here.
-    return null
+    // pending with no form left (deactivated / removed after the link went
+    // out): one explicit Confirm sends the empty PUT that clears pending.
+    return (
+      <Card data-testid="details-confirm">
+        <CardHeader>
+          <CardTitle>{t.confirmTitle}</CardTitle>
+          <CardDescription>
+            {operatorName
+              ? fmtDetails(t.confirmBody, { operator: operatorName })
+              : t.confirmBodyNoOperator}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3">
+          {problems.length > 0 ? (
+            <p role="alert" className="text-sm text-destructive" data-testid="details-problems">
+              {problems[0]}
+            </p>
+          ) : null}
+          <Button
+            type="button"
+            disabled={saving}
+            onClick={() => void submit({})}
+            data-testid="details-confirm-btn"
+          >
+            {saving ? t.saving : (submitLabel ?? t.confirmButton)}
+          </Button>
+        </CardContent>
+      </Card>
+    )
   }
 
   const step = forms[Math.min(index, forms.length - 1)]

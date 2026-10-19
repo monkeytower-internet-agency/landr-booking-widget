@@ -9,6 +9,8 @@ import {
   isCustomerDetailsRequired,
   isPaymentModeNotOnline,
   paymentModeNotOnlineMode,
+  putBookingDetails,
+  type AcceptOfferResponse,
   type OfferLineItem,
   type OfferPayment,
   type OfferTotals,
@@ -411,7 +413,7 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
   // landr-bo0wd.5: record the customer's yes. Folds the answer into `offer`
   // (accepted time, hotel flag) so the page re-renders from the server's
   // state. Returns the response, or null after switching to the error card.
-  const runAccept = async () => {
+  const runAccept = async (retried = false): Promise<AcceptOfferResponse | null> => {
     try {
       const resp = await acceptOffer(token)
       setOffer((prev) =>
@@ -436,6 +438,14 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
             setPendingDetails(d)
             setStatus('ready')
             return null
+          }
+          // Pending but no form left (deactivated / removed after the link
+          // went out): the empty PUT clears pending, as part of this Accept
+          // click; then accept once more.
+          if (d.pending && !retried) {
+            await putBookingDetails(token, { form_responses: [] })
+            setPendingDetails(null)
+            return await runAccept(true)
           }
         } catch {
           // fall through to the generic accept error
