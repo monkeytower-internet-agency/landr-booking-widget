@@ -2600,6 +2600,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/public/bookings/{token}/details": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Booking Details
+         * @description The forms the customer still owes (or has answered) for this booking.
+         *
+         *     ``pending`` is true while the operator is waiting for the answers. The
+         *     call also works once complete (``pending: false``) so the page can say so.
+         */
+        get: operations["public_get_booking_details"];
+        /**
+         * Put Booking Details
+         * @description Save the customer's answers and clear the pending state.
+         *
+         *     Validated with the booking submit's validators (booking + person scope,
+         *     visibility, required-when-visible); a form left out counts as empty, so a
+         *     missing required answer is 422 ``form_responses_invalid`` (errors carry
+         *     ``booking_participant_id`` for per-person ones). Replaces whatever staff
+         *     pre-filled (``answered_by`` becomes ``customer``). 409
+         *     ``customer_details_already_complete`` when nothing is pending.
+         */
+        put: operations["public_put_booking_details"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/public/briefings/{token}": {
         parameters: {
             query?: never;
@@ -12961,6 +12995,46 @@ export interface components {
             /** Target Total */
             target_total: string | null;
         };
+        /** CustomerDetailsFormIn */
+        CustomerDetailsFormIn: {
+            /** Answers */
+            answers?: {
+                [key: string]: unknown;
+            };
+            /** Form Key */
+            form_key: string;
+            /** People */
+            people?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            };
+        };
+        /** CustomerDetailsIn */
+        CustomerDetailsIn: {
+            /** Form Responses */
+            form_responses?: components["schemas"]["CustomerDetailsFormIn"][];
+        };
+        /** CustomerDetailsOut */
+        CustomerDetailsOut: {
+            /** Answers */
+            answers?: components["schemas"]["DetailsFormAnswers"][];
+            /** Completed At */
+            completed_at?: string | null;
+            /** Forms */
+            forms?: components["schemas"]["DetailsProductForms"][];
+            /** Pending */
+            pending: boolean;
+            /** People */
+            people?: components["schemas"]["DetailsPerson"][];
+            /** Requested At */
+            requested_at?: string | null;
+        };
+        /** CustomerDetailsSavedOut */
+        CustomerDetailsSavedOut: {
+            /** Completed */
+            completed: boolean;
+        };
         /** CustomerSignoffIn */
         CustomerSignoffIn: {
             /** Notes */
@@ -13417,6 +13491,58 @@ export interface components {
             participant_id: string;
             /** Unit Id */
             unit_id?: string | null;
+        };
+        /**
+         * DetailsFormAnswers
+         * @description Answers of one form, in the shape PUT takes: booking-scope ``answers``
+         *     plus ``people`` keyed by booking_participant_id.
+         */
+        DetailsFormAnswers: {
+            /** Answers */
+            answers?: {
+                [key: string]: unknown;
+            };
+            /** Form Key */
+            form_key: string;
+            /** People */
+            people?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            };
+        };
+        /**
+         * DetailsPerson
+         * @description One person of the booking. ``booking_participant_id`` is the stable key
+         *     per-person answers travel under; ``participant`` = a guiding participant
+         *     (answers participant- AND guest-scope fields), ``guest`` = a companion
+         *     (guest-scope fields only).
+         */
+        DetailsPerson: {
+            /** Booking Participant Id */
+            booking_participant_id: string;
+            /** Display Name */
+            display_name: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "participant" | "guest";
+        };
+        /**
+         * DetailsProductForms
+         * @description The custom forms of one product line. ``modules`` are the product
+         *     flow's ``custom_form`` modules in the exact shape of
+         *     ``GET /api/public/operators/{token}/products/{id}/flow`` (form key /
+         *     version / name / ordered fields with visibility_rule, scope ...).
+         */
+        DetailsProductForms: {
+            /** Modules */
+            modules?: components["schemas"]["FlowModuleDef"][];
+            /** Product Id */
+            product_id: string;
+            /** Product Name */
+            product_name: string;
         };
         /** DevToStagingIn */
         DevToStagingIn: {
@@ -14051,6 +14177,8 @@ export interface components {
         FormAnswerOut: {
             /** Answered */
             answered: boolean;
+            /** Answered By */
+            answered_by?: ("customer" | "staff") | null;
             /** Field Key */
             field_key: string;
             /** Field Type */
@@ -20285,6 +20413,11 @@ export interface components {
             customer_billing?: components["schemas"]["BillingAddressIn"] | null;
             /** Customer Comment */
             customer_comment?: string | null;
+            /**
+             * Customer Completes Forms
+             * @default false
+             */
+            customer_completes_forms: boolean;
             /** Customer Declarations */
             customer_declarations?: {
                 [key: string]: boolean;
@@ -20307,6 +20440,8 @@ export interface components {
             customer_preferred_locale?: string | null;
             /** Force Book Reason */
             force_book_reason?: string | null;
+            /** Form Responses */
+            form_responses?: components["schemas"]["FormResponseIn"][] | null;
             /**
              * Ignore Capacity
              * @default false
@@ -25278,6 +25413,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CancelPreviewResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_get_booking_details: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerDetailsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_put_booking_details: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CustomerDetailsIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerDetailsSavedOut"];
                 };
             };
             /** @description Validation Error */

@@ -4,7 +4,9 @@ import {
   acceptOffer,
   conflictErrorCode,
   getBookingByToken,
+  getBookingDetails,
   initiatePayment,
+  isCustomerDetailsRequired,
   isPaymentModeNotOnline,
   paymentModeNotOnlineMode,
   type OfferLineItem,
@@ -12,6 +14,7 @@ import {
   type OfferTotals,
   type PublicBookingOffer,
 } from '@/api/client'
+import type { CustomerDetails } from '@/api/customerDetailsTypes'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -23,6 +26,9 @@ import {
 import { browserLocale, configureCustomerLocale, resolveCustomerStageLabel } from '@/lib/locale'
 import { plural, tr } from '@/lib/strings'
 import { formatCurrency } from './accommodationCalc'
+import { CustomerDetailsForm } from './CustomerDetailsForm'
+import { collectForms } from './customerDetails'
+import { fmtDetails, pickDetailsBundle } from './detailsStrings'
 import {
   derivePeriodRows,
   formatRange,
@@ -265,6 +271,10 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
   })
   const [offer, setOffer] = useState<PublicBookingOffer | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  // landr-kcxx5.4: the forms the customer still owes before they may accept
+  // (GET /details while pending), else null. The offer payload itself does not
+  // say; accept-offer's 422 customer_details_required also fills it.
+  const [pendingDetails, setPendingDetails] = useState<CustomerDetails | null>(null)
   // landr-bo0wd.5: why accept-offer failed (its 409 code), for the error card.
   const [acceptErrorCode, setAcceptErrorCode] = useState<string | null>(null)
   // landr-k9pji.15: the operator's mode from the 409 payment_mode_not_online
@@ -317,6 +327,25 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
     if (mode !== 'pay') return
     document.title = operatorName ? `${payTitle} ${operatorName}` : payTitle
   }, [mode, payTitle, operatorName])
+
+  // landr-kcxx5.4: read-only look at the customer's pending forms (offer mode
+  // only). Failure is fine: accept-offer's 422 is the authoritative gate.
+  useEffect(() => {
+    if (mode !== 'offer') return
+    let cancelled = false
+    void (async () => {
+      try {
+        const d = await getBookingDetails(token)
+        if (!cancelled && d.pending) setPendingDetails(d)
+      } catch {
+        // gate is enforced server-side on accept
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- load once on mount; token and mode are stable for the component's lifetime
+  }, [])
 
   useEffect(() => {
     if (status !== 'loading') return
@@ -398,6 +427,20 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
       )
       return resp
     } catch (err) {
+      // landr-kcxx5.4: the customer still owes their details -- show the form
+      // instead of an error; Save then accepts.
+      if (isCustomerDetailsRequired(err)) {
+        try {
+          const d = await getBookingDetails(token)
+          if (d.pending && collectForms(d).length > 0) {
+            setPendingDetails(d)
+            setStatus('ready')
+            return null
+          }
+        } catch {
+          // fall through to the generic accept error
+        }
+      }
       console.error('[landr] acceptOffer failed', err)
       setAcceptErrorCode(conflictErrorCode(err))
       setStatus('accept_error')
@@ -755,6 +798,14 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
   // reproduces the pre-fix (whole-total) behavior rather than rendering a
   // broken figure. Same definition the ?paid=1 settled check uses (landr-6l7y).
   const chargeAmount = chargeRemaining(totals)
+
+  // landr-kcxx5.4: accepting is gated on the customer's pending forms.
+  const detailsT = pickDetailsBundle(locale)
+  const detailsGate =
+    mode === 'offer' &&
+    needsAccept &&
+    pendingDetails != null &&
+    collectForms(pendingDetails).length > 0
 
   // landr-gkj0: the API now ships the operator/hotel split, so the breakdown
   // rows can describe the money THIS PAGE collects instead of the whole
@@ -1843,8 +1894,28 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
           />
         ) : null}
 
+        {/* landr-kcxx5.4: details first -- Save PUTs them, then accepts. */}
+        {detailsGate && pendingDetails ? (
+          <div className="flex flex-col gap-3" data-testid="offer-details-gate">
+            <p className="text-sm text-muted-foreground">
+              {operatorName
+                ? fmtDetails(detailsT.inlineIntro, { operator: operatorName })
+                : detailsT.inlineIntroNoOperator}
+            </p>
+            <CustomerDetailsForm
+              token={token}
+              details={pendingDetails}
+              submitLabel={detailsT.submitAndAccept}
+              onSaved={() => {
+                setPendingDetails(null)
+                void onAcceptAndPay()
+              }}
+            />
+          </div>
+        ) : null}
+
         {/* CTA */}
-        {ctaKind !== 'none' && (
+        {ctaKind !== 'none' && !detailsGate && (
         <Button
           type="button"
           className="w-full sm:w-auto"
@@ -1874,7 +1945,7 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
         </Button>
         )}
 
-        {ctaKind !== 'none' && (
+        {ctaKind !== 'none' && !detailsGate && (
         <p className="text-xs text-muted-foreground">
           {alreadySettled
             ? // landr-yimp review round 2: balance_due <= 0 only means this

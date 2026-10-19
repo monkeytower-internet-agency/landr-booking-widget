@@ -27,6 +27,11 @@ import type {
   SubmitBookingResponse,
 } from './types'
 import type { ProductFlowResponse } from './flowTypes'
+import type {
+  CustomerDetails,
+  CustomerDetailsPutBody,
+  DetailsFieldError,
+} from './customerDetailsTypes'
 import {
   mockAvailability,
   mockEstimate,
@@ -1222,6 +1227,50 @@ export async function getBookingByToken(
   return http<PublicBookingOffer>(
     `/api/public/bookings/${encodeURIComponent(token)}`,
   )
+}
+
+/**
+ * landr-kcxx5.4: the forms a customer still owes for this booking (READ ONLY,
+ * so an email-link prefetcher GETting /details/{token} is harmless). 401 bad
+ * token, 404 unknown booking, 429 rate limited. No mock fallback.
+ */
+export async function getBookingDetails(
+  token: string,
+): Promise<CustomerDetails> {
+  return http<CustomerDetails>(
+    `/api/public/bookings/${encodeURIComponent(token)}/details`,
+  )
+}
+
+/**
+ * Save the customer's answers (landr-kcxx5.4). Called ONLY from the Submit
+ * click, never on mount. 422 `form_responses_invalid` (see
+ * `detailsFieldErrors`), 409 `customer_details_already_complete` /
+ * `booking_closed` (see `conflictErrorCode`).
+ */
+export async function putBookingDetails(
+  token: string,
+  body: CustomerDetailsPutBody,
+): Promise<{ completed: boolean }> {
+  return http<{ completed: boolean }>(
+    `/api/public/bookings/${encodeURIComponent(token)}/details`,
+    { method: 'PUT', body: JSON.stringify(body) },
+  )
+}
+
+/** True for accept-offer's 422 "the customer still owes their details". */
+export function isCustomerDetailsRequired(err: unknown): boolean {
+  if (!(err instanceof HttpError) || err.status !== 422) return false
+  const detail = err.detail as { error?: unknown } | undefined
+  return detail?.error === 'customer_details_required'
+}
+
+/** The per-field errors of the PUT's 422 `form_responses_invalid`, else null. */
+export function detailsFieldErrors(err: unknown): DetailsFieldError[] | null {
+  if (!(err instanceof HttpError) || err.status !== 422) return null
+  const detail = err.detail as { error?: unknown; errors?: unknown } | undefined
+  if (detail?.error !== 'form_responses_invalid') return null
+  return Array.isArray(detail.errors) ? (detail.errors as DetailsFieldError[]) : []
 }
 
 /**

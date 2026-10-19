@@ -355,3 +355,19 @@ describe('CustomFormStep — visibility per person', () => {
     expect(screen.queryByTestId('cf-person-hint')).toBeNull()
   })
 })
+
+// landr-kcxx5.4: additive props used by the /details/{token} page.
+describe('CustomFormStep — details-page props', () => {
+  it('submitLabel replaces Continue, hideCustomerComment drops the comment field, no onBack = no back button', () => {
+    renderStep({ submitLabel: 'Submit', hideCustomerComment: true, onBack: undefined })
+    expect(screen.getByTestId('cf-submit')).toHaveTextContent('Submit')
+    expect(screen.queryByText(/anything we should know/i)).toBeNull()
+    expect(screen.queryByTestId('step-back-button')).toBeNull()
+  })
+
+  it('keeps the booking-flow defaults otherwise', () => {
+    renderStep()
+    expect(screen.getByTestId('cf-submit')).toHaveTextContent(/continue/i)
+    expect(screen.getByTestId('step-back-button')).toBeTruthy()
+  })
+})

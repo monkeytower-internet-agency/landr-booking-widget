@@ -2,3 +2,5 @@ User-agent: *
 Disallow: /reply/
 Disallow: /offer/
 Disallow: /cancel/
+Disallow: /pay/
+Disallow: /details/
