@@ -97,6 +97,7 @@ import {
   productEntryStep,
   deriveAccommodationMode,
   detailsFromDraft,
+  customFormsWithoutResponse,
   frameBackStep,
   participantsBeforeSelection,
   draftFromStep,
@@ -679,6 +680,12 @@ function BookingFlowApp() {
   // landr-h0opd.3: the same estimate's calculated total, for the staff
   // price-override placeholder in BookingForm (same lifting pattern).
   const [estimateTotal, setEstimateTotal] = useState<CalculatedTotal | null>(null)
+  // Staff mode: the operator hands a filled-in form back to the customer —
+  // drop its response. Which forms the customer completes is derived at render
+  // time (the product's forms minus those with a response), never kept here.
+  const dropFormResponse = useCallback((formKey: string) => {
+    setFormResponses((prev) => prev.filter((e) => e.form_key !== formKey))
+  }, [])
   const mergeFormResponse = useCallback((entry: FormResponseEntry) => {
     setFormResponses((prev) => {
       const idx = prev.findIndex((e) => e.form_key === entry.form_key)
@@ -3063,9 +3070,45 @@ function BookingFlowApp() {
                 ),
               )
             }
+            // Staff mode: hand the form to the customer (the staff default).
+            // CustomFormStep only calls this with an active staff session.
+            onCustomerCompletes={(form) => {
+              dropFormResponse(form.form_key)
+              const nextAnswers = { ...bookingDraft.customFormAnswers }
+              delete nextAnswers[step.formKey]
+              mergeDraft({ customFormAnswers: nextAnswers })
+              setStep(
+                stepAfterCustomForm(
+                  {
+                    product: step.product,
+                    selection: step.selection,
+                    booker: step.booker,
+                    participants: step.participants,
+                    companions: step.companions,
+                    pickupLocationId: step.pickupLocationId,
+                    accommodationRooms: step.accommodationRooms,
+                    addons: step.addons,
+                    hotelLocationId: step.hotelLocationId,
+                    hadServiceAddons: step.hadServiceAddons,
+                    includeHotel: step.includeHotel,
+                    isSharedDouble: step.isSharedDouble,
+                    accommodationMode: step.accommodationMode,
+                    roomAssignment: step.roomAssignment,
+                    occupantAgeMap: step.occupantAgeMap,
+                    perRoomAddons: step.perRoomAddons,
+                    roomProductNames: step.roomProductNames,
+                    breakfastMap: step.breakfastMap,
+                  },
+                  step.formKey,
+                  flowForProduct(step.product.product_id),
+                  nextAnswers,
+                ),
+              )
+            }}
             onConfirm={(entry, rawAnswers) => {
               // Accumulate the form response for the submit payload.
               mergeFormResponse(entry)
+
               // Persist the raw answers in the draft so a breadcrumb jump
               // back to a prior step and re-forward restores the form.
               const nextAnswers = {
@@ -3186,6 +3229,12 @@ function BookingFlowApp() {
             // landr-71kz.4: custom form answers collected by CustomFormStep(s).
             // Only sent when at least one form_response was accumulated.
             formResponses={formResponses.length > 0 ? formResponses : undefined}
+            // Staff mode: forms left for the customer (empty otherwise).
+            customerCompletesForms={customFormsWithoutResponse(
+              step.product,
+              resolvedFlowForProduct(step.product.product_id),
+              formResponses,
+            )}
             // landr-fn4i / landr-5krc: top-level lifted state from
             // DetailsStep — see memberPerkOtp's declaration above for why
             // this isn't threaded through step.* like booker/participants.
