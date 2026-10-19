@@ -1281,6 +1281,13 @@ export type StaffSubmitBody = Omit<
   override_reason?: string
   /** Booking channel (server forces 'agent_dashboard' regardless). */
   booking_channel?: string
+  /**
+   * true when at least one custom form was left for the customer
+   * to complete via their booking link. Those forms carry NO `form_responses`
+   * entry; the API stamps the booking's customer-details pending state. Omitted
+   * (server default false) when the operator filled every form in.
+   */
+  customer_completes_forms?: boolean
 }
 
 /**
@@ -1337,6 +1344,12 @@ export interface SubmitBookingResponse {
    * "no payment-link line" on the confirmation screen.
    */
   payment_link_sent?: boolean
+  /**
+   * staff submit only. True when the booking still waits for the
+   * customer to fill in custom-form answers (customer_completes_forms). Absent
+   * on the public submit and on older API deploys.
+   */
+  customer_details_pending?: boolean
   /**
    * landr-k9pji.5 (API, landr-k9pji.4 PR #848): how this operator expects to
    * be paid — 'on_site' | 'bank_transfer' | 'online'. Drives Confirmation's

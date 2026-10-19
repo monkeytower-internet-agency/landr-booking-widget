@@ -11,7 +11,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Product } from '@/api/types'
 import { BookingForm, type BookingSelection } from './BookingForm'
 import type { StaffSubmitBody } from './staffSubmitAdapter'
-import { submitBooking, submitStaffBooking } from '@/api/client'
+import { HttpError, submitBooking, submitStaffBooking } from '@/api/client'
 import type { BookerDetails, ParticipantDetails } from './detailsTypes'
 import { StaffModeProvider } from '@/lib/staffMode.tsx'
 import { ALL_STAFF_POWERS, type StaffSession } from '@/lib/staffMode'
@@ -574,5 +574,76 @@ describe('BookingForm — staff mode', () => {
     await waitFor(() => expect(submitBooking).toHaveBeenCalledTimes(1))
     expect(postSpy).not.toHaveBeenCalled()
     parentSpy.mockRestore()
+  })
+
+  describe('custom forms left for the customer', () => {
+    const FORMS = [{ form_key: 'intake', name: 'Intake Form' }]
+    function renderWithForms(staffActive: boolean) {
+      return render(
+        <StaffModeProvider value={staffActive ? STAFF : undefined}>
+          <BookingForm
+            widgetToken="op-x"
+            product={makeServiceProduct()}
+            selection={DAYS}
+            booker={ADA_BOOKER}
+            participants={[ADA_PARTICIPANT]}
+            pickupLocationId={null}
+            customerCompletesForms={FORMS}
+            onBack={vi.fn()}
+            onConfirmed={vi.fn()}
+          />
+        </StaffModeProvider>,
+      )
+    }
+
+    it('lists the forms on the review and sends customer_completes_forms on the staff submit', async () => {
+      renderWithForms(true)
+      expect(screen.getByTestId('review-customer-completes')).toHaveTextContent(
+        'Customer completes: Intake Form',
+      )
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+      })
+      await waitFor(() => expect(submitStaffBooking).toHaveBeenCalledTimes(1))
+      const body = vi.mocked(submitStaffBooking).mock.calls[0]![1] as StaffSubmitBody
+      expect(body.customer_completes_forms).toBe(true)
+    })
+
+    it('without a staff session shows nothing and the public body has no flag', async () => {
+      renderWithForms(false)
+      expect(screen.queryByTestId('review-customer-completes')).toBeNull()
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+      })
+      await waitFor(() => expect(submitBooking).toHaveBeenCalledTimes(1))
+      expect(submitStaffBooking).not.toHaveBeenCalled()
+      expect(vi.mocked(submitBooking).mock.calls[0]![0]).not.toHaveProperty(
+        'customer_completes_forms',
+      )
+    })
+
+    it('shows a rejected staff form answer (422 form_responses_invalid) as a readable error', async () => {
+      vi.mocked(submitStaffBooking).mockRejectedValue(
+        new HttpError(
+          422,
+          'Unprocessable Entity',
+          JSON.stringify({
+            detail: {
+              error: 'form_responses_invalid',
+              errors: [
+                { field_key: 'weight', code: 'required', message: 'Weight is required' },
+              ],
+            },
+          }),
+        ),
+      )
+      renderWithForms(true)
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+      })
+      const err = await screen.findByTestId('review-error')
+      expect(err).toHaveTextContent(/Some answers in the form need fixing/)
+      expect(err).toHaveTextContent('Weight is required')
+    })
   })
 })

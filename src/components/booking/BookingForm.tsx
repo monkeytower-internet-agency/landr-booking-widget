@@ -116,6 +116,7 @@ import { OperatorOverrideBadge } from '@/components/booking/OperatorOverrideBadg
 import type { CalculatedTotal } from '@/components/booking/PriceSidebar'
 import {
   augmentStaffSubmit,
+  type CustomerCompletesForm,
   isStaffSubmitBody,
   type PriceOverride,
 } from './staffSubmitAdapter'
@@ -301,6 +302,13 @@ interface Props {
    * byte-identical to the pre-71kz path. Optional for backward compat.
    */
   formResponses?: import('@/api/flowTypes').FormResponseEntry[]
+  /**
+   * Staff mode only: the custom forms the operator left for the customer to
+   * complete via their booking link (the default in staff mode). Their names
+   * are listed on the review and the submit sends `customer_completes_forms`.
+   * Ignored without an active staff session, so the public path is unchanged.
+   */
+  customerCompletesForms?: CustomerCompletesForm[]
   /**
    * landr-fn4i / landr-5krc: the one-time subscription-perk code the
    * customer typed into DetailsStep's optional inline field, lifted live
@@ -875,6 +883,7 @@ export function BookingForm({
   roomProductNames,
   breakfastMap = {},
   formResponses,
+  customerCompletesForms,
   memberPerkOtp,
   inviteToken,
   joinRef,
@@ -1554,6 +1563,7 @@ export function BookingForm({
         session: staff,
         forced,
         priceOverride,
+        customerCompletesForms: (customerCompletesForms?.length ?? 0) > 0,
       })
       // landr-aoak.4: a staff submit goes to the SEPARATE operator-scoped staff
       // endpoint (POST /api/staff/operators/{operator_id}/bookings/submit) where
@@ -1931,6 +1941,20 @@ export function BookingForm({
                 </li>
               ))}
             </ol>
+          </section>
+        ) : null}
+
+        {/* Staff mode: custom forms the customer fills in themselves via their
+            booking link. Never rendered without an active staff session. */}
+        {staff.active && (customerCompletesForms?.length ?? 0) > 0 ? (
+          <section
+            data-testid="review-customer-completes"
+            className="rounded-lg border bg-surface-raised p-3 text-sm shadow-elev-1"
+          >
+            <span className="font-semibold">
+              {tr('staffReviewCustomerCompletes', locale)}
+            </span>{' '}
+            {customerCompletesForms!.map((f) => f.name).join(', ')}
           </section>
         ) : null}
 

@@ -32,6 +32,8 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { StepBackButton } from '@/components/booking/StepBackButton'
 import { useVariant } from '@/lib/variant'
+import { useStaffMode } from '@/lib/staffMode'
+import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { pickLocalized, browserLocale } from '@/lib/locale'
 import { productFormSubtitle, tr, unsupportedFieldTypeLabel } from '@/lib/strings'
@@ -58,6 +60,7 @@ import {
   type FormPersonSource,
 } from './formScopes'
 import { RankedLanguagePicker } from './RankedLanguagePicker'
+import type { CustomerCompletesForm } from './staffSubmitAdapter'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -124,6 +127,15 @@ export interface CustomFormStepProps {
    */
   submitLabel?: string
   hideCustomerComment?: boolean
+  /**
+   * Staff mode only. When supplied AND a staff session is active, the step
+   * defaults to a compact "Customer completes this via their booking link"
+   * card; Continue then calls this instead of onConfirm. The operator can
+   * expand the normal form with "Fill in now instead" (onConfirm as usual),
+   * and from the expanded form hand the form back to the customer. Without a
+   * staff session this prop is ignored and the step is byte-identical.
+   */
+  onCustomerCompletes?: (form: CustomerCompletesForm) => void
   /**
    * Called with the pruned answers + form metadata when the customer submits.
    */
@@ -619,8 +631,17 @@ export function CustomFormStep({
   onBack,
   submitLabel,
   hideCustomerComment = false,
+  onCustomerCompletes,
   onConfirm,
 }: CustomFormStepProps) {
+  // Staff mode: the form defaults to "customer completes this". A restored
+  // draft that already holds answers means the operator filled it in earlier,
+  // so it re-opens expanded. Without a staff session none of this is used.
+  const staff = useStaffMode()
+  const staffDeferrable = staff.active && onCustomerCompletes !== undefined
+  const [fillNow, setFillNow] = useState(
+    () => !!initialAnswers && Object.keys(initialAnswers).length > 0,
+  )
   // landr — English-first: render custom forms in English rather than the
   // customer's browser locale (which made para42's "Customer Declarations"
   // show as German "Erklärungen" to German browsers). pickLocalized falls back
@@ -860,6 +881,9 @@ export function CustomFormStep({
       ? pickLocalized(formDef.name, formDef.name_localized, locale) || formDef.name
       : tr('additionalInformationTitle', uiLocale)
 
+  const showCustomerCard =
+    staffDeferrable && !fillNow && !loading && !fetchError && !!formDef
+
   return (
     <Card>
       <StepBackButton onBack={onBack} />
@@ -868,7 +892,30 @@ export function CustomFormStep({
         <CardDescription>{productFormSubtitle(productName, uiLocale)}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-5">
-        {loading ? (
+        {showCustomerCard ? (
+          <div
+            className="flex flex-col gap-3 rounded-md border border-border bg-surface-raised p-4"
+            data-testid="cf-customer-completes"
+          >
+            <p className="text-sm font-medium">
+              {tr('staffFormCustomerCompletes', uiLocale)}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {tr('staffFormCustomerCompletesHint', uiLocale)}
+            </p>
+            <div>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => setFillNow(true)}
+                data-testid="cf-fill-in-now"
+              >
+                {tr('staffFormFillInNow', uiLocale)}
+              </Button>
+            </div>
+          </div>
+        ) : loading ? (
           <p className="text-sm text-muted-foreground" data-testid="cf-loading">
             {tr('loadingEllipsis', uiLocale)}
           </p>
@@ -954,6 +1001,22 @@ export function CustomFormStep({
           </>
         ) : null}
 
+        {staffDeferrable && fillNow && formDef ? (
+          <div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() =>
+                onCustomerCompletes?.({ form_key: formDef.key, name: formTitle })
+              }
+              data-testid="cf-let-customer-complete"
+            >
+              {tr('staffFormLetCustomerComplete', uiLocale)}
+            </Button>
+          </div>
+        ) : null}
+
         {/* landr-n6ii3: same field DetailsStep collects, editable here too —
             last field before Continue. */}
         {hideCustomerComment ? null : (
@@ -964,18 +1027,30 @@ export function CustomFormStep({
           />
         )}
 
-        <ContinueAction
-          ready={!loading && !fetchError && isFormComplete}
-          reason={
-            isFormComplete
-              ? tr('readyToContinue', uiLocale)
-              : tr('completeEveryRequiredField', uiLocale)
-          }
-          reasonId="cf-step-gate"
-          onContinue={handleSubmit}
-          {...(submitLabel ? { label: submitLabel } : {})}
-          data-testid="cf-submit"
-        />
+        {showCustomerCard && formDef ? (
+          <ContinueAction
+            ready
+            reason={tr('readyToContinue', uiLocale)}
+            reasonId="cf-step-gate"
+            onContinue={() =>
+              onCustomerCompletes?.({ form_key: formDef.key, name: formTitle })
+            }
+            data-testid="cf-submit"
+          />
+        ) : (
+          <ContinueAction
+            ready={!loading && !fetchError && isFormComplete}
+            reason={
+              isFormComplete
+                ? tr('readyToContinue', uiLocale)
+                : tr('completeEveryRequiredField', uiLocale)
+            }
+            reasonId="cf-step-gate"
+            onContinue={handleSubmit}
+            {...(submitLabel ? { label: submitLabel } : {})}
+            data-testid="cf-submit"
+          />
+        )}
       </CardContent>
     </Card>
   )

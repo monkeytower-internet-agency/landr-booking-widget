@@ -198,6 +198,11 @@ type Bundle = {
   formPersonParticipantTag: string
   formPersonGuestTag: string
   formPersonFallbackName: string
+  staffFormCustomerCompletes: string
+  staffFormCustomerCompletesHint: string
+  staffFormFillInNow: string
+  staffFormLetCustomerComplete: string
+  staffReviewCustomerCompletes: string
   formPersonSectionHint: string
   formResponsesInvalidIntro: string
 
@@ -911,6 +916,11 @@ const en: Bundle = {
   formPersonParticipantTag: 'Participant',
   formPersonGuestTag: 'Guest',
   formPersonFallbackName: 'Person',
+  staffFormCustomerCompletes: 'Customer completes this via their booking link ✓',
+  staffFormCustomerCompletesHint: 'They will be asked for these answers after you add the booking.',
+  staffFormFillInNow: 'Fill in now instead',
+  staffFormLetCustomerComplete: 'Let the customer complete this instead',
+  staffReviewCustomerCompletes: 'Customer completes:',
   formPersonSectionHint: 'Please answer for each person.',
   formResponsesInvalidIntro: 'Some answers in the form need fixing. Please go back to the form and correct:',
 
@@ -1601,6 +1611,11 @@ const de: Bundle = {
   formPersonParticipantTag: 'Teilnehmer',
   formPersonGuestTag: 'Gast',
   formPersonFallbackName: 'Person',
+  staffFormCustomerCompletes: 'Der Kunde füllt dies über seinen Buchungslink aus ✓',
+  staffFormCustomerCompletesHint: 'Die Angaben werden nach dem Anlegen der Buchung beim Kunden abgefragt.',
+  staffFormFillInNow: 'Stattdessen jetzt ausfüllen',
+  staffFormLetCustomerComplete: 'Stattdessen vom Kunden ausfüllen lassen',
+  staffReviewCustomerCompletes: 'Der Kunde füllt aus:',
   formPersonSectionHint: 'Bitte für jede Person beantworten.',
   formResponsesInvalidIntro: 'Einige Antworten im Formular müssen korrigiert werden. Bitte gehen Sie zurück zum Formular und korrigieren Sie:',
 

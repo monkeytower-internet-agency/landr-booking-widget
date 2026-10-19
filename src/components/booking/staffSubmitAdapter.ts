@@ -27,6 +27,12 @@ import type { StaffSession } from '@/lib/staffMode'
 
 export type { StaffSubmitBody }
 
+/** A custom form the operator left for the customer to complete (staff mode). */
+export interface CustomerCompletesForm {
+  form_key: string
+  name: string
+}
+
 /**
  * Operator price-override captured on the review step in staff mode.
  * `grossTotal` is the new gross total the operator dictates; `reason` is the
@@ -55,6 +61,12 @@ export interface StaffSubmitExtras {
   forced: boolean
   /** Optional operator price-override from the review step. */
   priceOverride?: PriceOverride | null
+  /**
+   * True when at least one custom form was left for the customer to complete
+   * via their booking link. Sent as `customer_completes_forms: true`; the forms
+   * left to the customer carry no `form_responses` entry. Omitted when false.
+   */
+  customerCompletesForms?: boolean
 }
 
 /**
@@ -105,6 +117,10 @@ export function augmentStaffSubmit(
 
   if (extras.forced) {
     staffBody.ignore_capacity = true
+  }
+
+  if (extras.customerCompletesForms) {
+    staffBody.customer_completes_forms = true
   }
 
   if (extras.priceOverride) {
