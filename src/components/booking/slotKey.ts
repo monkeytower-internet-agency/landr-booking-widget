@@ -1,4 +1,4 @@
-import type { AvailabilitySlot } from '@/api/types'
+import type { AvailabilitySlot, EstimateSlotFields } from '@/api/types'
 
 /**
  * landr-k9pji.1: a stable identity for an availability row.
@@ -35,4 +35,19 @@ export function hasFixedStartTimes(
 export function toHHMM(time: string | null | undefined): string | null {
   if (!time) return null
   return time.slice(0, 5)
+}
+
+/**
+ * landr-k9pji.25: the estimate's slot fields for a picked slot — exactly what
+ * the submit line carries (BookingForm): the availability row id when there
+ * is one, else the synthesised fixed time as "HH:MM". Empty for no slot.
+ */
+export function estimateSlotFields(
+  slot: Pick<AvailabilitySlot, 'availability_id'> &
+    Partial<Pick<AvailabilitySlot, 'start_time'>> | null | undefined,
+): EstimateSlotFields {
+  if (!slot) return {}
+  if (slot.availability_id) return { product_availability_id: slot.availability_id }
+  const hhmm = toHHMM(slot.start_time)
+  return hhmm ? { slot_start_time: hhmm } : {}
 }

@@ -14,7 +14,7 @@ import type {
 } from '@/components/booking/accommodationCalc'
 import { AccountLinkPrompt } from '@/components/booking/AccountLinkPrompt'
 import { AvailabilityPicker } from '@/components/booking/AvailabilityPicker'
-import { hasFixedStartTimes } from '@/components/booking/slotKey'
+import { estimateSlotFields, hasFixedStartTimes } from '@/components/booking/slotKey'
 import {
   BookingForm,
   type BookingSelection,
@@ -3422,6 +3422,13 @@ function BookingFlowApp() {
               step.name === 'pick-accommodation' && liveAccommodationTouched
                 ? liveAddons
                 : sidebarInputs.addons
+            }
+            // landr-k9pji.25: the committed slot prices start-time adjustments
+            // (same fields BookingForm submits).
+            slot={
+              'selection' in step && step.selection?.kind === 'slot'
+                ? estimateSlotFields(step.selection.slot)
+                : undefined
             }
             debounceMs={step.name === 'pick-selection' ? 1500 : undefined}
             // landr-zenj.1: reports the visible estimate's un_priceable
