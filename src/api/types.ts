@@ -1792,7 +1792,18 @@ export interface EstimateRequestBody {
    * widget builds omit it and the API falls back to 'en'.
    */
   locale?: string
+  /**
+   * landr-k9pji.25: the picked slot of the main product, so a start-time
+   * price (early-morning discount, sunset surcharge) is quoted exactly as
+   * submit charges it. Same meaning as the submit line's fields; omitted
+   * when nothing is picked (older APIs ignore them).
+   */
+  product_availability_id?: string
+  slot_start_time?: string
 }
+
+/** landr-k9pji.25: the slot half of an estimate request (see EstimateRequestBody). */
+export type EstimateSlotFields = Pick<EstimateRequestBody, 'product_availability_id' | 'slot_start_time'>
 
 /**
  * One "− <label>  <amount>" row of a customer-facing price breakdown

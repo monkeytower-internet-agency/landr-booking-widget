@@ -4591,11 +4591,13 @@ export interface paths {
         };
         /**
          * List Offer Unsent
-         * @description Booking ids whose ``offer_unsent`` flag is true.
+         * @description Booking ids whose ``offer_unsent`` flag is true, plus why.
          *
          *     No ``ids`` -> every flagged booking of the operator; with repeated ``ids``
          *     -> only those among them (the page being rendered). Operator-scoped:
-         *     another operator's ids are never reported.
+         *     another operator's ids are never reported. ``reasons`` maps each id to
+         *     ``never_sent`` or ``changed_since_sent``; ``booking_ids`` is the union
+         *     (dismissed bookings excluded).
          */
         get: operations["staff_list_offer_unsent"];
         put?: never;
@@ -5149,6 +5151,30 @@ export interface paths {
          *     operator path param.
          */
         delete: operations["delete_booking_note"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/offer-unsent/dismiss": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Dismiss Offer Unsent
+         * @description Mark the "Offer not sent" flag as handled (landr-07jed.1).
+         *
+         *     Holds until the offer is applied again. Idempotent; 404 when the booking is
+         *     not this operator's. Logs a timeline event (``audit_log``,
+         *     ``actor_subkind='offer_unsent_dismissed'``).
+         */
+        post: operations["staff_dismiss_offer_unsent"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -12738,6 +12764,24 @@ export interface components {
             /** Confirm Phrase */
             confirm_phrase: string;
         };
+        /** ConfirmationStatusResponse */
+        ConfirmationStatusResponse: {
+            /** Has Material Changes */
+            has_material_changes: boolean;
+            /** Has Prior Confirmation */
+            has_prior_confirmation: boolean;
+            last_payment_link?: components["schemas"]["LastPaymentLink"] | null;
+            /** Last Sent At */
+            last_sent_at?: string | null;
+            /** Next Action */
+            next_action?: string | null;
+            /** Payment Link Amount */
+            payment_link_amount?: string | null;
+            /** Payment Link Currency */
+            payment_link_currency?: string | null;
+            /** Payment Link Pending */
+            payment_link_pending: boolean;
+        };
         /** CreateMembershipBody */
         CreateMembershipBody: {
             /** Permissions */
@@ -13934,8 +13978,12 @@ export interface components {
              * @default 1
              */
             participants_count: number;
+            /** Product Availability Id */
+            product_availability_id?: string | null;
             /** Selected Days */
             selected_days?: string[];
+            /** Slot Start Time */
+            slot_start_time?: string | null;
         };
         /**
          * EstimateResponse
@@ -15161,6 +15209,18 @@ export interface components {
         LanguagePatchIn: {
             /** Language */
             language: string | null;
+        };
+        /**
+         * LastPaymentLink
+         * @description The newest ``booking_payment_link`` outbound row of a booking, any status.
+         */
+        LastPaymentLink: {
+            /** Created At */
+            created_at: string;
+            /** Sent At */
+            sent_at?: string | null;
+            /** Status */
+            status: string;
         };
         /** LicenseCreateRequest */
         LicenseCreateRequest: {
@@ -17360,7 +17420,7 @@ export interface components {
              * Rule Kind
              * @enum {string}
              */
-            rule_kind: "per_day_base" | "per_streak_tier" | "per_total_days_tier" | "per_participant_tier" | "fixed_total" | "percentage_discount" | "flat_discount" | "time_of_day_surcharge" | "manual_override";
+            rule_kind: "per_day_base" | "per_streak_tier" | "per_total_days_tier" | "per_participant_tier" | "fixed_total" | "percentage_discount" | "flat_discount" | "time_of_day_surcharge" | "manual_override" | "slot_time_adjustment" | "weekday_adjustment";
             /** Sort Order */
             sort_order: number;
             /** Tiers */
@@ -20357,6 +20417,8 @@ export interface components {
          *     when ``product_id`` is given.
          */
         SimulateDraftIn: {
+            /** Daily Start Times */
+            daily_start_times?: string[] | null;
             /** Locale */
             locale?: string | null;
             /**
@@ -20374,6 +20436,8 @@ export interface components {
             selected_days?: string[];
             /** Service Time Shape */
             service_time_shape?: string | null;
+            /** Slot Start Time */
+            slot_start_time?: string | null;
             standard?: components["schemas"]["PricingDraftListIn"] | null;
         };
         /** SiteFlyabilityResponse */
@@ -22145,7 +22209,7 @@ export interface components {
              * Rule Kind
              * @enum {string}
              */
-            rule_kind: "per_day_base" | "per_streak_tier" | "per_total_days_tier" | "per_participant_tier" | "fixed_total" | "percentage_discount" | "flat_discount" | "time_of_day_surcharge" | "manual_override";
+            rule_kind: "per_day_base" | "per_streak_tier" | "per_total_days_tier" | "per_participant_tier" | "fixed_total" | "percentage_discount" | "flat_discount" | "time_of_day_surcharge" | "manual_override" | "slot_time_adjustment" | "weekday_adjustment";
             /** Sort Order */
             sort_order: number;
             /** Tiers */
@@ -22164,7 +22228,7 @@ export interface components {
                 [key: string]: unknown;
             } | null;
             /** Rule Kind */
-            rule_kind?: ("per_day_base" | "per_streak_tier" | "per_total_days_tier" | "per_participant_tier" | "fixed_total" | "percentage_discount" | "flat_discount" | "time_of_day_surcharge" | "manual_override") | null;
+            rule_kind?: ("per_day_base" | "per_streak_tier" | "per_total_days_tier" | "per_participant_tier" | "fixed_total" | "percentage_discount" | "flat_discount" | "time_of_day_surcharge" | "manual_override" | "slot_time_adjustment" | "weekday_adjustment") | null;
             /** Sort Order */
             sort_order?: number | null;
         };
@@ -28421,7 +28485,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        [key: string]: string[];
+                        [key: string]: unknown;
                     };
                 };
             };
@@ -28781,9 +28845,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["ConfirmationStatusResponse"];
                 };
             };
             /** @description Validation Error */
@@ -29473,6 +29535,36 @@ export interface operations {
                         [key: string]: string;
                     };
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_dismiss_offer_unsent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
