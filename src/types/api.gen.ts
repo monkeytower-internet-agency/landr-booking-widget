@@ -4582,6 +4582,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/bookings/offer-unsent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Offer Unsent
+         * @description Booking ids whose ``offer_unsent`` flag is true.
+         *
+         *     No ``ids`` -> every flagged booking of the operator; with repeated ``ids``
+         *     -> only those among them (the page being rendered). Operator-scoped:
+         *     another operator's ids are never reported.
+         */
+        get: operations["staff_list_offer_unsent"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/bookings/payment-link-missing": {
         parameters: {
             query?: never;
@@ -4634,6 +4658,26 @@ export interface paths {
         put?: never;
         /** Staff Submit Booking */
         post: operations["staff_submit_booking"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/ask-customer-details": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ask Customer Details
+         * @description Send the customer-details reminder now (see the module docstring).
+         */
+        post: operations["ask_customer_details"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5314,6 +5358,23 @@ export interface paths {
         put?: never;
         /** Refund Payment */
         post: operations["refund_payment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/payments/{payment_id}/send-receipt": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Send Payment Receipt */
+        post: operations["send_payment_receipt"];
         delete?: never;
         options?: never;
         head?: never;
@@ -11218,6 +11279,13 @@ export interface components {
             /** Sent At */
             sent_at: string;
         };
+        /** AskCustomerDetailsResponse */
+        AskCustomerDetailsResponse: {
+            /** Email Id */
+            email_id: string;
+            /** Sent At */
+            sent_at: string;
+        };
         /** AskPartnerIn */
         AskPartnerIn: {
             /** Note */
@@ -12774,6 +12842,8 @@ export interface components {
             group_threshold?: number | null;
             /** Lines */
             lines?: components["schemas"]["CustomOfferLineIn"][];
+            /** Note */
+            note?: string | null;
             /** Positions */
             positions?: components["schemas"]["OfferPositionIn"][] | null;
             /**
@@ -13209,6 +13279,11 @@ export interface components {
             checkin_status?: string | null;
             /** Contact Id */
             contact_id?: string | null;
+            /**
+             * Customer Details Pending
+             * @default false
+             */
+            customer_details_pending: boolean;
             /** Day Date */
             day_date: string;
             /** Day Group Key */
@@ -15429,6 +15504,11 @@ export interface components {
             method: "cash" | "bank_transfer" | "other";
             /** Note */
             note?: string | null;
+            /**
+             * Send Receipt
+             * @default false
+             */
+            send_receipt: boolean;
         };
         /** MarkPaidOut */
         MarkPaidOut: {
@@ -15452,6 +15532,13 @@ export interface components {
             previous_stage_code: string;
             /** Provider */
             provider: string;
+            /** Receipt Email Id */
+            receipt_email_id?: string | null;
+            /**
+             * Receipt Sent
+             * @default false
+             */
+            receipt_sent: boolean;
         };
         /**
          * MarkTicketsShippedIn
@@ -20003,6 +20090,15 @@ export interface components {
             email_id: string;
             /** Sent */
             sent: boolean;
+        };
+        /** SendReceiptOut */
+        SendReceiptOut: {
+            /** Payment Id */
+            payment_id: string;
+            /** Receipt Email Id */
+            receipt_email_id?: string | null;
+            /** Receipt Sent */
+            receipt_sent: boolean;
         };
         /**
          * SendWithOverrideBody
@@ -28305,6 +28401,41 @@ export interface operations {
             };
         };
     };
+    staff_list_offer_unsent: {
+        parameters: {
+            query?: {
+                ids?: string[] | null;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string[];
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     staff_list_payment_link_missing: {
         parameters: {
             query?: {
@@ -28400,6 +28531,45 @@ export interface operations {
                         [key: string]: unknown;
                     };
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ask_customer_details: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AskCustomerDetailsResponse"];
+                };
+            };
+            /** @description `not_pending`, `no_customer_email` or `no_details_link` (string detail), or `{detail: 'recently_sent', next_allowed_at}` inside the 24 h resend window. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -29604,6 +29774,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RefundOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    send_payment_receipt: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                booking_id: string;
+                payment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SendReceiptOut"];
                 };
             };
             /** @description Validation Error */
