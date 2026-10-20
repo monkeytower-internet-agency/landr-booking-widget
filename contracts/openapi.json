@@ -942,6 +942,24 @@
         "title": "AskBillingAddressResponse",
         "type": "object"
       },
+      "AskCustomerDetailsResponse": {
+        "properties": {
+          "email_id": {
+            "title": "Email Id",
+            "type": "string"
+          },
+          "sent_at": {
+            "title": "Sent At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sent_at",
+          "email_id"
+        ],
+        "title": "AskCustomerDetailsResponse",
+        "type": "object"
+      },
       "AskPartnerIn": {
         "properties": {
           "note": {
@@ -4864,6 +4882,18 @@
             "title": "Lines",
             "type": "array"
           },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
           "positions": {
             "anyOf": [
               {
@@ -6175,6 +6205,11 @@
               }
             ],
             "title": "Contact Id"
+          },
+          "customer_details_pending": {
+            "default": false,
+            "title": "Customer Details Pending",
+            "type": "boolean"
           },
           "day_date": {
             "title": "Day Date",
@@ -12436,6 +12471,11 @@
               }
             ],
             "title": "Note"
+          },
+          "send_receipt": {
+            "default": false,
+            "title": "Send Receipt",
+            "type": "boolean"
           }
         },
         "required": [
@@ -12492,6 +12532,22 @@
           "provider": {
             "title": "Provider",
             "type": "string"
+          },
+          "receipt_email_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Receipt Email Id"
+          },
+          "receipt_sent": {
+            "default": false,
+            "title": "Receipt Sent",
+            "type": "boolean"
           }
         },
         "required": [
@@ -25626,6 +25682,35 @@
           "email_id"
         ],
         "title": "SendPaymentLinkResult",
+        "type": "object"
+      },
+      "SendReceiptOut": {
+        "properties": {
+          "payment_id": {
+            "title": "Payment Id",
+            "type": "string"
+          },
+          "receipt_email_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Receipt Email Id"
+          },
+          "receipt_sent": {
+            "title": "Receipt Sent",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "payment_id",
+          "receipt_sent"
+        ],
+        "title": "SendReceiptOut",
         "type": "object"
       },
       "SendWithOverrideBody": {
@@ -40753,6 +40838,81 @@
         ]
       }
     },
+    "/api/staff/operators/{operator_id}/bookings/offer-unsent": {
+      "get": {
+        "description": "Booking ids whose ``offer_unsent`` flag is true.\n\nNo ``ids`` -> every flagged booking of the operator; with repeated ``ids``\n-> only those among them (the page being rendered). Operator-scoped:\nanother operator's ids are never reported.",
+        "operationId": "staff_list_offer_unsent",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "ids",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "maxItems": 500,
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Ids"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  "title": "Response Staff List Offer Unsent",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Offer Unsent",
+        "tags": [
+          "staff-bookings"
+        ]
+      }
+    },
     "/api/staff/operators/{operator_id}/bookings/payment-link-missing": {
       "get": {
         "description": "Booking ids whose ``payment_link_missing`` flag is true.\n\nNo ``ids`` -> every flagged booking of the operator; with repeated ``ids``\n-> only those among them (the page being rendered). Operator-scoped:\nanother operator's ids are never reported.",
@@ -40936,6 +41096,66 @@
         "summary": "Staff Submit Booking",
         "tags": [
           "staff-bookings-submit"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/ask-customer-details": {
+      "post": {
+        "description": "Send the customer-details reminder now (see the module docstring).",
+        "operationId": "ask_customer_details",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "title": "Booking Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AskCustomerDetailsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "409": {
+            "description": "`not_pending`, `no_customer_email` or `no_details_link` (string detail), or `{detail: 'recently_sent', next_allowed_at}` inside the 24 h resend window."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Ask Customer Details",
+        "tags": [
+          "staff-bookings-customer-details"
         ]
       }
     },
@@ -43225,6 +43445,71 @@
         "summary": "Refund Payment",
         "tags": [
           "staff-bookings-refund"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/payments/{payment_id}/send-receipt": {
+      "post": {
+        "operationId": "send_payment_receipt",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "title": "Booking Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "payment_id",
+            "required": true,
+            "schema": {
+              "title": "Payment Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SendReceiptOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Send Payment Receipt",
+        "tags": [
+          "staff-bookings-payment-receipt"
         ]
       }
     },
