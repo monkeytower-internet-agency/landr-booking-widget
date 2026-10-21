@@ -48,6 +48,11 @@ type Bundle = {
   noCategoriesAvailable: string
   productListCue: string
   productDetailCue: string
+  /** landr-bwm91.4: price notes under the product page's "from" price. */
+  priceNoteBase: string
+  priceNoteWeekends: string
+  priceNoteWeekdays: string
+  priceNoteStartTemplate: string
   singleDatePickerCue: string
   multiDayPickerCue: string
   selectionModeAria: string
@@ -809,6 +814,10 @@ const en: Bundle = {
   noCategoriesAvailable: 'No categories are available right now.',
   productListCue: 'choose a product',
   productDetailCue: 'book this trip',
+  priceNoteBase: 'Base price {amount}',
+  priceNoteWeekends: 'Weekends',
+  priceNoteWeekdays: 'Weekdays',
+  priceNoteStartTemplate: '{time} start',
   // landr-80ubl.2: deliberately NOT "pick a date" / "pick your dates" — the
   // NextAction cue's text ("Next: <cue>") sits right beside the step's own
   // CardTitle ("Pick a date" / "Pick your dates"), and App.test.tsx's
@@ -1556,6 +1565,10 @@ const de: Bundle = {
   noCategoriesAvailable: 'Derzeit sind keine Kategorien verfügbar.',
   productListCue: 'Angebot wählen',
   productDetailCue: 'diese Tour buchen',
+  priceNoteBase: 'Grundpreis {amount}',
+  priceNoteWeekends: 'Wochenende',
+  priceNoteWeekdays: 'Werktage',
+  priceNoteStartTemplate: 'Start {time}',
   singleDatePickerCue: 'Datum wählen',
   multiDayPickerCue: 'Ihre Termine wählen',
   selectionModeAria: 'Auswahlmodus',

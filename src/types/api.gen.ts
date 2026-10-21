@@ -16566,8 +16566,12 @@ export interface components {
             next_window_end?: string | null;
             /** Next Window Start */
             next_window_start?: string | null;
+            /** Price Base */
+            price_base?: string | null;
             /** Price From */
             price_from?: string | null;
+            /** Price Notes */
+            price_notes?: components["schemas"]["PriceNote"][];
             /** Product Id */
             product_id: string;
             /**
@@ -17243,6 +17247,41 @@ export interface components {
             reason: "no_price" | "standard_used";
             /** Season Name */
             season_name?: string | null;
+        };
+        /**
+         * PriceNote
+         * @description landr-bwm91.4: one visible price adjustment of a product.
+         */
+        PriceNote: {
+            /** Amount */
+            amount: string;
+            /**
+             * Amount Type
+             * @enum {string}
+             */
+            amount_type: "flat" | "percent";
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "surcharge" | "discount";
+            /** Label */
+            label: string;
+            /**
+             * Per Participant
+             * @default false
+             */
+            per_participant: boolean;
+            /** Rule Kind */
+            rule_kind?: string | null;
+            /** Time From */
+            time_from?: string | null;
+            /** Time To */
+            time_to?: string | null;
+            /** Weekdays */
+            weekdays?: number[] | null;
+        } & {
+            [key: string]: unknown;
         };
         /** PriceOverrideIn */
         PriceOverrideIn: {

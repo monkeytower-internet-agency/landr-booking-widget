@@ -32,6 +32,7 @@ import { FullyBookedNotice } from '@/components/booking/FullyBookedNotice'
 import { ProductGallery } from '@/components/booking/detail/ProductGallery'
 import { ProductFacts } from '@/components/booking/detail/ProductFacts'
 import { formatPriceFrom } from '@/components/booking/detail/priceFromLabel'
+import { formatPriceNotes } from '@/components/booking/detail/priceNotes'
 import { tr } from '@/lib/strings'
 import { NextAction } from '@/components/booking/NextAction'
 
@@ -81,6 +82,8 @@ export function ProductDetailStep({
   const name = pickLocalized(product.name, product.name_localized, locale)
   const bookable = isBookable(product)
   const priceLabel = formatPriceFrom(product.price_from, product.currency)
+  // landr-bwm91.4: base + visible adjustments; [] (nothing rendered) when none.
+  const priceNotes = formatPriceNotes(product, locale)
   const images = product.images ?? []
   // landr-u4fl follow-up (user report): the detail page rendered ONLY the
   // long `description`, so products carrying just a `short_description`
@@ -153,6 +156,17 @@ export function ProductDetailStep({
         <div className={PROSE_CLASSES} data-testid="product-detail-description">
           <ReactMarkdown>{description}</ReactMarkdown>
         </div>
+      ) : null}
+
+      {/* landr-bwm91.4: price notes sit right above the price + CTA so the
+          "from" price is explained on desktop and mobile alike. */}
+      {priceNotes.length > 0 ? (
+        <p
+          className="text-sm text-muted-foreground"
+          data-testid="product-detail-price-notes"
+        >
+          {priceNotes.join(' \u00b7 ')}
+        </p>
       ) : null}
 
       {/* landr-80ubl.2: one-next-action rule — arriving here always has

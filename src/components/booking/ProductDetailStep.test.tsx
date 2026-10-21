@@ -278,6 +278,34 @@ describe('ProductDetailStep', () => {
 // description) showed no copy at all on the detail page — the page rendered
 // product.description exclusively. Long wins when present; short is the
 // fallback; localized variants are picked like everywhere else.
+describe('ProductDetailStep price notes (landr-bwm91.4)', () => {
+  const notes: Partial<Product> = {
+    price_from: '140.00',
+    price_base: '150.00',
+    price_notes: [
+      { kind: 'surcharge', label: 'Weekends', amount: '20', amount_type: 'flat', per_participant: true, weekdays: [6, 7] },
+      { kind: 'discount', label: '09:00 start', amount: '-10', amount_type: 'flat', per_participant: true, time_from: '09:00', time_to: '09:00' },
+    ],
+  }
+
+  it('lists base, surcharges and discounts under the price', () => {
+    renderStep(makeProduct(notes))
+    const el = screen.getByTestId('product-detail-price-notes')
+    expect(el.textContent).toBe('Base price €150 · Weekends +€20 · 09:00 start \u2212€10')
+    expect(screen.getByTestId('product-detail-price').textContent).toBe('from €140.00')
+  })
+
+  it('renders nothing when there are no notes or the field is absent', () => {
+    renderStep(makeProduct({ price_base: '150.00', price_notes: [] }))
+    expect(screen.queryByTestId('product-detail-price-notes')).toBeNull()
+  })
+
+  it('tolerates an API that predates the field', () => {
+    renderStep(makeProduct())
+    expect(screen.queryByTestId('product-detail-price-notes')).toBeNull()
+  })
+})
+
 describe('ProductDetailStep description fallback', () => {
   it('falls back to short_description when description is null', () => {
     renderStep(

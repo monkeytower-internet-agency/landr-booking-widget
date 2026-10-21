@@ -305,6 +305,19 @@ export interface Product {
    */
   price_from?: string | null
   /**
+   * landr-bwm91.3: the BASE rate (price_from before discounts counted) —
+   * the first item of the product page's price notes. Optional: absent on
+   * an older API, where the base item is simply omitted.
+   */
+  price_base?: string | null
+  /**
+   * landr-bwm91.4: the visible price adjustments of the default price list
+   * (surcharges first, then discounts; hidden surcharges never appear).
+   * Optional/empty = nothing to show. Labels are rendered client-side from
+   * the structured fields so they follow the customer's locale.
+   */
+  price_notes?: components['schemas']['PriceNote'][]
+  /**
    * landr-4a5j: the soonest upcoming product_fixed_date_windows row for
    * this product (start_date >= today, still bookable — active, not
    * soft-deleted, not full), as ISO date strings ("YYYY-MM-DD"). Both
