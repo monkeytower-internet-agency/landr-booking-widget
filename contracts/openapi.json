@@ -4675,6 +4675,83 @@
         "title": "ConfirmBody",
         "type": "object"
       },
+      "ConfirmationStatusResponse": {
+        "properties": {
+          "has_material_changes": {
+            "title": "Has Material Changes",
+            "type": "boolean"
+          },
+          "has_prior_confirmation": {
+            "title": "Has Prior Confirmation",
+            "type": "boolean"
+          },
+          "last_payment_link": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LastPaymentLink"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "last_sent_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Sent At"
+          },
+          "next_action": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Action"
+          },
+          "payment_link_amount": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payment Link Amount"
+          },
+          "payment_link_currency": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payment Link Currency"
+          },
+          "payment_link_pending": {
+            "title": "Payment Link Pending",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "has_material_changes",
+          "has_prior_confirmation",
+          "payment_link_pending"
+        ],
+        "title": "ConfirmationStatusResponse",
+        "type": "object"
+      },
       "CreateMembershipBody": {
         "properties": {
           "permissions": {
@@ -7921,6 +7998,18 @@
             "title": "Participants Count",
             "type": "integer"
           },
+          "product_availability_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Availability Id"
+          },
           "selected_days": {
             "items": {
               "format": "date",
@@ -7928,6 +8017,18 @@
             },
             "title": "Selected Days",
             "type": "array"
+          },
+          "slot_start_time": {
+            "anyOf": [
+              {
+                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d(:00)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slot Start Time"
           }
         },
         "title": "EstimateRequest",
@@ -11330,6 +11431,36 @@
           "language"
         ],
         "title": "LanguagePatchIn",
+        "type": "object"
+      },
+      "LastPaymentLink": {
+        "description": "The newest ``booking_payment_link`` outbound row of a booking, any status.",
+        "properties": {
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "sent_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sent At"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "created_at",
+          "status"
+        ],
+        "title": "LastPaymentLink",
         "type": "object"
       },
       "LicenseCreateRequest": {
@@ -17717,7 +17848,9 @@
               "percentage_discount",
               "flat_discount",
               "time_of_day_surcharge",
-              "manual_override"
+              "manual_override",
+              "slot_time_adjustment",
+              "weekday_adjustment"
             ],
             "title": "Rule Kind",
             "type": "string"
@@ -26368,6 +26501,21 @@
       "SimulateDraftIn": {
         "description": "Body of POST \u2026/pricing/simulate-draft.\n\n``selected_days`` go to the engine unchanged: for a ``hotel_room``\nproduct they ARE the night list (check-in inclusive, check-out\nexclusive \u2014 the engine convention), NOT the widget's raw activity days.\n``service_time_shape`` / ``product_kind`` default to the saved product's\nwhen ``product_id`` is given.",
         "properties": {
+          "daily_start_times": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 48,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Daily Start Times"
+          },
           "locale": {
             "anyOf": [
               {
@@ -26434,6 +26582,18 @@
               }
             ],
             "title": "Service Time Shape"
+          },
+          "slot_start_time": {
+            "anyOf": [
+              {
+                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d(:00)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slot Start Time"
           },
           "standard": {
             "anyOf": [
@@ -30729,7 +30889,9 @@
               "percentage_discount",
               "flat_discount",
               "time_of_day_surcharge",
-              "manual_override"
+              "manual_override",
+              "slot_time_adjustment",
+              "weekday_adjustment"
             ],
             "title": "Rule Kind",
             "type": "string"
@@ -30802,7 +30964,9 @@
                   "percentage_discount",
                   "flat_discount",
                   "time_of_day_surcharge",
-                  "manual_override"
+                  "manual_override",
+                  "slot_time_adjustment",
+                  "weekday_adjustment"
                 ],
                 "type": "string"
               },
@@ -40840,7 +41004,7 @@
     },
     "/api/staff/operators/{operator_id}/bookings/offer-unsent": {
       "get": {
-        "description": "Booking ids whose ``offer_unsent`` flag is true.\n\nNo ``ids`` -> every flagged booking of the operator; with repeated ``ids``\n-> only those among them (the page being rendered). Operator-scoped:\nanother operator's ids are never reported.",
+        "description": "Booking ids whose ``offer_unsent`` flag is true, plus why.\n\nNo ``ids`` -> every flagged booking of the operator; with repeated ``ids``\n-> only those among them (the page being rendered). Operator-scoped:\nanother operator's ids are never reported. ``reasons`` maps each id to\n``never_sent`` or ``changed_since_sent``; ``booking_ids`` is the union\n(dismissed bookings excluded).",
         "operationId": "staff_list_offer_unsent",
         "parameters": [
           {
@@ -40878,12 +41042,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {
-                    "items": {
-                      "type": "string"
-                    },
-                    "type": "array"
-                  },
+                  "additionalProperties": true,
                   "title": "Response Staff List Offer Unsent",
                   "type": "object"
                 }
@@ -41516,9 +41675,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Confirmation Status",
-                  "type": "object"
+                  "$ref": "#/components/schemas/ConfirmationStatusResponse"
                 }
               }
             },
@@ -42809,6 +42966,56 @@
         "summary": "Delete Booking Note",
         "tags": [
           "staff-booking-notes"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/offer-unsent/dismiss": {
+      "post": {
+        "description": "Mark the \"Offer not sent\" flag as handled (landr-07jed.1).\n\nHolds until the offer is applied again. Idempotent; 404 when the booking is\nnot this operator's. Logs a timeline event (``audit_log``,\n``actor_subkind='offer_unsent_dismissed'``).",
+        "operationId": "staff_dismiss_offer_unsent",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "title": "Booking Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Dismiss Offer Unsent",
+        "tags": [
+          "staff-bookings"
         ]
       }
     },

@@ -198,3 +198,48 @@ describe('useBookingEstimate (landr-qez0)', () => {
     expect(result.current.data?.grand_total).toBe('999.00')
   })
 })
+
+describe('useBookingEstimate slot fields (landr-k9pji.25)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('sends the picked slot so start-time prices are quoted', async () => {
+    const spy = vi
+      .spyOn(client, 'estimateBookingPrice')
+      .mockResolvedValue(SAMPLE_ESTIMATE)
+    renderHook(() =>
+      useBookingEstimate({
+        operatorToken: 'para42',
+        productId: 'p-1',
+        selectedDays: ['2026-05-23'],
+        participantCount: 1,
+        addonLines: [],
+        slot: { slot_start_time: '07:00' },
+        debounceMs: 0,
+      }),
+    )
+    await waitFor(() => expect(spy).toHaveBeenCalled())
+    expect(spy.mock.calls[0][2]).toMatchObject({ slot_start_time: '07:00' })
+    expect(spy.mock.calls[0][2]).not.toHaveProperty('product_availability_id')
+  })
+
+  it('omits both keys when no slot is picked', async () => {
+    const spy = vi
+      .spyOn(client, 'estimateBookingPrice')
+      .mockResolvedValue(SAMPLE_ESTIMATE)
+    renderHook(() =>
+      useBookingEstimate({
+        operatorToken: 'para42',
+        productId: 'p-1',
+        selectedDays: ['2026-05-23'],
+        participantCount: 1,
+        addonLines: [],
+        debounceMs: 0,
+      }),
+    )
+    await waitFor(() => expect(spy).toHaveBeenCalled())
+    expect(spy.mock.calls[0][2]).not.toHaveProperty('slot_start_time')
+    expect(spy.mock.calls[0][2]).not.toHaveProperty('product_availability_id')
+  })
+})

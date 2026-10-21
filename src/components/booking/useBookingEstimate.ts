@@ -33,6 +33,7 @@ import type {
   EstimateAddonLine,
   EstimateRequestBody,
   EstimateResponse,
+  EstimateSlotFields,
 } from '@/api/types'
 import { apiLocale, browserLocale } from '@/lib/locale'
 import { useDebouncedValue } from './useDebouncedValue'
@@ -43,6 +44,8 @@ export interface UseBookingEstimateArgs {
   selectedDays: string[]
   participantCount: number
   addonLines: EstimateAddonLine[]
+  /** landr-k9pji.25: the picked slot of the main product (start-time prices). */
+  slot?: EstimateSlotFields
   enabled?: boolean
   /** Debounce in ms (default 300). */
   debounceMs?: number
@@ -80,9 +83,12 @@ export function useBookingEstimate(
     selectedDays,
     participantCount,
     addonLines,
+    slot,
     enabled = true,
     debounceMs = 300,
   } = args
+  const availabilityId = slot?.product_availability_id
+  const slotStartTime = slot?.slot_start_time
 
   // Body composed from the live inputs. Memoised so reference stability
   // matches the actual inputs and useDebouncedValue's effect doesn't
@@ -101,8 +107,10 @@ export function useBookingEstimate(
       participants_count: participantCount,
       addon_lines: addonLines,
       locale: apiLocale(browserLocale()),
+      ...(availabilityId ? { product_availability_id: availabilityId } : {}),
+      ...(slotStartTime ? { slot_start_time: slotStartTime } : {}),
     }),
-    [selectedDays, participantCount, addonLines],
+    [selectedDays, participantCount, addonLines, availabilityId, slotStartTime],
   )
 
   const liveKey = useMemo(

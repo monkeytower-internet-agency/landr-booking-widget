@@ -34,7 +34,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronUp, RefreshCw } from 'lucide-react'
-import type { Product } from '@/api/types'
+import type { EstimateSlotFields, Product } from '@/api/types'
 import { cn } from '@/lib/utils'
 import { deriveStayWindow, type RoomSelection } from './accommodationCalc'
 import type { AddonSelection } from './addonsState'
@@ -69,6 +69,11 @@ interface Props {
   participantNames?: string[]
   accommodationRooms: RoomSelection[]
   addons: AddonSelection[]
+  /**
+   * landr-k9pji.25: the picked slot of the product (estimateSlotFields), so
+   * start-time prices show before submit. Omitted = no slot picked.
+   */
+  slot?: EstimateSlotFields
   /** Debounce delay in ms before firing the estimate RPC (default 300). */
   debounceMs?: number
   /**
@@ -429,6 +434,7 @@ export default function PriceSidebar(props: Props) {
     participantNames,
     accommodationRooms,
     addons,
+    slot,
     debounceMs,
     onUnPriceableChange,
     onCalculatedTotalChange,
@@ -470,6 +476,7 @@ export default function PriceSidebar(props: Props) {
     selectedDays,
     participantCount,
     addonLines,
+    slot,
     enabled: hasSelection,
     debounceMs,
   })
