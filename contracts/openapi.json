@@ -7998,18 +7998,6 @@
             "title": "Participants Count",
             "type": "integer"
           },
-          "product_availability_id": {
-            "anyOf": [
-              {
-                "format": "uuid",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Product Availability Id"
-          },
           "selected_days": {
             "items": {
               "format": "date",
@@ -8017,18 +8005,6 @@
             },
             "title": "Selected Days",
             "type": "array"
-          },
-          "slot_start_time": {
-            "anyOf": [
-              {
-                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d(:00)?$",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Slot Start Time"
           }
         },
         "title": "EstimateRequest",
@@ -17848,9 +17824,7 @@
               "percentage_discount",
               "flat_discount",
               "time_of_day_surcharge",
-              "manual_override",
-              "slot_time_adjustment",
-              "weekday_adjustment"
+              "manual_override"
             ],
             "title": "Rule Kind",
             "type": "string"
@@ -26501,21 +26475,6 @@
       "SimulateDraftIn": {
         "description": "Body of POST \u2026/pricing/simulate-draft.\n\n``selected_days`` go to the engine unchanged: for a ``hotel_room``\nproduct they ARE the night list (check-in inclusive, check-out\nexclusive \u2014 the engine convention), NOT the widget's raw activity days.\n``service_time_shape`` / ``product_kind`` default to the saved product's\nwhen ``product_id`` is given.",
         "properties": {
-          "daily_start_times": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "string"
-                },
-                "maxItems": 48,
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Daily Start Times"
-          },
           "locale": {
             "anyOf": [
               {
@@ -26582,18 +26541,6 @@
               }
             ],
             "title": "Service Time Shape"
-          },
-          "slot_start_time": {
-            "anyOf": [
-              {
-                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d(:00)?$",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Slot Start Time"
           },
           "standard": {
             "anyOf": [
@@ -30889,9 +30836,7 @@
               "percentage_discount",
               "flat_discount",
               "time_of_day_surcharge",
-              "manual_override",
-              "slot_time_adjustment",
-              "weekday_adjustment"
+              "manual_override"
             ],
             "title": "Rule Kind",
             "type": "string"
@@ -30964,9 +30909,7 @@
                   "percentage_discount",
                   "flat_discount",
                   "time_of_day_surcharge",
-                  "manual_override",
-                  "slot_time_adjustment",
-                  "weekday_adjustment"
+                  "manual_override"
                 ],
                 "type": "string"
               },

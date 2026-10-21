@@ -13978,12 +13978,8 @@ export interface components {
              * @default 1
              */
             participants_count: number;
-            /** Product Availability Id */
-            product_availability_id?: string | null;
             /** Selected Days */
             selected_days?: string[];
-            /** Slot Start Time */
-            slot_start_time?: string | null;
         };
         /**
          * EstimateResponse
@@ -17420,7 +17416,7 @@ export interface components {
              * Rule Kind
              * @enum {string}
              */
-            rule_kind: "per_day_base" | "per_streak_tier" | "per_total_days_tier" | "per_participant_tier" | "fixed_total" | "percentage_discount" | "flat_discount" | "time_of_day_surcharge" | "manual_override" | "slot_time_adjustment" | "weekday_adjustment";
+            rule_kind: "per_day_base" | "per_streak_tier" | "per_total_days_tier" | "per_participant_tier" | "fixed_total" | "percentage_discount" | "flat_discount" | "time_of_day_surcharge" | "manual_override";
             /** Sort Order */
             sort_order: number;
             /** Tiers */
@@ -20417,8 +20413,6 @@ export interface components {
          *     when ``product_id`` is given.
          */
         SimulateDraftIn: {
-            /** Daily Start Times */
-            daily_start_times?: string[] | null;
             /** Locale */
             locale?: string | null;
             /**
@@ -20436,8 +20430,6 @@ export interface components {
             selected_days?: string[];
             /** Service Time Shape */
             service_time_shape?: string | null;
-            /** Slot Start Time */
-            slot_start_time?: string | null;
             standard?: components["schemas"]["PricingDraftListIn"] | null;
         };
         /** SiteFlyabilityResponse */
@@ -22209,7 +22201,7 @@ export interface components {
              * Rule Kind
              * @enum {string}
              */
-            rule_kind: "per_day_base" | "per_streak_tier" | "per_total_days_tier" | "per_participant_tier" | "fixed_total" | "percentage_discount" | "flat_discount" | "time_of_day_surcharge" | "manual_override" | "slot_time_adjustment" | "weekday_adjustment";
+            rule_kind: "per_day_base" | "per_streak_tier" | "per_total_days_tier" | "per_participant_tier" | "fixed_total" | "percentage_discount" | "flat_discount" | "time_of_day_surcharge" | "manual_override";
             /** Sort Order */
             sort_order: number;
             /** Tiers */
@@ -22228,7 +22220,7 @@ export interface components {
                 [key: string]: unknown;
             } | null;
             /** Rule Kind */
-            rule_kind?: ("per_day_base" | "per_streak_tier" | "per_total_days_tier" | "per_participant_tier" | "fixed_total" | "percentage_discount" | "flat_discount" | "time_of_day_surcharge" | "manual_override" | "slot_time_adjustment" | "weekday_adjustment") | null;
+            rule_kind?: ("per_day_base" | "per_streak_tier" | "per_total_days_tier" | "per_participant_tier" | "fixed_total" | "percentage_discount" | "flat_discount" | "time_of_day_surcharge" | "manual_override") | null;
             /** Sort Order */
             sort_order?: number | null;
         };
