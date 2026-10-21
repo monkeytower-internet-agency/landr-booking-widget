@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { dateFromIso, isoDate } from '@/components/booking/dateUtils'
+import { operatorWallClock } from '@/lib/operatorClock'
 
 /**
  * How far ahead (days from today) the date pickers fetch availability.
@@ -22,11 +23,18 @@ import { dateFromIso, isoDate } from '@/components/booking/dateUtils'
  */
 export const AVAILABILITY_HORIZON_DAYS = 731
 
-/** Local-midnight "today". */
-export function startOfToday(): Date {
-  const d = new Date()
-  d.setHours(0, 0, 0, 0)
-  return d
+/**
+ * Local-midnight Date for the OPERATOR's "today" (landr-8ht3m.12).
+ *
+ * Availability rows and bookable days are authored in the operator's zone, so
+ * "today" (past-day disabling, the fetch window's start, the first-bookable-day
+ * search) must be the operator's calendar day, not the visitor's browser day.
+ * The result is a Date at LOCAL midnight of that calendar day, because
+ * react-day-picker compares local-midnight Dates. A missing or unrecognised
+ * zone falls back to the browser clock.
+ */
+export function startOfToday(timeZone?: string | null, now: Date = new Date()): Date {
+  return dateFromIso(operatorWallClock(timeZone, now).iso)
 }
 
 function firstOfMonth(d: Date): Date {
@@ -85,9 +93,10 @@ export function useStartMonth(
   selectedIsos: readonly string[],
   bookable: ReadonlySet<string>,
   initial?: Date,
+  timeZone?: string | null,
 ): [Date, (month: Date) => void] {
   const [month, setMonth] = useState<Date>(
-    () => initial ?? pickStartMonth(selectedIsos, bookable),
+    () => initial ?? pickStartMonth(selectedIsos, bookable, startOfToday(timeZone)),
   )
   const settled = useRef(
     initial !== undefined || selectedIsos.length > 0 || bookable.size > 0,
@@ -95,7 +104,7 @@ export function useStartMonth(
   useEffect(() => {
     if (settled.current || bookable.size === 0) return
     settled.current = true
-    setMonth(pickStartMonth(selectedIsos, bookable))
+    setMonth(pickStartMonth(selectedIsos, bookable, startOfToday(timeZone)))
     // Only the arrival of availability matters; selection changes after
     // that are the customer's own clicks and must not move the view.
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only the arrival of availability moves the month; selection changes are the customer's own clicks
@@ -111,9 +120,10 @@ export function useStartMonth(
 export function useNothingBeforeNotice(
   bookable: ReadonlySet<string>,
   locale?: string,
+  timeZone?: string | null,
 ): string | null {
   return useMemo(() => {
-    const today = startOfToday()
+    const today = startOfToday(timeZone)
     const first = firstBookableDay(bookable, today)
     if (!first) return null
     const firstDate = dateFromIso(first)
@@ -126,5 +136,5 @@ export function useNothingBeforeNotice(
       year: 'numeric',
     })
     return `Nothing is available before ${label}.`
-  }, [bookable, locale])
+  }, [bookable, locale, timeZone])
 }

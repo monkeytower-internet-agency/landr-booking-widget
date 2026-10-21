@@ -129,9 +129,12 @@ describe('AvailabilityPicker with a synthesised on-request slot (landr-k9pji.1)'
     expect(dayButton(dayAfter)).not.toBeDisabled()
 
     fireEvent.click(dayButton(tomorrow))
-    // One whole-day slot: no start_time -> "Any time".
-    const timeButtons = screen.getAllByRole('button', { name: /Any time/ })
+    // One whole-day slot: no start_time -> "Time confirmed by the operator".
+    const timeButtons = screen.getAllByRole('button', { name: /Time confirmed by the operator/ })
     expect(timeButtons).toHaveLength(1)
+    expect(screen.getByTestId('time-confirmed-helper')).toHaveTextContent(
+      'The operator will confirm the exact time and details after you book.',
+    )
     const cont = screen.getByTestId('availability-picker-submit')
     expect(cont).toBeDisabled()
 
@@ -159,7 +162,7 @@ describe('AvailabilityPicker with a synthesised on-request slot (landr-k9pji.1)'
       />,
     )
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: /Any time/ })).toBeInTheDocument(),
+      expect(screen.getByRole('button', { name: /Time confirmed by the operator/ })).toBeInTheDocument(),
     )
     const cont = screen.getByTestId('availability-picker-submit')
     expect(cont).not.toBeDisabled()
@@ -256,8 +259,9 @@ describe('AvailabilityPicker with fixed daily start times (landr-xtkae.2)', () =
     expect(options[2]).toHaveTextContent('13:00')
     expect(options[2]).toBeDisabled()
     expect(options[2]).toHaveTextContent(/Too late to book/)
-    // No "any time" fallback on a timed product.
-    expect(screen.queryByRole('button', { name: /Any time/ })).toBeNull()
+    // No time-confirmed-by-operator fallback on a timed product.
+    expect(screen.queryByRole('button', { name: /Time confirmed by the operator/ })).toBeNull()
+    expect(screen.queryByTestId('time-confirmed-helper')).toBeNull()
 
     const cont = screen.getByTestId('availability-picker-submit')
     expect(cont).toBeDisabled()

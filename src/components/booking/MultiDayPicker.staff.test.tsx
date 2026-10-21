@@ -125,6 +125,18 @@ describe('MultiDayPicker — staff force-book', () => {
     expect(onForced).toHaveBeenLastCalledWith([isoOf(blockedDay)], ['capacity'])
   })
 
+  it('a day with NO availability row is outside the schedule: one confirm, reason off_schedule (landr-8ht3m.4)', () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const onForced = vi.fn<(iso: string[], reasons: ForceReason[]) => void>()
+    render(<StaffHarness staffActive onForced={onForced} />)
+    const offSchedule = new Date(2026, 5, 17) // not in `availability` at all
+    expect(dayButton(offSchedule)).not.toBeDisabled()
+    fireEvent.click(dayButton(offSchedule))
+    expect(confirmSpy).toHaveBeenCalledTimes(1)
+    expect(confirmSpy).toHaveBeenCalledWith('Outside your schedule — book anyway?')
+    expect(onForced).toHaveBeenLastCalledWith([isoOf(offSchedule)], ['off_schedule'])
+  })
+
   it('landr-f987a.1: a customer session with a stale unavailable selection gets no badge and no forced days', () => {
     const onForced = vi.fn<(iso: string[], reasons: ForceReason[]) => void>()
     render(
