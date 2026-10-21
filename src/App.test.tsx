@@ -977,19 +977,28 @@ describe('App', () => {
       ])
       render(<App />)
       await pickProduct('Tandem Timed')
-      const day = await waitFor(() => {
-        const btn = Array.from(
-          document.querySelectorAll<HTMLButtonElement>('button[data-day]'),
-        ).find((b) => {
-          const d = new Date(b.dataset.day!)
-          return d.getDate() === tomorrow.getDate() && d.getMonth() === tomorrow.getMonth()
-        })
-        expect(btn).toBeDefined()
-        expect(btn).not.toBeDisabled()
-        return btn!
-      })
-      fireEvent.click(day)
-      fireEvent.click(await screen.findByTestId('start-time-option'))
+      const dayButton = () =>
+        Array.from(document.querySelectorAll<HTMLButtonElement>('button[data-day]')).find(
+          (b) => {
+            const d = new Date(b.dataset.day!)
+            return d.getDate() === tomorrow.getDate() && d.getMonth() === tomorrow.getMonth()
+          },
+        )
+      // The step transition can remount the picker right after a click, so
+      // pick the day again until its times are on screen.
+      await waitFor(
+        () => {
+          if (screen.queryAllByTestId('start-time-option').length === 0) {
+            const btn = dayButton()
+            expect(btn).toBeDefined()
+            expect(btn).not.toBeDisabled()
+            fireEvent.click(btn!)
+          }
+          expect(screen.getAllByTestId('start-time-option').length).toBeGreaterThan(0)
+        },
+        { timeout: 4000 },
+      )
+      fireEvent.click(screen.getByTestId('start-time-option'))
       await waitFor(
         () =>
           expect(mocks.estimateBookingPrice).toHaveBeenCalledWith(

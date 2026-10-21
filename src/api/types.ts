@@ -1698,6 +1698,10 @@ export interface BookingSummary {
   subtotal_before_savings: string
   amount_due: string
   multi_day_savings: MultiDaySavings | null
+  /** landr-fcoh2: see EstimateResponse.surcharges. Absent on an older API. */
+  surcharges?: SurchargeLine[] | null
+  surcharges_total?: string | null
+  subtotal_before_surcharges?: string | null
   /**
    * True when an operator price override replaced the engine price:
    * `amount_due` is then the override and `savings` is empty — the
@@ -1838,6 +1842,17 @@ export interface SavingLine {
 }
 
 /**
+ * landr-fcoh2: one "+ <label>  <amount>" row — a price-raising slot / weekday /
+ * time-of-day step (weekend surcharge, sundowner). `label` is localized
+ * server-side; `amount` is a positive decimal string.
+ */
+export interface SurchargeLine {
+  kind: 'surcharge'
+  label: string
+  amount: string
+}
+
+/**
  * Congrats-card payload (landr-nva1a.1/.4): `days` is the longest
  * consecutive run (streak pricing) or the total priced days (total-days
  * pricing); `amount` is the summed multi-day saving; `consecutive` is
@@ -1907,6 +1922,13 @@ export interface EstimateResponse {
   subtotal_before_savings?: string | null
   amount_due?: string | null
   multi_day_savings?: MultiDaySavings | null
+  /**
+   * landr-fcoh2: itemised surcharges; `subtotal_before_surcharges` +
+   * `surcharges_total` === `subtotal_before_savings`. Absent on an older API.
+   */
+  surcharges?: SurchargeLine[] | null
+  surcharges_total?: string | null
+  subtotal_before_surcharges?: string | null
 }
 
 // ─── Hotel room-request reply loop (landr-em0r / landr-em0r.9) ──────────────
