@@ -418,3 +418,122 @@ describe('AvailabilityPicker — "start time passed today" uses the operator clo
     expect(await offeredTimes('Europe/Berlin', null)).toEqual(['13:00'])
   })
 })
+
+describe('AvailabilityPicker — staff types a free start time on a plain time_slot product (landr-8ht3m.5)', () => {
+  let offDay: Date
+  let onDay: Date
+  const plain = () =>
+    makeProduct({ service_time_shape: 'time_slot', daily_start_times: null })
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-05-15T12:00:00Z'))
+    onDay = new Date()
+    onDay.setDate(onDay.getDate() + 3)
+    offDay = new Date()
+    offDay.setDate(offDay.getDate() + 2)
+    mocks.getAvailability.mockResolvedValue([timed(onDay, '10:00:00', { availability_id: 'row-1' })])
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.restoreAllMocks()
+  })
+
+  it('an off-schedule day shows a time input, confirms once, and commits the typed HH:MM as a forced off_schedule slot', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const onConfirm = renderPicker(STAFF, vi.fn(), {}, plain())
+    await waitFor(() => dayButton(onDay))
+    expect(dayButton(offDay)).not.toBeDisabled()
+
+    fireEvent.click(dayButton(offDay))
+    expect(confirmSpy).toHaveBeenCalledTimes(1)
+    expect(confirmSpy).toHaveBeenCalledWith('Outside your schedule — book anyway?')
+    expect(screen.queryAllByTestId('start-time-option')).toHaveLength(0)
+    expect(screen.getByTestId('availability-picker-submit')).toBeDisabled()
+
+    fireEvent.change(screen.getByTestId('free-start-time'), { target: { value: '14:30' } })
+    expect(confirmSpy).toHaveBeenCalledTimes(1)
+    expect(screen.getByTestId('operator-override-badge')).toBeInTheDocument()
+    fireEvent.click(screen.getByTestId('availability-picker-submit'))
+    expect(onConfirm).toHaveBeenCalledTimes(1)
+    const [slot, forced, reasons] = onConfirm.mock.calls[0]
+    expect(slot).toMatchObject({
+      availability_id: null,
+      date: isoOf(offDay),
+      start_time: '14:30:00',
+    })
+    expect(forced).toBe(true)
+    expect(reasons).toEqual(['off_schedule'])
+  })
+
+  it('an incomplete time keeps Continue disabled', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    renderPicker(STAFF, vi.fn(), {}, plain())
+    await waitFor(() => dayButton(onDay))
+    fireEvent.click(dayButton(offDay))
+    const input = screen.getByTestId('free-start-time')
+    fireEvent.change(input, { target: { value: '' } })
+    expect(screen.getByTestId('availability-picker-submit')).toBeDisabled()
+  })
+
+  it('declining the confirm opens nothing', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(false)
+    renderPicker(STAFF, vi.fn(), {}, plain())
+    await waitFor(() => dayButton(onDay))
+    fireEvent.click(dayButton(offDay))
+    expect(screen.queryByTestId('free-start-time')).toBeNull()
+  })
+
+  it('a day that has slot rows keeps its normal slot buttons, with no time input', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const onConfirm = renderPicker(STAFF, vi.fn(), {}, plain())
+    await waitFor(() => dayButton(onDay))
+    fireEvent.click(dayButton(onDay))
+    expect(confirmSpy).not.toHaveBeenCalled()
+    expect(screen.queryByTestId('free-start-time')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: /10:00/ }))
+    fireEvent.click(screen.getByTestId('availability-picker-submit'))
+    expect(onConfirm.mock.calls[0]).toHaveLength(1)
+  })
+
+  it('a time that already passed today is refused', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const today = new Date()
+    renderPicker(STAFF, vi.fn(), { operatorTimezone: 'UTC' }, plain())
+    await waitFor(() => dayButton(onDay))
+    fireEvent.click(dayButton(today))
+    // 12:00 UTC "now": 09:00 has passed, 18:00 has not.
+    fireEvent.change(screen.getByTestId('free-start-time'), { target: { value: '09:00' } })
+    expect(screen.getByTestId('free-start-time-past')).toBeInTheDocument()
+    expect(screen.getByTestId('availability-picker-submit')).toBeDisabled()
+    fireEvent.change(screen.getByTestId('free-start-time'), { target: { value: '18:00' } })
+    expect(screen.queryByTestId('free-start-time-past')).toBeNull()
+    expect(screen.getByTestId('availability-picker-submit')).not.toBeDisabled()
+  })
+
+  it('customers and staff WITHOUT force_book cannot open an off-schedule day or type a time', async () => {
+    for (const session of [STAFF_NO_FORCE, undefined]) {
+      mocks.getAvailability.mockResolvedValue([timed(onDay, '10:00:00', { availability_id: 'row-1' })])
+      const { unmount } = render(
+        <StaffModeProvider value={session}>
+          <AvailabilityPicker product={plain()} onBack={() => {}} onConfirm={vi.fn()} />
+        </StaffModeProvider>,
+      )
+      await waitFor(() => dayButton(onDay))
+      expect(dayButton(offDay)).toBeDisabled()
+      expect(screen.queryByTestId('free-start-time')).toBeNull()
+      unmount()
+    }
+  })
+
+  it('a fixed-times product still offers its own times, never a free input', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    mocks.getAvailability.mockResolvedValue([timed(onDay, '09:00:00')])
+    renderPicker(STAFF)
+    await waitFor(() => dayButton(onDay))
+    fireEvent.click(dayButton(offDay))
+    expect(screen.queryByTestId('free-start-time')).toBeNull()
+    expect(screen.getAllByTestId('start-time-option').length).toBeGreaterThan(0)
+  })
+})
