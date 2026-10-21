@@ -75,13 +75,14 @@ src/
 wp-plugin/         WordPress plugin (landr-e10.4)
 ```
 
-## Languages (landr-5aih0.9)
+## Languages (landr-5aih0.9, landr-8r6oc.4)
 
 Widget chrome (buttons, headings, validation messages, date-picker help — every
-string that isn't operator-authored content) is bundled in `src/lib/strings.ts`.
-`pickBundle(locale)` / `tr(key, locale)` resolve to the German bundle for any
-`de*` locale and to English for everything else; there is no i18n library — the
-bundle is the whole translation layer, following the pattern landr-ifcu
+string that isn't operator-authored content) is bundled: English and German in
+`src/lib/strings.ts`, Spanish and Turkish as catalogs under `src/lib/locales/`.
+`pickBundle(locale)` / `tr(key, locale)` resolve `de*`, `es*` and `tr*` locales to
+their bundle and everything else to English; there is no i18n library — the
+bundles are the whole translation layer, following the pattern landr-ifcu
 established for the (then English-only) widget.
 
 - **Locale source**: the resolver in `src/lib/locale.ts` (`browserLocale()`) —
@@ -89,12 +90,21 @@ established for the (then English-only) widget.
   whitelist (falling back to `default_locale`), else the raw browser locale.
   Components call `browserLocale()` directly (no prop threading) and pass the
   result into `tr()`/`pickBundle()`.
-- **Adding a locale**: extend the `Bundle` type and the `en`/`de` objects in
-  `src/lib/strings.ts`, then widen `pickBundle`'s locale-base switch. es/fr/it
-  are out of scope for landr-5aih0.9 (DE only, per the epic) — add later by
-  copying the `de` object as a starting point.
+- **Adding a locale**: a further language is a drop-in catalog. Create
+  `src/lib/locales/<code>.ts` exporting a full `Bundle` (the type makes a missing
+  key a compile error; copy `es.ts` as a starting point and keep every
+  `{placeholder}`), then add it to `BUNDLES` in `src/lib/strings.ts`. Also give it
+  entries in the small per-language tables: `participantLanguages.ts`
+  (`LANGUAGE_NAMES_BY_UI`), `cancelStrings.ts` / `approvalReplyStrings.ts` (the
+  email-language pages), `ShopComingSoonStub.tsx`, `detail/productFacts.ts`, and
+  `ui/calendar.tsx` (react-day-picker locale). `locales/catalogs.test.ts` checks
+  key and placeholder parity for every registered language.
+  Turkish and Spanish are machine translations awaiting a native-speaker review.
 - **Dates**: `src/components/booking/dateLabel.ts` formats every date/time
-  label via `Intl.DateTimeFormat`, threaded the resolved locale through.
+  label via `Intl.DateTimeFormat`, threaded the resolved locale through; the calendar's
+  month and weekday names use react-day-picker's `locale` catalogs for the same
+  languages. Plurals are bundle-driven: each count word has a singular and a
+  plural field (equal in Turkish, which keeps the noun singular after a number).
   Currency goes through `Intl.NumberFormat` in `priceSidebarHelpers.ts`
   (`formatMoney`) and `accommodationCalc.ts` (`formatCurrency`), same pattern.
 - **Page-scoped exception**: `ApprovalReplyPage` (the hotel rooms-request

@@ -792,6 +792,8 @@ export type Bundle = {
   // landr-8r6oc.4: phrases that used to be locale-branched helpers in this file,
   // now plain bundle fields so a further language is a catalog file only.
   revealLabelCase: 'lower' | 'keep'
+  /** Conjunction for a natural-language list ("English, Spanish and German"). */
+  listAndWord: string
   daysSelectedOne: string
   daysSelectedOther: string
   optionalRevealAddTemplate: string
@@ -1590,6 +1592,7 @@ const en: Bundle = {
   staffCustomerDetailsPending: 'The customer still has to complete their details — we sent them the link.',
   // landr-8r6oc.4 (locale-branched helper phrases)
   revealLabelCase: 'lower',
+  listAndWord: 'and',
   daysSelectedOne: '{n} day selected',
   daysSelectedOther: '{n} days selected',
   optionalRevealAddTemplate: 'Add {thing}',
@@ -2388,6 +2391,7 @@ const de: Bundle = {
   staffCustomerDetailsPending: 'Der Kunde muss seine Angaben noch vervollständigen — wir haben ihm den Link geschickt.',
   // landr-8r6oc.4 (locale-branched helper phrases)
   revealLabelCase: 'keep',
+  listAndWord: 'und',
   daysSelectedOne: '{n} Termin ausgewählt',
   daysSelectedOther: '{n} Termine ausgewählt',
   optionalRevealAddTemplate: 'Hinzufügen {thing}',

@@ -1,5 +1,7 @@
 import { render } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+
+import { configureCustomerLocale } from '@/lib/locale'
 
 import { Calendar } from './calendar'
 
@@ -64,5 +66,29 @@ describe('Calendar day hover colours', () => {
     expect(hoverClasses(btn)).toContain('hover:bg-primary/10')
     expect(hoverClasses(btn)).not.toContain('hover:bg-primary')
     expect(btn.className).not.toMatch(/hover:bg-accent/)
+  })
+})
+
+/**
+ * landr-8r6oc.4 — the month caption and weekday header follow the customer's
+ * resolved locale (react-day-picker's own locale catalogs), not English.
+ */
+describe('Calendar locale', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    configureCustomerLocale(null, null)
+  })
+
+  it.each([
+    ['en-US', /June 2026/, 'Mo'],
+    ['de-DE', /Juni 2026/, 'Mo'],
+    ['es-ES', /junio 2026/i, 'lu'],
+    ['tr-TR', /Haziran 2026/, 'Pt'],
+  ])('%s renders the month caption in its own language', (language, caption, weekday) => {
+    vi.stubGlobal('navigator', { ...navigator, language })
+    const { container } = render(<Calendar mode="single" month={month} />)
+    expect(container.textContent ?? '').toMatch(caption)
+    const headers = Array.from(container.querySelectorAll('th')).map((th) => th.textContent ?? '')
+    expect(headers.some((h) => h.toLowerCase().startsWith(weekday.toLowerCase()))).toBe(true)
   })
 })

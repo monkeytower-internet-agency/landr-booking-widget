@@ -28,7 +28,7 @@ describe('localizeFieldError', () => {
     expect(localizeFieldError(e(code), weight, 'en')).toBe(en)
     expect(localizeFieldError(e(code), weight, 'de-DE')).toBe(de)
     // a locale without a bundle gets English
-    expect(localizeFieldError(e(code), weight, 'es')).toBe(en)
+    expect(localizeFieldError(e(code), weight, 'pt')).toBe(en)
   })
 
   it('names a date type error as a date problem', () => {

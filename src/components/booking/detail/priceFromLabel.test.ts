@@ -27,8 +27,15 @@ describe('formatPriceFrom', () => {
     expect(formatPriceFrom('59.00', 'EUR', 'de')).toBe('ab 59,00\u00a0€')
   })
 
+  // landr-8r6oc.4
+  it('localizes the headline in Spanish and Turkish', () => {
+    expect(formatPriceFrom('59.00', 'EUR', 'es-ES')).toMatch(/^desde /)
+    expect(formatPriceFrom('59.00', 'EUR', 'tr-TR')).toMatch(/59,00/)
+    expect(formatPriceFrom('59.00', 'EUR', 'tr-TR')).not.toMatch(/^from /)
+  })
+
   it('falls back to English wording for a locale without a bundle', () => {
-    expect(formatPriceFrom('59.00', 'EUR', 'es-ES')).toMatch(/^from /)
+    expect(formatPriceFrom('59.00', 'EUR', 'pt-PT')).toMatch(/^from /)
   })
 
   it('still returns null for a blank price in German', () => {

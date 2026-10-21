@@ -1,5 +1,5 @@
 /**
- * Page-scoped de/en/es string bundle for ApprovalReplyPage (landr-em0r.9).
+ * Page-scoped de/en/es/tr string bundle for ApprovalReplyPage (landr-em0r.9).
  *
  * Deliberately NOT src/lib/strings.ts — per epic decision (g) and bd
  * decision landr-ifcu, that module's `pickBundle`/`tr` helpers ignore
@@ -11,15 +11,15 @@
  * an English page from a Spanish email.
  *
  * Locale resolution (ApprovalReplyPage owns this, not this module):
- *   1. `?lang=de|en|es` query override (persists across the session via the
+ *   1. `?lang=de|en|es|tr` query override (persists across the session via the
  *      footer language switcher, which just re-applies this same override).
  *   2. the GET response's `locale` field (what the email was actually sent in).
  *   3. 'en' fallback.
  */
 
-export type ReplyLocale = 'de' | 'en' | 'es'
+export type ReplyLocale = 'de' | 'en' | 'es' | 'tr'
 
-export const REPLY_LOCALES: ReplyLocale[] = ['de', 'en', 'es']
+export const REPLY_LOCALES: ReplyLocale[] = ['de', 'en', 'es', 'tr']
 
 export interface ApprovalReplyBundle {
   loadingTitle: string
@@ -251,12 +251,69 @@ const es: ApprovalReplyBundle = {
   languageSwitcherLabel: 'Idioma',
 }
 
-const BUNDLES: Record<ReplyLocale, ApprovalReplyBundle> = { en, de, es }
+const tr: ApprovalReplyBundle = {
+  loadingTitle: 'Yükleniyor…',
+  errorTitle: 'Bir şeyler ters gitti',
+  errorBody:
+    'Bu yanıt sayfası yüklenemedi. Bağlantı geçersiz olabilir veya geçici bir sorun yaşanmış olabilir. Lütfen tekrar deneyin ya da ilk e-postayı yanıtlayın.',
+  tryAgain: 'Tekrar dene',
+
+  pageTitle: 'Oda talebi',
+  requestRefLabel: 'Referans',
+  checkInLabel: 'Giriş',
+  checkOutLabel: 'Çıkış',
+  nightsLabel: 'Gece',
+  guestsLabel: 'Misafir',
+  roomsLabel: 'Oda',
+  hotelLabel: 'Otel',
+
+  optionConfirmedTitle: 'Evet, odalar onaylandı',
+  optionDeclinedTitle: 'Hayır, bu rezervasyonu alamıyoruz',
+  optionChangesTitle: 'Evet, ancak değişikliklerle',
+
+  commentLabel: 'Yorum',
+  commentPlaceholderChanges: 'Nelerin değişmesi gerektiğini yazın (zorunlu)…',
+  commentPlaceholderDefault: 'Yorum ekleyin (isteğe bağlı)…',
+  commentRequiredHint: 'Lütfen değişiklikleri açıklayın — bu alan zorunludur.',
+  reasonChipFullyBooked: 'Tamamen dolu',
+  reasonChipDatesNotPossible: 'Tarihler uygun değil',
+  reasonChipGroupTooLarge: 'Grup çok büyük',
+  reasonChipOther: 'Diğer',
+
+  nameLabel: 'Adınız (isteğe bağlı)',
+  namePlaceholder: 'Kim yanıtlıyor?',
+
+  confirmButton: 'Onayla',
+  confirmButtonBusy: 'Onaylanıyor…',
+  changeAnswerButton: 'Yanıtımı değiştir',
+
+  answeredTitle: 'Yanıtınız kaydedildi',
+  answeredBody: '{operator} firmasına {date} tarihinde şunu bildirdiniz: {decision}.',
+
+  expiredTitle: 'Bu bağlantının süresi doldu',
+  expiredBody: 'Lütfen e-postayı yanıtlayın veya {phone} numarasını arayın.',
+  supersededTitle: 'Bu bağlantı artık güncel değil',
+  supersededBody:
+    '{operator} güncellenmiş bir talep gönderdi — lütfen en son e-postayı kullanın veya {phone} numarasını arayın.',
+  closedConfirmedTitle: 'Zaten onaylandı',
+  closedConfirmedBody:
+    'Teşekkürler — bu rezervasyon {operator} ile zaten onaylandı. Başka bir işlem gerekmiyor.',
+  closedCancelledTitle: 'Rezervasyon iptal edildi',
+  closedCancelledBody: 'Bu rezervasyon iptal edildi — oda gerekmiyor.',
+
+  successTitle: 'Teşekkür ederiz',
+  successBody: 'Yanıtınızı kaydettik ve {operator} firmasına bildirdik.',
+  successAlreadyRecorded: 'Bu yanıt zaten kayıtlıydı — hiçbir şey değişmedi.',
+
+  languageSwitcherLabel: 'Dil',
+}
+
+const BUNDLES: Record<ReplyLocale, ApprovalReplyBundle> = { en, de, es, tr }
 
 /** Normalise an arbitrary locale string ('de-AT', 'ES', …) to a supported bundle key. */
 export function normalizeReplyLocale(locale: string | null | undefined): ReplyLocale {
   const base = (locale ?? '').trim().toLowerCase().split(/[-_]/)[0]
-  if (base === 'de' || base === 'en' || base === 'es') return base
+  if (base === 'de' || base === 'en' || base === 'es' || base === 'tr') return base
   return 'en'
 }
 
@@ -294,6 +351,15 @@ const PARTNER_OVERRIDES: Record<ReplyLocale, Partial<ApprovalReplyBundle>> = {
     hotelLabel: 'Colaborador',
     optionConfirmedTitle: 'Sí, confirmado',
     closedCancelledBody: 'Esta reserva fue cancelada — no se necesita nada más.',
+  },
+  tr: {
+    pageTitle: 'Rezervasyon talebi',
+    checkInLabel: 'Başlangıç',
+    checkOutLabel: 'Bitiş',
+    guestsLabel: 'Kişi',
+    hotelLabel: 'İş ortağı',
+    optionConfirmedTitle: 'Evet, onaylandı',
+    closedCancelledBody: 'Bu rezervasyon iptal edildi — başka bir işlem gerekmiyor.',
   },
 }
 

@@ -1,15 +1,15 @@
 /**
- * Page-scoped de/en/es strings for CancelPage (landr-5aih0.7).
+ * Page-scoped de/en/es/tr strings for CancelPage (landr-5aih0.7).
  *
  * Same reasoning as approvalReplyStrings.ts: the customer arrives from a
  * booking email that was sent in de/en/es, so the page speaks the email's
  * language — the preview response's `locale` — rather than the widget's
- * browser-locale chrome. Informal address (du / tú), matching the emails.
+ * browser-locale chrome. Informal address (du / tú), matching the emails (Turkish uses the polite "siz" form).
  *
  * `{name}` placeholders are filled by `fmtCancel`.
  */
 
-export type CancelLocale = 'de' | 'en' | 'es'
+export type CancelLocale = 'de' | 'en' | 'es' | 'tr'
 
 export interface CancelBundle {
   loadingTitle: string
@@ -145,12 +145,46 @@ const es: CancelBundle = {
   tryAgain: 'Intentar de nuevo',
 }
 
-const BUNDLES: Record<CancelLocale, CancelBundle> = { de, en, es }
+const tr: CancelBundle = {
+  loadingTitle: 'Rezervasyonunuz yükleniyor…',
+  invalidTitle: 'Bu bağlantı artık geçerli değil',
+  invalidBody:
+    'İptal bağlantısının süresi dolmuş veya yenisiyle değiştirilmiş olabilir. Lütfen rezervasyon yaptığınız firmayla iletişime geçin.',
+  title: 'Rezervasyon iptal edilsin mi?',
+  bookingRef: 'Rezervasyon {ref}',
+  freeUntil: '{deadline} tarihine kadar ücretsiz iptal.',
+  refundStripe: '{amount} tutarı ilk ödeme yönteminize iade edilecek.',
+  refundManual: '{operator}, {amount} tutarını size doğrudan iade edecek.',
+  refundNone: 'Hesabınızdan ücret çekilmedi, bu nedenle iade edilecek bir tutar yok.',
+  confirmBody: 'Bu işlem rezervasyonunuzu hemen iptal eder. Geri alınamaz.',
+  yes: 'Evet, rezervasyonu iptal et',
+  busy: 'İptal ediliyor…',
+  no: 'Hayır, rezervasyonu koru',
+  tooLateTitle: 'Bu rezervasyon artık çevrimiçi iptal edilemiyor',
+  tooLateBody:
+    'Ücretsiz iptal {deadline} tarihine kadar mümkündü. Rezervasyonunuzu değiştirmek veya iptal etmek için lütfen {operator} ile iletişime geçin.',
+  tooLateBodyNoDeadline:
+    'Rezervasyonunuzu değiştirmek veya iptal etmek için lütfen {operator} ile iletişime geçin.',
+  contactCall: 'Ara: {phone}',
+  contactEmail: 'E-posta gönder: {email}',
+  alreadyTitle: 'Bu rezervasyon zaten iptal edilmiş',
+  successTitle: 'Rezervasyon iptal edildi',
+  successBody:
+    'Rezervasyonunuz iptal edildi. Size bir onay e-postası gönderdik.',
+  successRefunded: 'İadeniz ilk ödeme yönteminize doğru yolda.',
+  successManual: '{operator} iadeniz konusunda sizinle iletişime geçecek.',
+  errorTitle: 'İptal edilemedi',
+  errorBody:
+    'Bu rezervasyonu iptal edemedik. Lütfen tekrar deneyin veya {operator} ile iletişime geçin.',
+  tryAgain: 'Tekrar dene',
+}
+
+const BUNDLES: Record<CancelLocale, CancelBundle> = { de, en, es, tr }
 
 /** Map any BCP-47-ish code to a supported page locale; English otherwise. */
 export function normalizeCancelLocale(code: string | null | undefined): CancelLocale {
   const base = (code ?? '').split('-')[0].trim().toLowerCase()
-  return base === 'de' || base === 'es' ? base : 'en'
+  return base === 'de' || base === 'es' || base === 'tr' ? base : 'en'
 }
 
 export function pickCancelBundle(locale: CancelLocale): CancelBundle {

@@ -105,4 +105,22 @@ describe('CancelPage — German UI (landr-5aih0.9)', () => {
     render(<CancelPage token={TOKEN} />)
     expect(screen.getByText('Loading your booking…')).toBeInTheDocument()
   })
+
+  // landr-8r6oc.4: the same page, in the two languages added next to German.
+  it.each([
+    { lang: 'tr', question: 'Rezervasyon iptal edilsin mi?', keep: 'Hayır, rezervasyonu koru', confirm: 'Evet, rezervasyonu iptal et', done: 'Rezervasyon iptal edildi' },
+    { lang: 'es', question: '¿Cancelar tu reserva?', keep: 'No, mantener la reserva', confirm: 'Sí, cancelar la reserva', done: 'Reserva cancelada' },
+  ])('renders the confirm question and success card in $lang for a $lang booking', async ({ lang, question, keep, confirm, done }) => {
+    setBrowserLanguage('en-US')
+    mocks.getCancelPreview.mockResolvedValue(preview(lang))
+    mocks.cancelBooking.mockResolvedValue({
+      ok: true, booking_id: 'x', message: 'booking cancelled', refund_status: 'not_applicable',
+    })
+    render(<CancelPage token={TOKEN} />)
+
+    await waitFor(() => expect(screen.getByText(question)).toBeInTheDocument())
+    expect(screen.getByRole('button', { name: keep })).toBeEnabled()
+    fireEvent.click(screen.getByRole('button', { name: confirm }))
+    await waitFor(() => expect(screen.getByText(done)).toBeInTheDocument())
+  })
 })
