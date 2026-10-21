@@ -15477,6 +15477,18 @@
             ],
             "title": "Next Window Start"
           },
+          "price_base": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Base"
+          },
           "price_from": {
             "anyOf": [
               {
@@ -15488,6 +15500,13 @@
               }
             ],
             "title": "Price From"
+          },
+          "price_notes": {
+            "items": {
+              "$ref": "#/components/schemas/PriceNote"
+            },
+            "title": "Price Notes",
+            "type": "array"
           },
           "product_id": {
             "title": "Product Id",
@@ -17255,6 +17274,96 @@
           "reason"
         ],
         "title": "PriceListSkippedOut",
+        "type": "object"
+      },
+      "PriceNote": {
+        "additionalProperties": true,
+        "description": "landr-bwm91.4: one visible price adjustment of a product.",
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "string"
+          },
+          "amount_type": {
+            "enum": [
+              "flat",
+              "percent"
+            ],
+            "title": "Amount Type",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "surcharge",
+              "discount"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "per_participant": {
+            "default": false,
+            "title": "Per Participant",
+            "type": "boolean"
+          },
+          "rule_kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rule Kind"
+          },
+          "time_from": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Time From"
+          },
+          "time_to": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Time To"
+          },
+          "weekdays": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weekdays"
+          }
+        },
+        "required": [
+          "kind",
+          "label",
+          "amount",
+          "amount_type"
+        ],
+        "title": "PriceNote",
         "type": "object"
       },
       "PriceOverrideIn": {
