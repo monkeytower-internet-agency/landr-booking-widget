@@ -81,7 +81,7 @@ export function ProductDetailStep({
   const locale = browserLocale()
   const name = pickLocalized(product.name, product.name_localized, locale)
   const bookable = isBookable(product)
-  const priceLabel = formatPriceFrom(product.price_from, product.currency)
+  const priceLabel = formatPriceFrom(product.price_from, product.currency, locale)
   // landr-bwm91.4: base + visible adjustments; [] (nothing rendered) when none.
   const priceNotes = formatPriceNotes(product, locale)
   const images = product.images ?? []

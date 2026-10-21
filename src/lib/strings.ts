@@ -53,6 +53,8 @@ type Bundle = {
   priceNoteWeekends: string
   priceNoteWeekdays: string
   priceNoteStartTemplate: string
+  // landr-bwm91.7: the "from €X" headline on product cards + the detail page.
+  priceFromTemplate: string
   singleDatePickerCue: string
   multiDayPickerCue: string
   selectionModeAria: string
@@ -818,6 +820,7 @@ const en: Bundle = {
   priceNoteWeekends: 'Weekends',
   priceNoteWeekdays: 'Weekdays',
   priceNoteStartTemplate: '{time} start',
+  priceFromTemplate: 'from {price}',
   // landr-80ubl.2: deliberately NOT "pick a date" / "pick your dates" — the
   // NextAction cue's text ("Next: <cue>") sits right beside the step's own
   // CardTitle ("Pick a date" / "Pick your dates"), and App.test.tsx's
@@ -1569,6 +1572,7 @@ const de: Bundle = {
   priceNoteWeekends: 'Wochenende',
   priceNoteWeekdays: 'Werktage',
   priceNoteStartTemplate: 'Start {time}',
+  priceFromTemplate: 'ab {price}',
   singleDatePickerCue: 'Datum wählen',
   multiDayPickerCue: 'Ihre Termine wählen',
   selectionModeAria: 'Auswahlmodus',
