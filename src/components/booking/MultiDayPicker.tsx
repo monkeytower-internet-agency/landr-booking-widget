@@ -10,6 +10,7 @@ import {
   multiDayDiffSummary,
   multiDayResetDroppedNotice,
   multiDayResetToDatesLabel,
+  OUTSIDE_SCHEDULE_CONFIRM,
   seatsLeftLabel,
   tr,
   type ForceReason,
@@ -269,12 +270,13 @@ export function MultiDayPicker({
       // landr-rmcsu.5: a day short for the group is a capacity force too.
       const reasons = slot
         ? forceReasonsFor(slot.available_seats >= need, slot, hotelOffering)
-        : (['capacity'] as ForceReason[])
+        : // landr-8ht3m.4: no availability row at all → outside the schedule.
+          (['off_schedule'] as ForceReason[])
       reasons.forEach((r) => present.add(r))
     }
-    return (['capacity', 'lead_time', 'accommodation_lead_time'] as ForceReason[]).filter(
-      (r) => present.has(r),
-    )
+    return (
+      ['capacity', 'lead_time', 'accommodation_lead_time', 'off_schedule'] as ForceReason[]
+    ).filter((r) => present.has(r))
   }, [forcedDays, slotsByDate, hotelOffering, need])
 
   const applyClick = useCallback(
@@ -302,11 +304,7 @@ export function MultiDayPicker({
           }
           return
         }
-        if (
-          !window.confirm(
-            'Force-book this full / blocked day on behalf of the customer?',
-          )
-        ) {
+        if (!window.confirm(OUTSIDE_SCHEDULE_CONFIRM)) {
           return
         }
         const forcedNext = new Set(valueSet)

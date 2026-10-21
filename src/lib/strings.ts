@@ -2756,18 +2756,33 @@ export function accommodationTooLateMessage(
  * now, same as the other staff-mode-only copy this ticket leaves out (see
  * the PR description's "deferred" list). ok is the only staff user today.
  */
-export type ForceReason = 'capacity' | 'lead_time' | 'accommodation_lead_time'
+export type ForceReason =
+  | 'capacity'
+  | 'lead_time'
+  | 'accommodation_lead_time'
+  // landr-8ht3m.4: the picked day is outside the product's schedule (no
+  // availability at all for it), e.g. a Thursday on a Fri-Sun product.
+  | 'off_schedule'
+
+/**
+ * landr-8ht3m.4: the ONE confirm a staff operator answers before booking a day
+ * the schedule does not offer (or a full / closed one). Shared by every day
+ * picker so the wording never drifts.
+ */
+export const OUTSIDE_SCHEDULE_CONFIRM = 'Outside your schedule — book anyway?'
 
 const FORCE_REASON_CLAUSE: Record<ForceReason, string> = {
   capacity: 'past capacity',
   lead_time: 'inside the lead-time window',
   accommodation_lead_time: "with the hotel stay past the hotel's own lead time",
+  off_schedule: 'outside the schedule',
 }
 
 const FORCE_REASON_CONSEQUENCE: Record<ForceReason, string> = {
   capacity: 'Capacity will be exceeded',
   lead_time: 'the customer will not have the normal preparation time',
   accommodation_lead_time: "the hotel will not have its normal preparation time",
+  off_schedule: 'nothing is scheduled on that day',
 }
 
 function joinWithAnd(parts: string[]): string {

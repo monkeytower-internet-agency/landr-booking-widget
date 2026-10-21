@@ -8,6 +8,7 @@ import {
   availableDaysForLabel,
   seatsLeftLabel,
   seatsShortMessage,
+  OUTSIDE_SCHEDULE_CONFIRM,
   singleDateGate,
   tr,
   type ForceReason,
@@ -200,11 +201,9 @@ export function SingleDatePicker({
   const nothingBefore = useNothingBeforeNotice(availableSet)
 
   // landr-t869m.5: date → slot lookup so a force-booked pick can name WHICH
-  // gate(s) it bypassed. A date with no matching slot at all (outside the
-  // fetched horizon, or the endpoint never returned a row) has no evidence
-  // either way — fails open to ['capacity'], preserving this override's
-  // pre-existing (capacity-flavoured) copy rather than inventing a lead-time
-  // claim from missing data.
+  // gate(s) it bypassed. landr-8ht3m.4: a date with no matching slot at all has
+  // no availability on the schedule — it is OUTSIDE the schedule
+  // ('off_schedule'), which the operator confirms once and the API records.
   const slotsByDate = useMemo(() => {
     return new Map((slots ?? []).map((slot) => [slot.date, slot]))
   }, [slots])
@@ -234,7 +233,8 @@ export function SingleDatePicker({
     // landr-rmcsu.5: a day short for the group is a capacity force too.
     return slot
       ? forceReasonsFor(slot.available_seats >= need, slot, product.hotel_offering)
-      : (['capacity'] as ForceReason[])
+      : // landr-8ht3m.4: no availability row at all → outside the schedule.
+        (['off_schedule'] as ForceReason[])
   }, [selected, canForce, slots, availableSet, slotsByDate, product.hotel_offering, need])
 
   // landr-rmcsu.5: a restored pick (Back / Change dates) that no longer
@@ -253,11 +253,7 @@ export function SingleDatePicker({
   const handleSelect = useCallback((date: Date | undefined) => {
     const d = date ?? null
     if (d && canForce && !availableSet.has(isoDate(d))) {
-      if (
-        !window.confirm(
-          'Force-book this full / blocked day on behalf of the customer?',
-        )
-      ) {
+      if (!window.confirm(OUTSIDE_SCHEDULE_CONFIRM)) {
         return
       }
       setSelected(d)

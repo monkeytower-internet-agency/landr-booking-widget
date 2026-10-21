@@ -235,6 +235,101 @@ describe('AvailabilityPicker — staff force-book on fixed start times (landr-xt
   })
 })
 
+describe('AvailabilityPicker — staff books ANY day, off-schedule confirm (landr-8ht3m.4)', () => {
+  let offDay: Date
+  let onDay: Date
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-05-15T12:00:00Z'))
+    onDay = new Date()
+    onDay.setDate(onDay.getDate() + 3)
+    offDay = new Date()
+    offDay.setDate(offDay.getDate() + 2)
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.restoreAllMocks()
+  })
+
+  const schedule = () => [timed(onDay, '09:00:00'), timed(onDay, '11:00:00')]
+
+  it('staff can open a day with no times; ONE confirm; the product daily times are offered; reason is off_schedule', async () => {
+    mocks.getAvailability.mockResolvedValue(schedule())
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const onConfirm = renderPicker(STAFF)
+    await waitFor(() => dayButton(onDay))
+    expect(dayButton(offDay)).not.toBeDisabled()
+
+    fireEvent.click(dayButton(offDay))
+    expect(confirmSpy).toHaveBeenCalledTimes(1)
+    expect(confirmSpy).toHaveBeenCalledWith('Outside your schedule — book anyway?')
+
+    const options = screen.getAllByTestId('start-time-option')
+    expect(options.map((o) => o.textContent)).toEqual(['09:00', '11:00', '13:00'])
+    expect(options[1]).not.toBeDisabled()
+
+    // Picking a time does NOT ask again.
+    fireEvent.click(options[1])
+    expect(confirmSpy).toHaveBeenCalledTimes(1)
+    expect(screen.getByTestId('operator-override-badge')).toBeInTheDocument()
+    fireEvent.click(screen.getByTestId('availability-picker-submit'))
+    expect(onConfirm).toHaveBeenCalledTimes(1)
+    const [slot, forced, reasons] = onConfirm.mock.calls[0]
+    expect(slot).toMatchObject({
+      availability_id: null,
+      date: isoOf(offDay),
+      start_time: '11:00:00',
+    })
+    expect(forced).toBe(true)
+    expect(reasons).toEqual(['off_schedule'])
+  })
+
+  it('declining the confirm opens nothing', async () => {
+    mocks.getAvailability.mockResolvedValue(schedule())
+    vi.spyOn(window, 'confirm').mockReturnValue(false)
+    renderPicker(STAFF)
+    await waitFor(() => dayButton(onDay))
+    fireEvent.click(dayButton(offDay))
+    expect(screen.queryAllByTestId('start-time-option')).toHaveLength(0)
+  })
+
+  it('a scheduled day needs no confirm and is not a force-book', async () => {
+    mocks.getAvailability.mockResolvedValue(schedule())
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const onConfirm = renderPicker(STAFF)
+    await waitFor(() => dayButton(onDay))
+    fireEvent.click(dayButton(onDay))
+    fireEvent.click(screen.getAllByTestId('start-time-option')[0])
+    expect(confirmSpy).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByTestId('availability-picker-submit'))
+    expect(onConfirm.mock.calls[0]).toHaveLength(1)
+  })
+
+  it('past days stay disabled for staff', async () => {
+    mocks.getAvailability.mockResolvedValue(schedule())
+    renderPicker(STAFF)
+    await waitFor(() => dayButton(onDay))
+    const yesterday = new Date()
+    yesterday.setDate(yesterday.getDate() - 1)
+    expect(dayButton(yesterday)).toBeDisabled()
+  })
+
+  it('customers and staff WITHOUT force_book still cannot open an off-schedule day', async () => {
+    for (const session of [STAFF_NO_FORCE, undefined]) {
+      mocks.getAvailability.mockResolvedValue(schedule())
+      const { unmount } = render(
+        <StaffModeProvider value={session}>
+          <AvailabilityPicker product={makeProduct()} onBack={() => {}} onConfirm={vi.fn()} />
+        </StaffModeProvider>,
+      )
+      await waitFor(() => dayButton(onDay))
+      expect(dayButton(offDay)).toBeDisabled()
+      unmount()
+    }
+  })
+})
+
 describe('AvailabilityPicker — Continue never enabled while it would do nothing (landr-xtkae.2)', () => {
   beforeEach(() => {
     vi.clearAllMocks()

@@ -22,12 +22,14 @@ import { StepBackButton } from '@/components/booking/StepBackButton'
 import { dateFromIso, isoDate } from '@/components/booking/dateUtils'
 import {
   availabilityWindow,
+  startOfToday,
   useNothingBeforeNotice,
   useStartMonth,
 } from '@/components/booking/calendarStart'
 import {
   availabilityGate,
   availableDaysForLabel,
+  OUTSIDE_SCHEDULE_CONFIRM,
   seatsCountLabel,
   seatsLeftLabel,
   slotSeatsShortLabel,
@@ -154,6 +156,34 @@ export function AvailabilityPicker({
   const fixedTimes = hasFixedStartTimes(product)
   const canForce = fixedTimes && staff.active && staff.powers.includes('force_book')
   // landr-rmcsu.7: "pickable" = room for the WHOLE group (need 1 → any seat).
+  // landr-8ht3m.4: staff may book ANY future day. A day the schedule does not
+  // offer (no slot rows at all) gets the product's own daily start times as
+  // synthetic, force-booked slots; the operator confirms once on picking the
+  // day, and the API records the forced day in the audit log.
+  const today = useMemo(() => startOfToday(), [])
+  const slotDates = useMemo(() => new Set((slots ?? EMPTY_SLOTS).map((s) => s.date)), [slots])
+  const isOffSchedule = (iso: string): boolean =>
+    canForce && slots !== null && !slotDates.has(iso)
+  const offScheduleSlots = (iso: string): AvailabilitySlot[] => {
+    const now = new Date()
+    return (product.daily_start_times ?? [])
+      .filter((t) => {
+        // Today: a start time that has already passed is not offered.
+        if (iso !== isoDate(today)) return true
+        const [h, m] = t.split(':').map(Number)
+        return h * 60 + m > now.getHours() * 60 + now.getMinutes()
+      })
+      .map((t) => ({
+        availability_id: null,
+        date: iso,
+        start_time: t.length === 5 ? `${t}:00` : t,
+        end_time: null,
+        capacity: 0,
+        capacity_reserved: 0,
+        available_seats: 0,
+        status: 'open',
+      }))
+  }
   const slotIsPickable = (s: AvailabilitySlot): boolean =>
     s.available_seats >= need && isDayBookable(s, product.hotel_offering)
   // Has seats, but fewer than the group — shown "Only n left", not "Full".
@@ -201,13 +231,15 @@ export function AvailabilityPicker({
   const slotsForSelectedDate = useMemo(() => {
     if (!slots || !selectedDate) return []
     const key = isoDate(selectedDate)
+    if (canForce && !slotDates.has(key)) return offScheduleSlots(key)
     return slots.filter(
       (s) =>
         s.date === key &&
         (fixedTimes ||
           (s.available_seats > 0 && isDayBookable(s, product.hotel_offering))),
     )
-  }, [slots, selectedDate, product.hotel_offering, fixedTimes])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- offScheduleSlots closes over product.daily_start_times and today
+  }, [slots, selectedDate, product.hotel_offering, product.daily_start_times, fixedTimes, canForce, slotDates, today])
 
   // The slot Continue would commit — ONE lookup shared by `ready`, the gate
   // line and onContinue, so the button is never enabled while it would do
@@ -223,9 +255,11 @@ export function AvailabilityPicker({
     [slotsForSelectedDate, selectedSlotId, canForce, product.hotel_offering, need],
   )
   const selectedForceReasons: ForceReason[] =
-    selectedSlot && canForce && !slotIsPickable(selectedSlot)
-      ? forceReasonsFor(selectedSlot.available_seats >= need, selectedSlot, product.hotel_offering)
-      : []
+    selectedSlot && canForce && isOffSchedule(selectedSlot.date)
+      ? ['off_schedule']
+      : selectedSlot && canForce && !slotIsPickable(selectedSlot)
+        ? forceReasonsFor(selectedSlot.available_seats >= need, selectedSlot, product.hotel_offering)
+        : []
 
   if (error) {
     return (
@@ -289,10 +323,17 @@ export function AvailabilityPicker({
               mode="single"
               selected={selectedDate}
               onSelect={(date) => {
+                // landr-8ht3m.4: a day outside the schedule needs ONE confirm.
+                if (date && isOffSchedule(isoDate(date))) {
+                  if (!window.confirm(OUTSIDE_SCHEDULE_CONFIRM)) return
+                }
                 setSelectedDate(date)
                 setSelectedSlotId(null)
               }}
-              disabled={(date) => !availableDates.has(isoDate(date))}
+              disabled={(date) =>
+                // Staff (force_book) can open any day that is not in the past.
+                canForce ? date < today : !availableDates.has(isoDate(date))
+              }
               month={month}
               onMonthChange={setMonth}
               modifiers={{ short: shortDates }}
@@ -332,8 +373,9 @@ export function AvailabilityPicker({
                       if (
                         canForce &&
                         !slotIsPickable(slot) &&
+                        !isOffSchedule(slot.date) &&
                         !window.confirm(
-                          'Force-book this full / blocked time on behalf of the customer?',
+                          OUTSIDE_SCHEDULE_CONFIRM,
                         )
                       ) {
                         return
@@ -342,7 +384,7 @@ export function AvailabilityPicker({
                     }}
                   >
                     {slot.start_time?.slice(0, 5) ?? tr('anyTime', locale)}
-                    {!slotIsPickable(slot) ? (
+                    {!slotIsPickable(slot) && !isOffSchedule(slot.date) ? (
                       <span
                         className="ml-2 text-xs text-muted-foreground"
                         data-testid={slotIsShort(slot) ? 'slot-seats-short' : undefined}
