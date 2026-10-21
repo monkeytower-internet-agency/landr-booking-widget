@@ -38,6 +38,7 @@ import {
   type ForceReason,
 } from '@/lib/strings'
 import { browserLocale } from '@/lib/locale'
+import { operatorWallClock } from '@/lib/operatorClock'
 import { NextAction } from '@/components/booking/NextAction'
 import { ContinueAction } from '@/components/booking/ContinueAction'
 import { useReportLoaded } from '@/lib/bootSplash'
@@ -89,6 +90,12 @@ interface Props {
   onPartySizeChange?: (partySize: number) => void
   /** landr-rmcsu.7: widget token + contact email for the group-inquiry exit. */
   operatorToken?: string
+  /**
+   * landr-8ht3m.9: the operator's IANA timezone. "Today" and "now" for the
+   * start-time filter are read in this zone, not on the browser clock. Absent
+   * (older API) -> the browser clock.
+   */
+  operatorTimezone?: string | null
   contactEmail?: string | null
 }
 
@@ -108,6 +115,7 @@ export function AvailabilityPicker({
   showPartySizeStepper = false,
   onPartySizeChange,
   operatorToken,
+  operatorTimezone,
   contactEmail,
 }: Props) {
   const staff = useStaffMode()
@@ -165,13 +173,14 @@ export function AvailabilityPicker({
   const isOffSchedule = (iso: string): boolean =>
     canForce && slots !== null && !slotDates.has(iso)
   const offScheduleSlots = (iso: string): AvailabilitySlot[] => {
-    const now = new Date()
+    // landr-8ht3m.9: "today" and "now" are the OPERATOR's, not the browser's.
+    const opNow = operatorWallClock(operatorTimezone)
     return (product.daily_start_times ?? [])
       .filter((t) => {
         // Today: a start time that has already passed is not offered.
-        if (iso !== isoDate(today)) return true
+        if (iso !== opNow.iso) return true
         const [h, m] = t.split(':').map(Number)
-        return h * 60 + m > now.getHours() * 60 + now.getMinutes()
+        return h * 60 + m > opNow.minutes
       })
       .map((t) => ({
         availability_id: null,
@@ -238,8 +247,8 @@ export function AvailabilityPicker({
         (fixedTimes ||
           (s.available_seats > 0 && isDayBookable(s, product.hotel_offering))),
     )
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- offScheduleSlots closes over product.daily_start_times and today
-  }, [slots, selectedDate, product.hotel_offering, product.daily_start_times, fixedTimes, canForce, slotDates, today])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- offScheduleSlots closes over product.daily_start_times, today and operatorTimezone
+  }, [slots, selectedDate, product.hotel_offering, product.daily_start_times, fixedTimes, canForce, slotDates, today, operatorTimezone])
 
   // The slot Continue would commit — ONE lookup shared by `ready`, the gate
   // line and onContinue, so the button is never enabled while it would do

@@ -366,3 +366,55 @@ describe('AvailabilityPicker — Continue never enabled while it would do nothin
     expect(onConfirm).toHaveBeenCalledWith(slot)
   })
 })
+
+describe('AvailabilityPicker — "start time passed today" uses the operator clock (landr-8ht3m.9)', () => {
+  const env = (globalThis as unknown as { process: { env: Record<string, string | undefined> } }).process.env
+  const realTz = env.TZ
+  // 2026-05-16T09:30Z is 23:30 on May 15 in Honolulu and 11:30 on May 16 in Berlin.
+  const NOW = new Date('2026-05-16T09:30:00Z')
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(NOW)
+    // A day with schedule rows elsewhere, so the 16th is off-schedule.
+    mocks.getAvailability.mockResolvedValue([
+      { ...timed(NOW, '09:00:00'), date: '2026-05-20' },
+    ])
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.restoreAllMocks()
+    if (realTz === undefined) delete env.TZ
+    else env.TZ = realTz
+  })
+
+  async function offeredTimes(browserTz: string, operatorTz: string | null) {
+    env.TZ = browserTz
+    // Built after the zone switch: a Date made earlier would be a different local day.
+    const may16 = new Date(2026, 4, 16)
+    renderPicker(STAFF, vi.fn(), { operatorTimezone: operatorTz })
+    await waitFor(() => dayButton(may16))
+    fireEvent.click(dayButton(may16))
+    return screen.queryAllByTestId('start-time-option').map((o) => o.textContent)
+  }
+
+  it('operator ahead of the browser: today is the operator day, so passed times are hidden', async () => {
+    // The browser still reads May 15, so the old browser-clock check offered all three.
+    expect(await offeredTimes('Pacific/Honolulu', 'Europe/Berlin')).toEqual(['13:00'])
+  })
+
+  it('operator behind the browser: the browser "today" is still the operator future, so every time is offered', async () => {
+    // The browser reads 11:30 on May 16 and used to hide 09:00 and 11:00.
+    expect(await offeredTimes('Europe/Berlin', 'Pacific/Honolulu')).toEqual([
+      '09:00',
+      '11:00',
+      '13:00',
+    ])
+  })
+
+  it('no operator timezone falls back to the browser clock', async () => {
+    expect(await offeredTimes('Europe/Berlin', null)).toEqual(['13:00'])
+  })
+})

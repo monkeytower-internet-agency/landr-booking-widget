@@ -485,6 +485,12 @@ export interface OperatorSettings {
    */
   country?: string | null
   /**
+   * landr-8ht3m.9: operator's IANA timezone (e.g. 'Europe/Berlin'). Start
+   * times are authored in it, so "today"/"now" for the time picker are read
+   * there. Optional: absent = fall back to the browser clock.
+   */
+  timezone?: string | null
+  /**
    * landr-ens5 — the operator's 3-colour brand theme (brand/accent/
    * background, + optional dark overrides). When present it supersedes
    * primary_color and drives --background / --foreground / --brand /

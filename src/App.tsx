@@ -2306,6 +2306,7 @@ function BookingFlowApp() {
             showPartySizeStepper={!participantsFirstFor(step.product)}
             onPartySizeChange={onPartySizeChange}
             operatorToken={token ?? undefined}
+            operatorTimezone={operatorSettings.timezone}
             contactEmail={operatorSettings.contact_email ?? null}
             onBack={datePickerBack}
             // landr (breadcrumb): restore the prior slot on back-nav re-entry.
