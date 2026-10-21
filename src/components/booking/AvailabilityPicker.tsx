@@ -98,6 +98,11 @@ interface Props {
    */
   operatorTimezone?: string | null
   contactEmail?: string | null
+  /**
+   * landr-mfgx4: the picked date + time before Continue (null when cleared),
+   * so the price sidebar prices it live — the day pickers' onLiveDaysChange.
+   */
+  onLiveSlotChange?: (slot: AvailabilitySlot | null) => void
 }
 
 // Stable empty reference while availability loads (an unstable [] in a memo
@@ -118,6 +123,7 @@ export function AvailabilityPicker({
   operatorToken,
   operatorTimezone,
   contactEmail,
+  onLiveSlotChange,
 }: Props) {
   const staff = useStaffMode()
   const party = usePartySize(
@@ -295,20 +301,28 @@ export function AvailabilityPicker({
     const [h, m] = freeTime.split(':').map(Number)
     return h * 60 + m <= opNow.minutes
   }, [freeTime, freeTimeValid, selectedDateIso, operatorTimezone])
-  const freeSlot: AvailabilitySlot | undefined =
-    freeTimeDay && selectedDateIso !== null && freeTimeValid && !freeTimePassed
-      ? {
-          availability_id: null,
-          date: selectedDateIso,
-          start_time: `${freeTime}:00`,
-          end_time: null,
-          capacity: 0,
-          capacity_reserved: 0,
-          available_seats: 0,
-          status: 'open',
-        }
-      : undefined
+  // landr-mfgx4: memoised so the live-pick report below fires on a real change.
+  const freeSlot = useMemo<AvailabilitySlot | undefined>(
+    () =>
+      freeTimeDay && selectedDateIso !== null && freeTimeValid && !freeTimePassed
+        ? {
+            availability_id: null,
+            date: selectedDateIso,
+            start_time: `${freeTime}:00`,
+            end_time: null,
+            capacity: 0,
+            capacity_reserved: 0,
+            available_seats: 0,
+            status: 'open',
+          }
+        : undefined,
+    [freeTimeDay, selectedDateIso, freeTimeValid, freeTimePassed, freeTime],
+  )
   const selectedSlot = freeTimeDay ? freeSlot : selectedSlotRow
+  // landr-mfgx4: report the live pick up so the price sidebar can price it.
+  useEffect(() => {
+    onLiveSlotChange?.(selectedSlot ?? null)
+  }, [selectedSlot, onLiveSlotChange])
   const selectedForceReasons: ForceReason[] =
     selectedSlot && isOffSchedule(selectedSlot.date)
       ? ['off_schedule']
