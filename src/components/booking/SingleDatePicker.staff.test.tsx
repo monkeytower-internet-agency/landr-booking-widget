@@ -126,13 +126,13 @@ describe('SingleDatePicker — staff force-book', () => {
     expect(cont).not.toBeDisabled()
     fireEvent.click(cont)
     // selectedDays carries the day; forcedDays carries the SAME day.
-    // landr-t869m.5: no slot at all for this date (getAvailability resolved
-    // []) → reasons fail open to ['capacity'], same as before this ticket's
-    // reason-tracking (no evidence of a lead-time block either way).
+    // landr-8ht3m.4: no slot at all for this date (getAvailability resolved
+    // []) → the day is outside the schedule, and the operator confirmed it.
+    expect(confirmSpy).toHaveBeenCalledWith('Outside your schedule — book anyway?')
     expect(onConfirm).toHaveBeenCalledWith(
       [isoOf(tomorrow)],
       [isoOf(tomorrow)],
-      ['capacity'],
+      ['off_schedule'],
     )
   })
 
