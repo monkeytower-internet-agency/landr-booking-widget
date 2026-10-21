@@ -83,6 +83,7 @@ import {
 import { CustomFormStep } from '@/components/booking/CustomFormStep'
 import type { FormResponseEntry, ProductFlowResponse } from '@/api/flowTypes'
 import type {
+  AvailabilitySlot,
   InvitePrefill,
   OperatorSettings,
   Product,
@@ -429,6 +430,13 @@ function BookingFlowApp() {
   // (landr-w7pi). Cleared whenever we leave pick-selection so the next
   // visit to that step starts fresh.
   const [liveSelectionDays, setLiveSelectionDays] = useState<string[]>([])
+  // landr-mfgx4: the live date + time from AvailabilityPicker, so the sidebar
+  // prices a picked start time before Continue. Cleared with liveSelectionDays.
+  const [liveSlot, setLiveSlot] = useState<AvailabilitySlot | null>(null)
+  const onLiveSlotChange = useCallback((slot: AvailabilitySlot | null) => {
+    setLiveSlot(slot)
+    setLiveSelectionDays(slot ? [slot.date] : [])
+  }, [])
   // landr-g98ug: tell the dashboard's Add-booking overlay (staff embed only)
   // whether closing it would throw away a booking in progress.
   useStaffDirtySignal(isBookingInProgress(step, liveSelectionDays.length))
@@ -1249,6 +1257,7 @@ function BookingFlowApp() {
       // Clear live selection so that a Back → re-enter cycle shows an
       // empty price sidebar until the user picks days again (landr-w7pi).
       setLiveSelectionDays([])
+      setLiveSlot(null)
       // landr-gb2f.1: also clear live participant state on a full restart.
       setLiveParticipantCount(0)
       setLiveParticipantNames([])
@@ -1341,6 +1350,7 @@ function BookingFlowApp() {
     // the ephemeral state so it doesn't linger if the user ever navigates
     // back to pick-selection via Back (landr-w7pi).
     setLiveSelectionDays([])
+    setLiveSlot(null)
     // landr-gb2f.1: reset live participant state each time we (re-)enter
     // DetailsStep so a Back → re-enter cycle shows the committed sidebar
     // values (from step state) rather than stale live values.
@@ -1430,6 +1440,7 @@ function BookingFlowApp() {
   ) => {
     commitDetails(product, booker, participants, companions, comment)
     setLiveSelectionDays([])
+    setLiveSlot(null)
     setLiveParticipantCount(0)
     setLiveParticipantNames([])
     setStep({ name: 'pick-selection', product, selection })
@@ -1709,6 +1720,7 @@ function BookingFlowApp() {
         setBookingDraft((prev) => mergeCapturedDraft(prev, captured))
       }
       setLiveSelectionDays([])
+      setLiveSlot(null)
       setLiveParticipantCount(0)
       setLiveParticipantNames([])
       clearLiveAccommodation()
@@ -2313,6 +2325,7 @@ function BookingFlowApp() {
             initialSlot={
               step.selection?.kind === 'slot' ? step.selection.slot : undefined
             }
+            onLiveSlotChange={onLiveSlotChange}
             onConfirm={(slot, forced, forcedReasons) =>
               afterSelection(step.product, {
                 kind: 'slot',
@@ -3428,10 +3441,14 @@ function BookingFlowApp() {
             }
             // landr-k9pji.25: the committed slot prices start-time adjustments
             // (same fields BookingForm submits).
+            // landr-mfgx4: on the dates step price the live pick, matching
+            // selectedDays above.
             slot={
-              'selection' in step && step.selection?.kind === 'slot'
-                ? estimateSlotFields(step.selection.slot)
-                : undefined
+              step.name === 'pick-selection'
+                ? estimateSlotFields(liveSlot)
+                : 'selection' in step && step.selection?.kind === 'slot'
+                  ? estimateSlotFields(step.selection.slot)
+                  : undefined
             }
             debounceMs={step.name === 'pick-selection' ? 1500 : undefined}
             // landr-zenj.1: reports the visible estimate's un_priceable

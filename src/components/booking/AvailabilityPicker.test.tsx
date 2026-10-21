@@ -310,6 +310,45 @@ describe('AvailabilityPicker with fixed daily start times (landr-xtkae.2)', () =
     fireEvent.click(screen.getByTestId('availability-picker-submit'))
     expect(onConfirm).toHaveBeenCalledWith(slots[1])
   })
+
+  // landr-mfgx4: the price sidebar prices the pick before Continue.
+  it('reports the live date + time pick before Continue', async () => {
+    const tomorrow = new Date()
+    tomorrow.setDate(tomorrow.getDate() + 1)
+    const dayAfter = new Date()
+    dayAfter.setDate(dayAfter.getDate() + 2)
+    const slots = [
+      timed(tomorrow, '09:00:00'),
+      timed(tomorrow, '11:00:00'),
+      timed(dayAfter, '09:00:00'),
+    ]
+    mocks.getAvailability.mockResolvedValue(slots)
+    const onLiveSlotChange = vi.fn()
+    render(
+      <AvailabilityPicker
+        product={timedProduct()}
+        onBack={() => {}}
+        onConfirm={vi.fn()}
+        onLiveSlotChange={onLiveSlotChange}
+      />,
+    )
+    await waitFor(() => dayButton(tomorrow))
+    fireEvent.click(dayButton(tomorrow))
+    // A day alone is not priceable yet — no time picked.
+    expect(onLiveSlotChange).toHaveBeenLastCalledWith(null)
+
+    fireEvent.click(screen.getAllByTestId('start-time-option')[1])
+    expect(onLiveSlotChange).toHaveBeenLastCalledWith(slots[1])
+    const calls = onLiveSlotChange.mock.calls.length
+
+    // A re-render with the same pick does not re-report.
+    fireEvent.click(screen.getAllByTestId('start-time-option')[1])
+    expect(onLiveSlotChange).toHaveBeenCalledTimes(calls)
+
+    // Switching day drops the time again.
+    fireEvent.click(dayButton(dayAfter))
+    expect(onLiveSlotChange).toHaveBeenLastCalledWith(null)
+  })
 })
 
 // landr-rmcsu.7: slot pickers honour the group size like the day pickers do.
