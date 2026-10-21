@@ -87,6 +87,11 @@ interface Props {
   showPartySizeStepper?: boolean
   onPartySizeChange?: (partySize: number) => void
   operatorToken?: string
+  /**
+   * landr-8ht3m.12: the operator's IANA timezone. "Today" (past-day disabling,
+   * fetch window) is the operator's day, not the browser's. Absent -> browser.
+   */
+  operatorTimezone?: string | null
   contactEmail?: string | null
 }
 
@@ -113,6 +118,7 @@ export function SingleDatePicker({
   showPartySizeStepper = false,
   onPartySizeChange,
   operatorToken,
+  operatorTimezone,
   contactEmail,
 }: Props) {
   const staff = useStaffMode()
@@ -131,9 +137,9 @@ export function SingleDatePicker({
   )
 
   const { fromIso, toIso, today } = useMemo(() => {
-    const from = startOfToday()
+    const from = startOfToday(operatorTimezone)
     return { ...availabilityWindow(from), today: from }
-  }, [])
+  }, [operatorTimezone])
 
   useEffect(() => {
     let cancelled = false
@@ -197,8 +203,10 @@ export function SingleDatePicker({
   const [month, setMonth] = useStartMonth(
     selected ? [isoDate(selected)] : [],
     availableSet,
+    undefined,
+    operatorTimezone,
   )
-  const nothingBefore = useNothingBeforeNotice(availableSet)
+  const nothingBefore = useNothingBeforeNotice(availableSet, undefined, operatorTimezone)
 
   // landr-t869m.5: date → slot lookup so a force-booked pick can name WHICH
   // gate(s) it bypassed. landr-8ht3m.4: a date with no matching slot at all has

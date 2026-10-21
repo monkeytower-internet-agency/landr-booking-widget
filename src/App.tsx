@@ -2407,6 +2407,7 @@ function BookingFlowApp() {
             showPartySizeStepper={!participantsFirstFor(step.product)}
             onPartySizeChange={onPartySizeChange}
             operatorToken={token ?? undefined}
+            operatorTimezone={operatorSettings.timezone}
             contactEmail={operatorSettings.contact_email ?? null}
             onConfirm={(selectedDays, forcedDays, forcedReasons) =>
               afterSelection(step.product, {
@@ -2436,6 +2437,7 @@ function BookingFlowApp() {
             showPartySizeStepper={!participantsFirstFor(step.product)}
             onPartySizeChange={onPartySizeChange}
             operatorToken={token ?? undefined}
+            operatorTimezone={operatorSettings.timezone}
             contactEmail={operatorSettings.contact_email ?? null}
             onLoaded={onSelectionLoaded}
             onBack={datePickerBack}

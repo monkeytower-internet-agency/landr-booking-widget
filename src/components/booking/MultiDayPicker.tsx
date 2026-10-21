@@ -22,6 +22,7 @@ import { dateFromIso, isoDate } from '@/components/booking/dateUtils'
 import { computeDayDiff } from '@/components/booking/daySetDiff'
 import {
   availabilityWindow,
+  startOfToday,
   useNothingBeforeNotice,
   useStartMonth,
 } from '@/components/booking/calendarStart'
@@ -106,6 +107,12 @@ interface MultiDayPickerProps {
    * force). Absent / 1 → today's `available_seats > 0` rule.
    */
   seatsNeeded?: number
+  /**
+   * landr-8ht3m.12: the operator's IANA timezone. "Today" (fetch window,
+   * first-bookable-day search) is the operator's day, not the browser's.
+   * Absent -> browser clock.
+   */
+  operatorTimezone?: string | null
 }
 
 
@@ -158,6 +165,7 @@ export function MultiDayPicker({
   originalValueLabel,
   initialDroppedCount,
   seatsNeeded,
+  operatorTimezone,
 }: MultiDayPickerProps) {
   const staff = useStaffMode()
   const locale = browserLocale()
@@ -218,8 +226,9 @@ export function MultiDayPicker({
     value.map(isoDate),
     availableSet,
     defaultMonth,
+    operatorTimezone,
   )
-  const nothingBefore = useNothingBeforeNotice(availableSet)
+  const nothingBefore = useNothingBeforeNotice(availableSet, undefined, operatorTimezone)
 
   // landr-53vao: the picker's own container width (not the viewport — the
   // widget runs in host iframes) picks the layout: two months side by side
@@ -229,9 +238,9 @@ export function MultiDayPicker({
   // Last month the horizon reaches; the next arrow disables there and the
   // peek never reaches past it.
   const horizonMonth = useMemo(() => {
-    const end = dateFromIso(availabilityWindow().toIso)
+    const end = dateFromIso(availabilityWindow(startOfToday(operatorTimezone)).toIso)
     return new Date(end.getFullYear(), end.getMonth(), 1)
-  }, [])
+  }, [operatorTimezone])
   const peekMonth = useMemo(
     () => new Date(month.getFullYear(), month.getMonth() + 1, 1),
     [month],

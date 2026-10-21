@@ -140,7 +140,10 @@ export function AvailabilityPicker({
   )
   const locale = browserLocale()
 
-  const { fromIso, toIso } = useMemo(() => availabilityWindow(), [])
+  const { fromIso, toIso } = useMemo(
+    () => availabilityWindow(startOfToday(operatorTimezone)),
+    [operatorTimezone],
+  )
 
   useEffect(() => {
     let cancelled = false
@@ -168,7 +171,7 @@ export function AvailabilityPicker({
   // offer (no slot rows at all) gets the product's own daily start times as
   // synthetic, force-booked slots; the operator confirms once on picking the
   // day, and the API records the forced day in the audit log.
-  const today = useMemo(() => startOfToday(), [])
+  const today = useMemo(() => startOfToday(operatorTimezone), [operatorTimezone])
   const slotDates = useMemo(() => new Set((slots ?? EMPTY_SLOTS).map((s) => s.date)), [slots])
   const isOffSchedule = (iso: string): boolean =>
     canForce && slots !== null && !slotDates.has(iso)
@@ -230,8 +233,10 @@ export function AvailabilityPicker({
   const [month, setMonth] = useStartMonth(
     selectedDate ? [isoDate(selectedDate)] : [],
     availableDates,
+    undefined,
+    operatorTimezone,
   )
-  const nothingBefore = useNothingBeforeNotice(availableDates)
+  const nothingBefore = useNothingBeforeNotice(availableDates, undefined, operatorTimezone)
 
   // landr-xtkae.2: on a fixed-daily-times product the day's times are a menu
   // the operator published, so a FULL (or lead-time-closed) time stays visible
