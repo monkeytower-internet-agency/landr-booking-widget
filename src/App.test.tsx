@@ -1,6 +1,6 @@
 import { fillBillingFields } from '@/test/fillBilling'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 
 import type { AvailabilitySlot, FixedDateWindow, Product } from '@/api/types'
 import { HttpError } from '@/api/client'
@@ -943,6 +943,72 @@ describe('App', () => {
         expect(mocks.getAvailability).toHaveBeenCalled()
         expect(screen.getByTestId('availability-picker-submit')).toBeInTheDocument()
       })
+    })
+
+    // landr-mfgx4: the sidebar prices the picked date + time on the dates
+    // step itself, not only after Continue.
+    it('single_date + daily_start_times → sidebar prices the live pick before Continue', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] })
+      vi.setSystemTime(new Date('2026-05-15T08:00:00Z'))
+      onTestFinished(() => {
+        vi.useRealTimers()
+      })
+      const tomorrow = new Date(2026, 4, 16)
+      const iso = '2026-05-16'
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          product_kind: 'service',
+          service_time_shape: 'single_date',
+          daily_start_times: ['09:00', '11:00'],
+          name: 'Tandem Timed',
+        }),
+      ])
+      mocks.getAvailability.mockResolvedValue([
+        {
+          availability_id: null,
+          date: iso,
+          start_time: '11:00:00',
+          end_time: null,
+          capacity: 2,
+          capacity_reserved: 0,
+          available_seats: 2,
+          status: 'open',
+        } as AvailabilitySlot,
+      ])
+      render(<App />)
+      await pickProduct('Tandem Timed')
+      const dayButton = () =>
+        Array.from(document.querySelectorAll<HTMLButtonElement>('button[data-day]')).find(
+          (b) => {
+            const d = new Date(b.dataset.day!)
+            return d.getDate() === tomorrow.getDate() && d.getMonth() === tomorrow.getMonth()
+          },
+        )
+      // The step transition can remount the picker right after a click, so
+      // pick the day again until its times are on screen.
+      await waitFor(
+        () => {
+          if (screen.queryAllByTestId('start-time-option').length === 0) {
+            const btn = dayButton()
+            expect(btn).toBeDefined()
+            expect(btn).not.toBeDisabled()
+            fireEvent.click(btn!)
+          }
+          expect(screen.getAllByTestId('start-time-option').length).toBeGreaterThan(0)
+        },
+        { timeout: 4000 },
+      )
+      fireEvent.click(screen.getByTestId('start-time-option'))
+      await waitFor(
+        () =>
+          expect(mocks.estimateBookingPrice).toHaveBeenCalledWith(
+            expect.anything(),
+            expect.anything(),
+            expect.objectContaining({ slot_start_time: '11:00' }),
+          ),
+        { timeout: 4000 },
+      )
+      expect(screen.getByTestId('availability-picker-submit')).toBeInTheDocument()
     })
 
     it('product_kind=digital_good → ShopComingSoonStub', async () => {

@@ -299,6 +299,8 @@ function BookingOverviewBody({
           <PriceBreakdown
             subtotalBeforeSavings={data.subtotal_before_savings}
             savings={data.savings}
+            surcharges={data.surcharges}
+            subtotalBeforeSurcharges={data.subtotal_before_surcharges}
             amountDue={data.amount_due ?? data.operator_total}
             currency={data.currency}
             totalLabel={tr('amountDueLabel', locale)}

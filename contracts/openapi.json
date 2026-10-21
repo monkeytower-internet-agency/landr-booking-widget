@@ -1108,6 +1108,18 @@
             "format": "date",
             "title": "Date",
             "type": "string"
+          },
+          "range_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Range Id"
           }
         },
         "required": [
@@ -2761,6 +2773,35 @@
           "subtotal_before_savings": {
             "title": "Subtotal Before Savings",
             "type": "string"
+          },
+          "subtotal_before_surcharges": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subtotal Before Surcharges"
+          },
+          "surcharges": {
+            "items": {
+              "$ref": "#/components/schemas/SavingLineOut"
+            },
+            "title": "Surcharges",
+            "type": "array"
+          },
+          "surcharges_total": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Surcharges Total"
           }
         },
         "required": [
@@ -7998,6 +8039,18 @@
             "title": "Participants Count",
             "type": "integer"
           },
+          "product_availability_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Availability Id"
+          },
           "selected_days": {
             "items": {
               "format": "date",
@@ -8005,6 +8058,18 @@
             },
             "title": "Selected Days",
             "type": "array"
+          },
+          "slot_start_time": {
+            "anyOf": [
+              {
+                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d(:00)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slot Start Time"
           }
         },
         "title": "EstimateRequest",
@@ -8100,6 +8165,42 @@
               }
             ],
             "title": "Subtotal Before Savings"
+          },
+          "subtotal_before_surcharges": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subtotal Before Surcharges"
+          },
+          "surcharges": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/SavingLineOut"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Surcharges"
+          },
+          "surcharges_total": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Surcharges Total"
           },
           "un_priceable": {
             "default": false,
@@ -15376,6 +15477,18 @@
             ],
             "title": "Next Window Start"
           },
+          "price_base": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Base"
+          },
           "price_from": {
             "anyOf": [
               {
@@ -15387,6 +15500,13 @@
               }
             ],
             "title": "Price From"
+          },
+          "price_notes": {
+            "items": {
+              "$ref": "#/components/schemas/PriceNote"
+            },
+            "title": "Price Notes",
+            "type": "array"
           },
           "product_id": {
             "title": "Product Id",
@@ -15693,6 +15813,17 @@
               }
             ],
             "title": "Theme"
+          },
+          "timezone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timezone"
           },
           "widget_catalog_layout": {
             "anyOf": [
@@ -17145,6 +17276,96 @@
         "title": "PriceListSkippedOut",
         "type": "object"
       },
+      "PriceNote": {
+        "additionalProperties": true,
+        "description": "landr-bwm91.4: one visible price adjustment of a product.",
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "string"
+          },
+          "amount_type": {
+            "enum": [
+              "flat",
+              "percent"
+            ],
+            "title": "Amount Type",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "surcharge",
+              "discount"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "per_participant": {
+            "default": false,
+            "title": "Per Participant",
+            "type": "boolean"
+          },
+          "rule_kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rule Kind"
+          },
+          "time_from": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Time From"
+          },
+          "time_to": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Time To"
+          },
+          "weekdays": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weekdays"
+          }
+        },
+        "required": [
+          "kind",
+          "label",
+          "amount",
+          "amount_type"
+        ],
+        "title": "PriceNote",
+        "type": "object"
+      },
       "PriceOverrideIn": {
         "properties": {
           "override_gross_total": {
@@ -17824,7 +18045,9 @@
               "percentage_discount",
               "flat_discount",
               "time_of_day_surcharge",
-              "manual_override"
+              "manual_override",
+              "slot_time_adjustment",
+              "weekday_adjustment"
             ],
             "title": "Rule Kind",
             "type": "string"
@@ -25397,7 +25620,7 @@
       },
       "SavingLineOut": {
         "additionalProperties": true,
-        "description": "One \"\u2212 <label>  <amount>\" row of a customer-facing price breakdown\n(landr-nva1a.1, see ``app/services/booking_savings.py``). ``kind`` is\n``multi_day`` | ``voucher`` | ``perk`` | ``discount``; ``amount`` is a\npositive decimal string. Shared by the estimate, the staff pricing\nbreakdown, and the submit response's ``summary``.",
+        "description": "One \"\u2212 <label>  <amount>\" row of a customer-facing price breakdown\n(landr-nva1a.1, see ``app/services/booking_savings.py``). ``kind`` is\n``multi_day`` | ``voucher`` | ``perk`` | ``discount`` (or ``surcharge`` in\na ``surcharges`` list, landr-fcoh2); ``amount`` is a\npositive decimal string. Shared by the estimate, the staff pricing\nbreakdown, and the submit response's ``summary``.",
         "properties": {
           "amount": {
             "title": "Amount",
@@ -26475,6 +26698,21 @@
       "SimulateDraftIn": {
         "description": "Body of POST \u2026/pricing/simulate-draft.\n\n``selected_days`` go to the engine unchanged: for a ``hotel_room``\nproduct they ARE the night list (check-in inclusive, check-out\nexclusive \u2014 the engine convention), NOT the widget's raw activity days.\n``service_time_shape`` / ``product_kind`` default to the saved product's\nwhen ``product_id`` is given.",
         "properties": {
+          "daily_start_times": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 48,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Daily Start Times"
+          },
           "locale": {
             "anyOf": [
               {
@@ -26541,6 +26779,18 @@
               }
             ],
             "title": "Service Time Shape"
+          },
+          "slot_start_time": {
+            "anyOf": [
+              {
+                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d(:00)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slot Start Time"
           },
           "standard": {
             "anyOf": [
@@ -30836,7 +31086,9 @@
               "percentage_discount",
               "flat_discount",
               "time_of_day_surcharge",
-              "manual_override"
+              "manual_override",
+              "slot_time_adjustment",
+              "weekday_adjustment"
             ],
             "title": "Rule Kind",
             "type": "string"
@@ -30909,7 +31161,9 @@
                   "percentage_discount",
                   "flat_discount",
                   "time_of_day_surcharge",
-                  "manual_override"
+                  "manual_override",
+                  "slot_time_adjustment",
+                  "weekday_adjustment"
                 ],
                 "type": "string"
               },
@@ -39003,7 +39257,7 @@
     },
     "/api/staff/availability/{availability_id}": {
       "delete": {
-        "description": "Delete one availability row, refusing (409) if the day is really booked.\n\nlandr-5oox.9 \u2014 the guard has TWO signals, and needs both:\n\n* ``booking_products.product_availability_id`` (landr-0zsz, the original\n  match). Precise, but populated by nobody today\n  (20260810170000:414-417 \u2014 \"Absent for every caller\"), so on its own it\n  has never fired for the day products this endpoint is mostly used on.\n* per-day seat load through ``booking_products.selected_days``\n  (``load_per_day`` \u2192 ``product_day_seat_load``), which is how a\n  days_range / single_date booking actually records the days it occupies.\n  This is the one that makes the guard real.\n\nEither signal blocks the delete. The 409 keeps ``live_booking_count`` (a\nDISTINCT booking count from the pointer signal, unchanged) and adds\n``booked_participants`` (guiding seats consumed on the day) so the client\ncan say *why*.\n\nCaveat, recorded rather than papered over: the seat-load signal counts\nGUIDING participants (landr-5oox.4's seat definition), so a live booking\non the day carrying zero guiding participants reads as load 0. That shape\nshould not exist \u2014 a booking with no guiding participant consumes no seat\nanywhere in the system \u2014 and using the same definition here as the batch\npre-check and the widget is worth more than a third, divergent notion of\n\"booked\". See the landr-5oox.9 handoff follow-ups.\n\nlandr-5oox.29: ``load_per_day`` is a DAY-grain signal \u2014 it sums every\nlive booking whose ``selected_days`` contains the date, ACROSS every row\non that date. That is only meaningful for whole-day shapes\n(``_is_whole_day_row`` / ``BATCH_DAY_SHAPES``, the same gate the batch\nsave endpoint uses). For a ``time_slot`` row it used to block deleting\nan empty 09:00 slot because the day's 14:00 slot was booked \u2014 an\nun-overridable false-positive 409 on a legitimate operator action, and\nbefore landr-5oox.9 the delete succeeded. A slot row instead relies\nentirely on the pointer signal (``live_count``, already the correct\nper-slot match) for both the block decision AND ``booked_participants``.",
+        "description": "Delete one availability row, refusing (409) if the day is really booked.\n\nlandr-5oox.9 \u2014 the guard has TWO signals, and needs both:\n\n* ``booking_products.product_availability_id`` (landr-0zsz, the original\n  match). Precise, but populated by nobody today\n  (20260810170000:414-417 \u2014 \"Absent for every caller\"), so on its own it\n  has never fired for the day products this endpoint is mostly used on.\n* per-day seat load through ``booking_products.selected_days``\n  (``load_per_day`` \u2192 ``product_day_seat_load``), which is how a\n  days_range / single_date booking actually records the days it occupies.\n  This is the one that makes the guard real.\n\nEither signal blocks the delete. The 409 keeps ``live_booking_count`` (a\nDISTINCT booking count from the pointer signal, unchanged) and adds\n``booked_participants`` (guiding seats consumed on the day) so the client\ncan say *why*.\n\nCaveat, recorded rather than papered over: the seat-load signal counts\nGUIDING participants (landr-5oox.4's seat definition), so a live booking\non the day carrying zero guiding participants reads as load 0. That shape\nshould not exist \u2014 a booking with no guiding participant consumes no seat\nanywhere in the system \u2014 and using the same definition here as the batch\npre-check and the widget is worth more than a third, divergent notion of\n\"booked\". See the landr-5oox.9 handoff follow-ups.\n\nlandr-5oox.29: ``load_per_day`` is a DAY-grain signal \u2014 it sums every\nlive booking whose ``selected_days`` contains the date, ACROSS every row\non that date. That is only meaningful for whole-day shapes\n(``_is_whole_day_row`` / ``BATCH_DAY_SHAPES``, the same gate the batch\nsave endpoint uses). For a ``time_slot`` row it used to block deleting\nan empty 09:00 slot because the day's 14:00 slot was booked \u2014 an\nun-overridable false-positive 409 on a legitimate operator action, and\nbefore landr-5oox.9 the delete succeeded. A slot row instead relies\nentirely on the pointer signal (``live_count``, already the correct\nper-slot match) for both the block decision AND ``booked_participants``.\n\nlandr-8ht3m.15: on a plain time_slot product (no ``daily_start_times``) the\nslot row also counts staff free-time lines at exactly its start time\n(``free_time_load_per_slot``), which carry no pointer.",
         "operationId": "delete_availability",
         "parameters": [
           {
@@ -40145,7 +40399,7 @@
     },
     "/api/staff/operators": {
       "post": {
-        "description": "Create an additional FREE-tier operator owned by the caller.\n\nResponses: 201 `{operator_id, slug}`; 422 `invalid_slug` /\n`unknown_preset_key` (+ suggestions on the former); 409 `slug_taken` +\nsuggestions; 403 `not_a_member` (no `public.users` row); 429\n`rate_limited` (5/user/day).",
+        "description": "Create an additional FREE-tier operator owned by the caller.\n\nResponses: 201 `{operator_id, slug}`; 422 `invalid_slug` /\n`unknown_preset_key` (+ suggestions on the former); 409 `slug_taken` +\nsuggestions; 403 `not_a_member` (no `public.users` row); 403\n`free_tier_limit` (no paid operator owned, landr-981dz); 429\n`rate_limited` (5/user/day).",
         "operationId": "create_operator",
         "requestBody": {
           "content": {
@@ -40940,6 +41194,76 @@
           }
         ],
         "summary": "List Cancelled Bookings",
+        "tags": [
+          "staff-bookings"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/bookings/customer-unnotified": {
+      "get": {
+        "description": "Booking ids whose ``customer_unnotified`` flag is true.\n\nA live booking an operator created (``booking_channel`` != ``public_website``)\nthat the customer has heard nothing about: no confirmation mail sent, no\noffer sent, no custom offer applied (those carry \"Offer not sent\" instead).\nNo ``ids`` -> every flagged booking of the operator; with repeated ``ids``\n-> only those among them (the page being rendered). Operator-scoped:\nanother operator's ids are never reported.",
+        "operationId": "staff_list_customer_unnotified",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "ids",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "maxItems": 500,
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Ids"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Staff List Customer Unnotified",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Customer Unnotified",
         "tags": [
           "staff-bookings"
         ]
@@ -44045,7 +44369,7 @@
     },
     "/api/staff/operators/{operator_id}/bookings/{booking_id}/send-confirmation": {
       "post": {
-        "description": "Send the first booking_confirmation to the customer.\n\n- Verifies the booking belongs to this operator.\n- Guards: only allowed when the booking is in/past the confirmed set (same\n  gate as resend, landr-tf39) AND no prior confirmation exists yet.\n  If a prior exists \u2192 409 {\"error\": \"already_confirmed\"} (use resend).\n  If the stage is not yet confirmed/due \u2192 409 {\"error\": \"confirmation_not_allowed_yet\"}.\n- Calls send_booking_confirmation(is_update=False, no extra_context) which\n  records the initial last_confirmation_context snapshot.\n- Returns {\"sent\": true, \"email_id\": \"<id or null>\"}.\n- Optional body ``{\"email_override\": {to_address?, subject?, body_html?,\n  body_text?}}`` (landr-j6clr.1) replaces the rendered customer mail after\n  render; every other side effect of the send is unchanged. No body = as before.",
+        "description": "Send the first booking_confirmation to the customer.\n\n- Verifies the booking belongs to this operator.\n- Guards: only allowed when the booking is in/past the confirmed set (same\n  gate as resend, landr-tf39) AND no prior confirmation exists yet.\n  If a prior exists \u2192 409 {\"error\": \"already_confirmed\"} (use resend).\n  If the stage is not yet confirmed/due \u2192 409 {\"error\": \"confirmation_not_allowed_yet\"}\n  (public-website bookings only; staff-created bookings skip this stage gate,\n  the hotel and offer guards still apply).\n- Calls send_booking_confirmation(is_update=False, no extra_context) which\n  records the initial last_confirmation_context snapshot.\n- Returns {\"sent\": true, \"email_id\": \"<id or null>\"}.\n- Optional body ``{\"email_override\": {to_address?, subject?, body_html?,\n  body_text?}}`` (landr-j6clr.1) replaces the rendered customer mail after\n  render; every other side effect of the send is unchanged. No body = as before.",
         "operationId": "send_confirmation",
         "parameters": [
           {
@@ -52091,7 +52415,7 @@
     },
     "/api/staff/operators/{operator_id}/product-day-capacity": {
       "get": {
-        "description": "Per-day seat numbers of every product whose OWN daily cap limits it\n(``products.day_capacity_source = 'product'``), for the staff calendar's\nproduct-cap lane (landr-rmcsu).\n\nThese are the numbers the public booking widget enforces \u2014 the rows come\nfrom the same ``public_get_product_availability`` RPC and the same\n``_fill_seat_numbers`` step the public endpoint uses, so the dashboard\ncannot show a second seat definition. ``booked`` is the\nguiding participants of live bookings (``product_day_seat_load``).\n\nOmitted: products limited by ``resources`` (the pool lanes already show\nthem), days whose ``seat_limit_source`` is not ``product`` (sentinel /\n``none`` / pool-filled days), closed days (the RPC does not return them),\nand slot rows of time_slot products (a per-day number needs a whole-day\nshape). Like the widget, products that are inactive or not publicly\nlisted return no rows. Ordered by product name, then date.",
+        "description": "Per-day seat numbers of every product whose OWN daily cap limits it\n(``products.day_capacity_source = 'product'``), for the staff calendar's\nproduct-cap lane (landr-rmcsu).\n\nThese are the numbers the public booking widget enforces \u2014 the rows come\nfrom the same ``public_get_product_availability`` RPC and the same\n``_fill_seat_numbers`` step the public endpoint uses, so the dashboard\ncannot show a second seat definition. ``booked`` is the\nguiding participants of live bookings (``product_day_seat_load``).\n\nlandr-8ht3m.24: a single_date product with start times (the public RPC\nsells each open day as one timed row per start time) is ONE row per day\nhere: ``capacity`` = the sum of its slots' seats, ``available`` = the sum\nof their free seats, ``booked`` = the seats held across the slots\n(``product_slot_seat_load``: a booking with no start time holds a seat in\nevery slot). Slots already started are gone from the RPC, so they leave the\nsums too. The response shape is unchanged.\n\nOmitted: products limited by ``resources`` (the pool lanes already show\nthem), days whose ``seat_limit_source`` is not ``product`` (sentinel /\n``none`` / pool-filled days; for a timed day: any of its slots), closed\ndays (the RPC does not return them), and slot rows of time_slot and\ndays_range products (a per-day number needs a whole-day shape). Like the\nwidget, products that are inactive or not publicly listed return no rows.\nOrdered by product name, then date.",
         "operationId": "list_product_day_capacity",
         "parameters": [
           {

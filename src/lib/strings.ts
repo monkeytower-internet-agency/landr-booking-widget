@@ -1,16 +1,18 @@
-// landr-5aih0.9: German UI. pickBundle/tr now resolve the customer's
-// resolved locale (see src/lib/locale.ts's browserLocale/configureCustomerLocale
-// — invite override → operator customer_languages whitelist → browser →
-// operator default) to a real bundle: 'de*' gets the German bundle, every
-// other locale still gets English (v1 scope — see epic landr-5aih0, absorbs
-// landr-wchwi). No i18n library: this file is the whole translation layer,
-// extending the EN-only pattern landr-ifcu established. Every widget chrome
-// string lives here (or in a page-scoped sibling — see
-// components/booking/approvalReplyStrings.ts, which already ships de/en/es
-// for ApprovalReplyPage under its own locale-resolution rule) so a German
-// review is one file.
+// Widget chrome strings. pickBundle/tr resolve the customer's resolved locale
+// (see src/lib/locale.ts's browserLocale/configureCustomerLocale — invite
+// override → operator customer_languages whitelist → browser → operator
+// default) to a bundle: en (source), de (landr-5aih0.9), es and tr
+// (landr-8r6oc.4, src/lib/locales/); every other locale gets English. No i18n
+// library: the bundles are the whole translation layer, extending the
+// EN-only pattern landr-ifcu established. Every widget chrome string lives
+// here or in a catalog under locales/ (or in a page-scoped sibling — see
+// components/booking/approvalReplyStrings.ts and cancelStrings.ts) so a
+// language review is one file.
 
-type Bundle = {
+import { es } from './locales/es'
+import { tr as trBundle } from './locales/tr'
+
+export type Bundle = {
   multiDayPickerHelp: string
   multiDayPickerHelpRange: string
   multiDayPickerHelpContiguous: string
@@ -48,6 +50,13 @@ type Bundle = {
   noCategoriesAvailable: string
   productListCue: string
   productDetailCue: string
+  /** landr-bwm91.4: price notes under the product page's "from" price. */
+  priceNoteBase: string
+  priceNoteWeekends: string
+  priceNoteWeekdays: string
+  priceNoteStartTemplate: string
+  // landr-bwm91.7: the "from €X" headline on product cards + the detail page.
+  priceFromTemplate: string
   singleDatePickerCue: string
   multiDayPickerCue: string
   selectionModeAria: string
@@ -780,6 +789,54 @@ type Bundle = {
   fieldInvalidOptionTemplate: string
   fieldInvalidValueTemplate: string
   staffCustomerDetailsPending: string
+  // landr-8r6oc.4: phrases that used to be locale-branched helpers in this file,
+  // now plain bundle fields so a further language is a catalog file only.
+  revealLabelCase: 'lower' | 'keep'
+  /** Conjunction for a natural-language list ("English, Spanish and German"). */
+  listAndWord: string
+  daysSelectedOne: string
+  daysSelectedOther: string
+  optionalRevealAddTemplate: string
+  languageStepCueGroup: string
+  languageStepCueWhoTemplate: string
+  namesPairTemplate: string
+  namesAndOthersTemplate: string
+  languageStepGateDone: string
+  languageStepGateWaitingTemplate: string
+  singleDateGateSelected: string
+  singleDateGateEmpty: string
+  multiDayGateNone: string
+  multiDayGateOne: string
+  multiDayGateOther: string
+  fixedDateWindowGateSelected: string
+  fixedDateWindowGateEmpty: string
+  availabilityGateTimeSelected: string
+  availabilityGateChooseTime: string
+  accommodationTooLateTemplate: string
+  occupantSingular: string
+  occupantPlural: string
+  bedSingular: string
+  bedPlural: string
+  occupancyOverbookTemplate: string
+  multiDayDiffSummaryTemplate: string
+  multiDayDiffOriginalFallback: string
+  multiDayResetToDatesTemplate: string
+  multiDayResetToOriginalDates: string
+  multiDayResetDroppedOne: string
+  multiDayResetDroppedOther: string
+  multiDayResetDroppedHostFallback: string
+  additionalAccommodationRequiredOne: string
+  additionalAccommodationRequiredOther: string
+  hostRoomFullOne: string
+  hostRoomFullMany: string
+  hostRoomFewBedsOne: string
+  hostRoomFewBedsOther: string
+  inviteRoomBookedTemplate: string
+  inviteRoomBookedWhoFallback: string
+  inviteRoomLabelTemplate: string
+  inviteRoomLabelWhoFallback: string
+  inviteRoomHintText: string
+  hostRoomFullRequiredHintText: string
 }
 
 const en: Bundle = {
@@ -809,6 +866,11 @@ const en: Bundle = {
   noCategoriesAvailable: 'No categories are available right now.',
   productListCue: 'choose a product',
   productDetailCue: 'book this trip',
+  priceNoteBase: 'Base price {amount}',
+  priceNoteWeekends: 'Weekends',
+  priceNoteWeekdays: 'Weekdays',
+  priceNoteStartTemplate: '{time} start',
+  priceFromTemplate: 'from {price}',
   // landr-80ubl.2: deliberately NOT "pick a date" / "pick your dates" — the
   // NextAction cue's text ("Next: <cue>") sits right beside the step's own
   // CardTitle ("Pick a date" / "Pick your dates"), and App.test.tsx's
@@ -1528,6 +1590,52 @@ const en: Bundle = {
   fieldInvalidOptionTemplate: '{label} contains an invalid option.',
   fieldInvalidValueTemplate: '{label} has an invalid value.',
   staffCustomerDetailsPending: 'The customer still has to complete their details — we sent them the link.',
+  // landr-8r6oc.4 (locale-branched helper phrases)
+  revealLabelCase: 'lower',
+  listAndWord: 'and',
+  daysSelectedOne: '{n} day selected',
+  daysSelectedOther: '{n} days selected',
+  optionalRevealAddTemplate: 'Add {thing}',
+  languageStepCueGroup: 'tap the language your group speaks',
+  languageStepCueWhoTemplate: 'pick a language for {who}',
+  namesPairTemplate: '{first} and {second}',
+  namesAndOthersTemplate: '{first} and {n} others',
+  languageStepGateDone: 'Everyone has a language.',
+  languageStepGateWaitingTemplate: 'Assign every participant to a language — still waiting on {names}.',
+  singleDateGateSelected: 'Date selected.',
+  singleDateGateEmpty: 'Choose a date to continue.',
+  multiDayGateNone: 'Choose at least one date to continue.',
+  multiDayGateOne: '1 date selected.',
+  multiDayGateOther: '{n} dates selected.',
+  fixedDateWindowGateSelected: 'Window selected.',
+  fixedDateWindowGateEmpty: 'Choose a window to continue.',
+  availabilityGateTimeSelected: 'Time selected.',
+  availabilityGateChooseTime: 'Choose a time to continue.',
+  accommodationTooLateTemplate: 'You can still book this date — the activity is available. Booking a hotel stay is no longer possible for this date, though: check-in would have needed to be on {date}.',
+  occupantSingular: 'person',
+  occupantPlural: 'people',
+  bedSingular: 'bed',
+  bedPlural: 'beds',
+  occupancyOverbookTemplate: 'You have {occupants} {occupantWord} but only {beds} {bedWord} — sure?',
+  multiDayDiffSummaryTemplate: '+{added} {addedWord} / −{removed} {removedWord} vs {original}',
+  multiDayDiffOriginalFallback: 'the original booking',
+  multiDayResetToDatesTemplate: 'Reset to {name}’s dates',
+  multiDayResetToOriginalDates: 'Reset to the original’s dates',
+  multiDayResetDroppedOne: '{n} of {name}\'s days is no longer available.',
+  multiDayResetDroppedOther: '{n} of {name}\'s days are no longer available.',
+  multiDayResetDroppedHostFallback: 'the host',
+  additionalAccommodationRequiredOne: 'Rooms for the people travelling with you. Your own bed is already covered by the shared double room, but {names} needs a room here.',
+  additionalAccommodationRequiredOther: 'Rooms for the people travelling with you. Your own bed is already covered by the shared double room, but {names} need a room here.',
+  hostRoomFullOne: 'The room you\'re sharing is full — add a room for the person travelling with you.',
+  hostRoomFullMany: 'The room you\'re sharing is full — add a room for the people travelling with you.',
+  hostRoomFewBedsOne: 'Only 1 more bed is free in the room you\'re sharing — add a room for the rest of the people travelling with you.',
+  hostRoomFewBedsOther: 'Only {n} more beds are free in the room you\'re sharing — add a room for the rest of the people travelling with you.',
+  inviteRoomBookedTemplate: 'Your room is already booked by {who}{room}. You will be collected from the hotel.',
+  inviteRoomBookedWhoFallback: 'the person who invited you',
+  inviteRoomLabelTemplate: 'My room is booked by {who}',
+  inviteRoomLabelWhoFallback: 'the person who invited me',
+  inviteRoomHintText: 'Your bed is in the room the person who invited you already booked. You are collected from the hotel.',
+  hostRoomFullRequiredHintText: 'Rooms for the people travelling with you. Your own bed is already covered by the shared double room, but there is no space left in it for anyone else.',
 }
 
 const de: Bundle = {
@@ -1556,6 +1664,11 @@ const de: Bundle = {
   noCategoriesAvailable: 'Derzeit sind keine Kategorien verfügbar.',
   productListCue: 'Angebot wählen',
   productDetailCue: 'diese Tour buchen',
+  priceNoteBase: 'Grundpreis {amount}',
+  priceNoteWeekends: 'Wochenende',
+  priceNoteWeekdays: 'Werktage',
+  priceNoteStartTemplate: 'Start {time}',
+  priceFromTemplate: 'ab {price}',
   singleDatePickerCue: 'Datum wählen',
   multiDayPickerCue: 'Ihre Termine wählen',
   selectionModeAria: 'Auswahlmodus',
@@ -2276,19 +2389,80 @@ const de: Bundle = {
   fieldInvalidOptionTemplate: '{label} enthält eine ungültige Auswahl.',
   fieldInvalidValueTemplate: '{label} hat einen ungültigen Wert.',
   staffCustomerDetailsPending: 'Der Kunde muss seine Angaben noch vervollständigen — wir haben ihm den Link geschickt.',
+  // landr-8r6oc.4 (locale-branched helper phrases)
+  revealLabelCase: 'keep',
+  listAndWord: 'und',
+  daysSelectedOne: '{n} Termin ausgewählt',
+  daysSelectedOther: '{n} Termine ausgewählt',
+  optionalRevealAddTemplate: 'Hinzufügen {thing}',
+  languageStepCueGroup: 'die Sprache Ihrer Gruppe antippen',
+  languageStepCueWhoTemplate: 'eine Sprache für {who} wählen',
+  namesPairTemplate: '{first} und {second}',
+  namesAndOthersTemplate: '{first} und {n} weitere',
+  languageStepGateDone: 'Alle haben eine Sprache.',
+  languageStepGateWaitingTemplate: 'Ordnen Sie jedem Teilnehmer eine Sprache zu — noch offen: {names}.',
+  singleDateGateSelected: 'Datum ausgewählt.',
+  singleDateGateEmpty: 'Wählen Sie ein Datum, um fortzufahren.',
+  multiDayGateNone: 'Wählen Sie mindestens einen Termin, um fortzufahren.',
+  multiDayGateOne: '1 Termin ausgewählt.',
+  multiDayGateOther: '{n} Termine ausgewählt.',
+  fixedDateWindowGateSelected: 'Zeitraum ausgewählt.',
+  fixedDateWindowGateEmpty: 'Wählen Sie einen Zeitraum, um fortzufahren.',
+  availabilityGateTimeSelected: 'Uhrzeit ausgewählt.',
+  availabilityGateChooseTime: 'Wählen Sie eine Uhrzeit, um fortzufahren.',
+  accommodationTooLateTemplate: 'Sie können dieses Datum weiterhin buchen — die Aktivität ist verfügbar. Ein Hotelaufenthalt ist für dieses Datum jedoch nicht mehr möglich: der Check-in hätte am {date} sein müssen.',
+  occupantSingular: 'Person',
+  occupantPlural: 'Personen',
+  bedSingular: 'Bett',
+  bedPlural: 'Betten',
+  occupancyOverbookTemplate: 'Sie haben {occupants} {occupantWord}, aber nur {beds} {bedWord} — sind Sie sicher?',
+  multiDayDiffSummaryTemplate: '+{added} {addedWord} / −{removed} {removedWord} gegenüber {original}',
+  multiDayDiffOriginalFallback: 'die ursprüngliche Buchung',
+  multiDayResetToDatesTemplate: 'Zurücksetzen auf die Termine von {name}',
+  multiDayResetToOriginalDates: 'Zurücksetzen auf die ursprünglichen Termine',
+  multiDayResetDroppedOne: '{n} Termin von {name} ist nicht mehr verfügbar.',
+  multiDayResetDroppedOther: '{n} Termine von {name} sind nicht mehr verfügbar.',
+  multiDayResetDroppedHostFallback: 'des Gastgebers',
+  additionalAccommodationRequiredOne: 'Zimmer für die Personen, die mit Ihnen reisen. Ihr eigenes Bett ist bereits durch das gemeinsame Doppelzimmer abgedeckt, aber {names} braucht hier ein Zimmer.',
+  additionalAccommodationRequiredOther: 'Zimmer für die Personen, die mit Ihnen reisen. Ihr eigenes Bett ist bereits durch das gemeinsame Doppelzimmer abgedeckt, aber {names} brauchen hier ein Zimmer.',
+  hostRoomFullOne: 'Das Zimmer, das Sie sich teilen, ist voll — buchen Sie ein Zimmer für die Person, die mit Ihnen reist.',
+  hostRoomFullMany: 'Das Zimmer, das Sie sich teilen, ist voll — buchen Sie Zimmer für die Personen, die mit Ihnen reisen.',
+  hostRoomFewBedsOne: 'Im Zimmer, das Sie sich teilen, ist nur noch 1 Bett frei — buchen Sie ein Zimmer für die übrigen Personen, die mit Ihnen reisen.',
+  hostRoomFewBedsOther: 'Im Zimmer, das Sie sich teilen, sind nur noch {n} Betten frei — buchen Sie ein Zimmer für die übrigen Personen, die mit Ihnen reisen.',
+  inviteRoomBookedTemplate: 'Ihr Zimmer ist bereits von {who} gebucht{room}. Sie werden vom Hotel abgeholt.',
+  inviteRoomBookedWhoFallback: 'der Person, die Sie eingeladen hat',
+  inviteRoomLabelTemplate: 'Mein Zimmer ist von {who} gebucht',
+  inviteRoomLabelWhoFallback: 'der Person, die mich eingeladen hat',
+  inviteRoomHintText: 'Ihr Bett ist in dem Zimmer, das die Person, die Sie eingeladen hat, bereits gebucht hat. Sie werden vom Hotel abgeholt.',
+  hostRoomFullRequiredHintText: 'Zimmer für die Personen, die mit Ihnen reisen. Ihr eigenes Bett ist bereits durch das gemeinsame Doppelzimmer abgedeckt, für die anderen ist dort kein Platz mehr.',
 }
 
 /**
- * Resolve an arbitrary BCP-47-ish locale string ('de-AT', 'DE', 'de-DE', …)
- * to a supported bundle. Only 'de' is a real bundle today (v1 scope, epic
- * landr-5aih0 / landr-wchwi) — every other language, including an absent
- * locale, falls back to English. Mirrors approvalReplyStrings.ts's
- * normalizeReplyLocale base/case-fold rule so the two locale layers agree
- * on how a tag is read.
+ * Language registry. A further language is a catalog file under
+ * src/lib/locales/ (a full `Bundle`, enforced by the type) plus one line
+ * here — no component or helper changes (landr-8r6oc.4). en and de live in
+ * this file; es and tr are separate catalogs.
+ */
+const BUNDLES: Record<string, Bundle> = { en, de, es, tr: trBundle }
+
+/** Languages that have a real bundle; everything else falls back to English. */
+export const SUPPORTED_UI_LANGUAGES: readonly string[] = Object.keys(BUNDLES)
+
+/** The bundle's language code for any BCP-47-ish tag ('de-AT', 'ES', 'tr_TR', …); 'en' when unsupported. */
+export function resolveUiLanguage(locale?: string): string {
+  const base = (locale ?? '').trim().toLowerCase().split(/[-_]/)[0] ?? ''
+  return Object.hasOwn(BUNDLES, base) ? base : 'en'
+}
+
+/**
+ * Resolve an arbitrary BCP-47-ish locale string ('de-AT', 'DE', 'es-ES',
+ * 'tr-TR', …) to a supported bundle (en, de, es, tr); every other language,
+ * including an absent locale, falls back to English. Mirrors
+ * approvalReplyStrings.ts's normalizeReplyLocale base/case-fold rule so the
+ * two locale layers agree on how a tag is read.
  */
 export function pickBundle(locale?: string): Bundle {
-  const base = (locale ?? '').trim().toLowerCase().split(/[-_]/)[0]
-  return base === 'de' ? de : en
+  return BUNDLES[resolveUiLanguage(locale)] as Bundle
 }
 
 export function tr(key: keyof Bundle, locale?: string): string {
@@ -2520,9 +2694,8 @@ export function holdRelativeTemplates(locale?: string) {
 
 /** "1 day selected" / "N days selected" chip (MultiDayStep). */
 export function daysSelectedLabel(count: number, locale?: string): string {
-  return isGermanLocale(locale)
-    ? `${count} ${plural(count, 'Termin', 'Termine')} ausgewählt`
-    : `${count} ${plural(count, 'day', 'days')} selected`
+  const t = pickBundle(locale)
+  return plural(count, t.daysSelectedOne, t.daysSelectedOther).replace('{n}', String(count))
 }
 
 /**
@@ -2635,15 +2808,15 @@ export function offerCountText(count: number, locale?: string): string {
 }
 
 export function optionalRevealLabel(thing: string, locale?: string): string {
-  const german = isGermanLocale(locale)
-  // landr-5aih0.9: the auto-lowercase-a-sentence-case-label heuristic is
-  // English-specific punctuation convention — German capitalises formal
-  // "Sie/Ihre/Ihnen" pronouns mid-sentence too, so lowercasing "Ihren Namen"
-  // would be a style error. Only apply it for the English bundle.
-  const t =
-    !german && /^[A-Z][a-z]/.test(thing) ? thing.charAt(0).toLowerCase() + thing.slice(1) : thing
-  const addWord = german ? 'Hinzufügen' : 'Add'
-  return `${addWord} ${t}`
+  const t = pickBundle(locale)
+  // landr-5aih0.9: lowercasing a sentence-case label ("Your name" -> "your
+  // name") is a per-language writing convention, so the bundle opts in
+  // (revealLabelCase) — German capitalises formal "Sie/Ihre/Ihnen" mid-sentence.
+  const label =
+    t.revealLabelCase === 'lower' && /^[A-Z][a-z]/.test(thing)
+      ? thing.charAt(0).toLowerCase() + thing.slice(1)
+      : thing
+  return t.optionalRevealAddTemplate.replace('{thing}', label)
 }
 
 /**
@@ -2655,32 +2828,23 @@ export function languageStepCue(
   anyoneAssigned: boolean,
   locale?: string,
 ): string {
-  const de_ = isGermanLocale(locale)
-  if (!anyoneAssigned && unassignedNames.length > 1) {
-    return de_ ? 'die Sprache Ihrer Gruppe antippen' : 'tap the language your group speaks'
-  }
-  const [first, second] = unassignedNames
+  const t = pickBundle(locale)
+  if (!anyoneAssigned && unassignedNames.length > 1) return t.languageStepCueGroup
+  const [first = '', second = ''] = unassignedNames
   const who =
     unassignedNames.length === 1
       ? first
       : unassignedNames.length === 2
-        ? de_
-          ? `${first} und ${second}`
-          : `${first} and ${second}`
-        : de_
-          ? `${first} und ${unassignedNames.length - 1} weitere`
-          : `${first} and ${unassignedNames.length - 1} others`
-  return de_ ? `eine Sprache für ${who} wählen` : `pick a language for ${who}`
+        ? fmt(t.namesPairTemplate, { first, second })
+        : fmt(t.namesAndOthersTemplate, { first, n: unassignedNames.length - 1 })
+  return fmt(t.languageStepCueWhoTemplate, { who })
 }
 
 /** landr-80ubl.1: LanguageStep's gate line beside Continue. */
 export function languageStepGate(unassignedNames: string[], locale?: string): string {
-  if (unassignedNames.length === 0) {
-    return isGermanLocale(locale) ? 'Alle haben eine Sprache.' : 'Everyone has a language.'
-  }
-  return isGermanLocale(locale)
-    ? `Ordnen Sie jedem Teilnehmer eine Sprache zu — noch offen: ${unassignedNames.join(', ')}.`
-    : `Assign every participant to a language — still waiting on ${unassignedNames.join(', ')}.`
+  const t = pickBundle(locale)
+  if (unassignedNames.length === 0) return t.languageStepGateDone
+  return fmt(t.languageStepGateWaitingTemplate, { names: unassignedNames.join(', ') })
 }
 
 /**
@@ -2692,28 +2856,21 @@ export function languageStepGate(unassignedNames: string[], locale?: string): st
  * strings' comment above for the same trap).
  */
 export function singleDateGate(hasSelection: boolean, locale?: string): string {
-  if (isGermanLocale(locale)) {
-    return hasSelection ? 'Datum ausgewählt.' : 'Wählen Sie ein Datum, um fortzufahren.'
-  }
-  return hasSelection ? 'Date selected.' : 'Choose a date to continue.'
+  const t = pickBundle(locale)
+  return hasSelection ? t.singleDateGateSelected : t.singleDateGateEmpty
 }
 
 /** landr-80ubl.2: MultiDayStep's gate line beside Continue. */
 export function multiDayGate(selectedCount: number, locale?: string): string {
-  if (isGermanLocale(locale)) {
-    if (selectedCount === 0) return 'Wählen Sie mindestens einen Termin, um fortzufahren.'
-    return selectedCount === 1 ? '1 Termin ausgewählt.' : `${selectedCount} Termine ausgewählt.`
-  }
-  if (selectedCount === 0) return 'Choose at least one date to continue.'
-  return selectedCount === 1 ? '1 date selected.' : `${selectedCount} dates selected.`
+  const t = pickBundle(locale)
+  if (selectedCount === 0) return t.multiDayGateNone
+  return selectedCount === 1 ? t.multiDayGateOne : fmt(t.multiDayGateOther, { n: selectedCount })
 }
 
 /** landr-80ubl.2: FixedDateWindowPicker's gate line beside Continue. */
 export function fixedDateWindowGate(hasSelection: boolean, locale?: string): string {
-  if (isGermanLocale(locale)) {
-    return hasSelection ? 'Zeitraum ausgewählt.' : 'Wählen Sie einen Zeitraum, um fortzufahren.'
-  }
-  return hasSelection ? 'Window selected.' : 'Choose a window to continue.'
+  const t = pickBundle(locale)
+  return hasSelection ? t.fixedDateWindowGateSelected : t.fixedDateWindowGateEmpty
 }
 
 /** landr-80ubl.2: AvailabilityPicker's gate line beside Continue. */
@@ -2722,14 +2879,10 @@ export function availabilityGate(
   hasTime: boolean,
   locale?: string,
 ): string {
-  if (isGermanLocale(locale)) {
-    if (hasTime) return 'Uhrzeit ausgewählt.'
-    if (hasDate) return 'Wählen Sie eine Uhrzeit, um fortzufahren.'
-    return 'Wählen Sie ein Datum, um fortzufahren.'
-  }
-  if (hasTime) return 'Time selected.'
-  if (hasDate) return 'Choose a time to continue.'
-  return 'Choose a date to continue.'
+  const t = pickBundle(locale)
+  if (hasTime) return t.availabilityGateTimeSelected
+  if (hasDate) return t.availabilityGateChooseTime
+  return t.singleDateGateEmpty
 }
 
 /**
@@ -2746,18 +2899,7 @@ export function accommodationTooLateMessage(
   checkinDateLabel: string,
   locale?: string,
 ): string {
-  if (isGermanLocale(locale)) {
-    return (
-      `Sie können dieses Datum weiterhin buchen — die Aktivität ist verfügbar. ` +
-      `Ein Hotelaufenthalt ist für dieses Datum jedoch nicht mehr möglich: ` +
-      `der Check-in hätte am ${checkinDateLabel} sein müssen.`
-    )
-  }
-  return (
-    `You can still book this date — the activity is available. ` +
-    `Booking a hotel stay is no longer possible for this date, though: ` +
-    `check-in would have needed to be on ${checkinDateLabel}.`
-  )
+  return fmt(pickBundle(locale).accommodationTooLateTemplate, { date: checkinDateLabel })
 }
 
 /**
@@ -2883,19 +3025,15 @@ export function sharedDoubleOthersTooLateMessage(names: string, locale?: string)
   return tr('sharedDoubleOthersTooLateTemplate', locale).replace('{names}', names)
 }
 
-/**
- * AccommodationStep's room-vs-occupant capacity mismatch warning. English
- * and German pluralise "person"/"bed" differently from every other bundle
- * plural pair already in this file, so this stays a small direct-branching
- * helper rather than four more bundle fields.
- */
+/** AccommodationStep's room-vs-occupant capacity mismatch warning. */
 export function occupancyOverbookWarning(occupants: number, beds: number, locale?: string): string {
-  const german = isGermanLocale(locale)
-  const occupantWord = german ? plural(occupants, 'Person', 'Personen') : plural(occupants, 'person', 'people')
-  const bedWord = german ? plural(beds, 'Bett', 'Betten') : plural(beds, 'bed', 'beds')
-  return german
-    ? `Sie haben ${occupants} ${occupantWord}, aber nur ${beds} ${bedWord} — sind Sie sicher?`
-    : `You have ${occupants} ${occupantWord} but only ${beds} ${bedWord} — sure?`
+  const t = pickBundle(locale)
+  return fmt(t.occupancyOverbookTemplate, {
+    occupants,
+    beds,
+    occupantWord: plural(occupants, t.occupantSingular, t.occupantPlural),
+    bedWord: plural(beds, t.bedSingular, t.bedPlural),
+  })
 }
 
 /** ShopComingSoonStub's body copy, given an already-localized product-kind label. */
@@ -2911,22 +3049,21 @@ export function multiDayDiffSummary(
   locale?: string,
 ): string {
   const t = pickBundle(locale)
-  const addedWord = plural(added, t.daySingular, t.dayPlural)
-  const removedWord = plural(removed, t.daySingular, t.dayPlural)
-  const original = originalLabel ?? (isGermanLocale(locale) ? 'die ursprüngliche Buchung' : 'the original booking')
-  return isGermanLocale(locale)
-    ? `+${added} ${addedWord} / −${removed} ${removedWord} gegenüber ${original}`
-    : `+${added} ${addedWord} / −${removed} ${removedWord} vs ${original}`
+  return fmt(t.multiDayDiffSummaryTemplate, {
+    added,
+    removed,
+    addedWord: plural(added, t.daySingular, t.dayPlural),
+    removedWord: plural(removed, t.daySingular, t.dayPlural),
+    original: originalLabel ?? t.multiDayDiffOriginalFallback,
+  })
 }
 
 /** MultiDayPicker's "Reset to <original>'s dates" button label. */
 export function multiDayResetToDatesLabel(originalLabel: string | null | undefined, locale?: string): string {
-  if (isGermanLocale(locale)) {
-    return originalLabel
-      ? `Zurücksetzen auf die Termine von ${originalLabel}`
-      : 'Zurücksetzen auf die ursprünglichen Termine'
-  }
-  return `Reset to ${originalLabel ?? 'the original'}’s dates`
+  const t = pickBundle(locale)
+  return originalLabel
+    ? fmt(t.multiDayResetToDatesTemplate, { name: originalLabel })
+    : t.multiDayResetToOriginalDates
 }
 
 /** MultiDayPicker's "N of <host>'s days are no longer available" reset-drop notice. */
@@ -2936,15 +3073,10 @@ export function multiDayResetDroppedNotice(
   locale?: string,
 ): string {
   const t = pickBundle(locale)
-  const dayWord = plural(count, t.daySingular, t.dayPlural)
-  if (isGermanLocale(locale)) {
-    const name = originalLabel ?? 'des Gastgebers'
-    const verb = count === 1 ? 'ist' : 'sind'
-    return `${count} ${dayWord} von ${name} ${verb} nicht mehr verfügbar.`
-  }
-  const name = originalLabel ?? 'the host'
-  const verb = count === 1 ? 'is' : 'are'
-  return `${count} of ${name}'s days ${verb} no longer available.`
+  return fmt(plural(count, t.multiDayResetDroppedOne, t.multiDayResetDroppedOther), {
+    n: count,
+    name: originalLabel ?? t.multiDayResetDroppedHostFallback,
+  })
 }
 
 /** ParticipantLanguageBoard's "Everyone speaks {language}" one-tap button. */
@@ -3036,12 +3168,8 @@ export function productFormSubtitle(productName: string, locale?: string): strin
 
 /** AccommodationStep additional-accommodation hint when it's mandatory (a shared-double companion needs their own room). */
 export function additionalAccommodationRequiredHint(names: string, count: number, locale?: string): string {
-  if (isGermanLocale(locale)) {
-    const verb = count === 1 ? 'braucht' : 'brauchen'
-    return `Zimmer für die Personen, die mit Ihnen reisen. Ihr eigenes Bett ist bereits durch das gemeinsame Doppelzimmer abgedeckt, aber ${names} ${verb} hier ein Zimmer.`
-  }
-  const verb = count === 1 ? 'needs' : 'need'
-  return `Rooms for the people travelling with you. Your own bed is already covered by the shared double room, but ${names} ${verb} a room here.`
+  const t = pickBundle(locale)
+  return fmt(plural(count, t.additionalAccommodationRequiredOne, t.additionalAccommodationRequiredOther), { names })
 }
 
 /**
@@ -3050,20 +3178,9 @@ export function additionalAccommodationRequiredHint(names: string, count: number
  * inviter room's remaining capacity (0 = full). No swap wording by design.
  */
 export function hostRoomFullMessage(freeBeds: number, unplaced: number, locale?: string): string {
-  const de = isGermanLocale(locale)
-  if (freeBeds <= 0) {
-    return de
-      ? unplaced === 1
-        ? 'Das Zimmer, das Sie sich teilen, ist voll — buchen Sie ein Zimmer für die Person, die mit Ihnen reist.'
-        : 'Das Zimmer, das Sie sich teilen, ist voll — buchen Sie Zimmer für die Personen, die mit Ihnen reisen.'
-      : unplaced === 1
-        ? "The room you're sharing is full — add a room for the person travelling with you."
-        : "The room you're sharing is full — add a room for the people travelling with you."
-  }
-  if (de) {
-    return `Im Zimmer, das Sie sich teilen, ${freeBeds === 1 ? 'ist nur noch 1 Bett' : `sind nur noch ${freeBeds} Betten`} frei — buchen Sie ein Zimmer für die übrigen Personen, die mit Ihnen reisen.`
-  }
-  return `Only ${freeBeds} more ${freeBeds === 1 ? 'bed is' : 'beds are'} free in the room you're sharing — add a room for the rest of the people travelling with you.`
+  const t = pickBundle(locale)
+  if (freeBeds <= 0) return unplaced === 1 ? t.hostRoomFullOne : t.hostRoomFullMany
+  return fmt(plural(freeBeds, t.hostRoomFewBedsOne, t.hostRoomFewBedsOther), { n: freeBeds })
 }
 
 /**
@@ -3072,26 +3189,21 @@ export function hostRoomFullMessage(freeBeds: number, unplaced: number, locale?:
  * generic "the person who invited you"; `roomName` null drops the room clause.
  */
 export function inviteRoomBookedNotice(host: string, roomName: string | null, locale?: string): string {
-  const de = isGermanLocale(locale)
-  const who = host.trim() || (de ? 'der Person, die Sie eingeladen hat' : 'the person who invited you')
+  const t = pickBundle(locale)
+  const who = host.trim() || t.inviteRoomBookedWhoFallback
   const room = roomName?.trim() ? `: ${roomName.trim()}` : ''
-  return de
-    ? `Ihr Zimmer ist bereits von ${who} gebucht${room}. Sie werden vom Hotel abgeholt.`
-    : `Your room is already booked by ${who}${room}. You will be collected from the hotel.`
+  return fmt(t.inviteRoomBookedTemplate, { who, room })
 }
 
 /** landr-wp8e9.2: invite-mode radio label ("My room is booked by {host}") - no "double". */
 export function inviteRoomLabel(host: string, locale?: string): string {
-  const de = isGermanLocale(locale)
-  const who = host.trim() || (de ? 'der Person, die mich eingeladen hat' : 'the person who invited me')
-  return de ? `Mein Zimmer ist von ${who} gebucht` : `My room is booked by ${who}`
+  const t = pickBundle(locale)
+  return fmt(t.inviteRoomLabelTemplate, { who: host.trim() || t.inviteRoomLabelWhoFallback })
 }
 
 /** landr-wp8e9.2: invite-mode radio hint (replaces the hardcoded "double room" English). */
 export function inviteRoomHint(locale?: string): string {
-  return isGermanLocale(locale)
-    ? 'Ihr Bett ist in dem Zimmer, das die Person, die Sie eingeladen hat, bereits gebucht hat. Sie werden vom Hotel abgeholt.'
-    : 'Your bed is in the room the person who invited you already booked. You are collected from the hotel.'
+  return pickBundle(locale).inviteRoomHintText
 }
 
 /** landr-qw2v8.2: "{name}: own accommodation — no room booked" (host review + confirmation). */
@@ -3101,9 +3213,7 @@ export function ownAccommodationNoRoomLabel(name: string, locale?: string): stri
 
 /** landr-wp8e9.2: replaces the "Optional — …" rooms hint when the host room cannot take the companions. */
 export function hostRoomFullRequiredHint(locale?: string): string {
-  return isGermanLocale(locale)
-    ? 'Zimmer für die Personen, die mit Ihnen reisen. Ihr eigenes Bett ist bereits durch das gemeinsame Doppelzimmer abgedeckt, für die anderen ist dort kein Platz mehr.'
-    : 'Rooms for the people travelling with you. Your own bed is already covered by the shared double room, but there is no space left in it for anyone else.'
+  return pickBundle(locale).hostRoomFullRequiredHintText
 }
 
 /** AvailabilityPicker's "Times on {date}" subheading. */

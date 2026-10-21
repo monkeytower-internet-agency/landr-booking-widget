@@ -3856,6 +3856,10 @@ export interface paths {
          *     before landr-5oox.9 the delete succeeded. A slot row instead relies
          *     entirely on the pointer signal (``live_count``, already the correct
          *     per-slot match) for both the block decision AND ``booked_participants``.
+         *
+         *     landr-8ht3m.15: on a plain time_slot product (no ``daily_start_times``) the
+         *     slot row also counts staff free-time lines at exactly its start time
+         *     (``free_time_load_per_slot``), which carry no pointer.
          */
         delete: operations["delete_availability"];
         options?: never;
@@ -4322,7 +4326,8 @@ export interface paths {
          *
          *     Responses: 201 `{operator_id, slug}`; 422 `invalid_slug` /
          *     `unknown_preset_key` (+ suggestions on the former); 409 `slug_taken` +
-         *     suggestions; 403 `not_a_member` (no `public.users` row); 429
+         *     suggestions; 403 `not_a_member` (no `public.users` row); 403
+         *     `free_tier_limit` (no paid operator owned, landr-981dz); 429
          *     `rate_limited` (5/user/day).
          */
         post: operations["create_operator"];
@@ -4574,6 +4579,33 @@ export interface paths {
          *     bookings list uses, so a customer name finds its cancelled booking.
          */
         get: operations["staff_list_cancelled_bookings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/bookings/customer-unnotified": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Customer Unnotified
+         * @description Booking ids whose ``customer_unnotified`` flag is true.
+         *
+         *     A live booking an operator created (``booking_channel`` != ``public_website``)
+         *     that the customer has heard nothing about: no confirmation mail sent, no
+         *     offer sent, no custom offer applied (those carry "Offer not sent" instead).
+         *     No ``ids`` -> every flagged booking of the operator; with repeated ``ids``
+         *     -> only those among them (the page being rendered). Operator-scoped:
+         *     another operator's ids are never reported.
+         */
+        get: operations["staff_list_customer_unnotified"];
         put?: never;
         post?: never;
         delete?: never;
@@ -5521,7 +5553,9 @@ export interface paths {
          *     - Guards: only allowed when the booking is in/past the confirmed set (same
          *       gate as resend, landr-tf39) AND no prior confirmation exists yet.
          *       If a prior exists → 409 {"error": "already_confirmed"} (use resend).
-         *       If the stage is not yet confirmed/due → 409 {"error": "confirmation_not_allowed_yet"}.
+         *       If the stage is not yet confirmed/due → 409 {"error": "confirmation_not_allowed_yet"}
+         *       (public-website bookings only; staff-created bookings skip this stage gate,
+         *       the hotel and offer guards still apply).
          *     - Calls send_booking_confirmation(is_update=False, no extra_context) which
          *       records the initial last_confirmation_context snapshot.
          *     - Returns {"sent": true, "email_id": "<id or null>"}.
@@ -7709,12 +7743,21 @@ export interface paths {
          *     cannot show a second seat definition. ``booked`` is the
          *     guiding participants of live bookings (``product_day_seat_load``).
          *
+         *     landr-8ht3m.24: a single_date product with start times (the public RPC
+         *     sells each open day as one timed row per start time) is ONE row per day
+         *     here: ``capacity`` = the sum of its slots' seats, ``available`` = the sum
+         *     of their free seats, ``booked`` = the seats held across the slots
+         *     (``product_slot_seat_load``: a booking with no start time holds a seat in
+         *     every slot). Slots already started are gone from the RPC, so they leave the
+         *     sums too. The response shape is unchanged.
+         *
          *     Omitted: products limited by ``resources`` (the pool lanes already show
          *     them), days whose ``seat_limit_source`` is not ``product`` (sentinel /
-         *     ``none`` / pool-filled days), closed days (the RPC does not return them),
-         *     and slot rows of time_slot products (a per-day number needs a whole-day
-         *     shape). Like the widget, products that are inactive or not publicly
-         *     listed return no rows. Ordered by product name, then date.
+         *     ``none`` / pool-filled days; for a timed day: any of its slots), closed
+         *     days (the RPC does not return them), and slot rows of time_slot and
+         *     days_range products (a per-day number needs a whole-day shape). Like the
+         *     widget, products that are inactive or not publicly listed return no rows.
+         *     Ordered by product name, then date.
          */
         get: operations["list_product_day_capacity"];
         put?: never;
@@ -11381,6 +11424,8 @@ export interface components {
              * Format: date
              */
             date: string;
+            /** Range Id */
+            range_id?: string | null;
         };
         /** AvailabilityBulkIn */
         AvailabilityBulkIn: {
@@ -12049,6 +12094,12 @@ export interface components {
             savings_total: string;
             /** Subtotal Before Savings */
             subtotal_before_savings: string;
+            /** Subtotal Before Surcharges */
+            subtotal_before_surcharges?: string | null;
+            /** Surcharges */
+            surcharges?: components["schemas"]["SavingLineOut"][];
+            /** Surcharges Total */
+            surcharges_total?: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -13978,8 +14029,12 @@ export interface components {
              * @default 1
              */
             participants_count: number;
+            /** Product Availability Id */
+            product_availability_id?: string | null;
             /** Selected Days */
             selected_days?: string[];
+            /** Slot Start Time */
+            slot_start_time?: string | null;
         };
         /**
          * EstimateResponse
@@ -14010,6 +14065,12 @@ export interface components {
             savings_total?: string | null;
             /** Subtotal Before Savings */
             subtotal_before_savings?: string | null;
+            /** Subtotal Before Surcharges */
+            subtotal_before_surcharges?: string | null;
+            /** Surcharges */
+            surcharges?: components["schemas"]["SavingLineOut"][] | null;
+            /** Surcharges Total */
+            surcharges_total?: string | null;
             /**
              * Un Priceable
              * @default false
@@ -16505,8 +16566,12 @@ export interface components {
             next_window_end?: string | null;
             /** Next Window Start */
             next_window_start?: string | null;
+            /** Price Base */
+            price_base?: string | null;
             /** Price From */
             price_from?: string | null;
+            /** Price Notes */
+            price_notes?: components["schemas"]["PriceNote"][];
             /** Product Id */
             product_id: string;
             /**
@@ -16649,6 +16714,8 @@ export interface components {
             theme?: {
                 [key: string]: unknown;
             } | null;
+            /** Timezone */
+            timezone?: string | null;
             /** Widget Catalog Layout */
             widget_catalog_layout?: string | null;
             /** Widget Category Columns */
@@ -17181,6 +17248,41 @@ export interface components {
             /** Season Name */
             season_name?: string | null;
         };
+        /**
+         * PriceNote
+         * @description landr-bwm91.4: one visible price adjustment of a product.
+         */
+        PriceNote: {
+            /** Amount */
+            amount: string;
+            /**
+             * Amount Type
+             * @enum {string}
+             */
+            amount_type: "flat" | "percent";
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "surcharge" | "discount";
+            /** Label */
+            label: string;
+            /**
+             * Per Participant
+             * @default false
+             */
+            per_participant: boolean;
+            /** Rule Kind */
+            rule_kind?: string | null;
+            /** Time From */
+            time_from?: string | null;
+            /** Time To */
+            time_to?: string | null;
+            /** Weekdays */
+            weekdays?: number[] | null;
+        } & {
+            [key: string]: unknown;
+        };
         /** PriceOverrideIn */
         PriceOverrideIn: {
             /** Override Gross Total */
@@ -17416,7 +17518,7 @@ export interface components {
              * Rule Kind
              * @enum {string}
              */
-            rule_kind: "per_day_base" | "per_streak_tier" | "per_total_days_tier" | "per_participant_tier" | "fixed_total" | "percentage_discount" | "flat_discount" | "time_of_day_surcharge" | "manual_override";
+            rule_kind: "per_day_base" | "per_streak_tier" | "per_total_days_tier" | "per_participant_tier" | "fixed_total" | "percentage_discount" | "flat_discount" | "time_of_day_surcharge" | "manual_override" | "slot_time_adjustment" | "weekday_adjustment";
             /** Sort Order */
             sort_order: number;
             /** Tiers */
@@ -19941,7 +20043,8 @@ export interface components {
          * SavingLineOut
          * @description One "− <label>  <amount>" row of a customer-facing price breakdown
          *     (landr-nva1a.1, see ``app/services/booking_savings.py``). ``kind`` is
-         *     ``multi_day`` | ``voucher`` | ``perk`` | ``discount``; ``amount`` is a
+         *     ``multi_day`` | ``voucher`` | ``perk`` | ``discount`` (or ``surcharge`` in
+         *     a ``surcharges`` list, landr-fcoh2); ``amount`` is a
          *     positive decimal string. Shared by the estimate, the staff pricing
          *     breakdown, and the submit response's ``summary``.
          */
@@ -20413,6 +20516,8 @@ export interface components {
          *     when ``product_id`` is given.
          */
         SimulateDraftIn: {
+            /** Daily Start Times */
+            daily_start_times?: string[] | null;
             /** Locale */
             locale?: string | null;
             /**
@@ -20430,6 +20535,8 @@ export interface components {
             selected_days?: string[];
             /** Service Time Shape */
             service_time_shape?: string | null;
+            /** Slot Start Time */
+            slot_start_time?: string | null;
             standard?: components["schemas"]["PricingDraftListIn"] | null;
         };
         /** SiteFlyabilityResponse */
@@ -22201,7 +22308,7 @@ export interface components {
              * Rule Kind
              * @enum {string}
              */
-            rule_kind: "per_day_base" | "per_streak_tier" | "per_total_days_tier" | "per_participant_tier" | "fixed_total" | "percentage_discount" | "flat_discount" | "time_of_day_surcharge" | "manual_override";
+            rule_kind: "per_day_base" | "per_streak_tier" | "per_total_days_tier" | "per_participant_tier" | "fixed_total" | "percentage_discount" | "flat_discount" | "time_of_day_surcharge" | "manual_override" | "slot_time_adjustment" | "weekday_adjustment";
             /** Sort Order */
             sort_order: number;
             /** Tiers */
@@ -22220,7 +22327,7 @@ export interface components {
                 [key: string]: unknown;
             } | null;
             /** Rule Kind */
-            rule_kind?: ("per_day_base" | "per_streak_tier" | "per_total_days_tier" | "per_participant_tier" | "fixed_total" | "percentage_discount" | "flat_discount" | "time_of_day_surcharge" | "manual_override") | null;
+            rule_kind?: ("per_day_base" | "per_streak_tier" | "per_total_days_tier" | "per_participant_tier" | "fixed_total" | "percentage_discount" | "flat_discount" | "time_of_day_surcharge" | "manual_override" | "slot_time_adjustment" | "weekday_adjustment") | null;
             /** Sort Order */
             sort_order?: number | null;
         };
@@ -28444,6 +28551,41 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     }[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_list_customer_unnotified: {
+        parameters: {
+            query?: {
+                ids?: string[] | null;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */

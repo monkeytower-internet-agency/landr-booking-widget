@@ -262,6 +262,37 @@ describe('display — German UI (landr-5aih0.27)', () => {
   })
 })
 
+// landr-8r6oc.4 — Spanish and Turkish next to German: names come from
+// Intl.DisplayNames (capitalised, like German), the fallback tables cover the
+// same 44 codes, and lists join with the language's own conjunction.
+describe('display — Spanish and Turkish UI (landr-8r6oc.4)', () => {
+  it('languageName names the common codes in Spanish', () => {
+    expect(languageName('de', 'es')).toBe('Alemán')
+    expect(languageName('en', 'es-ES')).toBe('Inglés')
+    expect(languageName('tr', 'es')).toBe('Turco')
+    expect(languageName('zz', 'es')).toBe('ZZ')
+  })
+
+  it('languageName names the common codes in Turkish', () => {
+    expect(languageName('de', 'tr')).toBe('Almanca')
+    expect(languageName('en', 'tr-TR')).toBe('İngilizce')
+    expect(languageName('es', 'tr')).toBe('İspanyolca')
+    expect(languageName('zz', 'tr')).toBe('ZZ')
+  })
+
+  it('joinLanguageNames uses "y" in Spanish and "ve" in Turkish', () => {
+    expect(joinLanguageNames(['en'], 'es')).toBe('Inglés')
+    expect(joinLanguageNames(['en', 'de'], 'es')).toBe('Inglés y Alemán')
+    expect(joinLanguageNames(['en', 'es', 'de'], 'es')).toBe('Inglés, Español y Alemán')
+    expect(joinLanguageNames(['en', 'de'], 'tr')).toBe('İngilizce ve Almanca')
+    expect(joinLanguageNames(['en', 'es', 'de'], 'tr')).toBe('İngilizce, İspanyolca ve Almanca')
+  })
+
+  it('English stays English for other locales (fr)', () => {
+    expect(languageName('de', 'fr')).toBe('German')
+  })
+})
+
 describe('singleLanguageAssignment (landr-h0opd.3)', () => {
   it('fills every party member (participants + companions) with the one language', () => {
     expect(singleLanguageAssignment(['de'], 3)).toEqual({ 0: 'de', 1: 'de', 2: 'de' })

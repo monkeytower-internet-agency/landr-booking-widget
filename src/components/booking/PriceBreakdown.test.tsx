@@ -90,4 +90,52 @@ describe('PriceBreakdown', () => {
     )
     expect(screen.getByTestId('test-amount-due')).toHaveTextContent('Booking total')
   })
+  // landr-fcoh2: a weekend surcharge is itemised, and the rows add up:
+  // 150 + 20 − 10 = 160.
+  it('renders Subtotal (before surcharges) → + surcharge → − saving → Amount due', () => {
+    render(
+      <PriceBreakdown
+        subtotalBeforeSavings="170.00"
+        savings={[{ kind: 'discount', label: 'Time-slot discount', amount: '10.00' }]}
+        surcharges={[{ kind: 'surcharge', label: 'Weekend surcharge', amount: '20.00' }]}
+        subtotalBeforeSurcharges="150.00"
+        amountDue="160.00"
+        currency="EUR"
+        testIdPrefix="test"
+      />,
+    )
+    expect(screen.getByTestId('test-subtotal')).toHaveTextContent('150')
+    const surcharge = screen.getByTestId('test-surcharge')
+    expect(surcharge).toHaveTextContent('+ Weekend surcharge')
+    expect(surcharge).toHaveTextContent('20')
+    expect(screen.getByTestId('test-saving')).toHaveTextContent('Time-slot discount')
+    expect(screen.getByTestId('test-amount-due')).toHaveTextContent('160')
+    // Visual order: subtotal, surcharge, saving, total.
+    const order = ['test-subtotal', 'test-surcharge', 'test-saving', 'test-amount-due'].map(
+      (id) => screen.getByTestId(id),
+    )
+    for (let k = 1; k < order.length; k++) {
+      expect(
+        order[k - 1].compareDocumentPosition(order[k]) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy()
+    }
+  })
+
+  it('shows a surcharge with no savings (Subtotal → + surcharge → Amount due)', () => {
+    render(
+      <PriceBreakdown
+        subtotalBeforeSavings="170.00"
+        savings={[]}
+        surcharges={[{ kind: 'surcharge', label: 'Weekend surcharge', amount: '20.00' }]}
+        subtotalBeforeSurcharges="150.00"
+        amountDue="170.00"
+        currency="EUR"
+        testIdPrefix="test"
+      />,
+    )
+    expect(screen.getByTestId('test-subtotal')).toHaveTextContent('150')
+    expect(screen.getByTestId('test-surcharge')).toHaveTextContent('Weekend surcharge')
+    expect(screen.queryByTestId('test-savings')).not.toBeInTheDocument()
+    expect(screen.getByTestId('test-amount-due')).toHaveTextContent('170')
+  })
 })

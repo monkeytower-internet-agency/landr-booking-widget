@@ -875,6 +875,8 @@ function ConfirmationPriceBreakdown({ summary }: { summary: BookingSummary }) {
       <PriceBreakdown
         subtotalBeforeSavings={explained?.subtotal ?? summary.subtotal_before_savings}
         savings={explained?.rows ?? summary.savings}
+        surcharges={summary.surcharges}
+        subtotalBeforeSurcharges={summary.subtotal_before_surcharges}
         amountDue={summary.amount_due}
         currency={summary.currency}
         totalLabel={tr('amountDueLabel', locale)}

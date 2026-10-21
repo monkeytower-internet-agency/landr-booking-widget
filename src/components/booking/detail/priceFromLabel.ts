@@ -13,19 +13,27 @@
  * product carries no currency we default to 'EUR' — the widget is
  * single-currency-per-operator and every seeded operator is EUR.
  *
+ * landr-bwm91.7: the "from" word and the money format follow `locale`
+ * (the customer's browserLocale()), so a German customer reads "ab 59,00 €"
+ * rather than "from 59,00 €".
+ *
  * Returns null when `price_from` is null/undefined/blank so callers can
  * omit the line entirely (the contract hides "from" when the rate is not
  * derivable). Kept in a sibling .ts file (no component export) so the
  * react-refresh/only-export-components CI gate stays happy.
  */
 import { formatMoney } from '@/components/booking/priceSidebarHelpers'
+import { fmt, tr } from '@/lib/strings'
 
 export function formatPriceFrom(
   priceFrom: string | null | undefined,
   currency: string | null | undefined,
+  locale?: string,
 ): string | null {
   if (priceFrom == null) return null
   const trimmed = priceFrom.trim()
   if (trimmed.length === 0) return null
-  return `from ${formatMoney(trimmed, currency || 'EUR')}`
+  return fmt(tr('priceFromTemplate', locale), {
+    price: formatMoney(trimmed, currency || 'EUR', locale),
+  })
 }
