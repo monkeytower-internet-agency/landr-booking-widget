@@ -188,3 +188,17 @@ describe('seat-fit copy (landr-rmcsu.5)', () => {
     )
   })
 })
+
+describe('time-confirmed-by-operator copy (EN + DE)', () => {
+  it('replaces "Any time" with copy that says the operator confirms the time', () => {
+    expect(tr('timeConfirmedByOperator', 'en')).toBe('Time confirmed by the operator')
+    expect(tr('timeConfirmedHelper', 'en')).toBe(
+      'The operator will confirm the exact time and details after you book.',
+    )
+    expect(tr('timeConfirmedByOperator', 'de')).toBe('Uhrzeit bestätigt der Anbieter')
+    expect(tr('timeConfirmedHelper', 'de')).toBe(
+      'Der Anbieter bestätigt Uhrzeit und Details nach deiner Buchung.',
+    )
+    expect(tr('timeConfirmedByOperator', 'en')).not.toMatch(/any time/i)
+  })
+})

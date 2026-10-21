@@ -383,7 +383,7 @@ export function AvailabilityPicker({
                       setSelectedSlotId(slotKey(slot))
                     }}
                   >
-                    {slot.start_time?.slice(0, 5) ?? tr('anyTime', locale)}
+                    {slot.start_time?.slice(0, 5) ?? tr('timeConfirmedByOperator', locale)}
                     {!slotIsPickable(slot) && !isOffSchedule(slot.date) ? (
                       <span
                         className="ml-2 text-xs text-muted-foreground"
@@ -409,6 +409,14 @@ export function AvailabilityPicker({
                 ))}
               </div>
             )}
+            {slotsForSelectedDate.some((slot) => !slot.start_time) ? (
+              <p
+                className="text-xs text-muted-foreground"
+                data-testid="time-confirmed-helper"
+              >
+                {tr('timeConfirmedHelper', locale)}
+              </p>
+            ) : null}
           </NextAction>
         ) : null}
         {selectedForceReasons.length > 0 ? <OperatorOverrideBadge /> : null}

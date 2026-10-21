@@ -84,7 +84,9 @@ type Bundle = {
 
   // ---- AvailabilityPicker / SingleDatePicker ----
   noTimesAvailable: string
-  anyTime: string
+  // A slot with no start time (the operator confirms the time after booking).
+  timeConfirmedByOperator: string
+  timeConfirmedHelper: string
   timesOnTemplate: string
   seatSingular: string
   seatPlural: string
@@ -840,7 +842,8 @@ const en: Bundle = {
   bookingStepsAriaLabel: 'Booking steps',
 
   noTimesAvailable: 'No times available.',
-  anyTime: 'Any time',
+  timeConfirmedByOperator: 'Time confirmed by the operator',
+  timeConfirmedHelper: 'The operator will confirm the exact time and details after you book.',
   timesOnTemplate: 'Times on {date}',
   seatSingular: 'seat',
   seatPlural: 'seats',
@@ -1576,7 +1579,8 @@ const de: Bundle = {
   bookingStepsAriaLabel: 'Buchungsschritte',
 
   noTimesAvailable: 'Keine Uhrzeiten verfügbar.',
-  anyTime: 'Beliebige Uhrzeit',
+  timeConfirmedByOperator: 'Uhrzeit bestätigt der Anbieter',
+  timeConfirmedHelper: 'Der Anbieter bestätigt Uhrzeit und Details nach deiner Buchung.',
   timesOnTemplate: 'Uhrzeiten am {date}',
   seatSingular: 'Platz',
   seatPlural: 'Plätze',
