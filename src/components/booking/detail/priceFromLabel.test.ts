@@ -19,4 +19,19 @@ describe('formatPriceFrom', () => {
     expect(formatPriceFrom(undefined, 'EUR')).toBeNull()
     expect(formatPriceFrom('   ', 'EUR')).toBeNull()
   })
+
+  // landr-bwm91.7: the "from" word + money format follow the locale.
+  it('localizes the headline per locale', () => {
+    expect(formatPriceFrom('59.00', 'EUR', 'en-US')).toBe('from €59.00')
+    expect(formatPriceFrom('59.00', 'EUR', 'de-DE')).toBe('ab 59,00\u00a0€')
+    expect(formatPriceFrom('59.00', 'EUR', 'de')).toBe('ab 59,00\u00a0€')
+  })
+
+  it('falls back to English wording for a locale without a bundle', () => {
+    expect(formatPriceFrom('59.00', 'EUR', 'es-ES')).toMatch(/^from /)
+  })
+
+  it('still returns null for a blank price in German', () => {
+    expect(formatPriceFrom(null, 'EUR', 'de-DE')).toBeNull()
+  })
 })

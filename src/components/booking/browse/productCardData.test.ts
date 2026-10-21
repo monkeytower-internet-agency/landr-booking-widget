@@ -46,6 +46,12 @@ describe('productPriceLabel', () => {
     expect(label).toMatch(/59/)
   })
 
+  it('localizes the headline to German (landr-bwm91.7)', () => {
+    expect(
+      productPriceLabel(makeProduct({ price_from: '59.00', currency: 'EUR' }), 'de-DE'),
+    ).toBe('ab 59,00\u00a0€')
+  })
+
   it('returns null for null price_from', () => {
     expect(productPriceLabel(makeProduct({ price_from: null }))).toBeNull()
   })

@@ -54,7 +54,7 @@ export function ProductRow({ product, locale, showDateModel, onSelect }: Props) 
   const kind = productKindBadge(product, locale)
   // landr-pv2r1: guide-languages chip (null for any-language / unset).
   const languages = productLanguagesChip(product, locale)
-  const price = productPriceLabel(product)
+  const price = productPriceLabel(product, locale)
   const isDraft = product.is_publicly_listed === false
 
   const activate = () => onSelect(product)

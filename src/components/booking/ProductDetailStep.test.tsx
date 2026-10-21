@@ -8,7 +8,7 @@
  * treatment (aurora overlay vs summit/alpine heading-below).
  */
 import { fireEvent, render, screen, within } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import type { Product } from '@/api/types'
 import { VariantProvider } from '@/lib/variant.tsx'
@@ -279,6 +279,10 @@ describe('ProductDetailStep', () => {
 // product.description exclusively. Long wins when present; short is the
 // fallback; localized variants are picked like everywhere else.
 describe('ProductDetailStep price notes (landr-bwm91.4)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
   const notes: Partial<Product> = {
     price_from: '140.00',
     price_base: '150.00',
@@ -293,6 +297,17 @@ describe('ProductDetailStep price notes (landr-bwm91.4)', () => {
     const el = screen.getByTestId('product-detail-price-notes')
     expect(el.textContent).toBe('Base price €150 · Weekends +€20 · 09:00 start \u2212€10')
     expect(screen.getByTestId('product-detail-price').textContent).toBe('from €140.00')
+  })
+
+  it('renders the "from" headline in German for a German browser (landr-bwm91.7)', () => {
+    vi.spyOn(navigator, 'language', 'get').mockReturnValue('de-DE')
+    renderStep(makeProduct(notes))
+    expect(screen.getByTestId('product-detail-price').textContent).toBe(
+      'ab 140,00\u00a0€',
+    )
+    expect(screen.getByTestId('product-detail-price-notes').textContent).toMatch(
+      /^Grundpreis /,
+    )
   })
 
   it('renders nothing when there are no notes or the field is absent', () => {
