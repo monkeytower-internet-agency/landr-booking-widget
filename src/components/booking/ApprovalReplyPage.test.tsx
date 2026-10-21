@@ -380,6 +380,7 @@ describe('ApprovalReplyPage', () => {
     it.each([
       ['de', /Buchungsanfrage/, 'Ja, bestätigt'],
       ['es', /Solicitud de reserva/, 'Sí, confirmado'],
+      ['tr', /Rezervasyon talebi/, 'Evet, onaylandı'],
     ])('a partner ask is generic in %s too', async (locale, title, yes) => {
       mocks.getApprovalRequest.mockResolvedValue(
         openContext({

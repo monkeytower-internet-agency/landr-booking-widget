@@ -29,7 +29,7 @@
  */
 import type { Product } from '@/api/types'
 import { pickLocalized } from '@/lib/locale'
-import { isGermanLocale, tr } from '@/lib/strings'
+import { resolveUiLanguage, tr } from '@/lib/strings'
 import { languageName, productDisplayLanguages } from '../participantLanguages'
 
 /** Icon keys ProductFacts.tsx maps to lucide-react icons. */
@@ -62,29 +62,47 @@ function humaniseKind(kind: string): string {
 }
 
 /**
- * landr-5aih0.9: best-effort German label for the platform-level product
+ * landr-5aih0.9: best-effort translated label (de, es, tr) for the platform-level product
  * kinds this fallback chip can show (a product with no operator category
  * yet — see the file header). Not exhaustive: `ProductKind` is a generated
  * DB enum this module doesn't have a full list of, so an unknown kind
  * fails open to the humanised English label rather than guessing — no
  * regression versus the pre-landr-5aih0.9 behaviour.
  */
-const KIND_LABEL_DE: Partial<Record<string, string>> = {
-  gift_card: 'Geschenkgutschein',
-  digital_good: 'Digitales Produkt',
-  physical_good: 'Physisches Produkt',
-  membership: 'Mitgliedschaft',
-  subscription: 'Abonnement',
-  hotel_room: 'Zimmer',
-  addon: 'Zusatzleistung',
+const KIND_LABEL_BY_UI: Record<string, Partial<Record<string, string>>> = {
+  de: {
+    gift_card: 'Geschenkgutschein',
+    digital_good: 'Digitales Produkt',
+    physical_good: 'Physisches Produkt',
+    membership: 'Mitgliedschaft',
+    subscription: 'Abonnement',
+    hotel_room: 'Zimmer',
+    addon: 'Zusatzleistung',
+  },
+  // landr-8r6oc.4
+  es: {
+    gift_card: 'Tarjeta regalo',
+    digital_good: 'Producto digital',
+    physical_good: 'Producto físico',
+    membership: 'Membresía',
+    subscription: 'Suscripción',
+    hotel_room: 'Habitación',
+    addon: 'Extra',
+  },
+  tr: {
+    gift_card: 'Hediye kartı',
+    digital_good: 'Dijital ürün',
+    physical_good: 'Fiziksel ürün',
+    membership: 'Üyelik',
+    subscription: 'Abonelik',
+    hotel_room: 'Oda',
+    addon: 'Ek hizmet',
+  },
 }
 
 function kindLabel(kind: string, locale: string): string {
-  if (isGermanLocale(locale)) {
-    const de = KIND_LABEL_DE[kind]
-    if (de) return de
-  }
-  return humaniseKind(kind)
+  const translated = KIND_LABEL_BY_UI[resolveUiLanguage(locale)]?.[kind]
+  return translated ?? humaniseKind(kind)
 }
 
 export function deriveProductFacts(product: Product, locale: string): ProductFact[] {

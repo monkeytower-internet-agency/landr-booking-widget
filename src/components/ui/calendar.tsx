@@ -10,9 +10,22 @@ import {
   type DayButton,
 } from "react-day-picker"
 
+import { de as dayPickerDe, es as dayPickerEs, tr as dayPickerTr } from "react-day-picker/locale"
+
 import { cn } from "@/lib/utils"
+import { browserLocale } from "@/lib/locale"
+import { resolveUiLanguage } from "@/lib/strings"
 import { CalendarDayHintContext } from "@/components/ui/calendarDayHints"
 import { Button, buttonVariants } from "@/components/ui/button"
+
+// landr-8r6oc.4: month/weekday names follow the customer's resolved locale.
+// English is react-day-picker's built-in default, so only the other widget
+// languages need a catalog; a language without an entry falls back to English.
+const DAY_PICKER_LOCALES: Record<string, React.ComponentProps<typeof DayPicker>["locale"]> = {
+  de: dayPickerDe,
+  es: dayPickerEs,
+  tr: dayPickerTr,
+}
 
 function Calendar({
   className,
@@ -32,6 +45,7 @@ function Calendar({
   buttonVariant?: React.ComponentProps<typeof Button>["variant"]
 }) {
   const defaultClassNames = getDefaultClassNames()
+  const customerLocale = browserLocale()
   // landr-53vao: several months side by side get a wider root and a row
   // layout driven by the month count (not a viewport breakpoint — the widget
   // lives inside host iframes); a single month keeps the 22rem column.
@@ -41,6 +55,7 @@ function Calendar({
     <DayPicker
       showOutsideDays={showOutsideDays}
       weekStartsOn={weekStartsOn}
+      locale={DAY_PICKER_LOCALES[resolveUiLanguage(customerLocale)]}
       className={cn(
         // landr-3mo4: day cells are 44px on mobile (WCAG 2.5.5 touch target),
         // tightening to the original 36px from sm upward where pointer input
@@ -53,7 +68,7 @@ function Calendar({
       captionLayout={captionLayout}
       formatters={{
         formatMonthDropdown: (date) =>
-          date.toLocaleString("default", { month: "short" }),
+          date.toLocaleString(customerLocale, { month: "short" }),
         ...formatters,
       }}
       classNames={{

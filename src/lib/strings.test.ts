@@ -7,6 +7,8 @@ import {
   isGermanLocale,
   pickBundle,
   plural,
+  resolveUiLanguage,
+  SUPPORTED_UI_LANGUAGES,
   seatFitCountLabel,
   seatFitNoneMessage,
   seatsShortDaysMessage,
@@ -31,8 +33,31 @@ describe('strings (pickBundle/tr locale resolution, landr-5aih0.9)', () => {
     expect(pickBundle(undefined)).toBe(en)
     expect(pickBundle('')).toBe(en)
     expect(pickBundle('fr-FR')).toBe(en)
-    expect(pickBundle('es')).toBe(en)
+    expect(pickBundle('pt-BR')).toBe(en)
+    expect(pickBundle('constructor')).toBe(en)
     expect(en.multiDayPickerHelp).toMatch(/^Tap days to add or remove/)
+  })
+
+  it('pickBundle returns the Spanish and Turkish bundles (landr-8r6oc.4), case- and region-insensitively', () => {
+    const es = pickBundle('es')
+    expect(pickBundle('es-ES')).toBe(es)
+    expect(pickBundle('ES-es')).toBe(es)
+    expect(pickBundle('es_419')).toBe(es)
+    const trBundle = pickBundle('tr')
+    expect(pickBundle('tr-TR')).toBe(trBundle)
+    expect(pickBundle('TR')).toBe(trBundle)
+    expect(es).not.toBe(pickBundle('en'))
+    expect(trBundle).not.toBe(es)
+    expect(trBundle).not.toBe(pickBundle('de'))
+  })
+
+  it('resolveUiLanguage names the bundle language and SUPPORTED_UI_LANGUAGES lists them', () => {
+    expect(resolveUiLanguage('de-AT')).toBe('de')
+    expect(resolveUiLanguage('es-ES')).toBe('es')
+    expect(resolveUiLanguage('tr_TR')).toBe('tr')
+    expect(resolveUiLanguage('fr')).toBe('en')
+    expect(resolveUiLanguage(undefined)).toBe('en')
+    expect([...SUPPORTED_UI_LANGUAGES].sort()).toEqual(['de', 'en', 'es', 'tr'])
   })
 
   it('tr resolves per the same locale rule as pickBundle', () => {
@@ -47,6 +72,7 @@ describe('strings (pickBundle/tr locale resolution, landr-5aih0.9)', () => {
     expect(isGermanLocale('de')).toBe(true)
     expect(isGermanLocale('en')).toBe(false)
     expect(isGermanLocale(undefined)).toBe(false)
+    expect(isGermanLocale('es')).toBe(false)
   })
 })
 
@@ -55,6 +81,8 @@ describe('poweredByLandr (landr-xtkae.10)', () => {
     expect(tr('poweredByLandr', 'en')).toBe('Powered by LANDR')
     expect(tr('poweredByLandr', 'de-DE')).toBe('Bereitgestellt von LANDR')
     expect(tr('poweredByLandr')).toBe('Powered by LANDR')
+    expect(tr('poweredByLandr', 'es-ES')).toMatch(/LANDR/)
+    expect(tr('poweredByLandr', 'tr-TR')).toMatch(/LANDR/)
   })
 })
 
