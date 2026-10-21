@@ -4,8 +4,9 @@ import type { AvailabilitySlot, Product } from '@/api/types'
 import { forceReasonsFor, isDayBookable } from '@/components/booking/bookability'
 import { OperatorOverrideBadge } from '@/components/booking/OperatorOverrideBadge'
 import { useStaffMode } from '@/lib/staffMode'
-import { hasFixedStartTimes, slotKey } from '@/components/booking/slotKey'
+import { hasFixedStartTimes, slotKey, toHHMM } from '@/components/booking/slotKey'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import {
   Card,
   CardContent,
@@ -165,7 +166,19 @@ export function AvailabilityPicker({
   // routed here from SingleDatePicker — every other product keeps exactly the
   // behaviour it had in this picker before.
   const fixedTimes = hasFixedStartTimes(product)
-  const canForce = fixedTimes && staff.active && staff.powers.includes('force_book')
+  const hasForcePower = staff.active && staff.powers.includes('force_book')
+  const canForce = fixedTimes && hasForcePower
+  // landr-8ht3m.5: a plain time_slot product has no menu of times, so on a day
+  // with no slot rows the operator types the start time. Staff-only, and only
+  // on days with no slot rows -- days that have rows keep today's behaviour.
+  const canFreeTime =
+    !fixedTimes && product.service_time_shape === 'time_slot' && hasForcePower
+  const canOverrideDay = canForce || canFreeTime
+  const [freeTime, setFreeTime] = useState(() =>
+    initialSlot && !initialSlot.availability_id && !hasFixedStartTimes(product)
+      ? (toHHMM(initialSlot.start_time) ?? '')
+      : '',
+  )
   // landr-rmcsu.7: "pickable" = room for the WHOLE group (need 1 → any seat).
   // landr-8ht3m.4: staff may book ANY future day. A day the schedule does not
   // offer (no slot rows at all) gets the product's own daily start times as
@@ -174,7 +187,7 @@ export function AvailabilityPicker({
   const today = useMemo(() => startOfToday(operatorTimezone), [operatorTimezone])
   const slotDates = useMemo(() => new Set((slots ?? EMPTY_SLOTS).map((s) => s.date)), [slots])
   const isOffSchedule = (iso: string): boolean =>
-    canForce && slots !== null && !slotDates.has(iso)
+    canOverrideDay && slots !== null && !slotDates.has(iso)
   const offScheduleSlots = (iso: string): AvailabilitySlot[] => {
     // landr-8ht3m.9: "today" and "now" are the OPERATOR's, not the browser's.
     const opNow = operatorWallClock(operatorTimezone)
@@ -259,7 +272,7 @@ export function AvailabilityPicker({
   // line and onContinue, so the button is never enabled while it would do
   // nothing (e.g. a restored time that has filled up meanwhile). Staff can
   // commit an unpickable time (force-book).
-  const selectedSlot = useMemo(
+  const selectedSlotRow = useMemo(
     () =>
       slotsForSelectedDate.find(
         (s) => slotKey(s) === selectedSlotId && (canForce || slotIsPickable(s)),
@@ -268,8 +281,36 @@ export function AvailabilityPicker({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- slotIsPickable closes over product.hotel_offering and need, both already listed
     [slotsForSelectedDate, selectedSlotId, canForce, product.hotel_offering, need],
   )
+  // landr-8ht3m.5: the typed start time on an off-schedule day of a plain
+  // time_slot product, as a synthesised slot (no availability row; the submit
+  // carries it as slot_start_time, exactly like a fixed daily time).
+  const selectedDateIso = selectedDate ? isoDate(selectedDate) : null
+  const freeTimeDay =
+    canFreeTime && selectedDateIso !== null && isOffSchedule(selectedDateIso)
+  const freeTimeValid = /^([01]\d|2[0-3]):[0-5]\d$/.test(freeTime)
+  const freeTimePassed = useMemo(() => {
+    if (!freeTimeValid || selectedDateIso === null) return false
+    const opNow = operatorWallClock(operatorTimezone)
+    if (selectedDateIso !== opNow.iso) return false
+    const [h, m] = freeTime.split(':').map(Number)
+    return h * 60 + m <= opNow.minutes
+  }, [freeTime, freeTimeValid, selectedDateIso, operatorTimezone])
+  const freeSlot: AvailabilitySlot | undefined =
+    freeTimeDay && selectedDateIso !== null && freeTimeValid && !freeTimePassed
+      ? {
+          availability_id: null,
+          date: selectedDateIso,
+          start_time: `${freeTime}:00`,
+          end_time: null,
+          capacity: 0,
+          capacity_reserved: 0,
+          available_seats: 0,
+          status: 'open',
+        }
+      : undefined
+  const selectedSlot = freeTimeDay ? freeSlot : selectedSlotRow
   const selectedForceReasons: ForceReason[] =
-    selectedSlot && canForce && isOffSchedule(selectedSlot.date)
+    selectedSlot && isOffSchedule(selectedSlot.date)
       ? ['off_schedule']
       : selectedSlot && canForce && !slotIsPickable(selectedSlot)
         ? forceReasonsFor(selectedSlot.available_seats >= need, selectedSlot, product.hotel_offering)
@@ -346,7 +387,7 @@ export function AvailabilityPicker({
               }}
               disabled={(date) =>
                 // Staff (force_book) can open any day that is not in the past.
-                canForce ? date < today : !availableDates.has(isoDate(date))
+                canOverrideDay ? date < today : !availableDates.has(isoDate(date))
               }
               month={month}
               onMonthChange={setMonth}
@@ -363,7 +404,30 @@ export function AvailabilityPicker({
             </p>
           ) : null}
         </NextAction>
-        {selectedDate ? (
+        {selectedDate && freeTimeDay ? (
+          <NextAction active={!freeSlot} cue={tr('availabilityTimeCue', locale)}>
+            <label className="flex flex-col gap-1.5 text-sm font-medium">
+              {tr('freeStartTimeLabel', locale)}
+              <Input
+                type="time"
+                value={freeTime}
+                onChange={(e) => setFreeTime(e.target.value)}
+                aria-invalid={freeTimePassed}
+                data-testid="free-start-time"
+              />
+            </label>
+            <p
+              className={
+                freeTimePassed
+                  ? 'text-xs text-destructive'
+                  : 'text-xs text-muted-foreground'
+              }
+              data-testid={freeTimePassed ? 'free-start-time-past' : 'free-start-time-hint'}
+            >
+              {tr(freeTimePassed ? 'freeStartTimePast' : 'freeStartTimeHint', locale)}
+            </p>
+          </NextAction>
+        ) : selectedDate ? (
           <NextAction active={!selectedSlotId} cue={tr('availabilityTimeCue', locale)}>
             <p className="text-sm font-medium">{timesOnLabel(isoDate(selectedDate), locale)}</p>
             {slotsForSelectedDate.length === 0 ? (

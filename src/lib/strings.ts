@@ -87,6 +87,11 @@ type Bundle = {
   // A slot with no start time (the operator confirms the time after booking).
   timeConfirmedByOperator: string
   timeConfirmedHelper: string
+  // Staff-only: a plain time_slot product on a day with no times lets the
+  // operator type the start time themselves.
+  freeStartTimeLabel: string
+  freeStartTimeHint: string
+  freeStartTimePast: string
   timesOnTemplate: string
   seatSingular: string
   seatPlural: string
@@ -844,6 +849,9 @@ const en: Bundle = {
   noTimesAvailable: 'No times available.',
   timeConfirmedByOperator: 'Time confirmed by the operator',
   timeConfirmedHelper: 'The operator will confirm the exact time and details after you book.',
+  freeStartTimeLabel: 'Start time',
+  freeStartTimeHint: 'No set times on this day. Enter the start time (HH:MM).',
+  freeStartTimePast: 'That time has already passed today.',
   timesOnTemplate: 'Times on {date}',
   seatSingular: 'seat',
   seatPlural: 'seats',
@@ -1581,6 +1589,9 @@ const de: Bundle = {
   noTimesAvailable: 'Keine Uhrzeiten verfügbar.',
   timeConfirmedByOperator: 'Uhrzeit bestätigt der Anbieter',
   timeConfirmedHelper: 'Der Anbieter bestätigt Uhrzeit und Details nach deiner Buchung.',
+  freeStartTimeLabel: 'Startzeit',
+  freeStartTimeHint: 'An diesem Tag gibt es keine festen Zeiten. Gib die Startzeit ein (HH:MM).',
+  freeStartTimePast: 'Diese Uhrzeit ist heute schon vorbei.',
   timesOnTemplate: 'Uhrzeiten am {date}',
   seatSingular: 'Platz',
   seatPlural: 'Plätze',
