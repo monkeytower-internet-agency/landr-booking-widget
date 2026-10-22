@@ -65,7 +65,7 @@ import { MultiDayStep } from '@/components/booking/MultiDayStep'
 import { PickupLocationPicker } from '@/components/booking/PickupLocationPicker'
 import PriceSidebar, { type CalculatedTotal } from '@/components/booking/PriceSidebar'
 import { ProductList } from '@/components/booking/ProductList'
-import { inviteBannerMessage, tr } from '@/lib/strings'
+import { inviteBannerMessage, loadUiCatalog, tr } from '@/lib/strings'
 import { FullyBookedNotice } from '@/components/booking/FullyBookedNotice'
 import { ShopComingSoonStub } from '@/components/booking/ShopComingSoonStub'
 import { SingleDatePicker } from '@/components/booking/SingleDatePicker'
@@ -586,6 +586,9 @@ function BookingFlowApp() {
           failInvite()
           return
         }
+        // landr-8r6oc.18: the invitee's language catalog before anything renders in it.
+        await loadUiCatalog(prefill.language ?? undefined)
+        if (cancelled) return
         setInviteData(prefill)
         // landr-otml0.3 review fix (MAJOR 2): prefill.language wins over both
         // the raw browser locale and the operator's whitelist — see
@@ -1023,6 +1026,16 @@ function BookingFlowApp() {
       try {
         const settings = await getOperatorSettings(token)
         if (!cancelled) {
+          // landr-821d6.7: whitelist browserLocale() against this operator's
+          // customer_languages (falling back to default_locale) — applies
+          // globally to every browserLocale() call from here on, no prop
+          // threading needed.
+          configureCustomerLocale(settings.customer_languages, settings.default_locale)
+          // landr-8r6oc.18: the resolved language may differ from the
+          // browser's, so fetch its catalog before the settings render.
+          await loadUiCatalog(browserLocale())
+        }
+        if (!cancelled) {
           setOperatorSettings(settings)
           setShowLanding(false)
           // landr-tkgx8.1: operator logo on the boot splash (and cached for
@@ -1030,11 +1043,6 @@ function BookingFlowApp() {
           // in-widget header logo; the loading splash always shows the
           // operator's logo when one is uploaded.
           applyBootLogo(token, settings.logo_url ?? null)
-          // landr-821d6.7: whitelist browserLocale() against this operator's
-          // customer_languages (falling back to default_locale) — applies
-          // globally to every browserLocale() call from here on, no prop
-          // threading needed.
-          configureCustomerLocale(settings.customer_languages, settings.default_locale)
           // landr-jb1k.2: lazy-load the operator's configured font once, if
           // non-system. The import() is no-op for 'system' and for null.
           void loadTileFont(settings.widget_tile_font as TileFontKey | null | undefined)

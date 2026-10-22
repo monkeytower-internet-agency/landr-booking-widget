@@ -1,16 +1,14 @@
 // Widget chrome strings. pickBundle/tr resolve the customer's resolved locale
 // (see src/lib/locale.ts's browserLocale/configureCustomerLocale — invite
 // override → operator customer_languages whitelist → browser → operator
-// default) to a bundle: en (source), de (landr-5aih0.9), es and tr
-// (landr-8r6oc.4, src/lib/locales/); every other locale gets English. No i18n
+// default) to a bundle: en (source, inline here), de (landr-5aih0.9), es and tr
+// (landr-8r6oc.4), all lazy-loaded from src/lib/locales/ (landr-8r6oc.18); every
+// other locale gets English. No i18n
 // library: the bundles are the whole translation layer, extending the
 // EN-only pattern landr-ifcu established. Every widget chrome string lives
 // here or in a catalog under locales/ (or in a page-scoped sibling — see
 // components/booking/approvalReplyStrings.ts and cancelStrings.ts) so a
 // language review is one file.
-
-import { es } from './locales/es'
-import { tr as trBundle } from './locales/tr'
 
 export type Bundle = {
   multiDayPickerHelp: string
@@ -837,6 +835,24 @@ export type Bundle = {
   inviteRoomLabelWhoFallback: string
   inviteRoomHintText: string
   hostRoomFullRequiredHintText: string
+  // landr-8r6oc.18: product-kind labels and calendar-day aria words live in the catalog so catalogs.test.ts enforces them.
+  shopKindService: string
+  shopKindHotelRoom: string
+  shopKindSubscription: string
+  shopKindDigitalGood: string
+  shopKindPhysicalGood: string
+  shopKindGiftCard: string
+  shopKindFallback: string
+  factKindGiftCard: string
+  factKindDigitalGood: string
+  factKindPhysicalGood: string
+  factKindMembership: string
+  factKindSubscription: string
+  factKindHotelRoom: string
+  factKindAddon: string
+  calendarDaySelected: string
+  calendarDayAdded: string
+  calendarDayRemoved: string
 }
 
 const en: Bundle = {
@@ -1636,833 +1652,104 @@ const en: Bundle = {
   inviteRoomLabelWhoFallback: 'the person who invited me',
   inviteRoomHintText: 'Your bed is in the room the person who invited you already booked. You are collected from the hotel.',
   hostRoomFullRequiredHintText: 'Rooms for the people travelling with you. Your own bed is already covered by the shared double room, but there is no space left in it for anyone else.',
-}
-
-const de: Bundle = {
-  multiDayPickerHelp: 'Tippen Sie auf Tage, um sie hinzuzufügen oder zu entfernen.',
-  multiDayPickerHelpRange:
-    'Tippen Sie auf ein Startdatum und dann auf ein weiteres, um die Tage dazwischen einzuschließen.',
-  multiDayPickerHelpContiguous:
-    'Klicken Sie auf ein Startdatum und dann auf ein weiteres, um den Zeitraum zu erweitern. Die Auswahl muss aufeinanderfolgende Tage umfassen.',
-  customerCommentHint:
-    'Wenn Sie einen Kommentar hinzufügen, liest eine Person Ihre Anfrage, ' +
-    'bevor sie bestätigt wird — das kann etwas länger dauern. Wenn es ' +
-    'wichtig ist, teilen Sie es uns bitte mit.',
-  nextActionPrefix: 'Weiter:',
-  helpDisclosureLabel: 'So funktioniert das',
-  continueCue: 'weiter',
-  continueLabel: 'Weiter',
-  customerCommentAdd: 'eine Notiz für uns',
-  languageStepWhy:
-    'Sagen Sie uns, wer welche Sprache spricht, damit der Guide alle in ' +
-    'einer verständlichen Sprache einweist.',
-  languageStepHowTo:
-    'Tippen Sie auf eine Sprache, um alle dieser Sprache zuzuordnen. Um die ' +
-    'Gruppe aufzuteilen, ziehen Sie einen Namen auf eine andere Sprache — ' +
-    'oder tippen Sie auf einen Namen und dann auf eine Sprache.',
-  categoryStepCue: 'Kategorie wählen',
-  noCategoriesAvailable: 'Derzeit sind keine Kategorien verfügbar.',
-  productListCue: 'Angebot wählen',
-  productDetailCue: 'diese Tour buchen',
-  priceNoteBase: 'Grundpreis {amount}',
-  priceNoteWeekends: 'Wochenende',
-  priceNoteWeekdays: 'Werktage',
-  priceNoteStartTemplate: 'Start {time}',
-  priceFromTemplate: 'ab {price}',
-  singleDatePickerCue: 'Datum wählen',
-  multiDayPickerCue: 'Ihre Termine wählen',
-  selectionModeAria: 'Auswahlmodus',
-  dateRangeModeLabel: 'Zeitraum',
-  individualDaysModeLabel: 'Einzelne Tage',
-  diffAddedLabel: 'Hinzugefügt',
-  diffRemovedLabel: 'Entfernt',
-  fixedDateWindowCue: 'einen Zeitraum wählen',
-  availabilityDateCue: 'Datum wählen',
-  availabilityTimeCue: 'Uhrzeit wählen',
-
-  required: 'Erforderlich',
-  requiredPickAtLeastTemplate: 'Erforderlich — mindestens {n} auswählen',
-  enterValidEmail: 'Bitte geben Sie eine gültige E-Mail-Adresse ein',
-  readyToContinue: 'Bereit, um fortzufahren.',
-  somethingWentWrong: 'Etwas ist schiefgelaufen.',
-  somethingWentWrongRetry: 'Etwas ist schiefgelaufen. Bitte versuchen Sie es später erneut.',
-  couldNotLoadAvailability: 'Verfügbarkeit konnte nicht geladen werden.',
-  pickADate: 'Datum wählen',
-  availableDaysFor: 'Verfügbare Tage für {name}.',
-  sendingEllipsis: 'Wird gesendet…',
-  loadingProducts: 'Angebote werden geladen…',
-  couldNotLoadProducts: 'Die Angebote konnten nicht geladen werden.',
-  noProductsInCategory: 'Keine Angebote in dieser Kategorie.',
-  checkBackLater: 'Bitte schauen Sie später wieder vorbei.',
-  priceOnRequest: 'Preis auf Anfrage',
-  tryAgain: 'Erneut versuchen',
-  backLabel: 'Zurück',
-  bookingStepsAriaLabel: 'Buchungsschritte',
-
-  noTimesAvailable: 'Keine Uhrzeiten verfügbar.',
-  timeConfirmedByOperator: 'Uhrzeit bestätigt der Anbieter',
-  timeConfirmedHelper: 'Der Anbieter bestätigt Uhrzeit und Details nach deiner Buchung.',
-  freeStartTimeLabel: 'Startzeit',
-  freeStartTimeHint: 'An diesem Tag gibt es keine festen Zeiten. Gib die Startzeit ein (HH:MM).',
-  freeStartTimePast: 'Diese Uhrzeit ist heute schon vorbei.',
-  timesOnTemplate: 'Uhrzeiten am {date}',
-  seatSingular: 'Platz',
-  seatPlural: 'Plätze',
-  selectedDateTemplate: 'Ausgewählt: {date}',
-
-  pickACourseWindow: 'Zeitraum wählen',
-  couldNotLoadCourseWindows: 'Zeiträume konnten nicht geladen werden.',
-  loadingWindows: 'Verfügbare Termine werden geladen…',
-  noUpcomingWindows: 'Keine bevorstehenden Termine für diesen Kurs. Bitte schauen Sie später wieder vorbei.',
-  upcomingWindowsFor: 'Bevorstehende Termine für {name}. Wählen Sie einen aus, um fortzufahren.',
-  fullBadge: 'Ausgebucht',
-  tooLateToBook: 'Zu spät zum Buchen',
-  availableBadge: 'Verfügbar',
-  seatLeftSingular: 'noch {n} Platz frei',
-  seatsLeftPlural: 'noch {n} Plätze frei',
-
-  pickYourDates: 'Ihre Termine wählen',
-  yourDates: 'Ihre Termine',
-  loadingAvailabilityEllipsis: 'Verfügbarkeit wird geladen…',
-  changeYourDatesToContinue: 'Ändern Sie Ihre Termine, um fortzufahren.',
-  dayNoLongerAvailableReason: '{date} ist nicht mehr verfügbar — entfernen Sie den Termin, um fortzufahren.',
-  capacityExceededMessage:
-    'Leider ist für Ihre Buchung an einem Ihrer Termine nicht mehr genug Platz frei. Bitte ändern Sie Ihre Termine und versuchen Sie es erneut.',
-  slotCapacityExceededMessage:
-    'Leider ist zu dieser Startzeit nicht mehr genug Platz frei. Bitte wählen Sie eine andere Uhrzeit und versuchen Sie es erneut.',
-  slotStartTimeInvalidMessage:
-    'Leider ist diese Startzeit nicht mehr verfügbar. Bitte wählen Sie eine andere Uhrzeit und versuchen Sie es erneut.',
-  seatsShortOne: 'Nur noch 1 Platz am {day} frei — Sie benötigen {need}.',
-  seatsShortOther: 'Nur noch {n} Plätze am {day} frei — Sie benötigen {need}.',
-  seatsShortNone: 'Am {day} ist kein Platz mehr frei — Sie benötigen {need}.',
-  seatsShortDays: 'Am {days} sind weniger als {need} Plätze frei.',
-  partySizeLabel: 'Wie viele Personen sind Sie?',
-  partySizeDecreaseAria: 'Eine Person weniger',
-  partySizeIncreaseAria: 'Eine Person mehr',
-  seatFitCountOne: 'An 1 Tag ist Platz für {n} Personen',
-  seatFitCountOther: 'An {count} Tagen ist Platz für {n} Personen',
-  seatFitNone: 'Im Zeitraum {range} gibt es keinen Tag mit Platz für {n} Personen.',
-  seatFitFewerButton: 'Weniger Personen',
-  seatFitInquiryButton: 'Gruppenbuchung anfragen',
-  shortDayLegend: 'Nicht genug Plätze für Ihre Gruppe',
-  slotSeatsShort: 'Nur noch {n} frei (Sie benötigen {need})',
-  slotSeatsShortNoCount: 'Nicht genug Plätze für {need}',
-  seatFitWindowsOne: 'Bei 1 Kurstermin ist Platz für {n} Personen',
-  seatFitWindowsOther: 'Bei {count} Kursterminen ist Platz für {n} Personen',
-  seatFitNoneWindows: 'Es gibt keinen kommenden Kurstermin mit Platz für {n} Personen.',
-  holdUntilOnly:
-    'Bei Ihrer Buchung waren die Plätze für {name} noch frei. Reserviert bis {when}.',
-  holdRequested:
-    'Plätze für {name} sind angefragt und {n} Stunden reserviert, bis {when}. Der Anbieter muss noch bestätigen, dass alle Platz haben.',
-  holdHeldOne:
-    'Bei Ihrer Buchung waren die Plätze für {name} noch frei. Reserviert für 1 Stunde, bis {when}.',
-  holdHeldOther:
-    'Bei Ihrer Buchung waren die Plätze für {name} noch frei. Reserviert für {n} Stunden, bis {when}.',
-  holdNotHeld:
-    'Für {name} sind keine Plätze reserviert — die Buchung ist möglich, solange Plätze frei sind.',
-  holdTonight: 'heute Abend',
-  holdToday: 'heute um {time}',
-  holdTomorrow: 'morgen um {time}',
-  inviteHoldActive: 'Ihr Platz ist reserviert bis {when}.',
-  inviteHoldEnded:
-    'Die Reservierung Ihres Platzes ist abgelaufen — Sie können weiterhin buchen, solange Plätze frei sind.',
-  readyToContinueWithHostsDates: 'Bereit, mit den Terminen des Gastgebers fortzufahren.',
-  continueWithTheseDates: 'Mit diesen Terminen fortfahren',
-  changeDates: 'Termine ändern',
-  pickCourse: 'Kurs wählen',
-  courseFallbackName: 'Kurs {n}',
-  fixedDateWindowAmbiguousMessage:
-    'An diesem Tag beginnt mehr als ein Kurs. Bitte gehen Sie zurück und wählen Sie den gewünschten Kurs.',
-  sameDaysAsHostFor: 'Die gleichen Termine wie {host} für {product}.',
-  inviteBannerDatesAndHotel:
-    'Sie schließen sich der Buchung von {host} an (Ref. {ref}). Termine und Hotel sind vorausgefüllt — ändern Sie, was bei Ihnen abweicht.',
-  inviteBannerDatesOnly:
-    'Sie schließen sich der Buchung von {host} an (Ref. {ref}). Die Termine sind vorausgefüllt — ändern Sie, was bei Ihnen abweicht.',
-  inviteBannerOwnAccommodation:
-    'Sie schließen sich der Buchung von {host} an (Ref. {ref}). Die Termine sind vorausgefüllt. Für Sie ist dort kein Zimmer gebucht — wählen Sie nur Guiding oder buchen Sie ein Zimmer bei uns.',
-  hostDayUnavailableOne:
-    '1 der Termine von {host} ist nicht mehr verfügbar — ändern Sie Ihre Termine, um fortzufahren.',
-  hostDaysUnavailableOther:
-    '{n} der Termine von {host} sind nicht mehr verfügbar — ändern Sie Ihre Termine, um fortzufahren.',
-
-  pickupLocationTitle: 'Abholort',
-  pickupLocationCue: 'Abholort wählen',
-  chooseWhereWePickYouUp: 'Wählen Sie, wo wir Sie abholen',
-  loadingPickupLocations: 'Abholorte werden geladen…',
-  noPickupLocationsConfigured: 'Keine Abholorte eingerichtet — bitte kontaktieren Sie den Anbieter',
-  choosePickupLocationToContinue: 'Wählen Sie einen Abholort, um fortzufahren.',
-
-  guideLanguageTitle: 'Guide-Sprache',
-  guideLanguageOthersHint:
-    'Andere Teilnehmende wählen ihre Sprache selbst, wenn sie ihre eigene Buchung vornehmen.',
-  optionalSuffix: '(optional)',
-  unassignedOption: 'Nicht zugeordnet',
-  roomFullSuffix: ' (voll)',
-  languagesColon: 'Sprachen:',
-  addLanguageColon: 'Sprache hinzufügen:',
-  guestSuffix: '(Gast)',
-  guestBadgeLabel: 'Gast',
-  unassignedCountTemplate: 'Nicht zugeordnet ({n})',
-  dropNamesHere: 'Namen hierher ziehen',
-  assignWithDropdownsInstead: 'Stattdessen über Dropdowns zuordnen',
-  languageDropdownPlaceholder: '→ Sprache…',
-  assignToLanguageAriaTemplate: '{name} eine Sprache zuordnen',
-  everyoneSpeaksTemplate: 'Alle sprechen {language}',
-  moveSelectedHereUnassign: 'Ausgewählte hierher verschieben (nicht zugeordnet)',
-
-  selectPlaceholder: '— auswählen —',
-  noFormConfigForProduct: 'Für dieses Angebot wurde keine Formularkonfiguration gefunden.',
-  formDefinitionNotFound: 'Formulardefinition nicht gefunden.',
-  couldNotLoadFormRetry: 'Das Formular konnte nicht geladen werden. Bitte gehen Sie zurück und versuchen Sie es erneut.',
-  additionalInformationTitle: 'Zusätzliche Informationen',
-  completeEveryRequiredField: 'Füllen Sie alle Pflichtfelder aus, um fortzufahren.',
-  unsupportedFieldTypeTemplate: '(Nicht unterstützter Feldtyp: {type})',
-  productFormSubtitleTemplate: '{product} · bitte füllen Sie das folgende Formular aus',
-  loadingEllipsis: 'Wird geladen…',
-  formPersonParticipantTag: 'Teilnehmer',
-  formPersonGuestTag: 'Gast',
-  formPersonFallbackName: 'Person',
-  staffFormCustomerCompletes: 'Der Kunde füllt dies über seinen Buchungslink aus ✓',
-  staffFormCustomerCompletesHint: 'Die Angaben werden nach dem Anlegen der Buchung beim Kunden abgefragt.',
-  staffFormFillInNow: 'Stattdessen jetzt ausfüllen',
-  staffFormLetCustomerComplete: 'Stattdessen vom Kunden ausfüllen lassen',
-  staffReviewCustomerCompletes: 'Der Kunde füllt aus:',
-  formPersonSectionHint: 'Bitte für jede Person beantworten.',
-  formResponsesInvalidIntro: 'Einige Antworten im Formular müssen korrigiert werden. Bitte gehen Sie zurück zum Formular und korrigieren Sie:',
-
-  customerCommentPlaceholder:
-    'z. B. eine Ernährungsbesonderheit, ein Bedarf für Barrierefreiheit, ein besonderer Anlass…',
-  anythingWeShouldKnowLabel: 'Möchten Sie uns noch etwas mitteilen? (optional)',
-
-  participantsTitle: 'Teilnehmer',
-  yourContactDetailsTitle: 'Ihre Kontaktdaten',
-  requestLargerGroupLink: 'Größere Gruppe anfragen',
-  addParticipantAria: 'Teilnehmer hinzufügen',
-  addCompanionAria: 'Begleitperson hinzufügen',
-  addParticipantButton: '+ Teilnehmer hinzufügen',
-  addGuestButton: '+ Gast hinzufügen',
-  enterYourNameEmailPhoneCue: 'Name, E-Mail und Telefon eingeben',
-  enterYourNameEmailPhoneBillingCue: 'Name, E-Mail, Telefon und Rechnungsadresse eingeben',
-  fillInEveryRequiredField: 'Füllen Sie alle Pflichtfelder aus, um fortzufahren.',
-  roleLabel: 'Rolle',
-  includeYourCountryCode: 'Bitte mit Landesvorwahl',
-  billingAddressTitle: 'Rechnungsadresse',
-  billingAddressHelper: 'Diese Angaben benötigen wir für Ihre Rechnung.',
-  billingStreetLabel: 'Straße und Hausnummer',
-  billingAddressLine2Label: 'Adresszusatz (optional)',
-  billingPostalCodeLabel: 'Postleitzahl',
-  billingCityLabel: 'Ort',
-  billingCountryLabel: 'Land',
-  billingCountryPlaceholder: '— Land auswählen —',
-  billingInvoiceToCompanyLabel: 'Rechnung an ein Unternehmen?',
-  billingInvoiceNameLabel: 'Name auf der Rechnung (optional)',
-  billingInvoiceNameHint: 'Nur, wenn die Rechnung auf einen anderen Namen als Ihren ausgestellt werden soll.',
-  billingCompanyLabel: 'Unternehmen',
-  billingTaxIdLabel: 'Steuernummer (NIF / USt-IdNr.)',
-  memberPerkOtpLabel: 'Mitglied? Geben Sie den 6-stelligen Code ein, den wir Ihnen per E-Mail geschickt haben, um Ihren Mitgliederpreis anzuwenden.',
-  maxAdditionalParticipantsTemplate: 'Maximal {n} zusätzliche Teilnehmer erreicht',
-  needLargerGroupHint: 'Größere Gruppe oder individuelle Buchung gewünscht?',
-  requestMoreButton: 'Mehr anfragen',
-  needLargerGroupDialogDescription:
-    'Größere Gruppe oder individuelle Buchung gewünscht? Senden Sie uns die Details und wir melden uns bei Ihnen.',
-  othersSharingYourRoom: 'Weitere Personen in Ihrem Zimmer',
-  peopleTravellingWithYou: 'Personen, die mit Ihnen reisen',
-  howAreTheyJoining: 'Wie nehmen sie teil?',
-  companionKindGuestLabel: 'Nimmt nicht an der Aktivität teil (Partner/in, Kind, Freund/in)',
-  companionKindSeparateGuidingLabel: 'Nimmt an der Aktivität teil — bucht eigenes Guiding separat',
-
-  enterValidGroupSize: 'Bitte geben Sie eine gültige Gruppengröße ein',
-  sendEnquiry: 'Anfrage senden',
-  groupInquiryPlaceholder: 'Erzählen Sie uns von Ihrer Gruppe, den bevorzugten Terminen und allen Fragen…',
-  groupSizeLabel: 'Gruppengröße',
-  messageLabel: 'Nachricht',
-  addYourNameAndEmailCue: 'Name und E-Mail eingeben',
-  yourNameLabel: 'Ihr Name',
-  closeLabel: 'Schließen',
-  cancelLabel: 'Abbrechen',
-  thanksWellBeInTouch: 'Danke — wir melden uns bei Ihnen!',
-  couldNotSendMessage: 'Ihre Nachricht konnte nicht gesendet werden. Bitte nehmen Sie Kontakt auf',
-  orEmailUs: 'Oder schreiben Sie uns eine E-Mail',
-
-  trackBookingTitle: 'Diese Buchung in der LANDR-App verfolgen',
-  accountLinkBodyTemplate:
-    'Verknüpfen Sie {email} mit einem LANDR-Konto, um Ihre Buchung einzusehen, Updates zu erhalten und Stornierungen von Ihrem Telefon aus zu verwalten.',
-  checkYourInboxTemplate: 'Schauen Sie in Ihr Postfach — wir haben einen Anmeldelink an {email} gesendet.',
-  couldNotSendLinkTemplate: 'Der Link konnte nicht gesendet werden: {message}. Ihre Buchung ist weiterhin bestätigt.',
-  accountLinkOptionalNote: 'Optional — Ihre Buchung ist in jedem Fall bereits bestätigt.',
-  noThanksContinueAsGuest: 'Nein danke, als Gast fortfahren',
-  yesSendMeALink: 'Ja, Link zusenden',
-  magicLinkFailed: 'Ihre Buchung ist weiterhin bestätigt.',
-
-  accommodationTitle: 'Unterkunft',
-  hotelStayRequired: 'Hotelaufenthalt erforderlich',
-  addHotelStayOptional: 'Hotelaufenthalt hinzufügen (optional)',
-  guidingOnlyLabel: 'Nur Guiding — ich kümmere mich selbst um eine Unterkunft',
-  guidingOnlyHint: 'Kein Hotel über uns gebucht — direkt zur Abholung.',
-  bookAccommodationPackageLabel: 'Unterkunft buchen (Paket)',
-  bookAccommodationPackageHint: 'Wählen Sie ein Hotel und Zimmer für Ihren Aufenthalt.',
-  sharedDoubleLabel: 'Ich teile mir ein Doppelzimmer, das von jemand anderem gebucht wurde',
-  chooseYourHotel: 'Wählen Sie Ihr Hotel',
-  noHotelsConfigured: 'Für diesen Anbieter sind noch keine Hotels eingerichtet.',
-  roomsLegend: 'Zimmer',
-  additionalAccommodationLegend: 'Zusätzliche Unterkunft',
-  loadingRooms: 'Zimmer werden geladen…',
-  noRoomsConfigured: 'Für dieses Hotel sind noch keine Zimmer eingerichtet.',
-  perNightSuffix: '/ Nacht',
-  roomAssignmentLegend: 'Zimmerzuordnung',
-  assignEveryoneToARoomCue: 'alle einem Zimmer zuordnen',
-  stayNightsLabel: 'Aufenthalt',
-  hotelPaidAtCheckin:
-    'Das Hotel wird direkt beim Check-in bezahlt (bar / Karte) — nicht in Ihrem Buchungsbetrag enthalten.',
-  completeStepsAboveToContinue: 'Schließen Sie die obigen Schritte ab, um fortzufahren.',
-  checkingAccommodationAvailability: 'Verfügbarkeit der Unterkunft für dieses Datum wird geprüft…',
-  howWouldYouLikeToHandleAccommodation: 'Wie möchten Sie die Unterkunft handhaben?',
-  sharedDoubleNormalNotice:
-    'Sie teilen sich ein Doppelzimmer mit einem anderen Gast. Für Sie ist kein Zimmer gebucht — der andere Gast hat das Zimmer — und Sie werden vom Hotel abgeholt.',
-  travellingWithFamilyHint:
-    'Reisen Sie mit Familie oder Freunden? Fügen Sie sie im vorherigen Schritt als Begleitpersonen hinzu, dann können Sie hier zusätzliche Zimmer für sie buchen.',
-  pleaseEnterChildAgeHint:
-    'Bitte geben Sie für jedes Kind das Alter an — das Hotel benötigt es zur Vorbereitung des Zimmers.',
-  sharedDoubleReferenceInputLabel: 'Buchungsreferenz der Person, die das Zimmer gebucht hat',
-  sharedDoubleReferenceLookingUp: 'Wird gesucht…',
-  sharedDoubleReferenceNotFoundTemplate:
-    'Wir konnten diese Referenz für diesen Anbieter nicht finden — prüfen Sie sie noch einmal, oder lassen Sie das Feld leer und tragen Sie sie später nach.',
-  sharedDoubleReferenceFoundTemplate: 'Buchung von {name} vom {date} — ist das die richtige Person?',
-  sharedDoubleReferenceConfirmYes: 'Ja, verknüpfen',
-  sharedDoubleReferenceConfirmNo: 'Nein',
-  sharedDoubleReferenceLinkedTemplate: 'Mit der Buchung von {name} verknüpft.',
-  sharedDoubleReferenceHelp:
-    'Schön, wenn Sie den Code zur Hand haben — kein Problem, wenn nicht, Sie können ihn später auf Ihrer ' +
-    'Buchungsseite nachtragen. Am einfachsten ist es, die Person, die gebucht hat, nach ihrem Einladungslink ' +
-    'zu fragen — dann ist alles schon ausgefüllt.',
-  additionalAccommodationOptionalHint:
-    'Optional — Zimmer für die Personen, die mit Ihnen reisen. Ihr eigenes Bett ist bereits durch das gemeinsame Doppelzimmer abgedeckt.',
-  sharedDoubleOthersTooLateTemplate:
-    'Nur Sie teilen sich das Zimmer mit dem Gastgeber; für die anderen Piloten ({names}) ist es zu spät, ' +
-    'um Zimmer zu buchen — entfernen Sie sie oder kontaktieren Sie den Anbieter.',
-  stayingAtTemplate: 'Übernachtung in {hotel}.',
-
-  whoStaysWhereTitle: 'Wer wohnt wo?',
-  roomAssignmentHelp:
-    'Ziehen Sie einen Namen auf ein Zimmer, oder tippen Sie auf einen Namen ' +
-    'und dann auf ein Zimmer. Sie können auch das Dropdown bei jedem Namen ' +
-    'nutzen. Wenn ein Zimmer weniger Frühstücke als Gäste hat, ziehen Sie ' +
-    'den Frühstücks-Chip auf die Person, die es bekommt.',
-  adultOption: 'Erwachsener',
-  childOption: 'Kind',
-  ageBandAria: 'Altersgruppe',
-  childAgeAria: 'Alter des Kindes',
-  agePlaceholder: 'Alter',
-  breakfastLabel: 'Frühstück',
-  emptyLabel: 'Leer',
-  swapInHereLabel: 'Hier tauschen',
-  placeHereLabel: 'Hier platzieren',
-  everyoneHasARoom: 'Alle haben ein Zimmer.',
-  addBreakfastButton: '+ Frühstück',
-  giveBreakfastToTemplate: 'Frühstück an {name} geben',
-
-  reviewYourBookingTitle: 'Ihre Buchung überprüfen',
-  hotelPrefix: 'Hotel:',
-  paidDirectlyToHotel: 'Direkt an das Hotel bezahlt — nicht in Ihrem Buchungsbetrag enthalten.',
-  yourContactHeading: 'Ihr Kontakt',
-  nameLabel: 'Name',
-  emailLabel: 'E-Mail',
-  phoneLabel: 'Telefon',
-  roomBreakfastHeading: 'Zimmerfrühstück',
-  assignEveryParticipantToALanguage: 'Ordnen Sie jedem Teilnehmer eine Sprache zu.',
-  additionalAccommodationLabel: 'Zusätzliche Unterkunft',
-  additionalAccommodationForTemplate: 'Zusätzliche Unterkunft (für {who})',
-  yourCompanionsAndCoPilots: 'Ihre Begleitpersonen und weitere Teilnehmer',
-  yourCoPilots: 'weitere Teilnehmer',
-  yourCompanions: 'Ihre Begleitpersonen',
-  othersJoiningReviewHeading: 'Begleitpersonen',
-  breakfastIncludedLabel: 'Frühstück inklusive',
-  breakfastPartialLabel: 'Frühstück nur für einige Gäste',
-  noBreakfastLabel: 'kein Frühstück',
-  withBreakfastLabel: 'mit Frühstück',
-  withoutBreakfastLabel: 'ohne Frühstück',
-  otherParticipantsTotalTemplate: 'Weitere Teilnehmer ({n} insgesamt)',
-  addAnyoneElseUpToTemplate: 'Fügen Sie alle weiteren Teilnehmenden hinzu. Sie können bis zu {n} weitere hinzufügen.',
-  participantOrdinalTemplate: 'Teilnehmer {n}',
-  companionOrdinalTemplate: 'Gast {n}',
-  maxCompanionsReachedTemplate: 'Maximal {n} Gäste erreicht',
-  companionInviteHint: 'Damit senden wir ihnen ihren eigenen Buchungslink.',
-  companionOwnAccommodationLabel: 'Kümmert sich selbst um die Unterkunft (kein Zimmer über uns gebucht)',
-  companionOwnAccommodationHint:
-    'Für diese Person wird in dieser Buchung kein Zimmer gebucht. Über ihren Einladungslink kann sie nur Guiding oder ein eigenes Zimmer buchen.',
-  ownAccommodationNoRoomBooked: 'eigene Unterkunft — kein Zimmer gebucht',
-  inviteOwnBookRoomLabel: 'Zimmer bei uns buchen',
-  inviteOwnBookRoomHint: 'Wählen Sie ein Hotel und ein eigenes Zimmer. Das Hotel der Person, die Sie eingeladen hat, ist vorausgewählt.',
-  companionContactRequiredTemplate:
-    'Wir benötigen eine E-Mail-Adresse oder Telefonnummer, um {name} den Buchungslink zu senden',
-  themFallback: 'ihnen',
-  youWillBeListedAsParticipant1:
-    'Sie werden als Teilnehmer 1 aufgeführt. Fügen Sie unten weitere Personen hinzu, wenn andere mitkommen.',
-  bookingForSomeoneElseLabel: 'Ich buche für jemand anderen und nehme selbst nicht teil',
-  addPeopleJoiningBelow: 'Tragen Sie unten die Personen ein, die teilnehmen.',
-  participantsTotalTemplate: 'Teilnehmer ({n} insgesamt)',
-  sameAsYoursPlaceholder: 'wie Ihre',
-  invoiceToLabel: 'Rechnung an:',
-  notTakingPartPaysInvoice: 'Nimmt nicht teil · zahlt die Rechnung',
-  maxParticipantsReachedOne: 'Maximal 1 Teilnehmer erreicht',
-  maxParticipantsReachedTemplate: 'Maximal {n} Teilnehmer erreicht',
-  tooManyPeopleRemoveSomeone:
-    'Es sind mehr Personen eingetragen, als diese Aktivität erlaubt — entfernen Sie jemanden, um fortzufahren.',
-  sharedDoubleRequiresBookerMessage:
-    'Ein geteiltes Doppelzimmer deckt Ihr eigenes Bett ab und ist daher nur wählbar, wenn Sie selbst teilnehmen. Bitte gehen Sie zurück zur Unterkunft und wählen Sie eine andere Option.',
-  notAMemberOrNoCode:
-    'Kein Mitglied oder keinen Code zur Hand? Lassen Sie dieses Feld leer — das hat keinen Einfluss auf Ihre Buchung.',
-  participantsYouPayForHint: 'Personen, die Sie buchen und bezahlen.',
-  guestsPayingForThemselves: 'Gäste, die selbst bezahlen',
-  guestsPayingForThemselvesExplainer:
-    'Nehmen an der Aktivität teil, buchen und bezahlen aber ihren eigenen Platz. Wir senden ihnen einen Link, um ihre Buchung abzuschließen — sie werden Ihrem Preis nicht hinzugefügt.',
-  companionsShareAccommodationExplainer:
-    'Alle weiteren Personen, die sich Ihre Unterkunft teilen — Partner/innen, Freunde, Familienmitglieder ' +
-    'oder andere Aktivitätsteilnehmende, die ihr Guiding separat buchen und bezahlen. Sie werden zur ' +
-    'Hotelbelegung und Zimmerzuteilung hinzugefügt, aber nicht zur Aktivität oder zum Preis dieser Buchung.',
-  guestFallbackTemplate: 'Gast {n}',
-  readyToConfirm: 'Bereit zum Bestätigen.',
-  reviewStepCueLabel: 'Letzter Schritt: Buchung bestätigen',
-  submittingYourBookingEllipsis: 'Ihre Buchung wird gesendet…',
-  sharedDoubleOwnBedNote: 'Ihr eigenes Bett ist das vom Gastgeber gebuchte Doppelzimmer.',
-  joiningActivitySeparateGuiding: 'nimmt an der Aktivität teil (separates Guiding)',
-  notDoingActivity: 'nimmt nicht an der Aktivität teil',
-  submittingEllipsis: 'Wird gesendet…',
-  confirmBookingLabel: 'Buchung bestätigen',
-
-  yourBookingTitle: 'Ihre Buchung',
-  partyHeading: 'Reisegruppe',
-  partyIncludedHeading: 'Teilnehmer (in dieser Buchung enthalten)',
-  partySeparateGuidingHeading: 'Nimmt an der Aktivität teil — eigene separate Buchung',
-  partyGuestsHeading: 'Nimmt nicht an der Aktivität teil (Begleitung)',
-  priceBreakdownTitle: 'Preisaufschlüsselung',
-  atHotelPayAtCheckin: 'Im Hotel · Zahlung beim Check-in',
-  referenceLabel: 'Referenz',
-  addToGoogleCalendarAria: 'Zu Google Kalender hinzufügen',
-  addToOutlookCalendarAria: 'Zu Outlook Kalender hinzufügen',
-  copyLinkLabel: 'Link kopieren',
-  copyLabel: 'Kopieren',
-  copiedLabel: 'Kopiert',
-  couldNotCopyAutomatically: 'Automatisches Kopieren fehlgeschlagen — bitte auswählen und kopieren:',
-  shareReferenceHint: 'Teilen Sie diese Referenz mit allen, die dieselbe Aktivität buchen und mit Ihnen zusammen eingeteilt werden möchten.',
-  retryEmailLabel: 'E-Mail erneut senden',
-  emailLabelShort: 'E-Mail',
-  bookingCreated: 'Buchung erstellt',
-  bookingConfirmed: 'Buchung bestätigt',
-  bookingReceived: 'Buchung erhalten',
-  confirmationEmailFailed:
-    'Wir haben Ihre Buchungsanfrage erhalten, konnten aber die Bestätigungs-E-Mail nicht senden.',
-  confirmationEmailSent: 'Eine Bestätigungs-E-Mail mit Ihren Buchungsdetails wurde gesendet.',
-  confirmationEmailPending: 'Sie erhalten in Kürze eine Bestätigungs-E-Mail mit den nächsten Schritten.',
-  downloadIcsButton: '.ics herunterladen',
-  makeAnotherBookingLink: 'Weitere Buchung vornehmen',
-  bookingConfirmedInboxNote: 'Ihre Buchung ist bestätigt — die Details finden Sie in Ihrem Postfach.',
-  paymentLinkOnItsWay: 'Ein Zahlungslink ist unterwegs.',
-  payOnSiteNote: 'Bitte zahlen Sie am Tag der Aktivität direkt am Treffpunkt.',
-  bankTransferNote: 'Die Bankverbindung finden Sie in Ihrer Bestätigungs-E-Mail.',
-  paymentLinkForDepositOnItsWay: 'Ein Zahlungslink für Ihre Anzahlung ist unterwegs.',
-  payModeNotOnlineTitle: 'Diese Buchung wird nicht mehr online bezahlt',
-  payModeNotOnlinePayOnSite: 'Bitte zahlen Sie am Tag der Aktivität direkt am Treffpunkt.',
-  payModeNotOnlineBankTransfer: 'Bitte zahlen Sie per Überweisung — die Bankverbindung finden Sie in Ihrer Bestätigungs-E-Mail.',
-  payModeNotOnlineGeneric: 'Für diese Buchung ist keine Online-Zahlung mehr möglich. Bitte wenden Sie sich an den Anbieter, wie Sie zahlen können.',
-  payByBankTransferTitle: 'Per Überweisung bezahlen',
-  bankAccountHolderLabel: 'Kontoinhaber',
-  bankIbanLabel: 'IBAN',
-  bankBicLabel: 'BIC',
-  bankReferenceLabel: 'Verwendungszweck',
-  bankTransferReferenceHint: 'Bitte geben Sie den Verwendungszweck an, damit wir Ihre Überweisung zuordnen können.',
-  payOnSiteAlsoHint: 'Sie können auch vor Ort bezahlen, am Tag der Aktivität.',
-  awaitingOperatorConfirmation: 'Ihre Buchung wartet auf die Bestätigung durch den Anbieter.',
-  participantCountSingular: '{n} Teilnehmer',
-  participantCountPlural: '{n} Teilnehmer',
-  pickupPrefix: 'Abholung:',
-  savingsConsecutiveTemplate: '{days} {dayWord} in Folge — Sie haben {amount} gespart!',
-  savingsNonConsecutiveTemplate: 'Sie haben {amount} gespart, weil Sie {days} {dayWord} gebucht haben!',
-  meetingPointOpenInGoogleMapsAria: 'In Google Maps öffnen',
-  meetingPointOpenInWazeAria: 'In Waze öffnen',
-  bookedRefTemplate: 'Gebucht ✓ (Ref. {ref})',
-  sendBookingLinkToTemplate: 'Buchungslink senden an {name}',
-  inviteEmailSentLabel: 'Gesendet ✓',
-  emailUnavailableNotice: 'E-Mail-Versand nicht verfügbar — kopieren Sie stattdessen den Link.',
-  groupBookedTogetherWith: 'Gemeinsam gebucht mit',
-  bookedTogetherMemberTemplate: '{name} (Ref. {ref})',
-  hostSuffixLabel: ' — Gastgeber',
-  sharedDoubleHintQuestion: 'Teilen Sie sich ein Zimmer, das jemand anders gebucht hat?',
-  addReferenceLinkLabel: 'Referenz auf Ihrer Buchungsseite hinzufügen',
-  joinErrorUnknownReference:
-    'Wir konnten keine Buchung mit dieser Referenz finden, daher wurde Ihre Buchung nicht damit verknüpft.',
-  joinErrorSameBooking: 'Diese Referenz verweist auf Ihre eigene Buchung, es gab also nichts zu verknüpfen.',
-  joinErrorJoinFailed: 'Wir konnten Ihre Buchung gerade nicht mit dieser Referenz verknüpfen.',
-  joinErrorFollowup:
-    'Ihre Buchung selbst ist wie gewohnt bestätigt — Sie können die Referenz später weiterhin auf Ihrer Buchungsseite hinzufügen.',
-  bookingConfirmedEmailFailed:
-    'Ihre Buchung ist bestätigt — die Bestätigungs-E-Mail konnten wir jedoch nicht senden.',
-  contactOperatorToConfirm: 'Bitte kontaktieren Sie den Anbieter direkt, um Ihre Buchungsdetails zu bestätigen.',
-  nextStepSendGroupLinkSingular: 'Nächster Schritt: Senden Sie Ihrer Gruppe ihren Buchungslink',
-  nextStepSendGroupLinkPlural: 'Nächster Schritt: Senden Sie Ihrer Gruppe ihre Buchungslinks',
-  eachCompletesOwnBooking: 'Jede Person schließt ihre eigene Buchung über ihren Link ab.',
-  linkCannotBeEmailed: 'Dieser Link kann von hier aus nicht mehr per E-Mail versendet werden — kopieren Sie ihn stattdessen.',
-  emailAddressRejected: 'Diese E-Mail-Adresse wurde abgelehnt.',
-  tooManyEmailsRetry: 'Gerade zu viele E-Mails — versuchen Sie es in ein paar Minuten erneut.',
-  couldNotSendEmailGeneric:
-    'Diese E-Mail konnte nicht gesendet werden — bitte versuchen Sie es erneut, oder nutzen Sie WhatsApp / kopieren Sie den Link.',
-
-  confirmingYourPayment: 'Ihre Zahlung wird bestätigt…',
-  usuallyTakesAFewSeconds: 'Das dauert normalerweise nur wenige Sekunden.',
-  pleaseWaitConfirmingPayment: 'Bitte warten Sie, während wir Ihre Zahlung mit unseren Unterlagen abgleichen.',
-  paymentComplete: 'Zahlung abgeschlossen',
-  yourBookingIsConfirmed: 'Ihre Buchung ist bestätigt.',
-  paymentCompleteBody:
-    'Vielen Dank! Wir haben Ihre Zahlung erhalten und Ihre Buchung ist bestätigt. ' +
-    'Sie erhalten in Kürze eine Bestätigungs-E-Mail.',
-  stillConfirmingYourPayment: 'Ihre Zahlung wird noch bestätigt',
-  takingLongerThanUsual: 'Das dauert länger als gewöhnlich.',
-  paymentPendingBody:
-    'Wir konnten Ihre Zahlung noch nicht bestätigen. Das muss nicht bedeuten, ' +
-    'dass etwas falsch gelaufen ist — wir schicken Ihnen eine Bestätigung, ' +
-    'sobald sie verarbeitet ist. Falls Sie sich nicht bald bei uns melden hören, ' +
-    'kontaktieren Sie uns bitte.',
-  couldNotCheckPaymentStatusTitle: 'Wir konnten Ihren Zahlungsstatus nicht prüfen',
-  paymentUnknownBody:
-    'Wir konnten unsere Unterlagen gerade nicht erreichen. Falls Ihre Zahlung ' +
-    'erfolgreich war, erhalten Sie in Kürze eine Bestätigungs-E-Mail. Falls Sie ' +
-    'unsicher sind, kontaktieren Sie uns bitte.',
-  paymentCancelledTitle: 'Zahlung abgebrochen',
-  yourBookingHasNotBeenCharged: 'Ihre Buchung wurde nicht belastet.',
-  paymentCancelledBody:
-    'Sie haben die Zahlungsseite verlassen, ohne die Zahlung abzuschließen. Ihre ' +
-    'Buchung ist weiterhin reserviert — klicken Sie unten, um es erneut zu versuchen.',
-  paymentLinkNotFoundTitle: 'Zahlungslink nicht gefunden',
-  offerNotFoundTitle: 'Angebot nicht gefunden',
-  offerLinkInvalidBody:
-    'Dieser Angebotslink ist ungültig oder abgelaufen. Bitte kontaktieren Sie den Anbieter für einen neuen Link.',
-  paymentFailedToStartTitle: 'Zahlung konnte nicht gestartet werden',
-  loadingYourOffer: 'Ihr Angebot wird geladen…',
-  pleaseWait: 'Bitte warten.',
-  completeYourPayment: 'Zahlung abschließen',
-  paymentPageTitle: 'Zahlungsseite',
-  yourCustomOffer: 'Ihr individuelles Angebot',
-  payModeDescription: 'Ihre Buchung ist bestätigt. Zahlen Sie unten den ausstehenden Betrag, um sie zu sichern.',
-  offerModeDescription: 'Prüfen Sie die Details unten und klicken Sie auf „Annehmen & Bezahlen“, um Ihre Buchung zu bestätigen.',
-  statusLabel: 'Status:',
-  whatYoureBooking: 'Was Sie buchen',
-  offerColItem: 'Leistung',
-  legalImprint: 'Impressum',
-  legalPrivacy: 'Datenschutzerklärung',
-  offerColDates: 'Datum',
-  offerColLength: 'Dauer',
-  offerLengthDaySingular: '{n} Tag',
-  offerLengthDayPlural: '{n} Tage',
-  offerLengthTotalLabel: 'Gesamt',
-  offerLengthNightSingular: '{n} Nacht',
-  offerLengthNightPlural: '{n} Nächte',
-  offerYourTripWithTemplate: 'Ihre Reise mit {operator}',
-  offerHeroWithAccommodation: 'mit Unterkunft',
-  offerColPeriod: 'Zeitraum',
-  offerPeriodArrival: 'Anreise',
-  offerPeriodDeparture: 'Abreise',
-  offerPerDaySuffix: '/Tag',
-  offerDiscountLabel: 'Ihr Rabatt',
-  offerGroupDiscountTemplate: 'Gruppenrabatt ({pct} %)',
-  offerFreeSpotsTemplate: 'Freiplätze × {n}',
-  offerFreeLabel: 'Kostenlos',
-  offerPayableAtHotelShort: 'im Hotel zu zahlen',
-  productsAria: 'Angebote',
-  offerParticipantsTitle: 'Teilnehmer',
-  offerPriceBreakdownTitle: 'Preisaufschlüsselung',
-  offerSubtotalLabel: 'Zwischensumme',
-  savingSpecialPriceLabel: 'Sonderpreis (vereinbart)',
-  savingOfferDiscountLabel: 'Angebotsrabatt',
-  savingGroupDiscountLabel: 'Gruppenrabatt',
-  savingFreeSpotsLabel: 'Freiplätze',
-  savingImportedPriceLabel: 'Importierter Preis',
-  taxLabel: 'Steuer',
-  amountDueLabel: 'Fälliger Betrag',
-  nothingDueNow: 'Derzeit nichts fällig',
-  depositLabelTemplate: 'Anzahlung ({n} %)',
-  depositRemainderNote: 'Der Restbetrag ist später fällig.',
-  continueToStripeLabel: 'Weiter zur Zahlung',
-  yourShareOfThisBooking: 'Ihr Anteil an dieser Buchung',
-  totalBookingValueLabel: 'Gesamtwert der Buchung',
-  offerTotalLabel: 'Gesamt',
-  amountDueNowLabel: 'Jetzt fälliger Betrag',
-  totalBookingValueNote: 'Dies ist der volle Wert der Buchung — nicht der jetzt berechnete Betrag.',
-  payableDirectlyToHotel: 'Direkt bei Ankunft an das Hotel zu zahlen',
-  hotelSettledAtCheckin:
-    'Ihre Unterkunft wird beim Check-in mit dem Hotel abgerechnet. Sie ist nicht Teil des hier berechneten Betrags.',
-  nothingToPay: 'Nichts zu bezahlen',
-  redirectingToPaymentEllipsis: 'Weiterleitung zur Zahlung…',
-  payNowLabel: 'Jetzt bezahlen',
-  acceptAndPayLabel: 'Annehmen & Bezahlen',
-  nothingFurtherToPay: 'Über diesen Link ist derzeit nichts weiter zu bezahlen.',
-  paymentLinkPersonal: 'Dieser Zahlungslink ist persönlich. Bitte nicht weitergeben.',
-  offerLinkPersonal: 'Dieser Angebotslink ist persönlich. Bitte nicht weitergeben.',
-  offerAcceptLabel: 'Angebot annehmen',
-  offerAcceptingEllipsis: 'Wird angenommen…',
-  offerAcceptErrorTitle: 'Angebot konnte nicht angenommen werden',
-  offerAcceptErrorChanged: 'Der Anbieter hat dieses Angebot nach dem Versand geändert. Bitte öffnen Sie den Link in Ihrer neuesten E-Mail.',
-  offerAcceptErrorClosed: 'Diese Buchung ist nicht mehr offen.',
-  offerAcceptErrorGeneric: 'Wir konnten Ihre Zusage nicht speichern. Bitte versuchen Sie es erneut oder kontaktieren Sie uns.',
-  offerAgreedTitle: 'Ihre Buchung wie vereinbart',
-  offerAgreedDescription: 'Das ist Ihre Buchung so, wie wir sie vereinbart haben – Sie müssen nichts bestätigen.',
-  offerAcceptedDescription: 'Sie haben dieses Angebot angenommen.',
-  offerReviewHotelDescription: 'Prüfen Sie die Details unten. Sie können das Angebot jetzt annehmen; Bestätigung und Zahlungslink senden wir, sobald das Hotel bestätigt.',
-  offerReviewAcceptDescription: 'Prüfen Sie die Details unten und klicken Sie auf „Angebot annehmen“, um Ihre Buchung zu bestätigen.',
-  offerHotelNote: 'Ihr Angebot gilt, sobald das Hotel Ihre Daten bestätigt.',
-  offerHotelNoteAfterAccept: 'Sie können jetzt zusagen — Bestätigung und Zahlungslink senden wir, sobald das Hotel bestätigt.',
-  offerHotelNoteNow: 'Sie haben zugesagt. Wir warten auf das Hotel; Bestätigung und Zahlungslink senden wir, sobald es bestätigt.',
-  offerHotelConfirmed: 'Hotel bestätigt',
-  offerHotelConfirmedAfterAccept: 'Das Hotel hat Ihre Zimmer bestätigt. Nehmen Sie das Angebot an, um Bestätigung und Zahlungslink zu erhalten.',
-  offerHotelConfirmedAccepted: 'Das Hotel hat Ihre Zimmer bestätigt.',
-  offerHotelDeclined: 'Wir aktualisieren Ihr Angebot.',
-  offerHotelDeclinedBody: 'Das Hotel konnte diese Zimmer nicht bestätigen. Wir senden Ihnen in Kürze ein aktualisiertes Angebot. Es ist jetzt nichts zu zahlen.',
-  offerSavingsIntroTemplate: 'Sie sparen {x} gegenüber unseren regulären Preisen.',
-  offerYouSavePerDayTemplate: 'Sie sparen {a} pro Tag · {b}',
-  offerYouSaveTemplate: 'Sie sparen {b}',
-  offerFreeSpotLabel: 'Freiplatz',
-  offerRegularOnUsTemplate: 'Regulärer Preis {x} – geht auf uns',
-  offerOnUs: 'Geht auf uns',
-  offerRegularPriceLabel: 'Regulärer Preis',
-  offerYourPriceLabel: 'Ihr Preis',
-  offerInclTaxTemplate: 'inkl. {a} Steuer ({p} %)',
-  offerPriceExclTaxLabel: 'Preis ohne Steuer',
-  offerTaxAddedTemplate: '+ {a} Steuer ({p} %)',
-  offerInclTaxNamedTemplate: 'inkl. {a} {n} ({p} %)',
-  offerTaxAddedNamedTemplate: '+ {a} {n} ({p} %)',
-  offerPaidAtHotelTemplate: '+ {a} Zahlung im Hotel bei Anreise',
-  couldNotStartPayment: 'Die Zahlung konnte nicht gestartet werden. Bitte versuchen Sie es erneut oder kontaktieren Sie uns.',
-
-  becomeAMember: 'Mitglied werden',
-  backToProductsLabel: 'Zurück zu den Angeboten',
-  membershipRedirectHelp:
-    'Sie werden zu unserem sicheren Zahlungsanbieter weitergeleitet, um Ihre Mitgliedschaft abzuschließen.',
-  enterYourEmailCue: 'E-Mail eingeben',
-  yourNameThing: 'Ihren Namen',
-  firstNameLabel: 'Vorname',
-  lastNameLabel: 'Nachname',
-  becomeAMemberCue: 'Mitglied werden',
-  membershipUnavailableTitle: 'Mitgliedschaft nicht verfügbar',
-  membershipUnavailableBody:
-    'Diese Mitgliedschaftsoption ist derzeit nicht verfügbar. Bitte kontaktieren Sie den Anbieter direkt.',
-  tooManyAttemptsTitle: 'Zu viele Versuche',
-  tooManyAttemptsBody: 'Bitte warten Sie ein paar Minuten und versuchen Sie es erneut.',
-  membershipGenericErrorBody: 'Der Checkout konnte nicht gestartet werden. Bitte versuchen Sie es erneut oder kontaktieren Sie den Anbieter.',
-  redirectingToPaymentDots: 'Weiterleitung zur Zahlung…',
-  onYourWayToMembershipTitle: 'Sie sind auf dem Weg zur Mitgliedschaft',
-  membershipBeingActivated: 'Ihre Mitgliedschaft wird gerade aktiviert.',
-  checkoutCancelledTitle: 'Checkout abgebrochen',
-  membershipNotCharged: 'Sie wurden nicht belastet.',
-  membershipCancelledBody:
-    'Sie haben den Checkout verlassen, ohne Ihre Mitgliedschaft abzuschließen. Es wurde keine Zahlung ' +
-    'vorgenommen — Sie können es jederzeit erneut versuchen.',
-  continueBrowsing: 'Weiter stöbern',
-  membershipActivatingBody:
-    'Vielen Dank! Wir haben Ihre Zahlung erhalten und Ihre Mitgliedschaft wird jetzt eingerichtet. Sie erhalten eine Bestätigungs-E-Mail, sobald sie aktiv ist — das geht normalerweise schnell, aber bitte laden Sie diese Seite nicht neu, um auf die Änderung zu warten.',
-
-  addonsTitle: 'Zusatzleistungen',
-  loadingAddons: 'Zusatzleistungen werden geladen…',
-  noAddonsAvailable: 'Für diese Option sind keine Zusatzleistungen verfügbar.',
-  addonSoldOut: 'Für Ihre Termine ausgebucht.',
-  addonUnitTaken: 'An Ihren Terminen für eine andere Gruppe reserviert.',
-  addonUnitTakenTemplate: '{unit}: an Ihren Terminen komplett für eine andere Gruppe reserviert.',
-  addonStockLeftTemplate: 'Nur noch {n} für Ihre Termine verfügbar.',
-  pickRequiredAddonsCue: 'erforderliche Zusatzleistungen wählen',
-  pickRequiredAddonsToContinue: 'Wählen Sie alle erforderlichen Zusatzleistungen, um fortzufahren.',
-  requiredSuffix: 'erforderlich',
-  eachSuffix: 'je Stück',
-  overbookManyRoomsTemplate: 'Mehr {addon} ({qty}) als diese {roomQty} Zimmer fassen ({expected}) — bringen Sie zusätzliche Gäste mit?',
-  overbookOneRoomTemplate: 'Mehr {addon} ({qty}) als dieses Zimmer fasst ({expected}) — bringen Sie zusätzliche Gäste mit?',
-  underbookManyRoomsTemplate: 'Nur {qty} {addon} für {roomQty} Zimmer ({expected} Gäste) — eines pro Zimmer?',
-  underbookOneRoomTemplate: 'Nur {qty} {addon} für ein Zimmer mit Platz für {expected} — eines pro Gast?',
-
-  fullyBookedLabel: 'Ausgebucht',
-  fullyBookedBlurb: 'Für dieses Angebot sind derzeit keine bevorstehenden Termine verfügbar. Bitte schauen Sie später wieder vorbei.',
-  gridViewLabel: 'Rasteransicht',
-  listViewLabel: 'Listenansicht',
-  catalogueLayoutAria: 'Katalog-Layout',
-  offerCountOne: 'Angebot',
-  offerCountOther: 'Angebote',
-
-  productDetailsAria: 'Produktdetails',
-  productImageThumbnailsAria: 'Vorschaubilder',
-  showImageAria: 'Bild {name} anzeigen',
-  hotelIncluded: 'Hotel inklusive',
-  hotelOptional: 'Hotel optional',
-  pickupAvailable: 'Abholung verfügbar',
-  offeredInPrefix: 'Angeboten in',
-  backLinkArrow: '← Zurück',
-  bookNow: 'Jetzt buchen',
-  tickEveryLanguageHelp:
-    'Kreuzen Sie jede Sprache an, die Sie sprechen, und ziehen Sie Ihre bevorzugte nach oben.',
-  draftPreviewBadge: 'Entwurf — Vorschau',
-  shopComingSoonBodyTemplate:
-    'Diese Art von Produkt ({kind}) wird über unseren Shop verkauft, der in Kürze verfügbar ist. Bitte kontaktieren Sie den Anbieter direkt, um es in der Zwischenzeit zu bestellen.',
-  landingPageTitle: 'Dies ist die Host-Seite für das Landr-Buchungswidget.',
-  poweredByLandr: 'Bereitgestellt von LANDR',
-
-  perDaySuffix: '/Tag',
-  daySingular: 'Tag',
-  dayPlural: 'Tage',
-  consecutiveDayPlural: 'aufeinanderfolgende Tage',
-  savesVsStandardRate: 'spart {amount} gegenüber dem Standardpreis',
-  participantSuffixSingular: '× {n} Teilnehmer',
-  participantSuffixPlural: '× {n} Teilnehmer',
-  multiDayDiscountLabel: 'Mehrtagesrabatt',
-  streakDiscountLabel: 'Serienrabatt',
-  voucherAppliedLabel: 'Gutschein eingelöst',
-
-  calculatingEllipsis: 'Wird berechnet…',
-  couldNotFetchPrice: 'Preis konnte nicht abgerufen werden — Ihr Endbetrag wird bei der Bestätigung angezeigt.',
-  pickYourOptionsToSeePrice: 'Wählen Sie Ihre Optionen, um den Preis zu sehen.',
-  bookingOverviewTitle: 'Buchungsübersicht',
-  updatePriceTitle: 'Preis aktualisieren',
-  grandTotalLabel: 'Gesamtsumme',
-  forNamesTemplate: 'Für {names}',
-  forNamesOtherSingularTemplate: 'Für {names} + {n} weitere Person',
-  forNamesOtherPluralTemplate: 'Für {names} + {n} weitere',
-  youPayNowHeading: 'Sie zahlen jetzt',
-  atHotelTotalPayAtCheckin: 'Gesamtbetrag im Hotel · Zahlung beim Check-in',
-  hotelSpanTemplate: 'Hotel: {from} → {to}, {nights} {nightWord}',
-  nightSingular: 'Nacht',
-  nightPlural: 'Nächte',
-  updatingEllipsis: 'Wird aktualisiert…',
-  payableDirectlyToHotelCaveat: 'Direkt beim Check-in an das Hotel bezahlt — nicht in Ihrem Buchungsbetrag enthalten.',
-  multiDayRateAppliedHeading: 'Mehrtagespreis angewendet',
-  tapToExpand: 'Zum Erweitern tippen',
-  tapToCollapse: 'Zum Einklappen tippen',
-  atHotelSuffix: 'im Hotel',
-  qtyTimesDayTemplate: '{qty} × {units} {unitWord}',
-
-  // ---- landr-5aih0.27 ----
-  decreaseQtyAriaTemplate: 'Menge von {item} verringern',
-  increaseQtyAriaTemplate: 'Menge von {item} erhöhen',
-  ownerHasBreakfastTemplate: '{owner} hat Frühstück',
-  breakfastDragHintTemplate: 'Frühstück von {owner} — auf einen anderen Gast ziehen, um es zu verschieben',
-  roomUnitAriaTemplate: '{room} — Einheit {n}',
-  assignToRoomTemplate: '{name} einem Zimmer zuweisen',
-  languageSpeakersTemplate: '{language}-Sprechende',
-  removeLanguageTemplate: '{language} entfernen',
-  reorderLanguageTemplate: '{language} verschieben',
-  removeParticipantAriaTemplate: 'Teilnehmer {n} entfernen',
-  removeCompanionAriaTemplate: 'Begleitperson {n} entfernen',
-  useYourEmailAria: 'E-Mail übernehmen',
-  useYourPhoneAria: 'Telefon übernehmen',
-
-  // ---- landr-kcxx5.10 ----
-  detailsPageTitle: 'Ihre Angaben',
-  detailsLoadingTitle: 'Ihre Fragen werden geladen …',
-  detailsLoadingBody: 'Einen Moment bitte.',
-  detailsInvalidTitle: 'Dieser Link ist nicht mehr gültig',
-  detailsInvalidBody:
-    'Der Link ist möglicherweise abgelaufen oder wurde ersetzt. Bitte wenden Sie sich an das Unternehmen, bei dem Sie gebucht haben.',
-  detailsErrorTitle: 'Etwas ist schiefgelaufen',
-  detailsErrorBody: 'Ihre Fragen konnten nicht geladen werden. Bitte versuchen Sie es gleich noch einmal.',
-  detailsRetry: 'Erneut versuchen',
-  detailsNothingTitle: 'Nichts mehr auszufüllen',
-  detailsNothingBody: 'Sie müssen nichts mehr ausfüllen. {operator} hat bereits alles, was benötigt wird.',
-  detailsNothingBodyNoOperator: 'Sie müssen nichts mehr ausfüllen. Der Veranstalter hat bereits alles, was benötigt wird.',
-  detailsDoneTitle: 'Danke – Ihre Angaben sind gespeichert',
-  detailsDoneBody: 'Wir haben sie an {operator} weitergegeben. Sie können diese Seite schließen.',
-  detailsDoneBodyNoOperator: 'Wir haben sie weitergegeben. Sie können diese Seite schließen.',
-  detailsIntro: 'Bitte beantworten Sie die folgenden Fragen zu Ihrer Buchung bei {operator}.',
-  detailsIntroNoOperator: 'Bitte beantworten Sie die folgenden Fragen zu Ihrer Buchung.',
-  detailsInlineIntro: 'Bevor Sie annehmen, benötigt {operator} noch ein paar Angaben von Ihnen.',
-  detailsInlineIntroNoOperator: 'Bevor Sie annehmen, benötigen wir noch ein paar Angaben von Ihnen.',
-  detailsStepCounter: 'Formular {n} von {total}',
-  detailsSubmit: 'Absenden',
-  detailsSubmitAndAccept: 'Speichern und annehmen',
-  detailsSaving: 'Wird gespeichert …',
-  detailsConfirmTitle: 'Keine Fragen mehr offen',
-  detailsConfirmBody: 'Die Fragen zu dieser Buchung werden nicht mehr benötigt. Bestätigen Sie, um {operator} Bescheid zu geben.',
-  detailsConfirmBodyNoOperator: 'Die Fragen zu dieser Buchung werden nicht mehr benötigt. Bestätigen Sie, um dem Veranstalter Bescheid zu geben.',
-  detailsConfirmButton: 'Bestätigen',
-  detailsProblemsTitle: 'Bitte prüfen Sie diese Angaben',
-  detailsSaveFailed: 'Ihre Angaben konnten nicht gespeichert werden. Bitte versuchen Sie es erneut.',
-  detailsBookingClosed: 'Diese Buchung ist abgeschlossen, daher können keine Angaben mehr ergänzt werden.',
-  fieldRequiredTemplate: '{label} ist ein Pflichtfeld.',
-  fieldMinLengthTemplate: '{label} muss mindestens {n} Zeichen lang sein.',
-  fieldMaxLengthTemplate: '{label} darf höchstens {n} Zeichen lang sein.',
-  fieldInvalidDateTemplate: '{label} muss ein gültiges Datum sein.',
-  fieldMinTemplate: '{label} muss mindestens {n} sein.',
-  fieldMaxTemplate: '{label} darf höchstens {n} sein.',
-  fieldInvalidFormatTemplate: '{label} hat ein ungültiges Format.',
-  fieldInvalidOptionTemplate: '{label} enthält eine ungültige Auswahl.',
-  fieldInvalidValueTemplate: '{label} hat einen ungültigen Wert.',
-  staffCustomerDetailsPending: 'Der Kunde muss seine Angaben noch vervollständigen — wir haben ihm den Link geschickt.',
-  // landr-8r6oc.4 (locale-branched helper phrases)
-  revealLabelCase: 'keep',
-  listAndWord: 'und',
-  daysSelectedOne: '{n} Termin ausgewählt',
-  daysSelectedOther: '{n} Termine ausgewählt',
-  optionalRevealAddTemplate: 'Hinzufügen {thing}',
-  languageStepCueGroup: 'die Sprache Ihrer Gruppe antippen',
-  languageStepCueWhoTemplate: 'eine Sprache für {who} wählen',
-  namesPairTemplate: '{first} und {second}',
-  namesAndOthersTemplate: '{first} und {n} weitere',
-  languageStepGateDone: 'Alle haben eine Sprache.',
-  languageStepGateWaitingTemplate: 'Ordnen Sie jedem Teilnehmer eine Sprache zu — noch offen: {names}.',
-  singleDateGateSelected: 'Datum ausgewählt.',
-  singleDateGateEmpty: 'Wählen Sie ein Datum, um fortzufahren.',
-  multiDayGateNone: 'Wählen Sie mindestens einen Termin, um fortzufahren.',
-  multiDayGateOne: '1 Termin ausgewählt.',
-  multiDayGateOther: '{n} Termine ausgewählt.',
-  fixedDateWindowGateSelected: 'Zeitraum ausgewählt.',
-  fixedDateWindowGateEmpty: 'Wählen Sie einen Zeitraum, um fortzufahren.',
-  availabilityGateTimeSelected: 'Uhrzeit ausgewählt.',
-  availabilityGateChooseTime: 'Wählen Sie eine Uhrzeit, um fortzufahren.',
-  accommodationTooLateTemplate: 'Sie können dieses Datum weiterhin buchen — die Aktivität ist verfügbar. Ein Hotelaufenthalt ist für dieses Datum jedoch nicht mehr möglich: der Check-in hätte am {date} sein müssen.',
-  occupantSingular: 'Person',
-  occupantPlural: 'Personen',
-  bedSingular: 'Bett',
-  bedPlural: 'Betten',
-  occupancyOverbookTemplate: 'Sie haben {occupants} {occupantWord}, aber nur {beds} {bedWord} — sind Sie sicher?',
-  multiDayDiffSummaryTemplate: '+{added} {addedWord} / −{removed} {removedWord} gegenüber {original}',
-  multiDayDiffOriginalFallback: 'die ursprüngliche Buchung',
-  multiDayResetToDatesTemplate: 'Zurücksetzen auf die Termine von {name}',
-  multiDayResetToOriginalDates: 'Zurücksetzen auf die ursprünglichen Termine',
-  multiDayResetDroppedOne: '{n} Termin von {name} ist nicht mehr verfügbar.',
-  multiDayResetDroppedOther: '{n} Termine von {name} sind nicht mehr verfügbar.',
-  multiDayResetDroppedHostFallback: 'des Gastgebers',
-  additionalAccommodationRequiredOne: 'Zimmer für die Personen, die mit Ihnen reisen. Ihr eigenes Bett ist bereits durch das gemeinsame Doppelzimmer abgedeckt, aber {names} braucht hier ein Zimmer.',
-  additionalAccommodationRequiredOther: 'Zimmer für die Personen, die mit Ihnen reisen. Ihr eigenes Bett ist bereits durch das gemeinsame Doppelzimmer abgedeckt, aber {names} brauchen hier ein Zimmer.',
-  hostRoomFullOne: 'Das Zimmer, das Sie sich teilen, ist voll — buchen Sie ein Zimmer für die Person, die mit Ihnen reist.',
-  hostRoomFullMany: 'Das Zimmer, das Sie sich teilen, ist voll — buchen Sie Zimmer für die Personen, die mit Ihnen reisen.',
-  hostRoomFewBedsOne: 'Im Zimmer, das Sie sich teilen, ist nur noch 1 Bett frei — buchen Sie ein Zimmer für die übrigen Personen, die mit Ihnen reisen.',
-  hostRoomFewBedsOther: 'Im Zimmer, das Sie sich teilen, sind nur noch {n} Betten frei — buchen Sie ein Zimmer für die übrigen Personen, die mit Ihnen reisen.',
-  inviteRoomBookedTemplate: 'Ihr Zimmer ist bereits von {who} gebucht{room}. Sie werden vom Hotel abgeholt.',
-  inviteRoomBookedWhoFallback: 'der Person, die Sie eingeladen hat',
-  inviteRoomLabelTemplate: 'Mein Zimmer ist von {who} gebucht',
-  inviteRoomLabelWhoFallback: 'der Person, die mich eingeladen hat',
-  inviteRoomHintText: 'Ihr Bett ist in dem Zimmer, das die Person, die Sie eingeladen hat, bereits gebucht hat. Sie werden vom Hotel abgeholt.',
-  hostRoomFullRequiredHintText: 'Zimmer für die Personen, die mit Ihnen reisen. Ihr eigenes Bett ist bereits durch das gemeinsame Doppelzimmer abgedeckt, für die anderen ist dort kein Platz mehr.',
+  shopKindService: 'service',
+  shopKindHotelRoom: 'hotel room',
+  shopKindSubscription: 'subscription',
+  shopKindDigitalGood: 'digital product',
+  shopKindPhysicalGood: 'physical product',
+  shopKindGiftCard: 'gift card',
+  shopKindFallback: 'product',
+  factKindGiftCard: 'Gift card',
+  factKindDigitalGood: 'Digital good',
+  factKindPhysicalGood: 'Physical good',
+  factKindMembership: 'Membership',
+  factKindSubscription: 'Subscription',
+  factKindHotelRoom: 'Hotel room',
+  factKindAddon: 'Addon',
+  calendarDaySelected: 'selected',
+  calendarDayAdded: 'added',
+  calendarDayRemoved: 'removed',
 }
 
 /**
  * Language registry. A further language is a catalog file under
- * src/lib/locales/ (a full `Bundle`, enforced by the type) plus one line
- * here — no component or helper changes (landr-8r6oc.4). en and de live in
- * this file; es and tr are separate catalogs.
+ * src/lib/locales/ (a full `Bundle`, enforced by the type) plus one loader
+ * line here: no component or helper changes (landr-8r6oc.4).
+ *
+ * English is the source catalog and stays inline: it is the fallback for every
+ * unsupported or not-yet-loaded language. Every other catalog is a dynamic
+ * import (landr-8r6oc.18), so a visitor downloads only the one language they
+ * read instead of all four (de/es/tr add ~150 kB raw to the main chunk).
+ * `loadUiCatalog` fetches the resolved language ahead of the first render
+ * (main.tsx) and again once the operator's language rules or an invite
+ * resolve (App.tsx). Until a catalog is in, `pickBundle` hands out English:
+ * never blank, never a throw (the widget has no error boundary).
  */
-const BUNDLES: Record<string, Bundle> = { en, de, es, tr: trBundle }
+const CATALOG_LOADERS: Record<string, () => Promise<Bundle>> = {
+  de: () => import('./locales/de').then((m) => m.de),
+  es: () => import('./locales/es').then((m) => m.es),
+  tr: () => import('./locales/tr').then((m) => m.tr),
+}
+
+/** Catalogs in memory; `en` is always present. */
+const LOADED: Record<string, Bundle> = { en }
+const IN_FLIGHT = new Map<string, Promise<void>>()
 
 /** Languages that have a real bundle; everything else falls back to English. */
-export const SUPPORTED_UI_LANGUAGES: readonly string[] = Object.keys(BUNDLES)
+export const SUPPORTED_UI_LANGUAGES: readonly string[] = ['en', ...Object.keys(CATALOG_LOADERS)]
 
 /** The bundle's language code for any BCP-47-ish tag ('de-AT', 'ES', 'tr_TR', …); 'en' when unsupported. */
 export function resolveUiLanguage(locale?: string): string {
   const base = (locale ?? '').trim().toLowerCase().split(/[-_]/)[0] ?? ''
-  return Object.hasOwn(BUNDLES, base) ? base : 'en'
+  return SUPPORTED_UI_LANGUAGES.includes(base) ? base : 'en'
+}
+
+/**
+ * Fetch the catalog for `locale`'s resolved UI language so a following
+ * `pickBundle(locale)` returns it. Resolves (never rejects) once the catalog
+ * is in memory, the load failed, or `maxWaitMs` (default 3 s) passed: English
+ * keeps rendering in those last two cases, and a later call retries.
+ */
+export function loadUiCatalog(locale?: string, maxWaitMs = 3000): Promise<void> {
+  const lang = resolveUiLanguage(locale)
+  const loader = CATALOG_LOADERS[lang]
+  if (!loader || LOADED[lang]) return Promise.resolve()
+  let pending = IN_FLIGHT.get(lang)
+  if (!pending) {
+    pending = loader()
+      .then((bundle) => {
+        LOADED[lang] = bundle
+      })
+      .catch(() => {
+        // Offline / chunk 404 after a deploy: stay on English.
+      })
+      .finally(() => {
+        IN_FLIGHT.delete(lang)
+      })
+    IN_FLIGHT.set(lang, pending)
+  }
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const deadline = new Promise<void>((resolve) => {
+    timer = setTimeout(resolve, maxWaitMs)
+  })
+  return Promise.race([pending, deadline]).finally(() => clearTimeout(timer))
+}
+
+/** Load every registered catalog (tests that exercise several languages). */
+export function loadAllUiCatalogs(): Promise<void> {
+  return Promise.all(SUPPORTED_UI_LANGUAGES.map((l) => loadUiCatalog(l))).then(() => undefined)
 }
 
 /**
  * Resolve an arbitrary BCP-47-ish locale string ('de-AT', 'DE', 'es-ES',
  * 'tr-TR', …) to a supported bundle (en, de, es, tr); every other language,
- * including an absent locale, falls back to English. Mirrors
+ * including an absent locale, falls back to English, as does a supported
+ * language whose catalog has not loaded (yet). Mirrors
  * approvalReplyStrings.ts's normalizeReplyLocale base/case-fold rule so the
  * two locale layers agree on how a tag is read.
  */
 export function pickBundle(locale?: string): Bundle {
-  return BUNDLES[resolveUiLanguage(locale)] as Bundle
+  return LOADED[resolveUiLanguage(locale)] ?? en
 }
 
 export function tr(key: keyof Bundle, locale?: string): string {
@@ -2478,7 +1765,7 @@ export function fmt(template: string, values: Record<string, string | number>): 
 
 /** True when the resolved locale gets the German bundle. */
 export function isGermanLocale(locale?: string): boolean {
-  return pickBundle(locale) === de
+  return resolveUiLanguage(locale) === 'de'
 }
 
 /**
