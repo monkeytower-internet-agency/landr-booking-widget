@@ -1695,6 +1695,26 @@ const CATALOG_LOADERS: Record<string, () => Promise<Bundle>> = {
 const LOADED: Record<string, Bundle> = { en }
 const IN_FLIGHT = new Map<string, Promise<void>>()
 
+// landr-8r6oc.26: a catalog that lands after first render (slow network, past
+// the wait deadline) must repaint. `pickBundle` is a plain function, not React
+// state, so App subscribes to this counter (useSyncExternalStore) and re-renders
+// once per catalog that lands.
+let catalogVersion = 0
+const CATALOG_LISTENERS = new Set<() => void>()
+
+/** Monotonic counter, bumped each time a catalog lands in memory. */
+export function getUiCatalogVersion(): number {
+  return catalogVersion
+}
+
+/** Subscribe to catalog arrivals; returns the unsubscribe function. */
+export function subscribeUiCatalogs(listener: () => void): () => void {
+  CATALOG_LISTENERS.add(listener)
+  return () => {
+    CATALOG_LISTENERS.delete(listener)
+  }
+}
+
 /** Languages that have a real bundle; everything else falls back to English. */
 export const SUPPORTED_UI_LANGUAGES: readonly string[] = ['en', ...Object.keys(CATALOG_LOADERS)]
 
@@ -1708,7 +1728,10 @@ export function resolveUiLanguage(locale?: string): string {
  * Fetch the catalog for `locale`'s resolved UI language so a following
  * `pickBundle(locale)` returns it. Resolves (never rejects) once the catalog
  * is in memory, the load failed, or `maxWaitMs` (default 3 s) passed: English
- * keeps rendering in those last two cases, and a later call retries.
+ * keeps rendering in those last two cases. A load that outlives `maxWaitMs`
+ * still lands afterwards and notifies `subscribeUiCatalogs` listeners. A failed
+ * load is not guaranteed to be retried by a later call: browsers cache a failed
+ * module fetch in the module map, so the same chunk may fail again until reload.
  */
 export function loadUiCatalog(locale?: string, maxWaitMs = 3000): Promise<void> {
   const lang = resolveUiLanguage(locale)
@@ -1719,6 +1742,8 @@ export function loadUiCatalog(locale?: string, maxWaitMs = 3000): Promise<void> 
     pending = loader()
       .then((bundle) => {
         LOADED[lang] = bundle
+        catalogVersion += 1
+        CATALOG_LISTENERS.forEach((listener) => listener())
       })
       .catch(() => {
         // Offline / chunk 404 after a deploy: stay on English.
