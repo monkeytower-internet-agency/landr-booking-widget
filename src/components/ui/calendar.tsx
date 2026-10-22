@@ -14,17 +14,26 @@ import { de as dayPickerDe, es as dayPickerEs, tr as dayPickerTr } from "react-d
 
 import { cn } from "@/lib/utils"
 import { browserLocale } from "@/lib/locale"
-import { resolveUiLanguage } from "@/lib/strings"
+import { resolveUiLanguage, tr } from "@/lib/strings"
 import { CalendarDayHintContext } from "@/components/ui/calendarDayHints"
 import { Button, buttonVariants } from "@/components/ui/button"
 
 // landr-8r6oc.4: month/weekday names follow the customer's resolved locale.
 // English is react-day-picker's built-in default, so only the other widget
 // languages need a catalog; a language without an entry falls back to English.
+// react-day-picker's locale objects also carry the translated aria labels
+// (Go to next month, day buttons, dropdowns), which DayPicker reads by itself.
 const DAY_PICKER_LOCALES: Record<string, React.ComponentProps<typeof DayPicker>["locale"]> = {
   de: dayPickerDe,
   es: dayPickerEs,
   tr: dayPickerTr,
+}
+
+// react-day-picker appends ", <selected word>" to a selected day's label
+// (in the customer's language); the diff view swaps that for its own state word.
+function stripSelectedSuffix(label: string, selectedWord: string): string {
+  const suffix = `, ${selectedWord}`
+  return label.endsWith(suffix) ? label.slice(0, -suffix.length) : label
 }
 
 function Calendar({
@@ -256,15 +265,17 @@ function CalendarDayButton({
   const isPlainSelected = isSelectedSingle && !diffAdded && !diffRemoved
 
   const { children, "aria-label": ariaLabelProp, ...restProps } = props
+  // landr-8r6oc.18: the diff-state words follow the customer's language.
+  const customerLocale = browserLocale()
 
   let content: React.ReactNode = children
   let ariaLabel: string | undefined = ariaLabelProp
   if (diffAdded || diffRemoved) {
     const base =
       typeof ariaLabelProp === "string"
-        ? ariaLabelProp.replace(/, selected$/, "")
+        ? stripSelectedSuffix(ariaLabelProp, tr("calendarDaySelected", customerLocale))
         : undefined
-    ariaLabel = diffAdded ? `${base}, added` : `${base}, removed`
+    ariaLabel = `${base}, ${tr(diffAdded ? "calendarDayAdded" : "calendarDayRemoved", customerLocale)}`
     content = (
       <>
         <span

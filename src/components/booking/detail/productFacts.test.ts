@@ -171,3 +171,28 @@ describe('deriveProductFacts — languages fact (landr-pv2r1)', () => {
     expect(facts.some((f) => f.icon === 'languages')).toBe(false)
   })
 })
+
+// landr-8r6oc.18: the kind labels come from the language catalog.
+describe('deriveProductFacts - kind label per language (landr-8r6oc.18)', () => {
+  it.each([
+    ['en', 'gift_card', 'Gift card'],
+    ['de', 'gift_card', 'Geschenkgutschein'],
+    ['es', 'gift_card', 'Tarjeta regalo'],
+    ['tr', 'gift_card', 'Hediye kartı'],
+    ['es', 'addon', 'Extra'],
+    ['tr', 'membership', 'Üyelik'],
+    ['en', 'addon', 'Addon'],
+  ])('%s: %s -> %s', (lang, kind, label) => {
+    expect(
+      deriveProductFacts(makeProduct({ product_kind: kind as never }), lang),
+    ).toContainEqual({ icon: 'kind', label })
+  })
+
+  it('an unknown kind falls back to the humanised label in every language', () => {
+    for (const lang of ['en', 'de', 'es', 'tr']) {
+      expect(
+        deriveProductFacts(makeProduct({ product_kind: 'mystery_box' as never }), lang),
+      ).toContainEqual({ icon: 'kind', label: 'Mystery box' })
+    }
+  })
+})

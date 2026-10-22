@@ -87,3 +87,30 @@ describe('ShopComingSoonStub — German UI (landr-5aih0.27)', () => {
     expect(onBack).toHaveBeenCalledTimes(1)
   })
 })
+
+describe('ShopComingSoonStub kind label per language (landr-8r6oc.18)', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it.each([
+    ['es-ES', 'producto digital'],
+    ['tr-TR', 'dijital ürün'],
+    ['de-DE', 'digitales Produkt'],
+  ])('%s names the kind from the catalog', (language, noun) => {
+    vi.stubGlobal('navigator', { ...navigator, language })
+    render(<ShopComingSoonStub product={makeProduct()} onBack={() => {}} />)
+    expect(screen.getByText(new RegExp(noun))).toBeInTheDocument()
+  })
+
+  it('uses the catalog fallback noun when the kind is unknown', () => {
+    vi.stubGlobal('navigator', { ...navigator, language: 'es-ES' })
+    render(
+      <ShopComingSoonStub
+        product={makeProduct({ product_kind: 'mystery_box' as never })}
+        onBack={() => {}}
+      />,
+    )
+    expect(screen.getByText(/^Este producto se vende/)).toBeInTheDocument()
+  })
+})
