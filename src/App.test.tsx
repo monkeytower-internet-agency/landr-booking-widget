@@ -292,6 +292,20 @@ describe('App', () => {
     })
   })
 
+  // landr-8r6oc.26: the operator's customer_languages decide the UI language
+  // once settings resolve; the catalog for it must be in before the settings render.
+  it('renders the operator language (tr) after the settings settle', async () => {
+    mocks.getOperatorSettings.mockResolvedValue({
+      slug: 'para42',
+      expose_seats_to_customer: false,
+      customer_languages: ['tr'],
+    })
+    mocks.listProducts.mockResolvedValue([makeProduct()])
+    render(<App />)
+    expect(await screen.findByRole('radiogroup', { name: 'Katalog düzeni' })).toBeInTheDocument()
+    expect(screen.queryByRole('radiogroup', { name: 'Catalogue layout' })).not.toBeInTheDocument()
+  })
+
   // landr-yp8x — operator branding (logo + primary colour) surfaced by
   // GET /api/public/operators/{slug}/settings.
   describe('operator branding (landr-yp8x)', () => {

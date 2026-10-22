@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import type { CSSProperties } from 'react'
 import {
   AccommodationStep,
@@ -65,7 +65,13 @@ import { MultiDayStep } from '@/components/booking/MultiDayStep'
 import { PickupLocationPicker } from '@/components/booking/PickupLocationPicker'
 import PriceSidebar, { type CalculatedTotal } from '@/components/booking/PriceSidebar'
 import { ProductList } from '@/components/booking/ProductList'
-import { inviteBannerMessage, loadUiCatalog, tr } from '@/lib/strings'
+import {
+  getUiCatalogVersion,
+  inviteBannerMessage,
+  loadUiCatalog,
+  subscribeUiCatalogs,
+  tr,
+} from '@/lib/strings'
 import { FullyBookedNotice } from '@/components/booking/FullyBookedNotice'
 import { ShopComingSoonStub } from '@/components/booking/ShopComingSoonStub'
 import { SingleDatePicker } from '@/components/booking/SingleDatePicker'
@@ -212,7 +218,18 @@ function readQueryParams() {
   }
 }
 
+/**
+ * landr-8r6oc.26: main.tsx already waited up to 3 s for the browser language's
+ * catalog, so the in-App hops (operator language rules, invite) wait only
+ * briefly. A catalog still in flight past this lands later and the
+ * subscription below repaints, instead of the boot blocking on it.
+ */
+const APP_CATALOG_WAIT_MS = 1000
+
 function App() {
+  // landr-8r6oc.26: re-render once when a late catalog lands (tr()/pickBundle()
+  // read module state, so nothing else would trigger a repaint).
+  useSyncExternalStore(subscribeUiCatalogs, getUiCatalogVersion)
   // landr-sgnd: branch on the URL pathname before the booking flow
   // state machinery so we never spin up the operator/product fetches
   // when the customer is just here to cancel.
@@ -587,7 +604,7 @@ function BookingFlowApp() {
           return
         }
         // landr-8r6oc.18: the invitee's language catalog before anything renders in it.
-        await loadUiCatalog(prefill.language ?? undefined)
+        await loadUiCatalog(prefill.language ?? undefined, APP_CATALOG_WAIT_MS)
         if (cancelled) return
         setInviteData(prefill)
         // landr-otml0.3 review fix (MAJOR 2): prefill.language wins over both
@@ -1033,7 +1050,7 @@ function BookingFlowApp() {
           configureCustomerLocale(settings.customer_languages, settings.default_locale)
           // landr-8r6oc.18: the resolved language may differ from the
           // browser's, so fetch its catalog before the settings render.
-          await loadUiCatalog(browserLocale())
+          await loadUiCatalog(browserLocale(), APP_CATALOG_WAIT_MS)
         }
         if (!cancelled) {
           setOperatorSettings(settings)
