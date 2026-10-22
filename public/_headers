@@ -1,0 +1,4 @@
+/downloads/*
+  Content-Type: application/zip
+  Content-Disposition: attachment
+  Cache-Control: public, max-age=300

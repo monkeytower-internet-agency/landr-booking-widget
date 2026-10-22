@@ -4,11 +4,10 @@ A minimal WordPress plugin that exposes the `[landr_booking]` shortcode. The sho
 
 ## Install on Para42's WordPress site
 
-1. Zip the `landr-booking/` folder:
-   ```bash
-   cd wp-plugin
-   zip -r landr-booking.zip landr-booking
-   ```
+1. Download the plugin zip from the widget host (built from this folder on every deploy):
+   `https://bw.landr.de/downloads/landr-booking.zip` (staging: `bw-staging.landr.de`, dev: `bw-dev.landr.de`).
+   Operators also get this link in the dashboard under onboarding **Embed & share** and **Settings → Embed**.
+   To build it locally instead: `npm run build` writes `dist/downloads/landr-booking.zip` (`scripts/build-wp-plugin-zip.mjs`).
 2. In WordPress: **Plugins → Add New → Upload Plugin → landr-booking.zip → Install Now → Activate**.
 3. (Optional) **Settings → LANDR Booking** — point the widget URL at a preview deploy. Leave blank for the bundled default (`https://bw.landr.de/`).
 4. Edit the booking page and add the shortcode. The `token` is the opaque, per-operator widget token — copy it from **Dashboard → Embed generator** (the operator slug is never exposed in the URL):
