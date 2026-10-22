@@ -93,12 +93,18 @@ established for the (then English-only) widget.
 - **Adding a locale**: a further language is a drop-in catalog. Create
   `src/lib/locales/<code>.ts` exporting a full `Bundle` (the type makes a missing
   key a compile error; copy `es.ts` as a starting point and keep every
-  `{placeholder}`), then add it to `BUNDLES` in `src/lib/strings.ts`. Also give it
-  entries in the small per-language tables: `participantLanguages.ts`
-  (`LANGUAGE_NAMES_BY_UI`), `cancelStrings.ts` / `approvalReplyStrings.ts` (the
-  email-language pages), `ShopComingSoonStub.tsx`, `detail/productFacts.ts`, and
-  `ui/calendar.tsx` (react-day-picker locale). `locales/catalogs.test.ts` checks
-  key and placeholder parity for every registered language.
+  `{placeholder}`), then add a dynamic-import line to `CATALOG_LOADERS` in
+  `src/lib/strings.ts`. Catalogs are lazy chunks (English stays inline as the
+  fallback): `main.tsx` and `App.tsx` call `loadUiCatalog` for the resolved
+  language before it renders, and `pickBundle` serves English until it is in.
+  Product-kind labels, calendar aria words and every other chrome string are
+  Bundle fields, so they are covered automatically. Also give the language
+  entries in the small per-language tables that stay outside the bundle:
+  `participantLanguages.ts` (`LANGUAGE_NAMES_BY_UI`), `cancelStrings.ts` /
+  `approvalReplyStrings.ts` (the email-language pages) and `ui/calendar.tsx`
+  (react-day-picker locale, which also carries its aria labels).
+  `locales/catalogs.test.ts` checks key and placeholder parity for every
+  registered language.
   Turkish and Spanish are machine translations awaiting a native-speaker review.
 - **Dates**: `src/components/booking/dateLabel.ts` formats every date/time
   label via `Intl.DateTimeFormat`, threaded the resolved locale through; the calendar's
