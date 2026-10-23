@@ -16638,8 +16638,6 @@ export interface components {
             public_contact_email?: string | null;
             /** Region */
             region?: string | null;
-            /** Require Declarations */
-            require_declarations?: boolean | null;
             /** Show Premium Teasers */
             show_premium_teasers?: boolean | null;
             /** Street */

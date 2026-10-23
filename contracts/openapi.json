@@ -15167,17 +15167,6 @@
             ],
             "title": "Region"
           },
-          "require_declarations": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Require Declarations"
-          },
           "show_premium_teasers": {
             "anyOf": [
               {
