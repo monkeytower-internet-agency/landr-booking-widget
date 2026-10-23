@@ -30,6 +30,7 @@ export interface CancelBundle {
   tooLateBodyNoDeadline: string
   contactCall: string
   contactEmail: string
+  changeActivityHint: string
   alreadyTitle: string
   successTitle: string
   successBody: string
@@ -62,6 +63,7 @@ const en: CancelBundle = {
     'Please contact {operator} to change or cancel your booking.',
   contactCall: 'Call {phone}',
   contactEmail: 'Email {email}',
+  changeActivityHint: 'Want a different activity? Contact {operator} to change it.',
   alreadyTitle: 'This booking is already cancelled',
   successTitle: 'Booking cancelled',
   successBody:
@@ -98,6 +100,7 @@ const de: CancelBundle = {
     'Bitte wende dich an {operator}, um deine Buchung zu ändern oder zu stornieren.',
   contactCall: 'Anrufen: {phone}',
   contactEmail: 'E-Mail: {email}',
+  changeActivityHint: 'Du möchtest eine andere Aktivität? Wende dich an {operator}, um sie zu ändern.',
   alreadyTitle: 'Diese Buchung ist bereits storniert',
   successTitle: 'Buchung storniert',
   successBody:
@@ -133,6 +136,7 @@ const es: CancelBundle = {
     'Ponte en contacto con {operator} para cambiar o cancelar tu reserva.',
   contactCall: 'Llamar al {phone}',
   contactEmail: 'Escribir a {email}',
+  changeActivityHint: '¿Quieres otra actividad? Contacta con {operator} para cambiarla.',
   alreadyTitle: 'Esta reserva ya está cancelada',
   successTitle: 'Reserva cancelada',
   successBody:
@@ -167,6 +171,7 @@ const tr: CancelBundle = {
     'Rezervasyonunuzu değiştirmek veya iptal etmek için lütfen {operator} ile iletişime geçin.',
   contactCall: 'Ara: {phone}',
   contactEmail: 'E-posta gönder: {email}',
+  changeActivityHint: 'Farklı bir etkinlik mi istiyorsunuz? Değiştirmek için {operator} ile iletişime geçin.',
   alreadyTitle: 'Bu rezervasyon zaten iptal edilmiş',
   successTitle: 'Rezervasyon iptal edildi',
   successBody:

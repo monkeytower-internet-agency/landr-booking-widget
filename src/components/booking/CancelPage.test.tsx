@@ -246,3 +246,29 @@ describe('CancelPage', () => {
     await waitFor(() => expect(screen.getByText('Booking cancelled')).toBeInTheDocument())
   })
 })
+
+describe('CancelPage change-activity hint', () => {
+  beforeEach(() => {
+    mocks.getCancelPreview.mockReset()
+    mocks.cancelBooking.mockReset()
+  })
+
+  it('tells the customer to contact the operator to change the activity', async () => {
+    await renderLoaded()
+    expect(textOf('cancel-change-activity-hint')).toBe(
+      'Want a different activity? Contact Sky Op to change it.',
+    )
+    // The operator's existing contact links sit right below the hint.
+    expect(screen.getByRole('link', { name: /hello@sky\.example/ })).toHaveAttribute(
+      'href',
+      'mailto:hello@sky.example',
+    )
+  })
+
+  it('speaks German for a German booking email', async () => {
+    await renderLoaded(preview({ locale: 'de' }))
+    expect(textOf('cancel-change-activity-hint')).toBe(
+      'Du möchtest eine andere Aktivität? Wende dich an Sky Op, um sie zu ändern.',
+    )
+  })
+})

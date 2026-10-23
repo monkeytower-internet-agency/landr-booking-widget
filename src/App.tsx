@@ -3422,6 +3422,7 @@ function BookingFlowApp() {
               }}
               isSharedDouble={step.isSharedDouble}
               shareReferenceEnabled={step.shareReferenceEnabled}
+              operatorName={operatorSettings.name ?? null}
             />
             {/* landr-atwy: the account-link prompt creates a real LANDR
                 account, so it only shows when the operator opts in. */}

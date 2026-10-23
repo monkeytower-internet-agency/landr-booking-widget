@@ -1942,3 +1942,19 @@ describe('Confirmation — landr-otml0.4 CopyButton fallback chain', () => {
     expect(screen.queryByTestId('invite-hold-line')).not.toBeInTheDocument()
   })
 })
+
+describe('Confirmation change-activity hint', () => {
+  it('tells the customer to contact the operator by name', () => {
+    render(<Confirmation response={baseResponse()} onRestart={() => {}} operatorName="Para42" />)
+    expect(screen.getByTestId('confirmation-change-activity-hint')).toHaveTextContent(
+      'Want a different activity? Contact Para42 to change it.',
+    )
+  })
+
+  it('falls back to generic wording when no operator name is known', () => {
+    render(<Confirmation response={baseResponse()} onRestart={() => {}} />)
+    expect(screen.getByTestId('confirmation-change-activity-hint')).toHaveTextContent(
+      'Want a different activity? Contact the operator to change it.',
+    )
+  })
+})

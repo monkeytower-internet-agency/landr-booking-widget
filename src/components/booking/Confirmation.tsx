@@ -43,6 +43,7 @@ import {
   ownAccommodationNoRoomLabel,
   sendBookingLinkToLabel,
   tr,
+  fmt,
   holdHeldLabel,
   holdNotHeldLabel,
   holdRequestedLabel,
@@ -52,6 +53,12 @@ import { formatHoldDeadline } from '@/lib/seatHold'
 interface Props {
   response: SubmitBookingResponse
   onRestart: () => void
+  /**
+   * The operator's display name (OperatorSettings.name), used in the
+   * "contact <operator> to change your activity" hint. Optional: absent or
+   * blank falls back to the generic "the operator" wording.
+   */
+  operatorName?: string | null
   /**
    * landr-otml0.4: true when the booker chose the shared-double
    * accommodation mode (AccommodationStep) for THIS booking. Threaded
@@ -986,6 +993,7 @@ export function Confirmation({
   onRestart,
   isSharedDouble,
   shareReferenceEnabled = false,
+  operatorName = null,
 }: Props) {
   const locale = browserLocale()
   /**
@@ -1024,6 +1032,8 @@ export function Confirmation({
   // section below built from it (steps 3/4/5/7) is skipped wholesale in
   // that case, rendering exactly today's content (graceful degrade).
   const summary = response.summary ?? null
+  const changeHintOperator =
+    operatorName?.trim() || summary?.operator_name?.trim() || null
   const showCongrats =
     summary !== null && !staff.active && !summary.price_overridden &&
     summary.multi_day_savings !== null
@@ -1283,6 +1293,19 @@ export function Confirmation({
             only when the booker never entered/confirmed one at all. */}
         {showSharedDoubleHint ? (
           <SharedDoubleHint customerPageUrl={response.customer_page_url} />
+        ) : null}
+
+        {/* Customers cannot swap the booked activity themselves — only the
+            operator can. Customer-facing only (staff bookings omit it). */}
+        {!staff.active ? (
+          <p
+            className="text-sm text-muted-foreground"
+            data-testid="confirmation-change-activity-hint"
+          >
+            {changeHintOperator
+              ? fmt(tr('changeActivityHint', locale), { operator: changeHintOperator })
+              : tr('changeActivityHintNoOperator', locale)}
+          </p>
         ) : null}
 
         {/*
