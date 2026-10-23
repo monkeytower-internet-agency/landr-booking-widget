@@ -126,6 +126,65 @@ describe('ServiceAddonsStep (landr-cip6)', () => {
     expect(screen.getByRole('button', { name: /Continue/i })).not.toBeDisabled()
   })
 
+  it('lifts the live selection via onLiveAddonsChange before Continue (landr-hzovu.9)', async () => {
+    mocks.getProductAddons.mockResolvedValue([
+      makeAddon({ addon_product_id: 'video-1', name: 'Video Package' }),
+    ])
+    const onLive = vi.fn()
+    const onConfirm = vi.fn()
+
+    render(
+      <ServiceAddonsStep
+        product={makeProduct()}
+        onLiveAddonsChange={onLive}
+        onBack={vi.fn()}
+        onConfirm={onConfirm}
+      />,
+    )
+
+    await waitFor(() =>
+      expect(screen.getByText('Video Package')).toBeInTheDocument(),
+    )
+    // Catalogue loaded with nothing picked: an empty live selection.
+    expect(onLive).toHaveBeenLastCalledWith([])
+
+    const plus = screen.getByRole('button', { name: /Increase Video Package/i })
+    fireEvent.click(plus)
+    fireEvent.click(plus)
+
+    expect(onLive).toHaveBeenLastCalledWith([
+      { productId: 'video-1', quantity: 2, productKind: 'service' },
+    ])
+    expect(onConfirm).not.toHaveBeenCalled()
+  })
+
+  it('reports restored and required-seeded add-ons live on mount (landr-hzovu.9)', async () => {
+    mocks.getProductAddons.mockResolvedValue([
+      makeAddon({
+        addon_product_id: 'insurance-1',
+        name: 'Insurance',
+        is_required: true,
+        min_qty: 1,
+      }),
+    ])
+    const onLive = vi.fn()
+
+    render(
+      <ServiceAddonsStep
+        product={makeProduct()}
+        onLiveAddonsChange={onLive}
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    )
+
+    await waitFor(() =>
+      expect(onLive).toHaveBeenLastCalledWith([
+        { productId: 'insurance-1', quantity: 1, productKind: 'service' },
+      ]),
+    )
+  })
+
   it('blocks Continue when a required add-on is below min_qty', async () => {
     // Required + min_qty=1 seeds at 1 (Continue enabled). The user
     // then decrements to 0 and Continue must lock until they bump
