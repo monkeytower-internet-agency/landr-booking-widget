@@ -1705,6 +1705,8 @@ export interface BookingSummary {
   line_items: EstimateLineItem[]
   operator_total: string
   hotel_total: string
+  /** landr-hzovu.5: absent on an older API. */
+  performer_total?: string
   grand_total: string
   currency: string
   savings: SavingLine[]
@@ -1747,7 +1749,8 @@ export interface BookingSummary {
  * POST /api/public/operators/{slug}/products/{id}/estimate (landr-xbqh).
  * `paid_to` mirrors revenue_flows_through_operator: 'operator' means the
  * customer pays the operator at checkout; 'hotel' means the customer
- * settles directly with the hotel on arrival.
+ * settles directly with the hotel on arrival; 'performer' (landr-hzovu.5)
+ * means the customer pays the pilot / guide on the day.
  *
  * landr-y3oj.3 codegen note: NOT sourced from the generated
  * `components['schemas']['EstimateLineItem']` (src/types/api.gen.ts). The
@@ -1767,7 +1770,15 @@ export interface EstimateLineItem {
   unit_price: string
   /** Total gross for the line (qty × unit pricing) as a decimal string. */
   line_total: string
-  paid_to: 'operator' | 'hotel'
+  paid_to: 'operator' | 'hotel' | 'performer'
+  /**
+   * landr-hzovu.5: performer lines only — the bare noun for who the customer
+   * pays on the day ("Tandem pilot"; the API falls back to "guide"). Absent
+   * on an older API and on operator/hotel lines.
+   */
+  payee_label?: string | null
+  /** landr-hzovu.5: operator override text replacing the standard caveat. */
+  payment_note?: string | null
 }
 
 /**
@@ -1895,6 +1906,8 @@ export interface EstimateResponse {
   operator_total: string
   /** Decimal string. Sum of line_items where paid_to='hotel'. */
   hotel_total: string
+  /** landr-hzovu.5: Decimal string. Sum of line_items where paid_to='performer'. Absent on an older API. */
+  performer_total?: string
   /** Decimal string. operator_total + hotel_total. */
   grand_total: string
   currency: string

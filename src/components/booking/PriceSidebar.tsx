@@ -40,14 +40,16 @@ import { deriveStayWindow, type RoomSelection } from './accommodationCalc'
 import type { AddonSelection } from './addonsState'
 import { formatDayLabel } from './dateLabel'
 import { browserLocale } from '@/lib/locale'
-import { forNamesLine, hotelSpanLabel, qtyTimesUnits, tr } from '@/lib/strings'
+import { forNamesLine, hotelSpanLabel, payeeText, qtyOnly, qtyTimesUnits, tr } from '@/lib/strings'
 import { EMBEDDED_ATTR } from '@/lib/autoHeight'
 import { DayChips } from './DayChips'
+import { PerformerPaySections } from './PerformerPaySections'
 import { PriceBreakdown } from './PriceBreakdown'
 import { useBookingEstimate } from './useBookingEstimate'
 import {
   buildAddonLines,
   buildDiscountExplanation,
+  groupPerformerLines,
   isSavingsLine,
   formatMoney,
   isDiscountRule,
@@ -129,6 +131,12 @@ interface BookingOverviewBodyProps
    * to pre-landr-t869m behaviour.
    */
   accommodationCheckinOffsetDays?: number
+  /**
+   * landr-hzovu.5: true when the customer picked at least one hotel room.
+   * The "Hotel: Tue → Thu, 2 nights" stay line and the "night(s)" unit word
+   * only make sense then; a hotel-paid add-on alone (no room) has neither.
+   */
+  hasHotelRoom: boolean
 }
 
 function BookingOverviewBody({
@@ -138,6 +146,7 @@ function BookingOverviewBody({
   error,
   selectedDays,
   accommodationCheckinOffsetDays,
+  hasHotelRoom,
 }: BookingOverviewBodyProps) {
   const locale = browserLocale()
   if (!data && isLoading) {
@@ -183,7 +192,8 @@ function BookingOverviewBody({
       </div>
     )
   }
-  const { operator, hotel } = splitLineItems(data.line_items)
+  const { operator, hotel, performer } = splitLineItems(data.line_items)
+  const performerGroups = groupPerformerLines(performer)
   // Hotel check-in / check-out span (landr-2wyi). Derived from the
   // selected guided days: check-in = first day − 1, check-out = last
   // day + 1 (see deriveStayWindow / accommodationCalc.ts). We surface
@@ -192,7 +202,7 @@ function BookingOverviewBody({
   // night range — the chips on the operator side only cover the
   // guided days, not the +1 buffer nights.
   const stay =
-    hotel.length > 0 && selectedDays.length > 0
+    hotel.length > 0 && hasHotelRoom && selectedDays.length > 0
       ? deriveStayWindow(selectedDays, accommodationCheckinOffsetDays)
       : null
   const showStaleSpinner = isStale && data !== null
@@ -345,7 +355,9 @@ function BookingOverviewBody({
                 <span className="flex-1">
                   <span className="block">{li.label}</span>
                   <span className="block text-xs text-muted-foreground">
-                    {qtyTimesUnits(li.qty, li.units, 'night', locale)}
+                    {hasHotelRoom
+                      ? qtyTimesUnits(li.qty, li.units, 'night', locale)
+                      : qtyOnly(li.qty, locale)}
                   </span>
                 </span>
                 <span className="tabular-nums">
@@ -370,6 +382,13 @@ function BookingOverviewBody({
             {tr('payableDirectlyToHotelCaveat', locale)}
           </p>
         </section>
+      ) : null}
+      {performerGroups.length > 0 ? (
+        <PerformerPaySections
+          groups={performerGroups}
+          currency={data.currency}
+          testIdPrefix="price-sidebar"
+        />
       ) : null}
       {operator.length === 0 ? discountBlock : null}
       <div
@@ -587,6 +606,19 @@ export default function PriceSidebar(props: Props) {
     visible.data && Number(visible.data.hotel_total) > 0
       ? formatMoney(visible.data.hotel_total, visible.data.currency, locale)
       : null
+  // landr-hzovu.5: performer-paid money gets its own suffix per payee
+  // ("+ €25.00 to your Tandem pilot"), never "at hotel".
+  const performerSuffixes = visible.data
+    ? groupPerformerLines(
+        visible.data.line_items.filter((li) => li.paid_to === 'performer'),
+      )
+        .filter((g) => Number(g.total) > 0)
+        .map((g) => ({
+          key: g.payeeLabel ?? '',
+          text: `+ ${formatMoney(g.total, visible.data!.currency, locale)} ${payeeText('paidToPayeeSuffix', g.payeeLabel, locale)}`,
+        }))
+    : []
+  const hasHotelRoom = accommodationRooms.some((r) => r.quantity > 0)
 
   return (
     <>
@@ -627,6 +659,7 @@ export default function PriceSidebar(props: Props) {
             {...visible}
             selectedDays={selectedDays}
             accommodationCheckinOffsetDays={product.accommodation_checkin_offset_days}
+            hasHotelRoom={hasHotelRoom}
           />
         </div>
       </aside>
@@ -684,6 +717,15 @@ export default function PriceSidebar(props: Props) {
                 + {atHotelLabel} {tr('atHotelSuffix', locale)}
               </span>
             ) : null}
+            {performerSuffixes.map((sfx) => (
+              <span
+                key={sfx.key}
+                className="text-xs text-muted-foreground"
+                data-testid="price-sidebar-mobile-performer"
+              >
+                {sfx.text}
+              </span>
+            ))}
           </span>
           {/* landr-v94dz: solid brand pill + chevron so the affordance is
               unmistakable. Both labels share one grid cell and the inactive
@@ -741,6 +783,7 @@ export default function PriceSidebar(props: Props) {
             {...visible}
             selectedDays={selectedDays}
             accommodationCheckinOffsetDays={product.accommodation_checkin_offset_days}
+            hasHotelRoom={hasHotelRoom}
           />
           </div>
         ) : null}

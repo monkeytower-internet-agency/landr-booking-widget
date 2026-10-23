@@ -728,6 +728,11 @@ export type Bundle = {
   tapToExpand: string
   tapToCollapse: string
   atHotelSuffix: string
+  paidToPayeeOnTheDay: string
+  paidDirectlyToPayeeCaveat: string
+  paidToPayeeSuffix: string
+  payeeFallbackLabel: string
+  qtyTimesOnlyTemplate: string
   qtyTimesDayTemplate: string
 
   // ---- landr-5aih0.27: JSX-attribute template-literal strings (AddonsList,
@@ -1548,6 +1553,11 @@ const en: Bundle = {
   tapToExpand: 'Tap to expand',
   tapToCollapse: 'Tap to collapse',
   atHotelSuffix: 'at hotel',
+  paidToPayeeOnTheDay: 'Paid to your {payee} · on the day',
+  paidDirectlyToPayeeCaveat: 'Paid directly to your {payee}. Not included in your booking total.',
+  paidToPayeeSuffix: 'to your {payee}',
+  payeeFallbackLabel: 'guide',
+  qtyTimesOnlyTemplate: '{qty} ×',
   qtyTimesDayTemplate: '{qty} × {units} {unitWord}',
 
   // ---- landr-5aih0.27 ----
@@ -2111,6 +2121,22 @@ export function qtyTimesUnits(
     .replace('{qty}', String(qty))
     .replace('{units}', String(units))
     .replace('{unitWord}', unitWord)
+}
+
+/** "1 ×" — the unit-less line-item subtitle for non-hotel lines (no night/day word). */
+export function qtyOnly(qty: number, locale?: string): string {
+  return pickBundle(locale).qtyTimesOnlyTemplate.replace('{qty}', String(qty))
+}
+
+/** The payee-aware "pay separately" strings, with `{payee}` filled in (landr-hzovu.5). */
+export function payeeText(
+  key: 'paidToPayeeOnTheDay' | 'paidDirectlyToPayeeCaveat' | 'paidToPayeeSuffix',
+  payee: string | null | undefined,
+  locale?: string,
+): string {
+  const t = pickBundle(locale)
+  const label = payee && payee.trim() ? payee.trim() : t.payeeFallbackLabel
+  return t[key].replace('{payee}', label)
 }
 
 /** "1 offer" / "4 offers" — CategoryTile's count chip (landr-872c copy). */
