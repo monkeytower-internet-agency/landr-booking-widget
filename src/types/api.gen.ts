@@ -1275,6 +1275,75 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/landr-staff/promotions/prod-hotfix/candidates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Prod Hotfix Candidates
+         * @description Staging hotfix merges that main lacks, per deployable repo (landr-ctqww).
+         *     Approver. A repo whose read fails carries ``error``.
+         */
+        get: operations["list_prod_hotfix_candidates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/landr-staff/promotions/prod-hotfix/code": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Prod Hotfix Code
+         * @description Hotfix to production (landr-ctqww). Approver, staging api only.
+         *
+         *     Creates a queued run that cherry-picks the picked staging hotfix merges
+         *     onto ``hotfix-prod/<run-id>`` off each repo's main tip, checks the
+         *     back-merge into staging is clean, applies the picked landr-api migrations
+         *     to the production DB (only those), merges into ``main`` and back-merges
+         *     main into ``staging``. Any conflict before the merge ⇒ nothing changes.
+         */
+        post: operations["create_prod_hotfix_code"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/landr-staff/promotions/prod-hotfix/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview Prod Hotfix
+         * @description What a Hotfix to production with these picks would cherry-pick onto
+         *     main and which migrations would reach the production DB (landr-ctqww).
+         *     Read-only. 422 on a bad pick set.
+         */
+        post: operations["preview_prod_hotfix"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/landr-staff/promotions/staging-hotfix": {
         parameters: {
             query?: never;
@@ -3772,6 +3841,10 @@ export interface paths {
          *     booking's `booking_group`) and `narrow_participant_ids`; for a code those
          *     are `null` and `[]`.
          *
+         *     A valid booking reference whose only activity is on a later day answers
+         *     409 `activity_not_today` with `next_activity_date` (landr-zv5gf); every
+         *     other miss, and every activity code, stays the opaque 404.
+         *
          *     A valid code for a product with nobody on it today returns an EMPTY
          *     participant list, not a 404: "the code works, nothing is scheduled" is a
          *     real and useful answer, and collapsing it into the not-found body would
@@ -3802,6 +3875,26 @@ export interface paths {
          *     one whose fingerprint the token has to carry.
          */
         post: operations["public_today_session"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/ui-locales": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Ui Locales
+         * @description The languages the staff dashboard UI can be shown in (switcher order).
+         */
+        get: operations["public_list_ui_locales"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -4309,6 +4402,24 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/staff/me/profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get My Profile */
+        get: operations["staff_get_my_profile"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Patch My Profile */
+        patch: operations["staff_patch_my_profile"];
         trace?: never;
     };
     "/api/staff/operators": {
@@ -16419,6 +16530,8 @@ export interface components {
             default_locale?: string | null;
             /** Default Tax Rate */
             default_tax_rate?: number | string | null;
+            /** Default Ui Locale */
+            default_ui_locale?: string | null;
             /** Deposit Percent */
             deposit_percent?: number | null;
             /** First Day Of Week */
@@ -17698,6 +17811,60 @@ export interface components {
              * Format: date
              */
             starts_on: string;
+        };
+        /**
+         * ProdHotfixCandidate
+         * @description landr-ctqww — one staging hotfix merge main lacks.
+         */
+        ProdHotfixCandidate: {
+            /** Author */
+            author?: string | null;
+            /** Date */
+            date?: string | null;
+            /** Files */
+            files: string[];
+            /** Migrations */
+            migrations: string[];
+            /** Number */
+            number?: number | null;
+            /**
+             * On Main
+             * @default false
+             */
+            on_main: boolean;
+            /** Prs */
+            prs: components["schemas"]["ProdHotfixPr"][];
+            /** Run Id */
+            run_id: string;
+            /** Sha */
+            sha: string;
+            /** Title */
+            title: string;
+            /** Url */
+            url?: string | null;
+        };
+        /** ProdHotfixCandidateRepo */
+        ProdHotfixCandidateRepo: {
+            /** Candidates */
+            candidates: components["schemas"]["ProdHotfixCandidate"][];
+            /** Error */
+            error?: string | null;
+            /** Label */
+            label: string;
+            /** Repo */
+            repo: string;
+        };
+        /** ProdHotfixCandidatesResponse */
+        ProdHotfixCandidatesResponse: {
+            /** Repos */
+            repos: components["schemas"]["ProdHotfixCandidateRepo"][];
+        };
+        /** ProdHotfixPr */
+        ProdHotfixPr: {
+            /** Number */
+            number: number;
+            /** Title */
+            title: string;
         };
         /**
          * ProductAddon
@@ -20476,7 +20643,8 @@ export interface components {
          *     the desired public handle. `turnstile_token` is the Cloudflare widget's
          *     client response token. `password` is the new account password (GoTrue
          *     enforces its own minimum; we keep a soft floor here). `locale` selects the
-         *     verification-email language (en/de; defaults en).
+         *     verification-email language (any `public.ui_locales` code or
+         *     browser tag such as `es-ES`; bundled en/de/es/tr, else en; defaults en).
          *
          *     Both field names and their marketing-site aliases are accepted (back-compat):
          *       name / operator_name, slug / operator_slug  (landr-oqrz.1)
@@ -20651,6 +20819,53 @@ export interface components {
             /** Reject Reason Code */
             reject_reason_code?: string | null;
             unit_release?: components["schemas"]["StaffUnitReleaseIn"] | null;
+        };
+        /**
+         * StaffProfileOut
+         * @description The caller's UI-language preference and the effective result.
+         */
+        StaffProfileOut: {
+            /**
+             * Effective Ui Locale
+             * @description What the UI should render in after user -> operator -> browser -> en.
+             */
+            effective_ui_locale: string;
+            /**
+             * Operator Default Ui Locale
+             * @description That operator's team default; null when unset or no operator_id given.
+             */
+            operator_default_ui_locale: string | null;
+            /**
+             * Operator Id
+             * @description Echo of ?operator_id= — the operator the operator rung was read from.
+             */
+            operator_id: string | null;
+            /** Supported Ui Locales */
+            supported_ui_locales: components["schemas"]["UiLocaleOut"][];
+            /**
+             * Ui Locale
+             * @description The caller's own choice; null = none (fall back down the chain).
+             */
+            ui_locale: string | null;
+            /**
+             * Ui Locale Source
+             * @description Which rung produced effective_ui_locale.
+             * @enum {string}
+             */
+            ui_locale_source: "user" | "operator" | "browser" | "fallback";
+            /** User Id */
+            user_id: string;
+        };
+        /**
+         * StaffProfilePatch
+         * @description Partial update of the caller's own profile. Unknown keys 422.
+         */
+        StaffProfilePatch: {
+            /**
+             * Ui Locale
+             * @description A registry code (case-insensitive); null clears the personal choice.
+             */
+            ui_locale?: string | null;
         };
         /** StaffSubmitBookingIn */
         StaffSubmitBookingIn: {
@@ -21496,6 +21711,40 @@ export interface components {
             notes?: string | null;
             /** Quantity */
             quantity?: number | null;
+        };
+        /**
+         * UiLocaleOut
+         * @description One supported dashboard UI language.
+         */
+        UiLocaleOut: {
+            /**
+             * Code
+             * @description BCP-47 code stored in ui_locale columns, e.g. 'de'.
+             */
+            code: string;
+            /**
+             * English Name
+             * @description English name, e.g. 'German'.
+             */
+            english_name: string;
+            /**
+             * Native Name
+             * @description Endonym for the switcher, e.g. 'Deutsch'.
+             */
+            native_name: string;
+        };
+        /**
+         * UiLocaleRegistryOut
+         * @description The supported-UI-locale registry, in switcher order.
+         */
+        UiLocaleRegistryOut: {
+            /**
+             * Fallback
+             * @description The chain's last rung; always present in `locales`.
+             */
+            fallback: string;
+            /** Locales */
+            locales: components["schemas"]["UiLocaleOut"][];
         };
         /** UnavailabilityIn */
         UnavailabilityIn: {
@@ -24140,6 +24389,94 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PreviewMigrationsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_prod_hotfix_candidates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProdHotfixCandidatesResponse"];
+                };
+            };
+        };
+    };
+    create_prod_hotfix_code: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StagingHotfixCodeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_prod_hotfix: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StagingHotfixPreviewIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HotfixPreviewResponse"];
                 };
             };
             /** @description Validation Error */
@@ -27356,6 +27693,13 @@ export interface operations {
                     };
                 };
             };
+            /** @description A valid booking reference whose activity is not today: `{detail: {error: 'activity_not_today', next_activity_date}}`. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -27398,6 +27742,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_list_ui_locales: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UiLocaleRegistryOut"];
                 };
             };
         };
@@ -28078,6 +28442,78 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BookingLineEditOutcome"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_get_my_profile: {
+        parameters: {
+            query?: {
+                /** @description The operator the dashboard is on; enables the operator-default rung. */
+                operator_id?: string | null;
+            };
+            header?: {
+                "accept-language"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffProfileOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_patch_my_profile: {
+        parameters: {
+            query?: {
+                /** @description The operator the dashboard is on; only shapes the response's resolution. */
+                operator_id?: string | null;
+            };
+            header?: {
+                "accept-language"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StaffProfilePatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffProfileOut"];
                 };
             };
             /** @description Validation Error */

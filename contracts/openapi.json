@@ -14703,6 +14703,18 @@
             ],
             "title": "Default Tax Rate"
           },
+          "default_ui_locale": {
+            "anyOf": [
+              {
+                "maxLength": 16,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Default Ui Locale"
+          },
           "deposit_percent": {
             "anyOf": [
               {
@@ -18477,6 +18489,174 @@
           "shared"
         ],
         "title": "PricingSeasonRefOut",
+        "type": "object"
+      },
+      "ProdHotfixCandidate": {
+        "description": "landr-ctqww \u2014 one staging hotfix merge main lacks.",
+        "properties": {
+          "author": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author"
+          },
+          "date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date"
+          },
+          "files": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Files",
+            "type": "array"
+          },
+          "migrations": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Migrations",
+            "type": "array"
+          },
+          "number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Number"
+          },
+          "on_main": {
+            "default": false,
+            "title": "On Main",
+            "type": "boolean"
+          },
+          "prs": {
+            "items": {
+              "$ref": "#/components/schemas/ProdHotfixPr"
+            },
+            "title": "Prs",
+            "type": "array"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          },
+          "sha": {
+            "title": "Sha",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          }
+        },
+        "required": [
+          "sha",
+          "run_id",
+          "title",
+          "prs",
+          "files",
+          "migrations"
+        ],
+        "title": "ProdHotfixCandidate",
+        "type": "object"
+      },
+      "ProdHotfixCandidateRepo": {
+        "properties": {
+          "candidates": {
+            "items": {
+              "$ref": "#/components/schemas/ProdHotfixCandidate"
+            },
+            "title": "Candidates",
+            "type": "array"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "repo": {
+            "title": "Repo",
+            "type": "string"
+          }
+        },
+        "required": [
+          "repo",
+          "label",
+          "candidates"
+        ],
+        "title": "ProdHotfixCandidateRepo",
+        "type": "object"
+      },
+      "ProdHotfixCandidatesResponse": {
+        "properties": {
+          "repos": {
+            "items": {
+              "$ref": "#/components/schemas/ProdHotfixCandidateRepo"
+            },
+            "title": "Repos",
+            "type": "array"
+          }
+        },
+        "required": [
+          "repos"
+        ],
+        "title": "ProdHotfixCandidatesResponse",
+        "type": "object"
+      },
+      "ProdHotfixPr": {
+        "properties": {
+          "number": {
+            "title": "Number",
+            "type": "integer"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "number",
+          "title"
+        ],
+        "title": "ProdHotfixPr",
         "type": "object"
       },
       "ProductAddon": {
@@ -26629,7 +26809,7 @@
         "type": "object"
       },
       "SignupRequest": {
-        "description": "POST /api/public/signup body.\n\n`name` is the operator/business display name (-> operators.name). `slug` is\nthe desired public handle. `turnstile_token` is the Cloudflare widget's\nclient response token. `password` is the new account password (GoTrue\nenforces its own minimum; we keep a soft floor here). `locale` selects the\nverification-email language (en/de; defaults en).\n\nBoth field names and their marketing-site aliases are accepted (back-compat):\n  name / operator_name, slug / operator_slug  (landr-oqrz.1)\n\n`preset_key` (optional, landr-k9pji.2) pre-selects the onboarding preset,\ne.g. `solo_pilot` from the website's solo landing CTA. Must be one of\n`app/services/presets.py` PRESET_KEYS, else 422 `unknown_preset_key`.\nBlank = not sent. Stored on the operator only; the wizard applies it.",
+        "description": "POST /api/public/signup body.\n\n`name` is the operator/business display name (-> operators.name). `slug` is\nthe desired public handle. `turnstile_token` is the Cloudflare widget's\nclient response token. `password` is the new account password (GoTrue\nenforces its own minimum; we keep a soft floor here). `locale` selects the\nverification-email language (any `public.ui_locales` code or\nbrowser tag such as `es-ES`; bundled en/de/es/tr, else en; defaults en).\n\nBoth field names and their marketing-site aliases are accepted (back-compat):\n  name / operator_name, slug / operator_slug  (landr-oqrz.1)\n\n`preset_key` (optional, landr-k9pji.2) pre-selects the onboarding preset,\ne.g. `solo_pilot` from the website's solo landing CTA. Must be one of\n`app/services/presets.py` PRESET_KEYS, else 422 `unknown_preset_key`.\nBlank = not sent. Stored on the operator only; the wizard applies it.",
         "properties": {
           "email": {
             "maxLength": 320,
@@ -27144,6 +27324,106 @@
           "decision"
         ],
         "title": "StaffApprovalIn",
+        "type": "object"
+      },
+      "StaffProfileOut": {
+        "description": "The caller's UI-language preference and the effective result.",
+        "properties": {
+          "effective_ui_locale": {
+            "description": "What the UI should render in after user -> operator -> browser -> en.",
+            "title": "Effective Ui Locale",
+            "type": "string"
+          },
+          "operator_default_ui_locale": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "That operator's team default; null when unset or no operator_id given.",
+            "title": "Operator Default Ui Locale"
+          },
+          "operator_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Echo of ?operator_id= \u2014 the operator the operator rung was read from.",
+            "title": "Operator Id"
+          },
+          "supported_ui_locales": {
+            "items": {
+              "$ref": "#/components/schemas/UiLocaleOut"
+            },
+            "title": "Supported Ui Locales",
+            "type": "array"
+          },
+          "ui_locale": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The caller's own choice; null = none (fall back down the chain).",
+            "title": "Ui Locale"
+          },
+          "ui_locale_source": {
+            "description": "Which rung produced effective_ui_locale.",
+            "enum": [
+              "user",
+              "operator",
+              "browser",
+              "fallback"
+            ],
+            "title": "Ui Locale Source",
+            "type": "string"
+          },
+          "user_id": {
+            "title": "User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "ui_locale",
+          "operator_id",
+          "operator_default_ui_locale",
+          "effective_ui_locale",
+          "ui_locale_source",
+          "supported_ui_locales"
+        ],
+        "title": "StaffProfileOut",
+        "type": "object"
+      },
+      "StaffProfilePatch": {
+        "additionalProperties": false,
+        "description": "Partial update of the caller's own profile. Unknown keys 422.",
+        "properties": {
+          "ui_locale": {
+            "anyOf": [
+              {
+                "maxLength": 16,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "A registry code (case-insensitive); null clears the personal choice.",
+            "title": "Ui Locale"
+          }
+        },
+        "title": "StaffProfilePatch",
         "type": "object"
       },
       "StaffSubmitBookingIn": {
@@ -29378,6 +29658,56 @@
           }
         },
         "title": "TypeRequirementPatch",
+        "type": "object"
+      },
+      "UiLocaleOut": {
+        "description": "One supported dashboard UI language.",
+        "properties": {
+          "code": {
+            "description": "BCP-47 code stored in ui_locale columns, e.g. 'de'.",
+            "title": "Code",
+            "type": "string"
+          },
+          "english_name": {
+            "description": "English name, e.g. 'German'.",
+            "title": "English Name",
+            "type": "string"
+          },
+          "native_name": {
+            "description": "Endonym for the switcher, e.g. 'Deutsch'.",
+            "title": "Native Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "native_name",
+          "english_name"
+        ],
+        "title": "UiLocaleOut",
+        "type": "object"
+      },
+      "UiLocaleRegistryOut": {
+        "description": "The supported-UI-locale registry, in switcher order.",
+        "properties": {
+          "fallback": {
+            "description": "The chain's last rung; always present in `locales`.",
+            "title": "Fallback",
+            "type": "string"
+          },
+          "locales": {
+            "items": {
+              "$ref": "#/components/schemas/UiLocaleOut"
+            },
+            "title": "Locales",
+            "type": "array"
+          }
+        },
+        "required": [
+          "locales",
+          "fallback"
+        ],
+        "title": "UiLocaleRegistryOut",
         "type": "object"
       },
       "UnavailabilityIn": {
@@ -34235,6 +34565,129 @@
           }
         ],
         "summary": "Preview Migrations",
+        "tags": [
+          "landr-staff-promotions"
+        ]
+      }
+    },
+    "/api/landr-staff/promotions/prod-hotfix/candidates": {
+      "get": {
+        "description": "Staging hotfix merges that main lacks, per deployable repo (landr-ctqww).\nApprover. A repo whose read fails carries ``error``.",
+        "operationId": "list_prod_hotfix_candidates",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProdHotfixCandidatesResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Prod Hotfix Candidates",
+        "tags": [
+          "landr-staff-promotions"
+        ]
+      }
+    },
+    "/api/landr-staff/promotions/prod-hotfix/code": {
+      "post": {
+        "description": "Hotfix to production (landr-ctqww). Approver, staging api only.\n\nCreates a queued run that cherry-picks the picked staging hotfix merges\nonto ``hotfix-prod/<run-id>`` off each repo's main tip, checks the\nback-merge into staging is clean, applies the picked landr-api migrations\nto the production DB (only those), merges into ``main`` and back-merges\nmain into ``staging``. Any conflict before the merge \u21d2 nothing changes.",
+        "operationId": "create_prod_hotfix_code",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StagingHotfixCodeIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Create Prod Hotfix Code",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Prod Hotfix Code",
+        "tags": [
+          "landr-staff-promotions"
+        ]
+      }
+    },
+    "/api/landr-staff/promotions/prod-hotfix/preview": {
+      "post": {
+        "description": "What a Hotfix to production with these picks would cherry-pick onto\nmain and which migrations would reach the production DB (landr-ctqww).\nRead-only. 422 on a bad pick set.",
+        "operationId": "preview_prod_hotfix",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StagingHotfixPreviewIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HotfixPreviewResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Preview Prod Hotfix",
         "tags": [
           "landr-staff-promotions"
         ]
@@ -39169,7 +39622,7 @@
     },
     "/api/public/today/resolve": {
       "post": {
-        "description": "Turn an activity code \u2014 or a booking reference \u2014 into today's roster.\n\nA booking reference answers the same shape plus `booking_id` (opaque, the\nbooking's `booking_group`) and `narrow_participant_ids`; for a code those\nare `null` and `[]`.\n\nA valid code for a product with nobody on it today returns an EMPTY\nparticipant list, not a 404: \"the code works, nothing is scheduled\" is a\nreal and useful answer, and collapsing it into the not-found body would\ntell a participant to go and find their guide for no reason.",
+        "description": "Turn an activity code \u2014 or a booking reference \u2014 into today's roster.\n\nA booking reference answers the same shape plus `booking_id` (opaque, the\nbooking's `booking_group`) and `narrow_participant_ids`; for a code those\nare `null` and `[]`.\n\nA valid booking reference whose only activity is on a later day answers\n409 `activity_not_today` with `next_activity_date` (landr-zv5gf); every\nother miss, and every activity code, stays the opaque 404.\n\nA valid code for a product with nobody on it today returns an EMPTY\nparticipant list, not a 404: \"the code works, nothing is scheduled\" is a\nreal and useful answer, and collapsing it into the not-found body would\ntell a participant to go and find their guide for no reason.",
         "operationId": "public_today_resolve",
         "requestBody": {
           "content": {
@@ -39193,6 +39646,9 @@
               }
             },
             "description": "Successful Response"
+          },
+          "409": {
+            "description": "A valid booking reference whose activity is not today: `{detail: {error: 'activity_not_today', next_activity_date}}`."
           },
           "422": {
             "content": {
@@ -39252,6 +39708,28 @@
         "summary": "Create Today Session",
         "tags": [
           "public-today"
+        ]
+      }
+    },
+    "/api/public/ui-locales": {
+      "get": {
+        "description": "The languages the staff dashboard UI can be shown in (switcher order).",
+        "operationId": "public_list_ui_locales",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UiLocaleRegistryOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Ui Locales",
+        "tags": [
+          "staff-profile"
         ]
       }
     },
@@ -40394,6 +40872,160 @@
         "summary": "Switch Booking Product",
         "tags": [
           "staff-bookings"
+        ]
+      }
+    },
+    "/api/staff/me/profile": {
+      "get": {
+        "operationId": "staff_get_my_profile",
+        "parameters": [
+          {
+            "description": "The operator the dashboard is on; enables the operator-default rung.",
+            "in": "query",
+            "name": "operator_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The operator the dashboard is on; enables the operator-default rung.",
+              "title": "Operator Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "accept-language",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Accept-Language"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaffProfileOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get My Profile",
+        "tags": [
+          "staff-profile"
+        ]
+      },
+      "patch": {
+        "operationId": "staff_patch_my_profile",
+        "parameters": [
+          {
+            "description": "The operator the dashboard is on; only shapes the response's resolution.",
+            "in": "query",
+            "name": "operator_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The operator the dashboard is on; only shapes the response's resolution.",
+              "title": "Operator Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "accept-language",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Accept-Language"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StaffProfilePatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaffProfileOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Patch My Profile",
+        "tags": [
+          "staff-profile"
         ]
       }
     },
