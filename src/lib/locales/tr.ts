@@ -458,6 +458,8 @@ export const tr: Bundle = {
     'Rezervasyonunuzun kendisi her zamanki gibi onaylandı — referansı daha sonra rezervasyon sayfanızdan yine ekleyebilirsiniz.',
   bookingConfirmedEmailFailed: 'Rezervasyonunuz onaylandı — ancak onay e-postasını gönderemedik.',
   contactOperatorToConfirm: 'Rezervasyon ayrıntılarınızı doğrulamak için lütfen doğrudan işletmeyle iletişime geçin.',
+  changeActivityHint: 'Farklı bir etkinlik mi istiyorsunuz? Değiştirmek için {operator} ile iletişime geçin.',
+  changeActivityHintNoOperator: 'Farklı bir etkinlik mi istiyorsunuz? Değiştirmek için işletmeyle iletişime geçin.',
   nextStepSendGroupLinkSingular: 'Sonraki adım: grubunuza rezervasyon bağlantılarını gönderin',
   nextStepSendGroupLinkPlural: 'Sonraki adım: grubunuza rezervasyon bağlantılarını gönderin',
   eachCompletesOwnBooking: 'Her biri kendi bağlantısından kendi rezervasyonunu tamamlar.',

@@ -454,6 +454,8 @@ export const es: Bundle = {
     'Tu reserva está confirmada con normalidad: puedes añadir la referencia más tarde en tu página de reserva.',
   bookingConfirmedEmailFailed: 'Tu reserva está confirmada, pero no hemos podido enviar el correo de confirmación.',
   contactOperatorToConfirm: 'Contacta directamente con el organizador para confirmar los detalles de tu reserva.',
+  changeActivityHint: '¿Quieres otra actividad? Contacta con {operator} para cambiarla.',
+  changeActivityHintNoOperator: '¿Quieres otra actividad? Contacta con el organizador para cambiarla.',
   nextStepSendGroupLinkSingular: 'Siguiente paso: envía a tu grupo su enlace de reserva',
   nextStepSendGroupLinkPlural: 'Siguiente paso: envía a tu grupo sus enlaces de reserva',
   eachCompletesOwnBooking: 'Cada uno completa su propia reserva desde su enlace.',

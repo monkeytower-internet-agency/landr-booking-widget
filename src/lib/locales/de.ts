@@ -462,6 +462,8 @@ export const de: Bundle = {
   bookingConfirmedEmailFailed:
     'Ihre Buchung ist bestätigt — die Bestätigungs-E-Mail konnten wir jedoch nicht senden.',
   contactOperatorToConfirm: 'Bitte kontaktieren Sie den Anbieter direkt, um Ihre Buchungsdetails zu bestätigen.',
+  changeActivityHint: 'Sie möchten eine andere Aktivität? Wenden Sie sich an {operator}, um sie zu ändern.',
+  changeActivityHintNoOperator: 'Sie möchten eine andere Aktivität? Wenden Sie sich an den Anbieter, um sie zu ändern.',
   nextStepSendGroupLinkSingular: 'Nächster Schritt: Senden Sie Ihrer Gruppe ihren Buchungslink',
   nextStepSendGroupLinkPlural: 'Nächster Schritt: Senden Sie Ihrer Gruppe ihre Buchungslinks',
   eachCompletesOwnBooking: 'Jede Person schließt ihre eigene Buchung über ihren Link ab.',

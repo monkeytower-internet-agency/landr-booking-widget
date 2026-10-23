@@ -488,6 +488,8 @@ export type Bundle = {
   joinErrorFollowup: string
   bookingConfirmedEmailFailed: string
   contactOperatorToConfirm: string
+  changeActivityHint: string
+  changeActivityHintNoOperator: string
   nextStepSendGroupLinkSingular: string
   nextStepSendGroupLinkPlural: string
   eachCompletesOwnBooking: string
@@ -1322,6 +1324,8 @@ const en: Bundle = {
     'Your booking itself is confirmed as usual — you can still add the reference later on your booking page.',
   bookingConfirmedEmailFailed: 'Your booking is confirmed — but we could not send the confirmation email.',
   contactOperatorToConfirm: 'Please contact the operator directly to confirm your booking details.',
+  changeActivityHint: 'Want a different activity? Contact {operator} to change it.',
+  changeActivityHintNoOperator: 'Want a different activity? Contact the operator to change it.',
   nextStepSendGroupLinkSingular: 'Next step: send your group their booking link',
   nextStepSendGroupLinkPlural: 'Next step: send your group their booking links',
   eachCompletesOwnBooking: 'Each of them completes their own booking from their link.',

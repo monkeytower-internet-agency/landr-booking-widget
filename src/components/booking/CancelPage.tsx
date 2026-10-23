@@ -326,6 +326,10 @@ export function CancelPage({ token }: Props) {
           </p>
         ) : null}
         <p className="text-muted-foreground text-xs">{t.confirmBody}</p>
+        <p className="text-sm" data-testid="cancel-change-activity-hint">
+          {fmtCancel(t.changeActivityHint, { operator: preview.operator.name })}
+        </p>
+        <ContactLinks t={t} preview={preview} />
         <div className="flex flex-wrap gap-2">
           <Button
             type="button"
