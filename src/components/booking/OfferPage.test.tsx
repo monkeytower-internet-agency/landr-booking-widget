@@ -2336,6 +2336,10 @@ describe('OfferPage — performer-paid lines', () => {
 
     expect(screen.getByTestId('offer-gross-total')).toHaveTextContent(formatCurrency(180, 'EUR'))
     expect(screen.getByTestId('offer-gross-total')).not.toHaveTextContent(formatCurrency(205, 'EUR'))
+    // Subtotal + Tax = Total: both rows leave the performer share out too.
+    expect(screen.getByTestId('offer-net-total')).toHaveTextContent(formatCurrency(151.26, 'EUR'))
+    expect(screen.getByTestId('offer-tax-total')).toHaveTextContent(formatCurrency(28.74, 'EUR'))
+    expect(151.26 + 28.74).toBeCloseTo(180, 2)
     expect(screen.getByTestId('offer-performer-section')).toBeInTheDocument()
   })
 

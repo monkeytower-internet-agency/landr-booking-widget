@@ -838,10 +838,10 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
   const splitAvailable = mode === 'pay' && hasSplit
   const breakdownNet = splitAvailable
     ? (totals.operator_net_total as number)
-    : totals.net_total
+    : totals.net_total - (totals.performer_net_total ?? 0)
   const breakdownTax = splitAvailable
     ? (totals.operator_tax_total as number)
-    : totals.tax_total
+    : totals.tax_total - (totals.performer_tax_total ?? 0)
   const hotelAmount = totals.hotel_gross_total ?? 0
   // Name the at-hotel money only when we actually read it off the lines.
   const showHotelLine = splitAvailable && hotelAmount > 0
