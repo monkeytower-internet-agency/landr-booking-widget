@@ -279,13 +279,17 @@ describe('AddonsList (landr-cip6)', () => {
     expect(plus).not.toBeDisabled()
   })
 
-  it('service add-on with expectedQty=1: qty=2 shows over-warning, qty=1 is silent', () => {
-    // "Tandem video package" — service flow, no room context, expectedQty=1.
-    // Under-warning must never fire (qty is 0 or ≥1 for non-room add-ons).
-    const addon = makeAddon({ addon_product_id: 'vid', name: 'Video Package' })
+  it('service add-on (video package): price shown, qty=2 shows no room wording or deviation hint', () => {
+    // landr-anq5s: a service add-on has no room context, so the room-sleeps
+    // over/under hint must never render, whatever the quantity.
+    const addon = makeAddon({
+      addon_product_id: 'vid',
+      name: 'Video Package',
+      product_kind: 'service',
+      price_per_unit: 40,
+    })
 
-    // qty=2: over-warning visible
-    const { rerender } = render(
+    const { container } = render(
       <AddonsList
         addons={[addon]}
         selection={{ vid: 2 }}
@@ -293,20 +297,11 @@ describe('AddonsList (landr-cip6)', () => {
         expectedQty={1}
       />,
     )
-    expect(screen.getByTestId('addon-overbook-vid')).toBeInTheDocument()
-    expect(screen.queryByTestId('addon-underbook-vid')).toBeNull()
-
-    // qty=1: no warning
-    rerender(
-      <AddonsList
-        addons={[addon]}
-        selection={{ vid: 1 }}
-        onChange={vi.fn()}
-        expectedQty={1}
-      />,
-    )
+    expect(screen.getByText(/40/)).toBeInTheDocument()
+    expect(screen.queryByText(/Price on request/i)).toBeNull()
     expect(screen.queryByTestId('addon-overbook-vid')).toBeNull()
     expect(screen.queryByTestId('addon-underbook-vid')).toBeNull()
+    expect(container.textContent).not.toMatch(/than this room sleeps/i)
   })
 
   it('shows no warning when qty is 0 regardless of expectedQty', () => {

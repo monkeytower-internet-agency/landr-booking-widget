@@ -98,7 +98,7 @@ describe('ServiceAddonsStep (landr-cip6)', () => {
     ])
   })
 
-  it('shows the orange overbook warning when qty > 1 (parent qty is implicitly 1)', async () => {
+  it('shows no room-based overbook warning when qty > 1 (service add-on; Continue stays enabled)', async () => {
     mocks.getProductAddons.mockResolvedValue([
       makeAddon({ addon_product_id: 'video-1', name: 'Video Package' }),
     ])
@@ -119,8 +119,10 @@ describe('ServiceAddonsStep (landr-cip6)', () => {
     fireEvent.click(plus)
     fireEvent.click(plus)
 
-    expect(screen.getByTestId('addon-overbook-video-1')).toBeInTheDocument()
-    // Continue must still be enabled — overbook warning is non-blocking.
+    // landr-anq5s: no room context -> no "than this room sleeps" hint.
+    expect(screen.queryByTestId('addon-overbook-video-1')).toBeNull()
+    expect(document.body.textContent).not.toMatch(/than this room sleeps/i)
+    expect(screen.getByRole('button', { name: /Continue/i })).not.toBeDisabled()
     expect(screen.getByRole('button', { name: /Continue/i })).not.toBeDisabled()
   })
 

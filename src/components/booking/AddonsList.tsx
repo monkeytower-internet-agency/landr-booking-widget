@@ -47,6 +47,9 @@ interface Props {
    * how many people the room(s) sleep in total. For service-flow
    * add-ons where there is no room context, pass 1.
    *
+   * Only applies to room-tied add-ons (product_kind='hotel_room'); service
+   * add-ons never show the over/under hint (landr-anq5s).
+   *
    * qty > expectedQty → orange over-warning ("bringing extras?").
    * 0 < qty < expectedQty → orange under-warning ("one per guest?").
    * qty === expectedQty or qty === 0 → no warning.
@@ -116,7 +119,13 @@ export function AddonsList({
       {addons.map((addon) => {
         const qty = selection[addon.addon_product_id] ?? 0
         const addonName = pickLocalized(addon.name, addon.name_localized, locale)
-        const deviation = isOverbooked(qty, expectedQty)
+        // landr-anq5s: the over/under hint compares the add-on against what a
+        // ROOM sleeps ("than this room sleeps"), so it only makes sense for
+        // room-tied add-ons (breakfast, product_kind='hotel_room'). Service
+        // add-ons (video package, ...) have no room context: no deviation
+        // hint — the cap stays the add-on's own max_qty.
+        const deviation =
+          addon.product_kind === 'hotel_room' ? isOverbooked(qty, expectedQty) : null
         const requiredError = requiredAddonError(addon, qty, locale)
         // landr-yybu: + disabled at the occupancy cap (room-linked add-ons)
         // OR the add-on's own max_qty, whichever binds first.

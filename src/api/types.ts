@@ -772,8 +772,9 @@ export interface ProductAddon {
   sort_order: number
   /**
    * Display per-unit price (per night for hotel_room kind, per slot/line
-   * for service kind). NULL when the add-on's scheme uses tiers/fixed_total
-   * without a per_day_base rule — widget falls back to "Included on request".
+   * for service kind): the add-on's standard price, resolved from any rule
+   * kind (per_day_base / fixed_total / per_participant_tier). NULL only when
+   * the add-on has no priced scheme — widget then shows "Price on request".
    */
   price_per_unit: number | null
   currency: string | null
