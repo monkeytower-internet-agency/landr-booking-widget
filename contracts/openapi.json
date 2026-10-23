@@ -17809,6 +17809,11 @@
             "title": "Id",
             "type": "string"
           },
+          "is_addon_only": {
+            "default": false,
+            "title": "Is Addon Only",
+            "type": "boolean"
+          },
           "is_publicly_listed": {
             "default": false,
             "title": "Is Publicly Listed",
@@ -18793,6 +18798,27 @@
             "title": "Addon Product Id",
             "type": "string"
           },
+          "addon_quantity_max": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Addon Quantity Max"
+          },
+          "addon_quantity_rule": {
+            "default": "any",
+            "enum": [
+              "one_per_booking",
+              "one_per_participant",
+              "any"
+            ],
+            "title": "Addon Quantity Rule",
+            "type": "string"
+          },
           "available": {
             "default": true,
             "title": "Available",
@@ -19544,6 +19570,34 @@
             "title": "Active",
             "type": "boolean"
           },
+          "addon_quantity_max": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Addon Quantity Max"
+          },
+          "addon_quantity_rule": {
+            "anyOf": [
+              {
+                "enum": [
+                  "one_per_booking",
+                  "one_per_participant",
+                  "any"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Addon Quantity Rule"
+          },
           "booking_mode": {
             "default": "scheduled",
             "enum": [
@@ -19868,9 +19922,15 @@
             "title": "Product Kind"
           },
           "revenue_flows_through_operator": {
-            "default": true,
-            "title": "Revenue Flows Through Operator",
-            "type": "boolean"
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revenue Flows Through Operator"
           },
           "service_time_shape": {
             "anyOf": [
@@ -20074,6 +20134,34 @@
               }
             ],
             "title": "Active"
+          },
+          "addon_quantity_max": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Addon Quantity Max"
+          },
+          "addon_quantity_rule": {
+            "anyOf": [
+              {
+                "enum": [
+                  "one_per_booking",
+                  "one_per_participant",
+                  "any"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Addon Quantity Rule"
           },
           "booking_mode": {
             "anyOf": [
