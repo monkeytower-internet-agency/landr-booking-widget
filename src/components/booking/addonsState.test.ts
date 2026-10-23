@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import type { ProductAddon } from '@/api/types'
 import {
+  addonRuleCeiling,
   addonUnavailableMessage,
   clampAddonQty,
   defaultAddonQty,
@@ -268,5 +269,43 @@ describe('stock by quantity (landr-lmudr.32) + unit_taken (landr-lmudr.19)', () 
     expect(addonUnavailableMessage({ unavailable_reason: 'sold_out' })).toBe(
       'Sold out for your dates.',
     )
+  })
+})
+
+describe('addonRuleCeiling / clampAddonQty (landr-hzovu.2)', () => {
+  const svc = (o: Partial<ProductAddon> = {}) =>
+    makeAddon({ product_kind: 'service', ...o })
+
+  it('maps each rule to its ceiling', () => {
+    expect(addonRuleCeiling(svc({ addon_quantity_rule: 'one_per_booking' }), 5)).toBe(1)
+    expect(addonRuleCeiling(svc({ addon_quantity_rule: 'one_per_participant' }), 3)).toBe(3)
+    expect(addonRuleCeiling(svc({ addon_quantity_rule: 'one_per_participant' }), 0)).toBe(1)
+    expect(addonRuleCeiling(svc({ addon_quantity_rule: 'one_per_participant' }))).toBe(
+      Number.POSITIVE_INFINITY,
+    )
+    expect(addonRuleCeiling(svc({ addon_quantity_rule: 'any', addon_quantity_max: 4 }))).toBe(4)
+    expect(addonRuleCeiling(svc({ addon_quantity_rule: 'any' }))).toBe(Number.POSITIVE_INFINITY)
+    expect(addonRuleCeiling(svc())).toBe(Number.POSITIVE_INFINITY)
+  })
+
+  it('never caps a room add-on (occupancy owns it)', () => {
+    expect(
+      addonRuleCeiling(
+        makeAddon({ product_kind: 'hotel_room', addon_quantity_rule: 'one_per_booking' }),
+        1,
+      ),
+    ).toBe(Number.POSITIVE_INFINITY)
+  })
+
+  it('clampAddonQty honours the rule and the tighter link max', () => {
+    const v = svc({ addon_quantity_rule: 'one_per_participant' })
+    expect(clampAddonQty(v, 9, undefined, 3)).toBe(3)
+    expect(clampAddonQty({ ...v, max_qty: 2 }, 9, undefined, 3)).toBe(2)
+    expect(clampAddonQty(svc({ addon_quantity_rule: 'one_per_booking' }), 4, undefined, 3)).toBe(1)
+  })
+
+  it('withoutSoldOut trims a restored pick to the rule', () => {
+    const v = svc({ addon_quantity_rule: 'one_per_participant' })
+    expect(withoutSoldOut({ 'addon-1': 5 }, [v], 2)).toEqual({ 'addon-1': 2 })
   })
 })

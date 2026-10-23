@@ -130,7 +130,7 @@ export function ServiceAddonsStep({
         // initialAddons map doesn't already cover.
         setSelection((prev) => {
           // landr-lmudr.10: a restored pick that has sold out since goes.
-          const next = { ...withoutSoldOut(prev, list) }
+          const next = { ...withoutSoldOut(prev, list, participantCount) }
           for (const a of list) {
             if (isAddonSoldOut(a)) continue
             if (next[a.addon_product_id] !== undefined) continue
@@ -206,6 +206,7 @@ export function ServiceAddonsStep({
               selection={selection}
               onChange={setSelection}
               expectedQty={1}
+              participantCount={participantCount}
             />
           </NextAction>
         ) : null}

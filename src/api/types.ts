@@ -760,6 +760,11 @@ export type Hotel = Location
  * booking_products line item — the existing public_submit_booking RPC
  * already iterates products[] so no API change is needed for submit.
  */
+export type AddonQuantityRule =
+  | 'one_per_booking'
+  | 'one_per_participant'
+  | 'any'
+
 export interface ProductAddon {
   product_addon_id: string
   addon_product_id: string
@@ -787,6 +792,17 @@ export interface ProductAddon {
    * special-case the slug/name (e.g. 'breakfast') instead of this field.
    */
   product_kind: ProductKind
+  /**
+   * How many of this add-on one booking may take, set once on the add-on
+   * product: 'one_per_booking' (1), 'one_per_participant' (the guiding
+   * participants) or 'any' (unlimited, or `addon_quantity_max`). Absent /
+   * null reads as 'any'. Room-tied add-ons ('hotel_room') ignore it — their
+   * quantity follows the room's occupancy. `max_qty` above stays an extra,
+   * tighter cap.
+   */
+  addon_quantity_rule?: AddonQuantityRule | null
+  /** Optional cap under 'any'; null/absent = unlimited. */
+  addon_quantity_max?: number | null
   /**
    * landr-lmudr.10: stock verdict, present when the add-ons were fetched
    * WITH the booking's days + party size (getProductAddons' `stock`). false
