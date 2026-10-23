@@ -16209,6 +16209,10 @@ export interface components {
             paid_to: "operator" | "hotel" | "performer";
             /** Participants */
             participants?: number | null;
+            /** Payee Label */
+            payee_label?: string | null;
+            /** Payment Note */
+            payment_note?: string | null;
             /** Per Person Price */
             per_person_price?: number | null;
             /** Product Id */
