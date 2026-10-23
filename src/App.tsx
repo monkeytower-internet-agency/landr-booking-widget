@@ -2808,7 +2808,16 @@ function BookingFlowApp() {
             onCustomerCommentChange={(comment) =>
               mergeDraft({ customerComment: comment || null })
             }
-            onBack={() =>
+            // landr-hzovu.9: live-lift the add-on picks so the Booking overview
+            // total updates before Continue (same sentinel as the
+            // accommodation step).
+            onLiveAddonsChange={(addons) => {
+              setLiveAddons(addons)
+              setLiveAccommodationTouched(true)
+            }}
+            onBack={() => {
+              // landr-hzovu.9: leaving the step — clear the live-lift.
+              clearLiveAccommodation()
               // landr-b3g5: carry booker + participants back so the
               // DetailsStep re-mount restores them. landr-rmcsu.6: or back to
               // the dates step when participants ran before it.
@@ -2818,8 +2827,9 @@ function BookingFlowApp() {
                   remoteFlow: flowForProduct(step.product.product_id),
                 }),
               )
-            }
-            onConfirm={(addons) =>
+            }}
+            onConfirm={(addons) => {
+              clearLiveAccommodation()
               afterAccommodation(
                 step.product,
                 step.selection,
@@ -2835,7 +2845,7 @@ function BookingFlowApp() {
                 // nav from downstream steps must hop back through here.
                 true,
               )
-            }
+            }}
           />
         ) : null}
 
@@ -3412,6 +3422,7 @@ function BookingFlowApp() {
               }}
               isSharedDouble={step.isSharedDouble}
               shareReferenceEnabled={step.shareReferenceEnabled}
+              operatorName={operatorSettings.name ?? null}
             />
             {/* landr-atwy: the account-link prompt creates a real LANDR
                 account, so it only shows when the operator opts in. */}
@@ -3459,8 +3470,11 @@ function BookingFlowApp() {
                 ? liveAccommodationRooms
                 : sidebarInputs.accommodationRooms
             }
+            // landr-hzovu.9: the service add-ons step lifts its live picks too.
             addons={
-              step.name === 'pick-accommodation' && liveAccommodationTouched
+              (step.name === 'pick-accommodation' ||
+                step.name === 'pick-service-addons') &&
+              liveAccommodationTouched
                 ? liveAddons
                 : sidebarInputs.addons
             }

@@ -12,6 +12,7 @@
  * react-refresh/only-export-components CI gate stays happy.
  */
 import type { Product } from '@/api/types'
+import { pickLocalized } from '@/lib/locale'
 import { fmt, tr } from '@/lib/strings'
 
 type PriceNote = NonNullable<Product['price_notes']>[number]
@@ -43,6 +44,10 @@ function weekdayLabel(days: number[], locale: string): string {
 }
 
 function noteLabel(note: PriceNote, locale: string): string {
+  // landr-soewf: the operator's own name (customer language -> plain name)
+  // wins over the automatic wording; blank = today's label.
+  const named = pickLocalized(note.name, note.name_localized, locale).trim()
+  if (named) return named
   if (note.weekdays && note.weekdays.length > 0) {
     return weekdayLabel(note.weekdays, locale)
   }
@@ -66,10 +71,25 @@ function noteAmount(note: PriceNote, currency: string, locale: string): string {
   return `${n > 0 ? '+' : MINUS}${body}`
 }
 
+/** One entry of the price-notes line; `description` is the operator's explanation (landr-soewf). */
+export interface PriceNoteItem {
+  text: string
+  /** Name part of `text` for a note (assistive-tech label of the chevron); absent on the base item. */
+  label?: string
+  description?: string
+}
+
 export function formatPriceNotes(
   product: Pick<Product, 'price_base' | 'price_notes' | 'currency'>,
   locale: string,
 ): string[] {
+  return priceNoteItems(product, locale).map((i) => i.text)
+}
+
+export function priceNoteItems(
+  product: Pick<Product, 'price_base' | 'price_notes' | 'currency'>,
+  locale: string,
+): PriceNoteItem[] {
   const notes = (product.price_notes ?? []).filter(
     (n) => noteAmount(n, 'EUR', locale) !== '',
   )
@@ -79,13 +99,19 @@ export function formatPriceNotes(
     ...notes.filter((n) => n.kind === 'surcharge'),
     ...notes.filter((n) => n.kind !== 'surcharge'),
   ]
-  const items: string[] = []
+  const items: PriceNoteItem[] = []
   const base = product.price_base == null ? NaN : Number(product.price_base)
   if (product.price_base != null && product.price_base.trim() !== '' && Number.isFinite(base)) {
-    items.push(fmt(tr('priceNoteBase', locale), { amount: money(base, currency, locale) }))
+    items.push({ text: fmt(tr('priceNoteBase', locale), { amount: money(base, currency, locale) }) })
   }
   for (const n of ordered) {
-    items.push(`${noteLabel(n, locale)} ${noteAmount(n, currency, locale)}`)
+    const label = noteLabel(n, locale)
+    const description = pickLocalized(n.description, n.description_localized, locale).trim()
+    items.push({
+      text: `${label} ${noteAmount(n, currency, locale)}`,
+      label,
+      ...(description ? { description } : {}),
+    })
   }
   return items
 }

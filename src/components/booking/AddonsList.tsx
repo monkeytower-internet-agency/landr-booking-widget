@@ -5,6 +5,7 @@ import { addonDeviationMessage, qtyAdjustAriaLabel, tr } from '@/lib/strings'
 import { formatCurrency } from './accommodationCalc'
 import {
   clampAddonQty,
+  addonRuleCeiling,
   addonStockCeiling,
   addonUnavailableMessage,
   isAddonSoldOut,
@@ -47,6 +48,9 @@ interface Props {
    * how many people the room(s) sleep in total. For service-flow
    * add-ons where there is no room context, pass 1.
    *
+   * Only applies to room-tied add-ons (product_kind='hotel_room'); service
+   * add-ons never show the over/under hint (landr-anq5s).
+   *
    * qty > expectedQty → orange over-warning ("bringing extras?").
    * 0 < qty < expectedQty → orange under-warning ("one per guest?").
    * qty === expectedQty or qty === 0 → no warning.
@@ -76,6 +80,12 @@ interface Props {
    */
   roomQty?: number
   /**
+   * landr-hzovu.2: the booking's guiding participants — the ceiling of a
+   * "one per participant" service add-on (a video package per passenger).
+   * Omitted = unknown, no cap from that rule (the API still enforces it).
+   */
+  participantCount?: number
+  /**
    * Optional label rendered above the list (e.g. "Add-ons" inside a
    * room block). The caller usually owns this from a <fieldset
    * legend>, so leaving it null hides the heading entirely.
@@ -90,6 +100,7 @@ export function AddonsList({
   expectedQty,
   occupancyLimited = false,
   roomQty = 1,
+  participantCount,
   heading,
 }: Props) {
   const locale = browserLocale()
@@ -102,7 +113,7 @@ export function AddonsList({
 
   function bumpQty(addon: ProductAddon, delta: number) {
     const current = selection[addon.addon_product_id] ?? 0
-    const next = clampAddonQty(addon, current + delta, occupancyCap)
+    const next = clampAddonQty(addon, current + delta, occupancyCap, participantCount)
     const out = { ...selection, [addon.addon_product_id]: next }
     if (next === 0) delete out[addon.addon_product_id]
     onChange(out)
@@ -116,7 +127,13 @@ export function AddonsList({
       {addons.map((addon) => {
         const qty = selection[addon.addon_product_id] ?? 0
         const addonName = pickLocalized(addon.name, addon.name_localized, locale)
-        const deviation = isOverbooked(qty, expectedQty)
+        // landr-anq5s: the over/under hint compares the add-on against what a
+        // ROOM sleeps ("than this room sleeps"), so it only makes sense for
+        // room-tied add-ons (breakfast, product_kind='hotel_room'). Service
+        // add-ons (video package, ...) have no room context: no deviation
+        // hint — the cap stays the add-on's own max_qty.
+        const deviation =
+          addon.product_kind === 'hotel_room' ? isOverbooked(qty, expectedQty) : null
         const requiredError = requiredAddonError(addon, qty, locale)
         // landr-yybu: + disabled at the occupancy cap (room-linked add-ons)
         // OR the add-on's own max_qty, whichever binds first.
@@ -126,9 +143,13 @@ export function AddonsList({
         // at what is left on the chosen days.
         const stockCeiling = addonStockCeiling(addon)
         const atStock = !soldOut && Number.isFinite(stockCeiling) && qty >= stockCeiling
+        // landr-hzovu.2: the add-on's own rule (1 / participants / max); room
+        // add-ons are exempt (occupancy above).
+        const atRule = qty >= addonRuleCeiling(addon, participantCount)
         const atMax =
           soldOut ||
           atStock ||
+          atRule ||
           (occupancyCap !== undefined && qty >= occupancyCap) ||
           (addon.max_qty !== null && qty >= addon.max_qty)
 

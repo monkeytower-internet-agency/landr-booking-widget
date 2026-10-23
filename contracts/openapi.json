@@ -1930,7 +1930,8 @@
             "enum": [
               "requested",
               "follows_room",
-              "follows_stay"
+              "follows_stay",
+              "follows_product"
             ],
             "title": "Reason",
             "type": "string"
@@ -2000,7 +2001,8 @@
             "enum": [
               "requested",
               "follows_room",
-              "follows_stay"
+              "follows_stay",
+              "follows_product"
             ],
             "title": "Reason",
             "type": "string"
@@ -2091,6 +2093,16 @@
             "title": "Hotel Will Be Notified",
             "type": "boolean"
           },
+          "new_product": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BookingLineProductRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "notification_kind": {
             "anyOf": [
               {
@@ -2106,6 +2118,16 @@
               }
             ],
             "title": "Notification Kind"
+          },
+          "old_product": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BookingLineProductRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "override_gross_total": {
             "anyOf": [
@@ -2146,6 +2168,17 @@
             ],
             "title": "Stage After"
           },
+          "switched_booking_product_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Switched Booking Product Id"
+          },
           "totals_after": {
             "additionalProperties": {
               "type": "string"
@@ -2169,6 +2202,46 @@
           "totals_after"
         ],
         "title": "BookingLineEditOutcome",
+        "type": "object"
+      },
+      "BookingLineProductRef": {
+        "description": "A product a ``switch`` moves a line from / to (landr-nnwlq.1).",
+        "properties": {
+          "is_addon_only": {
+            "title": "Is Addon Only",
+            "type": "boolean"
+          },
+          "product_id": {
+            "title": "Product Id",
+            "type": "string"
+          },
+          "product_kind": {
+            "title": "Product Kind",
+            "type": "string"
+          },
+          "product_name": {
+            "title": "Product Name",
+            "type": "string"
+          },
+          "service_time_shape": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Service Time Shape"
+          }
+        },
+        "required": [
+          "product_id",
+          "product_name",
+          "product_kind",
+          "is_addon_only"
+        ],
+        "title": "BookingLineProductRef",
         "type": "object"
       },
       "BookingNoteIn": {
@@ -2709,6 +2782,17 @@
             },
             "title": "Participants",
             "type": "array"
+          },
+          "performer_total": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Performer Total"
           },
           "periods": {
             "items": {
@@ -5475,6 +5559,12 @@
             "title": "Paying Count",
             "type": "integer"
           },
+          "performer_total": {
+            "default": "0",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Performer Total",
+            "type": "string"
+          },
           "periods": {
             "items": {
               "additionalProperties": true,
@@ -7980,8 +8070,35 @@
             "type": "string"
           },
           "paid_to": {
+            "enum": [
+              "operator",
+              "hotel",
+              "performer"
+            ],
             "title": "Paid To",
             "type": "string"
+          },
+          "payee_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payee Label"
+          },
+          "payment_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payment Note"
           },
           "product_id": {
             "title": "Product Id",
@@ -8130,6 +8247,10 @@
             "title": "Operator Total",
             "type": "string"
           },
+          "performer_total": {
+            "title": "Performer Total",
+            "type": "string"
+          },
           "savings": {
             "anyOf": [
               {
@@ -8218,6 +8339,7 @@
         "required": [
           "operator_total",
           "hotel_total",
+          "performer_total",
           "grand_total",
           "currency"
         ],
@@ -13744,7 +13866,8 @@
           "paid_to": {
             "enum": [
               "operator",
-              "hotel"
+              "hotel",
+              "performer"
             ],
             "title": "Paid To",
             "type": "string"
@@ -13759,6 +13882,28 @@
               }
             ],
             "title": "Participants"
+          },
+          "payee_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payee Label"
+          },
+          "payment_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payment Note"
           },
           "per_person_price": {
             "anyOf": [
@@ -14566,6 +14711,39 @@
             ],
             "title": "Operator Tax Total"
           },
+          "performer_gross_total": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Performer Gross Total"
+          },
+          "performer_net_total": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Performer Net Total"
+          },
+          "performer_tax_total": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Performer Tax Total"
+          },
           "tax_total": {
             "title": "Tax Total",
             "type": "number"
@@ -14988,17 +15166,6 @@
               }
             ],
             "title": "Region"
-          },
-          "require_declarations": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Require Declarations"
           },
           "show_premium_teasers": {
             "anyOf": [
@@ -17304,6 +17471,31 @@
             "title": "Amount Type",
             "type": "string"
           },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "description_localized": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description Localized"
+          },
           "kind": {
             "enum": [
               "surcharge",
@@ -17315,6 +17507,31 @@
           "label": {
             "title": "Label",
             "type": "string"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "name_localized": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name Localized"
           },
           "per_participant": {
             "default": false,
@@ -17704,6 +17921,11 @@
             "title": "Id",
             "type": "string"
           },
+          "is_addon_only": {
+            "default": false,
+            "title": "Is Addon Only",
+            "type": "boolean"
+          },
           "is_publicly_listed": {
             "default": false,
             "title": "Is Publicly Listed",
@@ -17782,8 +18004,24 @@
             "type": "string"
           },
           "paid_to": {
+            "enum": [
+              "operator",
+              "hotel",
+              "performer"
+            ],
             "title": "Paid To",
             "type": "string"
+          },
+          "payment_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payment Note"
           },
           "product_id": {
             "title": "Product Id",
@@ -17888,6 +18126,10 @@
             "title": "Operator Total",
             "type": "string"
           },
+          "performer_total": {
+            "title": "Performer Total",
+            "type": "string"
+          },
           "price_adjustment": {
             "anyOf": [
               {
@@ -17964,6 +18206,7 @@
         "required": [
           "operator_total",
           "hotel_total",
+          "performer_total",
           "grand_total",
           "currency",
           "has_hotel"
@@ -18665,6 +18908,27 @@
         "properties": {
           "addon_product_id": {
             "title": "Addon Product Id",
+            "type": "string"
+          },
+          "addon_quantity_max": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Addon Quantity Max"
+          },
+          "addon_quantity_rule": {
+            "default": "any",
+            "enum": [
+              "one_per_booking",
+              "one_per_participant",
+              "any"
+            ],
+            "title": "Addon Quantity Rule",
             "type": "string"
           },
           "available": {
@@ -19418,6 +19682,34 @@
             "title": "Active",
             "type": "boolean"
           },
+          "addon_quantity_max": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Addon Quantity Max"
+          },
+          "addon_quantity_rule": {
+            "anyOf": [
+              {
+                "enum": [
+                  "one_per_booking",
+                  "one_per_participant",
+                  "any"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Addon Quantity Rule"
+          },
           "booking_mode": {
             "default": "scheduled",
             "enum": [
@@ -19683,6 +19975,34 @@
             "title": "On Request Daily Capacity",
             "type": "integer"
           },
+          "paid_to": {
+            "anyOf": [
+              {
+                "enum": [
+                  "operator",
+                  "hotel",
+                  "performer"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paid To"
+          },
+          "payment_note_localized": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payment Note Localized"
+          },
           "product_group_id": {
             "anyOf": [
               {
@@ -19714,9 +20034,15 @@
             "title": "Product Kind"
           },
           "revenue_flows_through_operator": {
-            "default": true,
-            "title": "Revenue Flows Through Operator",
-            "type": "boolean"
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revenue Flows Through Operator"
           },
           "service_time_shape": {
             "anyOf": [
@@ -19920,6 +20246,34 @@
               }
             ],
             "title": "Active"
+          },
+          "addon_quantity_max": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Addon Quantity Max"
+          },
+          "addon_quantity_rule": {
+            "anyOf": [
+              {
+                "enum": [
+                  "one_per_booking",
+                  "one_per_participant",
+                  "any"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Addon Quantity Rule"
           },
           "booking_mode": {
             "anyOf": [
@@ -20246,6 +20600,34 @@
               }
             ],
             "title": "On Request Daily Capacity"
+          },
+          "paid_to": {
+            "anyOf": [
+              {
+                "enum": [
+                  "operator",
+                  "hotel",
+                  "performer"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paid To"
+          },
+          "payment_note_localized": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payment Note Localized"
           },
           "product_group_id": {
             "anyOf": [
@@ -25805,6 +26187,17 @@
           "amount": {
             "title": "Amount",
             "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
           },
           "kind": {
             "title": "Kind",
@@ -40810,7 +41203,7 @@
     },
     "/api/staff/bookings/{booking_id}/products/{booking_product_id}/switch": {
       "post": {
-        "description": "Replace a line's product with another of the same kind\n(landr-d7ij2.3) \u2014 same days and quantity, re-priced.\n\n``dry_run=true`` writes nothing (confirm dialog). The old product shows\nin ``removed_lines``, the new one in ``added_lines`` (or, merged into a\nline of that product the booking already holds, in ``changed_lines``).\n``PATCH .../products/{booking_product_id}`` with ``{\"product_id\"}`` runs\nthe same commit. Same guards and 409s as ``POST .../products``.",
+        "description": "Replace a line's product with another of the same kind\n(landr-d7ij2.3; activities landr-nnwlq.1) \u2014 room -> room or activity ->\nactivity, same days and quantity, re-priced.\n\n``dry_run=true`` writes nothing (confirm dialog). The old product shows\nin ``removed_lines``, the new one in ``added_lines`` (or, merged into a\nline of that product the booking already holds, in ``changed_lines``);\n``old_product`` / ``new_product`` name both and\n``switched_booking_product_id`` the line that carries the new product\n(a new id when the line had to be recreated). Each commit is recorded in\n``booking_product_change_events``.\n``PATCH .../products/{booking_product_id}`` with ``{\"product_id\"}`` runs\nthe same commit. Same guards and 409s as ``POST .../products``.\n\n422s: ``line_not_switchable`` (an add-on line), ``product_not_addable``\n(``reason`` ``kind_mismatch`` for activity <-> room, ``not_accommodation``,\n``inactive``), ``same_product``, ``addon_not_offered`` /\n``addon_not_addable``, ``un_priceable``, ``product_already_on_booking``\nand ``dates_not_valid_for_product`` \u2014 ``{error, message, product_id,\nservice_time_shape, reason, days}`` where ``days`` are the offending ISO\ndays and ``reason`` one of ``single_date_required``,\n``contiguous_range_required``, ``fixed_window_mismatch`` (+ ``windows``),\n``day_not_offered``, ``time_slot_unsupported``,\n``daily_slots_unsupported``. 409s: ``booking_locked_for_edit``,\n``capacity_exceeded`` (``conflicts``; pass the days as ``forced_days``),\n``line_changed`` (the line changed since it was read).",
         "operationId": "staff_switch_booking_product",
         "parameters": [
           {

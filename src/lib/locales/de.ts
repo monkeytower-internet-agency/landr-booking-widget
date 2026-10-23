@@ -32,6 +32,8 @@ export const de: Bundle = {
   priceNoteWeekends: 'Wochenende',
   priceNoteWeekdays: 'Werktage',
   priceNoteStartTemplate: 'Start {time}',
+  priceNoteDetailsShow: 'Details zu {name} anzeigen',
+  priceNoteDetailsHide: 'Details zu {name} ausblenden',
   priceFromTemplate: 'ab {price}',
   singleDatePickerCue: 'Datum wählen',
   multiDayPickerCue: 'Ihre Termine wählen',
@@ -462,6 +464,8 @@ export const de: Bundle = {
   bookingConfirmedEmailFailed:
     'Ihre Buchung ist bestätigt — die Bestätigungs-E-Mail konnten wir jedoch nicht senden.',
   contactOperatorToConfirm: 'Bitte kontaktieren Sie den Anbieter direkt, um Ihre Buchungsdetails zu bestätigen.',
+  changeActivityHint: 'Sie möchten eine andere Aktivität? Wenden Sie sich an {operator}, um sie zu ändern.',
+  changeActivityHintNoOperator: 'Sie möchten eine andere Aktivität? Wenden Sie sich an den Anbieter, um sie zu ändern.',
   nextStepSendGroupLinkSingular: 'Nächster Schritt: Senden Sie Ihrer Gruppe ihren Buchungslink',
   nextStepSendGroupLinkPlural: 'Nächster Schritt: Senden Sie Ihrer Gruppe ihre Buchungslinks',
   eachCompletesOwnBooking: 'Jede Person schließt ihre eigene Buchung über ihren Link ab.',
@@ -695,6 +699,11 @@ export const de: Bundle = {
   tapToExpand: 'Zum Erweitern tippen',
   tapToCollapse: 'Zum Einklappen tippen',
   atHotelSuffix: 'im Hotel',
+  paidToPayeeOnTheDay: 'Zahlung an: {payee} · am Tag selbst',
+  paidDirectlyToPayeeCaveat: 'Wird direkt vor Ort an {payee} bezahlt — nicht in Ihrem Buchungsbetrag enthalten.',
+  paidToPayeeSuffix: 'an {payee}',
+  payeeFallbackLabel: 'Guide',
+  qtyTimesOnlyTemplate: '{qty} ×',
   qtyTimesDayTemplate: '{qty} × {units} {unitWord}',
 
   // ---- landr-5aih0.27 ----

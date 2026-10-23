@@ -760,6 +760,11 @@ export type Hotel = Location
  * booking_products line item — the existing public_submit_booking RPC
  * already iterates products[] so no API change is needed for submit.
  */
+export type AddonQuantityRule =
+  | 'one_per_booking'
+  | 'one_per_participant'
+  | 'any'
+
 export interface ProductAddon {
   product_addon_id: string
   addon_product_id: string
@@ -772,8 +777,9 @@ export interface ProductAddon {
   sort_order: number
   /**
    * Display per-unit price (per night for hotel_room kind, per slot/line
-   * for service kind). NULL when the add-on's scheme uses tiers/fixed_total
-   * without a per_day_base rule — widget falls back to "Included on request".
+   * for service kind): the add-on's standard price, resolved from any rule
+   * kind (per_day_base / fixed_total / per_participant_tier). NULL only when
+   * the add-on has no priced scheme — widget then shows "Price on request".
    */
   price_per_unit: number | null
   currency: string | null
@@ -786,6 +792,17 @@ export interface ProductAddon {
    * special-case the slug/name (e.g. 'breakfast') instead of this field.
    */
   product_kind: ProductKind
+  /**
+   * How many of this add-on one booking may take, set once on the add-on
+   * product: 'one_per_booking' (1), 'one_per_participant' (the guiding
+   * participants) or 'any' (unlimited, or `addon_quantity_max`). Absent /
+   * null reads as 'any'. Room-tied add-ons ('hotel_room') ignore it — their
+   * quantity follows the room's occupancy. `max_qty` above stays an extra,
+   * tighter cap.
+   */
+  addon_quantity_rule?: AddonQuantityRule | null
+  /** Optional cap under 'any'; null/absent = unlimited. */
+  addon_quantity_max?: number | null
   /**
    * landr-lmudr.10: stock verdict, present when the add-ons were fetched
    * WITH the booking's days + party size (getProductAddons' `stock`). false
@@ -1704,6 +1721,8 @@ export interface BookingSummary {
   line_items: EstimateLineItem[]
   operator_total: string
   hotel_total: string
+  /** landr-hzovu.5: absent on an older API. */
+  performer_total?: string
   grand_total: string
   currency: string
   savings: SavingLine[]
@@ -1746,7 +1765,8 @@ export interface BookingSummary {
  * POST /api/public/operators/{slug}/products/{id}/estimate (landr-xbqh).
  * `paid_to` mirrors revenue_flows_through_operator: 'operator' means the
  * customer pays the operator at checkout; 'hotel' means the customer
- * settles directly with the hotel on arrival.
+ * settles directly with the hotel on arrival; 'performer' (landr-hzovu.5)
+ * means the customer pays the pilot / guide on the day.
  *
  * landr-y3oj.3 codegen note: NOT sourced from the generated
  * `components['schemas']['EstimateLineItem']` (src/types/api.gen.ts). The
@@ -1766,7 +1786,15 @@ export interface EstimateLineItem {
   unit_price: string
   /** Total gross for the line (qty × unit pricing) as a decimal string. */
   line_total: string
-  paid_to: 'operator' | 'hotel'
+  paid_to: 'operator' | 'hotel' | 'performer'
+  /**
+   * landr-hzovu.5: performer lines only — the bare noun for who the customer
+   * pays on the day ("Tandem pilot"; the API falls back to "guide"). Absent
+   * on an older API and on operator/hotel lines.
+   */
+  payee_label?: string | null
+  /** landr-hzovu.5: operator override text replacing the standard caveat. */
+  payment_note?: string | null
 }
 
 /**
@@ -1852,6 +1880,8 @@ export interface SavingLine {
     | 'price_override'
   label: string
   amount: string
+  /** landr-soewf: the operator's explanation of a named weekday / start-time price, in the request locale. */
+  description?: string | null
 }
 
 /**
@@ -1863,6 +1893,8 @@ export interface SurchargeLine {
   kind: 'surcharge'
   label: string
   amount: string
+  /** landr-soewf: the operator's explanation of a named weekday / start-time price, in the request locale. */
+  description?: string | null
 }
 
 /**
@@ -1894,6 +1926,8 @@ export interface EstimateResponse {
   operator_total: string
   /** Decimal string. Sum of line_items where paid_to='hotel'. */
   hotel_total: string
+  /** landr-hzovu.5: Decimal string. Sum of line_items where paid_to='performer'. Absent on an older API. */
+  performer_total?: string
   /** Decimal string. operator_total + hotel_total. */
   grand_total: string
   currency: string

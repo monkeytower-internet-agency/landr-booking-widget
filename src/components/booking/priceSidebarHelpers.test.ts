@@ -5,6 +5,7 @@ import {
   buildDiscountExplanation,
   formatMoney,
   isDiscountRule,
+  groupPerformerLines,
   splitLineItems,
   isSavingsLine,
 } from './priceSidebarHelpers'
@@ -77,6 +78,29 @@ describe('splitLineItems (landr-qez0)', () => {
     const split = splitLineItems(items)
     expect(split.operator.map((i) => i.product_id)).toEqual(['a'])
     expect(split.hotel.map((i) => i.product_id)).toEqual(['b'])
+    expect(split.performer).toEqual([])
+  })
+
+  it('puts performer lines in their own group, never operator (landr-hzovu.5)', () => {
+    const split = splitLineItems([
+      ...items,
+      { ...items[0], product_id: 'p', paid_to: 'performer', payee_label: 'guide' },
+    ])
+    expect(split.operator.map((i) => i.product_id)).toEqual(['a'])
+    expect(split.performer.map((i) => i.product_id)).toEqual(['p'])
+  })
+
+  it('groups performer lines by payee label with a subtotal and the first note', () => {
+    const base = { ...items[0], paid_to: 'performer' as const }
+    const groups = groupPerformerLines([
+      { ...base, product_id: 'x', line_total: '10.00', payee_label: 'pilot' },
+      { ...base, product_id: 'y', line_total: '5.50', payee_label: 'pilot', payment_note: 'Cash.' },
+      { ...base, product_id: 'z', line_total: '20.00', payee_label: 'photographer' },
+    ])
+    expect(groups.map((g) => [g.payeeLabel, g.total, g.paymentNote])).toEqual([
+      ['pilot', '15.50', 'Cash.'],
+      ['photographer', '20.00', null],
+    ])
   })
 })
 

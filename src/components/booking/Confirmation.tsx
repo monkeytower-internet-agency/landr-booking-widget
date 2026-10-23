@@ -30,7 +30,8 @@ import { PeriodsTable } from './PeriodsTable'
 import { sanitizePostBookingHtml } from './postBookingSanitize'
 import { PriceBreakdown } from './PriceBreakdown'
 import { savingRows } from './savingRows'
-import { formatMoney, splitLineItems } from './priceSidebarHelpers'
+import { PerformerPaySections } from './PerformerPaySections'
+import { formatMoney, groupPerformerLines, splitLineItems } from './priceSidebarHelpers'
 import {
   bookedRefLabel,
   bookedTogetherMemberLabel,
@@ -42,6 +43,7 @@ import {
   ownAccommodationNoRoomLabel,
   sendBookingLinkToLabel,
   tr,
+  fmt,
   holdHeldLabel,
   holdNotHeldLabel,
   holdRequestedLabel,
@@ -51,6 +53,12 @@ import { formatHoldDeadline } from '@/lib/seatHold'
 interface Props {
   response: SubmitBookingResponse
   onRestart: () => void
+  /**
+   * The operator's display name (OperatorSettings.name), used in the
+   * "contact <operator> to change your activity" hint. Optional: absent or
+   * blank falls back to the generic "the operator" wording.
+   */
+  operatorName?: string | null
   /**
    * landr-otml0.4: true when the booker chose the shared-double
    * accommodation mode (AccommodationStep) for THIS booking. Threaded
@@ -846,7 +854,8 @@ function SavingsCongratsCard({
  */
 function ConfirmationPriceBreakdown({ summary }: { summary: BookingSummary }) {
   const locale = browserLocale()
-  const { operator, hotel } = splitLineItems(summary.line_items)
+  const { operator, hotel, performer } = splitLineItems(summary.line_items)
+  const performerGroups = groupPerformerLines(performer)
   // landr-1l6hl.5: line items stay list-priced; a special price / offer
   // discount (or a legacy override) is explained as a row, never left as an
   // unexplained gap between the lines and the amount due.
@@ -905,6 +914,13 @@ function ConfirmationPriceBreakdown({ summary }: { summary: BookingSummary }) {
             </span>
           </div>
         </div>
+      ) : null}
+      {performerGroups.length > 0 ? (
+        <PerformerPaySections
+          groups={performerGroups}
+          currency={summary.currency}
+          testIdPrefix="confirmation"
+        />
       ) : null}
     </div>
   )
@@ -977,6 +993,7 @@ export function Confirmation({
   onRestart,
   isSharedDouble,
   shareReferenceEnabled = false,
+  operatorName = null,
 }: Props) {
   const locale = browserLocale()
   /**
@@ -1015,6 +1032,8 @@ export function Confirmation({
   // section below built from it (steps 3/4/5/7) is skipped wholesale in
   // that case, rendering exactly today's content (graceful degrade).
   const summary = response.summary ?? null
+  const changeHintOperator =
+    operatorName?.trim() || summary?.operator_name?.trim() || null
   const showCongrats =
     summary !== null && !staff.active && !summary.price_overridden &&
     summary.multi_day_savings !== null
@@ -1274,6 +1293,19 @@ export function Confirmation({
             only when the booker never entered/confirmed one at all. */}
         {showSharedDoubleHint ? (
           <SharedDoubleHint customerPageUrl={response.customer_page_url} />
+        ) : null}
+
+        {/* Customers cannot swap the booked activity themselves — only the
+            operator can. Customer-facing only (staff bookings omit it). */}
+        {!staff.active ? (
+          <p
+            className="text-sm text-muted-foreground"
+            data-testid="confirmation-change-activity-hint"
+          >
+            {changeHintOperator
+              ? fmt(tr('changeActivityHint', locale), { operator: changeHintOperator })
+              : tr('changeActivityHintNoOperator', locale)}
+          </p>
         ) : null}
 
         {/*

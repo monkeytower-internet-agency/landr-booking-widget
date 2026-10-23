@@ -98,7 +98,7 @@ describe('ServiceAddonsStep (landr-cip6)', () => {
     ])
   })
 
-  it('shows the orange overbook warning when qty > 1 (parent qty is implicitly 1)', async () => {
+  it('shows no room-based overbook warning when qty > 1 (service add-on; Continue stays enabled)', async () => {
     mocks.getProductAddons.mockResolvedValue([
       makeAddon({ addon_product_id: 'video-1', name: 'Video Package' }),
     ])
@@ -119,9 +119,70 @@ describe('ServiceAddonsStep (landr-cip6)', () => {
     fireEvent.click(plus)
     fireEvent.click(plus)
 
-    expect(screen.getByTestId('addon-overbook-video-1')).toBeInTheDocument()
-    // Continue must still be enabled — overbook warning is non-blocking.
+    // landr-anq5s: no room context -> no "than this room sleeps" hint.
+    expect(screen.queryByTestId('addon-overbook-video-1')).toBeNull()
+    expect(document.body.textContent).not.toMatch(/than this room sleeps/i)
     expect(screen.getByRole('button', { name: /Continue/i })).not.toBeDisabled()
+    expect(screen.getByRole('button', { name: /Continue/i })).not.toBeDisabled()
+  })
+
+  it('lifts the live selection via onLiveAddonsChange before Continue (landr-hzovu.9)', async () => {
+    mocks.getProductAddons.mockResolvedValue([
+      makeAddon({ addon_product_id: 'video-1', name: 'Video Package' }),
+    ])
+    const onLive = vi.fn()
+    const onConfirm = vi.fn()
+
+    render(
+      <ServiceAddonsStep
+        product={makeProduct()}
+        onLiveAddonsChange={onLive}
+        onBack={vi.fn()}
+        onConfirm={onConfirm}
+      />,
+    )
+
+    await waitFor(() =>
+      expect(screen.getByText('Video Package')).toBeInTheDocument(),
+    )
+    // Catalogue loaded with nothing picked: an empty live selection.
+    expect(onLive).toHaveBeenLastCalledWith([])
+
+    const plus = screen.getByRole('button', { name: /Increase Video Package/i })
+    fireEvent.click(plus)
+    fireEvent.click(plus)
+
+    expect(onLive).toHaveBeenLastCalledWith([
+      { productId: 'video-1', quantity: 2, productKind: 'service' },
+    ])
+    expect(onConfirm).not.toHaveBeenCalled()
+  })
+
+  it('reports restored and required-seeded add-ons live on mount (landr-hzovu.9)', async () => {
+    mocks.getProductAddons.mockResolvedValue([
+      makeAddon({
+        addon_product_id: 'insurance-1',
+        name: 'Insurance',
+        is_required: true,
+        min_qty: 1,
+      }),
+    ])
+    const onLive = vi.fn()
+
+    render(
+      <ServiceAddonsStep
+        product={makeProduct()}
+        onLiveAddonsChange={onLive}
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    )
+
+    await waitFor(() =>
+      expect(onLive).toHaveBeenLastCalledWith([
+        { productId: 'insurance-1', quantity: 1, productKind: 'service' },
+      ]),
+    )
   })
 
   it('blocks Continue when a required add-on is below min_qty', async () => {

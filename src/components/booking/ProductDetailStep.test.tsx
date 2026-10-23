@@ -310,6 +310,41 @@ describe('ProductDetailStep price notes (landr-bwm91.4)', () => {
     )
   })
 
+  it('shows a named note with its description behind a chevron, also as hover text', () => {
+    renderStep(
+      makeProduct({
+        ...notes,
+        price_notes: [
+          {
+            kind: 'surcharge', label: 'Weekends', amount: '20', amount_type: 'flat', per_participant: true,
+            weekdays: [6, 7], name: 'Weekend surcharge',
+            description: 'Our pilots earn a little bit more during the weekend.',
+          },
+        ],
+      }),
+    )
+    const el = screen.getByTestId('product-detail-price-notes')
+    expect(el.textContent).toBe('Base price €150 · Weekend surcharge +€20')
+    const note = screen.getByTestId('product-detail-price-note')
+    expect(note).toHaveAttribute('title', 'Our pilots earn a little bit more during the weekend.')
+    expect(screen.queryByTestId('product-detail-price-note-description')).toBeNull()
+    const toggle = screen.getByRole('button', { name: 'Show details about Weekend surcharge' })
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    fireEvent.click(toggle)
+    expect(screen.getByTestId('product-detail-price-note-description')).toHaveTextContent(
+      'Our pilots earn a little bit more during the weekend.',
+    )
+    expect(screen.getByRole('button', { name: 'Hide details about Weekend surcharge' })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    )
+  })
+
+  it('has no chevron for a note without a description', () => {
+    renderStep(makeProduct(notes))
+    expect(screen.queryByRole('button', { name: /details about/i })).toBeNull()
+  })
+
   it('renders nothing when there are no notes or the field is absent', () => {
     renderStep(makeProduct({ price_base: '150.00', price_notes: [] }))
     expect(screen.queryByTestId('product-detail-price-notes')).toBeNull()

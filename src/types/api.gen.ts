@@ -4389,13 +4389,31 @@ export interface paths {
         /**
          * Switch Booking Product
          * @description Replace a line's product with another of the same kind
-         *     (landr-d7ij2.3) — same days and quantity, re-priced.
+         *     (landr-d7ij2.3; activities landr-nnwlq.1) — room -> room or activity ->
+         *     activity, same days and quantity, re-priced.
          *
          *     ``dry_run=true`` writes nothing (confirm dialog). The old product shows
          *     in ``removed_lines``, the new one in ``added_lines`` (or, merged into a
-         *     line of that product the booking already holds, in ``changed_lines``).
+         *     line of that product the booking already holds, in ``changed_lines``);
+         *     ``old_product`` / ``new_product`` name both and
+         *     ``switched_booking_product_id`` the line that carries the new product
+         *     (a new id when the line had to be recreated). Each commit is recorded in
+         *     ``booking_product_change_events``.
          *     ``PATCH .../products/{booking_product_id}`` with ``{"product_id"}`` runs
          *     the same commit. Same guards and 409s as ``POST .../products``.
+         *
+         *     422s: ``line_not_switchable`` (an add-on line), ``product_not_addable``
+         *     (``reason`` ``kind_mismatch`` for activity <-> room, ``not_accommodation``,
+         *     ``inactive``), ``same_product``, ``addon_not_offered`` /
+         *     ``addon_not_addable``, ``un_priceable``, ``product_already_on_booking``
+         *     and ``dates_not_valid_for_product`` — ``{error, message, product_id,
+         *     service_time_shape, reason, days}`` where ``days`` are the offending ISO
+         *     days and ``reason`` one of ``single_date_required``,
+         *     ``contiguous_range_required``, ``fixed_window_mismatch`` (+ ``windows``),
+         *     ``day_not_offered``, ``time_slot_unsupported``,
+         *     ``daily_slots_unsupported``. 409s: ``booking_locked_for_edit``,
+         *     ``capacity_exceeded`` (``conflicts``; pass the days as ``forced_days``),
+         *     ``line_changed`` (the line changed since it was read).
          */
         post: operations["staff_switch_booking_product"];
         delete?: never;
@@ -11903,7 +11921,7 @@ export interface components {
              * Reason
              * @enum {string}
              */
-            reason: "requested" | "follows_room" | "follows_stay";
+            reason: "requested" | "follows_room" | "follows_stay" | "follows_product";
             /** Selected Days */
             selected_days: string[];
         };
@@ -11936,7 +11954,7 @@ export interface components {
              * Reason
              * @enum {string}
              */
-            reason: "requested" | "follows_room" | "follows_stay";
+            reason: "requested" | "follows_room" | "follows_stay" | "follows_product";
             /** Selected Days After */
             selected_days_after: string[];
             /** Selected Days Before */
@@ -11972,8 +11990,10 @@ export interface components {
              * @default false
              */
             hotel_will_be_notified: boolean;
+            new_product?: components["schemas"]["BookingLineProductRef"] | null;
             /** Notification Kind */
             notification_kind?: ("cancellation" | "modification" | "request") | null;
+            old_product?: components["schemas"]["BookingLineProductRef"] | null;
             /** Override Gross Total */
             override_gross_total?: string | null;
             /**
@@ -11990,6 +12010,8 @@ export interface components {
             removed_lines?: components["schemas"]["BookingLineEditLine"][];
             /** Stage After */
             stage_after?: string | null;
+            /** Switched Booking Product Id */
+            switched_booking_product_id?: string | null;
             /** Totals After */
             totals_after: {
                 [key: string]: string;
@@ -11998,6 +12020,22 @@ export interface components {
             totals_before: {
                 [key: string]: string;
             };
+        };
+        /**
+         * BookingLineProductRef
+         * @description A product a ``switch`` moves a line from / to (landr-nnwlq.1).
+         */
+        BookingLineProductRef: {
+            /** Is Addon Only */
+            is_addon_only: boolean;
+            /** Product Id */
+            product_id: string;
+            /** Product Kind */
+            product_kind: string;
+            /** Product Name */
+            product_name: string;
+            /** Service Time Shape */
+            service_time_shape?: string | null;
         };
         /**
          * BookingNoteIn
@@ -12180,6 +12218,8 @@ export interface components {
             participant_count: number;
             /** Participants */
             participants?: components["schemas"]["BookingSummaryParticipant"][];
+            /** Performer Total */
+            performer_total?: string | null;
             /** Periods */
             periods?: {
                 [key: string]: unknown;
@@ -13206,6 +13246,11 @@ export interface components {
             original_total: string;
             /** Paying Count */
             paying_count: number;
+            /**
+             * Performer Total
+             * @default 0
+             */
+            performer_total: string;
             /** Periods */
             periods?: {
                 [key: string]: unknown;
@@ -14116,8 +14161,15 @@ export interface components {
             label: string;
             /** Line Total */
             line_total: string;
-            /** Paid To */
-            paid_to: string;
+            /**
+             * Paid To
+             * @enum {string}
+             */
+            paid_to: "operator" | "hotel" | "performer";
+            /** Payee Label */
+            payee_label?: string | null;
+            /** Payment Note */
+            payment_note?: string | null;
             /** Product Id */
             product_id: string;
             /** Qty */
@@ -14170,6 +14222,8 @@ export interface components {
             multi_day_savings?: components["schemas"]["MultiDaySavingsOut"] | null;
             /** Operator Total */
             operator_total: string;
+            /** Performer Total */
+            performer_total: string;
             /** Savings */
             savings?: components["schemas"]["SavingLineOut"][] | null;
             /** Savings Total */
@@ -16190,9 +16244,13 @@ export interface components {
              * Paid To
              * @enum {string}
              */
-            paid_to: "operator" | "hotel";
+            paid_to: "operator" | "hotel" | "performer";
             /** Participants */
             participants?: number | null;
+            /** Payee Label */
+            payee_label?: string | null;
+            /** Payment Note */
+            payment_note?: string | null;
             /** Per Person Price */
             per_person_price?: number | null;
             /** Product Id */
@@ -16500,6 +16558,12 @@ export interface components {
             operator_net_total?: number | null;
             /** Operator Tax Total */
             operator_tax_total?: number | null;
+            /** Performer Gross Total */
+            performer_gross_total?: number | null;
+            /** Performer Net Total */
+            performer_net_total?: number | null;
+            /** Performer Tax Total */
+            performer_tax_total?: number | null;
             /** Tax Total */
             tax_total: number;
         } & {
@@ -16574,8 +16638,6 @@ export interface components {
             public_contact_email?: string | null;
             /** Region */
             region?: string | null;
-            /** Require Declarations */
-            require_declarations?: boolean | null;
             /** Show Premium Teasers */
             show_premium_teasers?: boolean | null;
             /** Street */
@@ -17373,6 +17435,12 @@ export interface components {
              * @enum {string}
              */
             amount_type: "flat" | "percent";
+            /** Description */
+            description?: string | null;
+            /** Description Localized */
+            description_localized?: {
+                [key: string]: string;
+            } | null;
             /**
              * Kind
              * @enum {string}
@@ -17380,6 +17448,12 @@ export interface components {
             kind: "surcharge" | "discount";
             /** Label */
             label: string;
+            /** Name */
+            name?: string | null;
+            /** Name Localized */
+            name_localized?: {
+                [key: string]: string;
+            } | null;
             /**
              * Per Participant
              * @default false
@@ -17499,6 +17573,11 @@ export interface components {
             /** Id */
             id: string;
             /**
+             * Is Addon Only
+             * @default false
+             */
+            is_addon_only: boolean;
+            /**
              * Is Publicly Listed
              * @default false
              */
@@ -17530,8 +17609,13 @@ export interface components {
             label: string;
             /** Line Total */
             line_total: string;
-            /** Paid To */
-            paid_to: string;
+            /**
+             * Paid To
+             * @enum {string}
+             */
+            paid_to: "operator" | "hotel" | "performer";
+            /** Payment Note */
+            payment_note?: string | null;
             /** Product Id */
             product_id: string;
             /** Qty */
@@ -17573,6 +17657,8 @@ export interface components {
             } | null;
             /** Operator Total */
             operator_total: string;
+            /** Performer Total */
+            performer_total: string;
             /** Price Adjustment */
             price_adjustment?: {
                 [key: string]: string;
@@ -17875,6 +17961,14 @@ export interface components {
         ProductAddon: {
             /** Addon Product Id */
             addon_product_id: string;
+            /** Addon Quantity Max */
+            addon_quantity_max?: number | null;
+            /**
+             * Addon Quantity Rule
+             * @default any
+             * @enum {string}
+             */
+            addon_quantity_rule: "one_per_booking" | "one_per_participant" | "any";
             /**
              * Available
              * @default true
@@ -18131,6 +18225,10 @@ export interface components {
              * @default true
              */
             active: boolean;
+            /** Addon Quantity Max */
+            addon_quantity_max?: number | null;
+            /** Addon Quantity Rule */
+            addon_quantity_rule?: ("one_per_booking" | "one_per_participant" | "any") | null;
             /**
              * Booking Mode
              * @default scheduled
@@ -18217,15 +18315,18 @@ export interface components {
              * @default 2
              */
             on_request_daily_capacity: number;
+            /** Paid To */
+            paid_to?: ("operator" | "hotel" | "performer") | null;
+            /** Payment Note Localized */
+            payment_note_localized?: {
+                [key: string]: unknown;
+            } | null;
             /** Product Group Id */
             product_group_id?: string | null;
             /** Product Kind */
             product_kind?: ("service" | "subscription" | "hotel_room" | "digital_good" | "physical_good" | "gift_card") | null;
-            /**
-             * Revenue Flows Through Operator
-             * @default true
-             */
-            revenue_flows_through_operator: boolean;
+            /** Revenue Flows Through Operator */
+            revenue_flows_through_operator?: boolean | null;
             /** Service Time Shape */
             service_time_shape?: ("single_date" | "days_range" | "fixed_window" | "time_slot") | null;
             /**
@@ -18282,6 +18383,10 @@ export interface components {
             accommodation_lead_time_minutes?: number | null;
             /** Active */
             active?: boolean | null;
+            /** Addon Quantity Max */
+            addon_quantity_max?: number | null;
+            /** Addon Quantity Rule */
+            addon_quantity_rule?: ("one_per_booking" | "one_per_participant" | "any") | null;
             /** Booking Mode */
             booking_mode?: ("scheduled" | "on_request") | null;
             /** Briefing Content */
@@ -18340,6 +18445,12 @@ export interface components {
             needs_provider?: boolean | null;
             /** On Request Daily Capacity */
             on_request_daily_capacity?: number | null;
+            /** Paid To */
+            paid_to?: ("operator" | "hotel" | "performer") | null;
+            /** Payment Note Localized */
+            payment_note_localized?: {
+                [key: string]: unknown;
+            } | null;
             /** Product Group Id */
             product_group_id?: string | null;
             /** Product Kind */
@@ -20218,6 +20329,8 @@ export interface components {
         SavingLineOut: {
             /** Amount */
             amount: string;
+            /** Description */
+            description?: string | null;
             /** Kind */
             kind: string;
             /** Label */
