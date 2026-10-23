@@ -530,6 +530,9 @@ export const mockOperatorServiceRoles = (
  */
 const MOCK_VIDEO_ADDON_ID = '00000000-0000-0000-0000-000000000401'
 const MOCK_BREAKFAST_ADDON_ID = '00000000-0000-0000-0000-000000000402'
+// landr-hzovu.14: a pilot-paid (paid_to='performer') add-on, so the dev mock
+// flow exercises the "Paid to your Tandem pilot" block.
+const MOCK_PILOT_PHOTOS_ADDON_ID = '00000000-0000-0000-0000-000000000403'
 
 export const mockProductAddons = (productId: string): ProductAddon[] => {
   // Service example: Tandem Long → Video Package (optional).
@@ -545,6 +548,19 @@ export const mockProductAddons = (productId: string): ProductAddon[] => {
         max_qty: null,
         sort_order: 10,
         price_per_unit: 39,
+        currency: 'EUR',
+        product_kind: 'service',
+      },
+      {
+        product_addon_id: 'mock-addon-2',
+        addon_product_id: MOCK_PILOT_PHOTOS_ADDON_ID,
+        name: 'Pilot Photos',
+        name_localized: { en: 'Pilot Photos', de: 'Pilotenfotos' },
+        is_required: false,
+        min_qty: 0,
+        max_qty: null,
+        sort_order: 20,
+        price_per_unit: 25,
         currency: 'EUR',
         product_kind: 'service',
       },
@@ -693,13 +709,14 @@ export const mockEstimate = (
   const lineItems: EstimateResponse['line_items'] = []
   const rules: EstimateResponse['applied_rules'] = []
   const days = body.selected_days.length
-  const productMap: Record<string, { name: string; price: number; kind: 'service' | 'hotel_room' | 'addon'; paidTo: 'operator' | 'hotel' }> = {
+  const productMap: Record<string, { name: string; price: number; kind: 'service' | 'hotel_room' | 'addon'; paidTo: 'operator' | 'hotel' | 'performer' }> = {
     '00000000-0000-0000-0000-000000000001': { name: 'Tandem Classic', price: 60, kind: 'service', paidTo: 'operator' },
     '00000000-0000-0000-0000-000000000002': { name: 'Tandem Long', price: 80, kind: 'service', paidTo: 'operator' },
     '00000000-0000-0000-0000-000000000101': { name: 'Single Room', price: 49, kind: 'hotel_room', paidTo: 'hotel' },
     '00000000-0000-0000-0000-000000000102': { name: 'Double Room', price: 73, kind: 'hotel_room', paidTo: 'hotel' },
     '00000000-0000-0000-0000-000000000401': { name: 'Video Package', price: 39, kind: 'addon', paidTo: 'operator' },
     '00000000-0000-0000-0000-000000000402': { name: 'Breakfast', price: 10, kind: 'addon', paidTo: 'hotel' },
+    '00000000-0000-0000-0000-000000000403': { name: 'Pilot Photos', price: 25, kind: 'addon', paidTo: 'performer' },
   }
   const main = productMap[productId]
   // Multi-day streak saving: €30/day off the base rate for a 3+ day
@@ -741,19 +758,24 @@ export const mockEstimate = (
       unit_price: a.price.toFixed(2),
       line_total: lineTotal,
       paid_to: a.paidTo,
+      ...(a.paidTo === 'performer' ? { payee_label: 'Tandem pilot' } : {}),
     })
   }
   let opTotal = 0
   let hotelTotal = 0
+  let performerTotal = 0
   for (const li of lineItems) {
     const v = Number(li.line_total)
     if (li.paid_to === 'operator') opTotal += v
+    else if (li.paid_to === 'performer') performerTotal += v
     else hotelTotal += v
   }
   return {
     line_items: lineItems,
     operator_total: opTotal.toFixed(2),
     hotel_total: hotelTotal.toFixed(2),
+    performer_total: performerTotal.toFixed(2),
+    // Performer money is paid on the day, outside the booking total.
     grand_total: (opTotal + hotelTotal).toFixed(2),
     currency: 'EUR',
     applied_rules: rules,
