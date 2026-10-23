@@ -12180,6 +12180,8 @@ export interface components {
             participant_count: number;
             /** Participants */
             participants?: components["schemas"]["BookingSummaryParticipant"][];
+            /** Performer Total */
+            performer_total?: string | null;
             /** Periods */
             periods?: {
                 [key: string]: unknown;
@@ -13206,6 +13208,11 @@ export interface components {
             original_total: string;
             /** Paying Count */
             paying_count: number;
+            /**
+             * Performer Total
+             * @default 0
+             */
+            performer_total: string;
             /** Periods */
             periods?: {
                 [key: string]: unknown;
@@ -14116,8 +14123,15 @@ export interface components {
             label: string;
             /** Line Total */
             line_total: string;
-            /** Paid To */
-            paid_to: string;
+            /**
+             * Paid To
+             * @enum {string}
+             */
+            paid_to: "operator" | "hotel" | "performer";
+            /** Payee Label */
+            payee_label?: string | null;
+            /** Payment Note */
+            payment_note?: string | null;
             /** Product Id */
             product_id: string;
             /** Qty */
@@ -14170,6 +14184,8 @@ export interface components {
             multi_day_savings?: components["schemas"]["MultiDaySavingsOut"] | null;
             /** Operator Total */
             operator_total: string;
+            /** Performer Total */
+            performer_total: string;
             /** Savings */
             savings?: components["schemas"]["SavingLineOut"][] | null;
             /** Savings Total */
@@ -16190,7 +16206,7 @@ export interface components {
              * Paid To
              * @enum {string}
              */
-            paid_to: "operator" | "hotel";
+            paid_to: "operator" | "hotel" | "performer";
             /** Participants */
             participants?: number | null;
             /** Per Person Price */
@@ -16500,6 +16516,12 @@ export interface components {
             operator_net_total?: number | null;
             /** Operator Tax Total */
             operator_tax_total?: number | null;
+            /** Performer Gross Total */
+            performer_gross_total?: number | null;
+            /** Performer Net Total */
+            performer_net_total?: number | null;
+            /** Performer Tax Total */
+            performer_tax_total?: number | null;
             /** Tax Total */
             tax_total: number;
         } & {
@@ -17530,8 +17552,13 @@ export interface components {
             label: string;
             /** Line Total */
             line_total: string;
-            /** Paid To */
-            paid_to: string;
+            /**
+             * Paid To
+             * @enum {string}
+             */
+            paid_to: "operator" | "hotel" | "performer";
+            /** Payment Note */
+            payment_note?: string | null;
             /** Product Id */
             product_id: string;
             /** Qty */
@@ -17573,6 +17600,8 @@ export interface components {
             } | null;
             /** Operator Total */
             operator_total: string;
+            /** Performer Total */
+            performer_total: string;
             /** Price Adjustment */
             price_adjustment?: {
                 [key: string]: string;
@@ -18217,6 +18246,12 @@ export interface components {
              * @default 2
              */
             on_request_daily_capacity: number;
+            /** Paid To */
+            paid_to?: ("operator" | "hotel" | "performer") | null;
+            /** Payment Note Localized */
+            payment_note_localized?: {
+                [key: string]: unknown;
+            } | null;
             /** Product Group Id */
             product_group_id?: string | null;
             /** Product Kind */
@@ -18340,6 +18375,12 @@ export interface components {
             needs_provider?: boolean | null;
             /** On Request Daily Capacity */
             on_request_daily_capacity?: number | null;
+            /** Paid To */
+            paid_to?: ("operator" | "hotel" | "performer") | null;
+            /** Payment Note Localized */
+            payment_note_localized?: {
+                [key: string]: unknown;
+            } | null;
             /** Product Group Id */
             product_group_id?: string | null;
             /** Product Kind */

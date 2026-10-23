@@ -2710,6 +2710,17 @@
             "title": "Participants",
             "type": "array"
           },
+          "performer_total": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Performer Total"
+          },
           "periods": {
             "items": {
               "additionalProperties": true,
@@ -5475,6 +5486,12 @@
             "title": "Paying Count",
             "type": "integer"
           },
+          "performer_total": {
+            "default": "0",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Performer Total",
+            "type": "string"
+          },
           "periods": {
             "items": {
               "additionalProperties": true,
@@ -7980,8 +7997,35 @@
             "type": "string"
           },
           "paid_to": {
+            "enum": [
+              "operator",
+              "hotel",
+              "performer"
+            ],
             "title": "Paid To",
             "type": "string"
+          },
+          "payee_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payee Label"
+          },
+          "payment_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payment Note"
           },
           "product_id": {
             "title": "Product Id",
@@ -8130,6 +8174,10 @@
             "title": "Operator Total",
             "type": "string"
           },
+          "performer_total": {
+            "title": "Performer Total",
+            "type": "string"
+          },
           "savings": {
             "anyOf": [
               {
@@ -8218,6 +8266,7 @@
         "required": [
           "operator_total",
           "hotel_total",
+          "performer_total",
           "grand_total",
           "currency"
         ],
@@ -13744,7 +13793,8 @@
           "paid_to": {
             "enum": [
               "operator",
-              "hotel"
+              "hotel",
+              "performer"
             ],
             "title": "Paid To",
             "type": "string"
@@ -14565,6 +14615,39 @@
               }
             ],
             "title": "Operator Tax Total"
+          },
+          "performer_gross_total": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Performer Gross Total"
+          },
+          "performer_net_total": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Performer Net Total"
+          },
+          "performer_tax_total": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Performer Tax Total"
           },
           "tax_total": {
             "title": "Tax Total",
@@ -17782,8 +17865,24 @@
             "type": "string"
           },
           "paid_to": {
+            "enum": [
+              "operator",
+              "hotel",
+              "performer"
+            ],
             "title": "Paid To",
             "type": "string"
+          },
+          "payment_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payment Note"
           },
           "product_id": {
             "title": "Product Id",
@@ -17888,6 +17987,10 @@
             "title": "Operator Total",
             "type": "string"
           },
+          "performer_total": {
+            "title": "Performer Total",
+            "type": "string"
+          },
           "price_adjustment": {
             "anyOf": [
               {
@@ -17964,6 +18067,7 @@
         "required": [
           "operator_total",
           "hotel_total",
+          "performer_total",
           "grand_total",
           "currency",
           "has_hotel"
@@ -19683,6 +19787,34 @@
             "title": "On Request Daily Capacity",
             "type": "integer"
           },
+          "paid_to": {
+            "anyOf": [
+              {
+                "enum": [
+                  "operator",
+                  "hotel",
+                  "performer"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paid To"
+          },
+          "payment_note_localized": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payment Note Localized"
+          },
           "product_group_id": {
             "anyOf": [
               {
@@ -20246,6 +20378,34 @@
               }
             ],
             "title": "On Request Daily Capacity"
+          },
+          "paid_to": {
+            "anyOf": [
+              {
+                "enum": [
+                  "operator",
+                  "hotel",
+                  "performer"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paid To"
+          },
+          "payment_note_localized": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payment Note Localized"
           },
           "product_group_id": {
             "anyOf": [
