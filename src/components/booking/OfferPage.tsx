@@ -39,6 +39,8 @@ import {
   type OfferPeriodRow,
 } from './offerDates'
 import { hasSaving } from './offerPositions'
+import { PerformerPaySections } from './PerformerPaySections'
+import { groupPerformerLines } from './priceSidebarHelpers'
 import { savingLabel, savingRows } from './savingRows'
 
 /**
@@ -807,6 +809,9 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
   // reproduces the pre-fix (whole-total) behavior rather than rendering a
   // broken figure. Same definition the ?paid=1 settled check uses (landr-6l7y).
   const chargeAmount = chargeRemaining(totals)
+  // The booking-wide gross counts the performer money too; the totals this
+  // page quotes (offer-mode Total, "total booking value") leave it out.
+  const bookingTotal = totals.gross_total - (totals.performer_gross_total ?? 0)
 
   // landr-kcxx5.4: accepting is gated on the customer's pending forms.
   const detailsT = pickBundle(locale)
@@ -833,10 +838,10 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
   const splitAvailable = mode === 'pay' && hasSplit
   const breakdownNet = splitAvailable
     ? (totals.operator_net_total as number)
-    : totals.net_total
+    : totals.net_total - (totals.performer_net_total ?? 0)
   const breakdownTax = splitAvailable
     ? (totals.operator_tax_total as number)
-    : totals.tax_total
+    : totals.tax_total - (totals.performer_tax_total ?? 0)
   const hotelAmount = totals.hotel_gross_total ?? 0
   // Name the at-hotel money only when we actually read it off the lines.
   const showHotelLine = splitAvailable && hotelAmount > 0
@@ -887,12 +892,31 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
   const showTotalBookingValue =
     mode === 'pay' &&
     !alreadySettled &&
-    totals.gross_total !== chargeAmount &&
+    bookingTotal !== chargeAmount &&
     !splitAvailable &&
     !offer.price_source
 
   // landr-1zkp7: per-line prices (absent on an older API => today's rendering)
-  const lineItems = offer.line_items ?? []
+  const allLineItems = offer.line_items ?? []
+  // landr-hzovu.14: performer (pilot / guide) lines are paid on the day, never
+  // part of the amount charged here -- they get their own "Paid to your
+  // {payee}" block below the breakdown and stay out of every row above it.
+  const performerItems = allLineItems.filter((li) => li.paid_to === 'performer')
+  const lineItems = allLineItems.filter((li) => li.paid_to !== 'performer')
+  const operatorLines = lineItems.filter((li) => li.paid_to !== 'hotel')
+  const performerGroups = groupPerformerLines(
+    performerItems.map((li) => ({
+      product_id: li.product_id,
+      label: li.label,
+      qty: li.qty,
+      units: li.units,
+      unit_price: li.unit_price.toFixed(2),
+      line_total: li.line_total.toFixed(2),
+      paid_to: 'performer' as const,
+      payee_label: li.payee_label,
+      payment_note: li.payment_note,
+    })),
+  )
   // landr-8f1sh.4: custom offer v2. With positions the breakdown lists the
   // OFFER (not the engine's line_items, which are the regular prices) and the
   // dates table follows the booking periods. No positions => today's page.
@@ -925,7 +949,7 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
         participants: null,
         per_person_price: null,
       }))
-    : lineItems.filter((li) => li.paid_to !== 'hotel')
+    : operatorLines
   const savingsLayout =
     mode === 'pay' &&
     explained != null &&
@@ -1738,7 +1762,7 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
                         className="px-4 py-1 text-right tabular-nums text-muted-foreground"
                         data-testid="offer-gross-total"
                       >
-                        {formatCurrency(totals.gross_total, currencyCode, locale)}
+                        {formatCurrency(bookingTotal, currencyCode, locale)}
                       </td>
                     </tr>
                   )}
@@ -1751,10 +1775,10 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
                       className="px-4 py-1.5 text-right tabular-nums font-semibold"
                       data-testid="offer-gross-total"
                     >
-                      {formatCurrency(totals.gross_total, currencyCode, locale)}
+                      {formatCurrency(bookingTotal, currencyCode, locale)}
                     </td>
                   </tr>
-                  {totals.balance_due !== totals.gross_total && (
+                  {totals.balance_due !== bookingTotal && (
                     <tr>
                       <td className="px-4 py-1 text-muted-foreground">
                         {tr('amountDueNowLabel', locale)}
@@ -1801,6 +1825,17 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
               <p className="mt-1 text-xs text-muted-foreground">
                 {tr('hotelSettledAtCheckin', locale)}
               </p>
+            </div>
+          )}
+          {/* landr-hzovu.14: money handed to the pilot / guide on the day --
+              outside the amount charged here, like the at-hotel block. */}
+          {performerGroups.length > 0 && (
+            <div className="mx-4 mb-4 mt-3 flex flex-col gap-2" data-testid="offer-performer-due">
+              <PerformerPaySections
+                groups={performerGroups}
+                currency={currencyCode}
+                testIdPrefix="offer"
+              />
             </div>
           )}
         </OfferSection>

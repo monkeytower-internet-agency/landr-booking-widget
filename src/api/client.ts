@@ -984,6 +984,10 @@ export interface OfferTotals {
   hotel_tax_total?: number | null
   hotel_net_total?: number | null
   has_hotel_lines?: boolean
+  /** landr-hzovu.4: lines paid directly to the pilot / guide (neither operator nor hotel money). */
+  performer_gross_total?: number | null
+  performer_tax_total?: number | null
+  performer_net_total?: number | null
 }
 
 /**
@@ -1028,7 +1032,12 @@ export interface OfferLineItem {
   units: number
   line_total: number
   unit_price: number
-  paid_to: 'operator' | 'hotel'
+  /** 'performer' (landr-hzovu.11): paid directly to the pilot / guide, not part of the amount charged online. */
+  paid_to: 'operator' | 'hotel' | 'performer'
+  /** Performer lines only: bare noun for the payee ("Tandem pilot"). Absent on an older API. */
+  payee_label?: string | null
+  /** Performer lines only: operator override replacing the standard caveat. */
+  payment_note?: string | null
   participants: number | null
   per_person_price: number | null
 }
