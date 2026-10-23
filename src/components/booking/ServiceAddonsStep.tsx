@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { getProductAddons } from '@/api/client'
 import type { Product, ProductAddon } from '@/api/types'
 import {
@@ -70,6 +70,15 @@ interface Props {
    */
   customerComment?: string
   onCustomerCommentChange?: (comment: string) => void
+  /**
+   * landr-hzovu.9: fires with the add-on lines currently picked (qty > 0) on
+   * every selection change once the catalogue has loaded — including the
+   * seeded required add-ons — so App.tsx can price the Booking overview
+   * before Continue. PriceSidebar debounces its own estimate call, so rapid
+   * stepper clicks coalesce there. Optional so existing callers/tests need no
+   * change.
+   */
+  onLiveAddonsChange?: (addons: AddonSelection[]) => void
   onBack: () => void
   onConfirm: (addons: AddonSelection[]) => void
 }
@@ -81,6 +90,7 @@ export function ServiceAddonsStep({
   participantCount,
   customerComment = '',
   onCustomerCommentChange = () => {},
+  onLiveAddonsChange,
   onBack,
   onConfirm,
 }: Props) {
@@ -146,6 +156,18 @@ export function ServiceAddonsStep({
       if (requiredAddonError(a, qty) !== null) return true
     }
     return false
+  }, [addons, selection])
+
+  // landr-hzovu.9: lift the live selection so the sidebar total tracks it.
+  // The callback lives in a ref so a parent re-render with a fresh inline
+  // function doesn't re-fire the effect; only a real selection change does.
+  const onLiveAddonsChangeRef = useRef(onLiveAddonsChange)
+  useEffect(() => {
+    onLiveAddonsChangeRef.current = onLiveAddonsChange
+  })
+  useEffect(() => {
+    if (addons === null) return
+    onLiveAddonsChangeRef.current?.(selectionToLines(selection, addons))
   }, [addons, selection])
 
   const canContinue = addons !== null && !unmetRequired
