@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import type { SavingLine } from '@/api/types'
 import { PriceBreakdown } from './PriceBreakdown'
@@ -137,5 +137,30 @@ describe('PriceBreakdown', () => {
     expect(screen.getByTestId('test-surcharge')).toHaveTextContent('Weekend surcharge')
     expect(screen.queryByTestId('test-savings')).not.toBeInTheDocument()
     expect(screen.getByTestId('test-amount-due')).toHaveTextContent('170')
+  })
+})
+
+describe('PriceBreakdown named adjustments (landr-soewf)', () => {
+  it('shows the operator name on the row and opens its description with a chevron', () => {
+    render(
+      <PriceBreakdown
+        amountDue="120.00"
+        currency="EUR"
+        subtotalBeforeSavings="110.00"
+        subtotalBeforeSurcharges="100.00"
+        surcharges={[
+          { kind: 'surcharge', label: 'Wochenend-Zuschlag', amount: '20.00', description: 'Etwas mehr am Wochenende.' },
+        ]}
+        savings={[{ kind: 'discount', label: 'Early Bird', amount: '10.00' }]}
+        testIdPrefix="t"
+      />,
+    )
+    expect(screen.getByTestId('t-surcharge')).toHaveTextContent('+ Wochenend-Zuschlag')
+    expect(screen.getByTestId('t-saving')).toHaveTextContent('− Early Bird')
+    // No description -> no chevron on the discount row.
+    expect(screen.getAllByRole('button')).toHaveLength(1)
+    expect(screen.queryByText('Etwas mehr am Wochenende.')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Show details about Wochenend-Zuschlag' }))
+    expect(screen.getByText('Etwas mehr am Wochenende.')).toBeInTheDocument()
   })
 })

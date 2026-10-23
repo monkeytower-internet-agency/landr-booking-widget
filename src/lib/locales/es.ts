@@ -30,6 +30,8 @@ export const es: Bundle = {
   priceNoteWeekends: 'Fines de semana',
   priceNoteWeekdays: 'Días laborables',
   priceNoteStartTemplate: 'Salida a las {time}',
+  priceNoteDetailsShow: 'Mostrar detalles sobre {name}',
+  priceNoteDetailsHide: 'Ocultar detalles sobre {name}',
   priceFromTemplate: 'desde {price}',
   singleDatePickerCue: 'elige una fecha',
   multiDayPickerCue: 'elige tus fechas',

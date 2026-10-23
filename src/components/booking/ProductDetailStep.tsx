@@ -21,6 +21,7 @@
  * the hero — so this component hides its own <h2> for aurora to avoid a
  * duplicate title).
  */
+import { Fragment } from 'react'
 import ReactMarkdown from 'react-markdown'
 import type { Product } from '@/api/types'
 import { Button } from '@/components/ui/button'
@@ -32,7 +33,8 @@ import { FullyBookedNotice } from '@/components/booking/FullyBookedNotice'
 import { ProductGallery } from '@/components/booking/detail/ProductGallery'
 import { ProductFacts } from '@/components/booking/detail/ProductFacts'
 import { formatPriceFrom } from '@/components/booking/detail/priceFromLabel'
-import { formatPriceNotes } from '@/components/booking/detail/priceNotes'
+import { priceNoteItems } from '@/components/booking/detail/priceNotes'
+import { DescribedLabel } from '@/components/booking/DescribedLabel'
 import { tr } from '@/lib/strings'
 import { NextAction } from '@/components/booking/NextAction'
 
@@ -83,7 +85,7 @@ export function ProductDetailStep({
   const bookable = isBookable(product)
   const priceLabel = formatPriceFrom(product.price_from, product.currency, locale)
   // landr-bwm91.4: base + visible adjustments; [] (nothing rendered) when none.
-  const priceNotes = formatPriceNotes(product, locale)
+  const priceNotes = priceNoteItems(product, locale)
   const images = product.images ?? []
   // landr-u4fl follow-up (user report): the detail page rendered ONLY the
   // long `description`, so products carrying just a `short_description`
@@ -165,7 +167,17 @@ export function ProductDetailStep({
           className="text-sm text-muted-foreground"
           data-testid="product-detail-price-notes"
         >
-          {priceNotes.join(' \u00b7 ')}
+          {priceNotes.map((note, idx) => (
+            <Fragment key={`${note.text}-${idx}`}>
+              {idx > 0 ? ' \u00b7 ' : null}
+              <DescribedLabel
+                text={note.text}
+                name={note.label}
+                description={note.description}
+                testId="product-detail-price-note"
+              />
+            </Fragment>
+          ))}
         </p>
       ) : null}
 

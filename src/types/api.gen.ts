@@ -17437,6 +17437,12 @@ export interface components {
              * @enum {string}
              */
             amount_type: "flat" | "percent";
+            /** Description */
+            description?: string | null;
+            /** Description Localized */
+            description_localized?: {
+                [key: string]: string;
+            } | null;
             /**
              * Kind
              * @enum {string}
@@ -17444,6 +17450,12 @@ export interface components {
             kind: "surcharge" | "discount";
             /** Label */
             label: string;
+            /** Name */
+            name?: string | null;
+            /** Name Localized */
+            name_localized?: {
+                [key: string]: string;
+            } | null;
             /**
              * Per Participant
              * @default false
@@ -20319,6 +20331,8 @@ export interface components {
         SavingLineOut: {
             /** Amount */
             amount: string;
+            /** Description */
+            description?: string | null;
             /** Kind */
             kind: string;
             /** Label */

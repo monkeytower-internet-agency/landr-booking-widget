@@ -32,6 +32,8 @@ export const de: Bundle = {
   priceNoteWeekends: 'Wochenende',
   priceNoteWeekdays: 'Werktage',
   priceNoteStartTemplate: 'Start {time}',
+  priceNoteDetailsShow: 'Details zu {name} anzeigen',
+  priceNoteDetailsHide: 'Details zu {name} ausblenden',
   priceFromTemplate: 'ab {price}',
   singleDatePickerCue: 'Datum wählen',
   multiDayPickerCue: 'Ihre Termine wählen',
