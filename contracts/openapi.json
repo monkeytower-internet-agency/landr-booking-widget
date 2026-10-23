@@ -13810,6 +13810,28 @@
             ],
             "title": "Participants"
           },
+          "payee_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payee Label"
+          },
+          "payment_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payment Note"
+          },
           "per_person_price": {
             "anyOf": [
               {
