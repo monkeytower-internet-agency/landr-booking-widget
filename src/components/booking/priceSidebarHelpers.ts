@@ -82,18 +82,59 @@ export function formatMoney(amount: string, currency: string, locale?: string): 
 export const UN_PRICEABLE_MESSAGE =
   "Pricing for this selection isn't available right now — please contact us."
 
-/** Partition the line items into operator-paid vs hotel-paid groups. */
+/**
+ * Partition the line items by who the customer pays: the operator at
+ * checkout, the hotel at check-in, or the performer (pilot / guide) on the
+ * day (landr-hzovu.5). An unknown / missing `paid_to` (older API) counts as
+ * operator-paid, as before.
+ */
 export function splitLineItems(items: EstimateLineItem[]): {
   operator: EstimateLineItem[]
   hotel: EstimateLineItem[]
+  performer: EstimateLineItem[]
 } {
   const operator: EstimateLineItem[] = []
   const hotel: EstimateLineItem[] = []
+  const performer: EstimateLineItem[] = []
   for (const li of items) {
     if (li.paid_to === 'hotel') hotel.push(li)
+    else if (li.paid_to === 'performer') performer.push(li)
     else operator.push(li)
   }
-  return { operator, hotel }
+  return { operator, hotel, performer }
+}
+
+/** One "paid to your {payee}" block: the performer lines sharing a payee label. */
+export interface PerformerGroup {
+  /** Bare noun ("Tandem pilot"); null on an older API (callers fall back). */
+  payeeLabel: string | null
+  /** Operator override replacing the standard caveat, when set on any line. */
+  paymentNote: string | null
+  lines: EstimateLineItem[]
+  /** Decimal string, the sum of the lines' totals. */
+  total: string
+}
+
+/**
+ * Group performer lines by payee label (a booking can hold a pilot line and
+ * a photographer line; each is paid to someone different, so each gets its
+ * own heading + subtotal). First-seen order.
+ */
+export function groupPerformerLines(lines: EstimateLineItem[]): PerformerGroup[] {
+  const groups = new Map<string, PerformerGroup>()
+  for (const li of lines) {
+    const label = li.payee_label?.trim() || null
+    const key = label ?? ''
+    let g = groups.get(key)
+    if (!g) {
+      g = { payeeLabel: label, paymentNote: null, lines: [], total: '0.00' }
+      groups.set(key, g)
+    }
+    g.lines.push(li)
+    if (!g.paymentNote && li.payment_note?.trim()) g.paymentNote = li.payment_note.trim()
+    g.total = (Number(g.total) + (Number(li.line_total) || 0)).toFixed(2)
+  }
+  return [...groups.values()]
 }
 
 /** rule kinds that the sidebar surfaces as little discount tags. */

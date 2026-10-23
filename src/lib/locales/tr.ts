@@ -689,6 +689,11 @@ export const tr: Bundle = {
   tapToExpand: 'Genişletmek için dokunun',
   tapToCollapse: 'Daraltmak için dokunun',
   atHotelSuffix: 'otelde',
+  paidToPayeeOnTheDay: 'Ödeme: {payee} · o gün',
+  paidDirectlyToPayeeCaveat: 'Ödeme doğrudan {payee} için yapılır. Rezervasyon toplamınıza dahil değildir.',
+  paidToPayeeSuffix: '{payee} için',
+  payeeFallbackLabel: 'rehber',
+  qtyTimesOnlyTemplate: '{qty} ×',
   qtyTimesDayTemplate: '{qty} × {units} {unitWord}',
 
   // ---- landr-5aih0.27 ----

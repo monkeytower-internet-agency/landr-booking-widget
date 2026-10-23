@@ -30,7 +30,8 @@ import { PeriodsTable } from './PeriodsTable'
 import { sanitizePostBookingHtml } from './postBookingSanitize'
 import { PriceBreakdown } from './PriceBreakdown'
 import { savingRows } from './savingRows'
-import { formatMoney, splitLineItems } from './priceSidebarHelpers'
+import { PerformerPaySections } from './PerformerPaySections'
+import { formatMoney, groupPerformerLines, splitLineItems } from './priceSidebarHelpers'
 import {
   bookedRefLabel,
   bookedTogetherMemberLabel,
@@ -846,7 +847,8 @@ function SavingsCongratsCard({
  */
 function ConfirmationPriceBreakdown({ summary }: { summary: BookingSummary }) {
   const locale = browserLocale()
-  const { operator, hotel } = splitLineItems(summary.line_items)
+  const { operator, hotel, performer } = splitLineItems(summary.line_items)
+  const performerGroups = groupPerformerLines(performer)
   // landr-1l6hl.5: line items stay list-priced; a special price / offer
   // discount (or a legacy override) is explained as a row, never left as an
   // unexplained gap between the lines and the amount due.
@@ -905,6 +907,13 @@ function ConfirmationPriceBreakdown({ summary }: { summary: BookingSummary }) {
             </span>
           </div>
         </div>
+      ) : null}
+      {performerGroups.length > 0 ? (
+        <PerformerPaySections
+          groups={performerGroups}
+          currency={summary.currency}
+          testIdPrefix="confirmation"
+        />
       ) : null}
     </div>
   )

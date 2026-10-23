@@ -685,6 +685,11 @@ export const es: Bundle = {
   tapToExpand: 'Toca para ampliar',
   tapToCollapse: 'Toca para contraer',
   atHotelSuffix: 'en el hotel',
+  paidToPayeeOnTheDay: 'Pago a tu {payee} · el mismo día',
+  paidDirectlyToPayeeCaveat: 'Se paga directamente a tu {payee}. No está incluido en el total de tu reserva.',
+  paidToPayeeSuffix: 'a tu {payee}',
+  payeeFallbackLabel: 'guía',
+  qtyTimesOnlyTemplate: '{qty} ×',
   qtyTimesDayTemplate: '{qty} × {units} {unitWord}',
 
   // ---- landr-5aih0.27 ----

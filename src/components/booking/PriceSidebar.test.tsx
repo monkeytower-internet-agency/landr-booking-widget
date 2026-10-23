@@ -274,7 +274,7 @@ describe('PriceSidebar — day chips + hotel span + names (landr-2wyi)', () => {
         // (deriveStayWindow shifts ±1 day; 3 days → 4 nights).
         selectedDays={['2026-05-25', '2026-05-26', '2026-05-27']}
         participantCount={1}
-        accommodationRooms={[]}
+        accommodationRooms={[{ productId: 'room', quantity: 1 }]}
         addons={[]}
       />,
     )
@@ -1081,5 +1081,195 @@ describe('PriceSidebar mobile drawer (landr-v94dz)', () => {
     } finally {
       document.documentElement.removeAttribute(EMBEDDED_ATTR)
     }
+  })
+})
+
+// landr-hzovu.5: money wording follows the payee, not "hotel".
+describe('PriceSidebar — payee-aware pay-separately (landr-hzovu.5)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.unstubAllGlobals()
+  })
+
+  const FLIGHT_ONLY: EstimateResponse = {
+    line_items: [
+      {
+        product_id: 'svc',
+        label: 'Tandem Flight',
+        qty: 1,
+        units: 1,
+        unit_price: '120.00',
+        line_total: '120.00',
+        paid_to: 'operator',
+      },
+      {
+        product_id: 'video',
+        label: 'Video Package',
+        qty: 1,
+        units: 1,
+        unit_price: '39.00',
+        line_total: '39.00',
+        paid_to: 'performer',
+        payee_label: 'Tandem pilot',
+        payment_note: null,
+      },
+    ],
+    operator_total: '120.00',
+    hotel_total: '0.00',
+    performer_total: '39.00',
+    grand_total: '159.00',
+    currency: 'EUR',
+    applied_rules: [],
+    warnings: [],
+    un_priceable: false,
+  }
+
+  function renderSidebar(rooms: { productId: string; quantity: number }[] = []) {
+    return render(
+      <PriceSidebar
+        operatorToken="para42"
+        product={makeProduct()}
+        selectedDays={['2026-05-25', '2026-05-26']}
+        participantCount={1}
+        accommodationRooms={rooms}
+        addons={[]}
+      />,
+    )
+  }
+
+  it('renders the performer group with the payee heading and caveat, and no hotel words', async () => {
+    vi.spyOn(client, 'estimateBookingPrice').mockResolvedValue(FLIGHT_ONLY)
+    renderSidebar()
+    await waitFor(() => {
+      expect(screen.getAllByTestId('price-sidebar-performer-section').length).toBeGreaterThan(0)
+    })
+    const desktop = screen.getByTestId('price-sidebar-desktop')
+    const section = desktop.querySelector('[data-testid="price-sidebar-performer-section"]')
+    expect(section).toHaveTextContent('Paid to your Tandem pilot · on the day')
+    expect(section).toHaveTextContent('Video Package')
+    expect(section).toHaveTextContent('39')
+    expect(section).toHaveTextContent('Paid directly to your Tandem pilot. Not included in your booking total.')
+    // The unit is just the quantity: no "1 night".
+    expect(section).toHaveTextContent('1 ×')
+    expect(section?.textContent).not.toMatch(/night/i)
+    // Flight-only booking with a performer add-on: no hotel words anywhere.
+    expect(desktop.textContent).not.toMatch(/hotel|check-in|night/i)
+    expect(screen.queryAllByTestId('price-sidebar-hotel-section')).toHaveLength(0)
+    expect(screen.queryAllByTestId('price-sidebar-hotel-span')).toHaveLength(0)
+    // Amount due stays the operator-paid total.
+    expect(desktop.querySelector('[data-testid="price-sidebar-amount-due"]')?.textContent).toMatch(/120/)
+  })
+
+  it('replaces the caveat with the operator payment note when set', async () => {
+    vi.spyOn(client, 'estimateBookingPrice').mockResolvedValue({
+      ...FLIGHT_ONLY,
+      line_items: FLIGHT_ONLY.line_items.map((li) =>
+        li.paid_to === 'performer' ? { ...li, payment_note: 'Cash or card, paid after landing.' } : li,
+      ),
+    })
+    renderSidebar()
+    await waitFor(() => {
+      expect(screen.getAllByTestId('price-sidebar-performer-caveat').length).toBeGreaterThan(0)
+    })
+    const caveat = screen.getByTestId('price-sidebar-desktop').querySelector(
+      '[data-testid="price-sidebar-performer-caveat"]',
+    )
+    expect(caveat?.textContent).toBe('Cash or card, paid after landing.')
+  })
+
+  it('falls back to "guide" when the line carries no payee label', async () => {
+    vi.spyOn(client, 'estimateBookingPrice').mockResolvedValue({
+      ...FLIGHT_ONLY,
+      line_items: FLIGHT_ONLY.line_items.map((li) =>
+        li.paid_to === 'performer' ? { ...li, payee_label: undefined } : li,
+      ),
+    })
+    renderSidebar()
+    await waitFor(() => {
+      expect(screen.getAllByTestId('price-sidebar-performer-section').length).toBeGreaterThan(0)
+    })
+    expect(screen.getByTestId('price-sidebar-desktop')).toHaveTextContent('Paid to your guide · on the day')
+  })
+
+  it('shows hotel and performer groups side by side, each with its own copy', async () => {
+    vi.spyOn(client, 'estimateBookingPrice').mockResolvedValue({
+      ...FLIGHT_ONLY,
+      line_items: [
+        ...FLIGHT_ONLY.line_items,
+        {
+          product_id: 'room',
+          label: 'Single Room',
+          qty: 1,
+          units: 2,
+          unit_price: '49.00',
+          line_total: '98.00',
+          paid_to: 'hotel',
+        },
+      ],
+      hotel_total: '98.00',
+    })
+    renderSidebar([{ productId: 'room', quantity: 1 }])
+    await waitFor(() => {
+      expect(screen.getAllByTestId('price-sidebar-performer-section').length).toBeGreaterThan(0)
+    })
+    const desktop = screen.getByTestId('price-sidebar-desktop')
+    const hotel = desktop.querySelector('[data-testid="price-sidebar-hotel-section"]')
+    expect(hotel).toHaveTextContent('At-hotel total · pay at check-in')
+    expect(hotel).toHaveTextContent('1 × 2 nights')
+    expect(hotel).not.toHaveTextContent('Video Package')
+    expect(desktop.querySelector('[data-testid="price-sidebar-hotel-span"]')).not.toBeNull()
+    expect(desktop.querySelector('[data-testid="price-sidebar-performer-section"]')).toHaveTextContent(
+      'Paid to your Tandem pilot',
+    )
+  })
+
+  it('omits the hotel stay line for a hotel-paid add-on when no room is picked', async () => {
+    vi.spyOn(client, 'estimateBookingPrice').mockResolvedValue({
+      ...FLIGHT_ONLY,
+      line_items: [
+        FLIGHT_ONLY.line_items[0],
+        {
+          product_id: 'bf',
+          label: 'Breakfast',
+          qty: 2,
+          units: 1,
+          unit_price: '10.00',
+          line_total: '20.00',
+          paid_to: 'hotel',
+        },
+      ],
+      hotel_total: '20.00',
+      performer_total: '0.00',
+    })
+    renderSidebar()
+    await waitFor(() => {
+      expect(screen.getAllByTestId('price-sidebar-hotel-section').length).toBeGreaterThan(0)
+    })
+    expect(screen.queryAllByTestId('price-sidebar-hotel-span')).toHaveLength(0)
+  })
+
+  it('renders the performer group in German', async () => {
+    vi.stubGlobal('navigator', { ...navigator, language: 'de-DE' })
+    vi.spyOn(client, 'estimateBookingPrice').mockResolvedValue(FLIGHT_ONLY)
+    renderSidebar()
+    await waitFor(() => {
+      expect(screen.getAllByTestId('price-sidebar-performer-section').length).toBeGreaterThan(0)
+    })
+    const desktop = screen.getByTestId('price-sidebar-desktop')
+    const section = desktop.querySelector('[data-testid="price-sidebar-performer-section"]')
+    expect(section).toHaveTextContent('Zahlung an: Tandem pilot · am Tag selbst')
+    expect(section).toHaveTextContent('Wird direkt vor Ort an Tandem pilot bezahlt')
+    expect(desktop.textContent).not.toMatch(/Hotel|Nacht|Nächte/)
+  })
+
+  it('names the payee in the mobile bar suffix, not "at hotel"', async () => {
+    vi.spyOn(client, 'estimateBookingPrice').mockResolvedValue(FLIGHT_ONLY)
+    renderSidebar()
+    await waitFor(() => {
+      expect(screen.getAllByTestId('price-sidebar-mobile-performer').length).toBeGreaterThan(0)
+    })
+    const suffix = screen.getByTestId('price-sidebar-mobile-performer')
+    expect(suffix.textContent).toMatch(/\+ .*39.* to your Tandem pilot/)
+    expect(screen.queryAllByTestId('price-sidebar-mobile-athotel')).toHaveLength(0)
   })
 })
