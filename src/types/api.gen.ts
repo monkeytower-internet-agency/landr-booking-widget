@@ -17525,6 +17525,11 @@ export interface components {
             /** Id */
             id: string;
             /**
+             * Is Addon Only
+             * @default false
+             */
+            is_addon_only: boolean;
+            /**
              * Is Publicly Listed
              * @default false
              */
@@ -17908,6 +17913,14 @@ export interface components {
         ProductAddon: {
             /** Addon Product Id */
             addon_product_id: string;
+            /** Addon Quantity Max */
+            addon_quantity_max?: number | null;
+            /**
+             * Addon Quantity Rule
+             * @default any
+             * @enum {string}
+             */
+            addon_quantity_rule: "one_per_booking" | "one_per_participant" | "any";
             /**
              * Available
              * @default true
@@ -18164,6 +18177,10 @@ export interface components {
              * @default true
              */
             active: boolean;
+            /** Addon Quantity Max */
+            addon_quantity_max?: number | null;
+            /** Addon Quantity Rule */
+            addon_quantity_rule?: ("one_per_booking" | "one_per_participant" | "any") | null;
             /**
              * Booking Mode
              * @default scheduled
@@ -18260,11 +18277,8 @@ export interface components {
             product_group_id?: string | null;
             /** Product Kind */
             product_kind?: ("service" | "subscription" | "hotel_room" | "digital_good" | "physical_good" | "gift_card") | null;
-            /**
-             * Revenue Flows Through Operator
-             * @default true
-             */
-            revenue_flows_through_operator: boolean;
+            /** Revenue Flows Through Operator */
+            revenue_flows_through_operator?: boolean | null;
             /** Service Time Shape */
             service_time_shape?: ("single_date" | "days_range" | "fixed_window" | "time_slot") | null;
             /**
@@ -18321,6 +18335,10 @@ export interface components {
             accommodation_lead_time_minutes?: number | null;
             /** Active */
             active?: boolean | null;
+            /** Addon Quantity Max */
+            addon_quantity_max?: number | null;
+            /** Addon Quantity Rule */
+            addon_quantity_rule?: ("one_per_booking" | "one_per_participant" | "any") | null;
             /** Booking Mode */
             booking_mode?: ("scheduled" | "on_request") | null;
             /** Briefing Content */
