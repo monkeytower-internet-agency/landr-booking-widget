@@ -65,11 +65,57 @@ describe('lazy UI catalogs', () => {
     expect(s.tr('bookingConfirmed', 'tr-TR')).toBe('Booking confirmed')
   })
 
-  it('gives up waiting after maxWaitMs but still lands the catalog later', async () => {
+  it('gives up waiting after maxWaitMs while a never-resolving loader stays pending', async () => {
+    vi.doMock('./locales/de', () => new Promise(() => {}))
     const s = await freshStrings()
-    await s.loadUiCatalog('de', 0)
-    // Whether or not the chunk made the deadline, it must be usable afterwards.
-    await s.loadUiCatalog('de')
-    expect(s.pickBundle('de').bookingConfirmed).toBe('Buchung bestätigt')
+    vi.useFakeTimers()
+    try {
+      let settled = false
+      const wait = s.loadUiCatalog('de', 1000).then(() => {
+        settled = true
+      })
+      await vi.advanceTimersByTimeAsync(999)
+      expect(settled).toBe(false)
+      await vi.advanceTimersByTimeAsync(1)
+      await wait
+      expect(settled).toBe(true)
+      // The catalog never landed: English keeps rendering.
+      expect(s.pickBundle('de')).toBe(s.pickBundle('en'))
+    } finally {
+      vi.useRealTimers()
+      vi.doUnmock('./locales/de')
+    }
+  })
+
+  it('notifies subscribers once when a catalog lands after the wait deadline', async () => {
+    let release: (mod: object) => void = () => {}
+    vi.doMock('./locales/de', () => new Promise<object>((resolve) => (release = resolve)))
+    const real = await vi.importActual<typeof import('./locales/de')>('./locales/de')
+    const s = await freshStrings()
+    const listener = vi.fn()
+    const unsubscribe = s.subscribeUiCatalogs(listener)
+    const before = s.getUiCatalogVersion()
+    try {
+      vi.useFakeTimers()
+      const wait = s.loadUiCatalog('de', 50)
+      await vi.advanceTimersByTimeAsync(50)
+      await wait
+      vi.useRealTimers()
+      expect(listener).not.toHaveBeenCalled()
+      expect(s.pickBundle('de').bookingConfirmed).toBe('Booking confirmed')
+
+      release({ de: real.de })
+      await vi.waitFor(() => expect(listener).toHaveBeenCalledTimes(1))
+      expect(s.getUiCatalogVersion()).toBe(before + 1)
+      expect(s.pickBundle('de').bookingConfirmed).toBe('Buchung bestätigt')
+
+      // Already loaded: no further notification.
+      await s.loadUiCatalog('de')
+      expect(listener).toHaveBeenCalledTimes(1)
+    } finally {
+      vi.useRealTimers()
+      unsubscribe()
+      vi.doUnmock('./locales/de')
+    }
   })
 })
