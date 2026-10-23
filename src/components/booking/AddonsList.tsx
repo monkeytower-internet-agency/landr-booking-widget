@@ -5,6 +5,7 @@ import { addonDeviationMessage, qtyAdjustAriaLabel, tr } from '@/lib/strings'
 import { formatCurrency } from './accommodationCalc'
 import {
   clampAddonQty,
+  addonRuleCeiling,
   addonStockCeiling,
   addonUnavailableMessage,
   isAddonSoldOut,
@@ -79,6 +80,12 @@ interface Props {
    */
   roomQty?: number
   /**
+   * landr-hzovu.2: the booking's guiding participants — the ceiling of a
+   * "one per participant" service add-on (a video package per passenger).
+   * Omitted = unknown, no cap from that rule (the API still enforces it).
+   */
+  participantCount?: number
+  /**
    * Optional label rendered above the list (e.g. "Add-ons" inside a
    * room block). The caller usually owns this from a <fieldset
    * legend>, so leaving it null hides the heading entirely.
@@ -93,6 +100,7 @@ export function AddonsList({
   expectedQty,
   occupancyLimited = false,
   roomQty = 1,
+  participantCount,
   heading,
 }: Props) {
   const locale = browserLocale()
@@ -105,7 +113,7 @@ export function AddonsList({
 
   function bumpQty(addon: ProductAddon, delta: number) {
     const current = selection[addon.addon_product_id] ?? 0
-    const next = clampAddonQty(addon, current + delta, occupancyCap)
+    const next = clampAddonQty(addon, current + delta, occupancyCap, participantCount)
     const out = { ...selection, [addon.addon_product_id]: next }
     if (next === 0) delete out[addon.addon_product_id]
     onChange(out)
@@ -135,9 +143,13 @@ export function AddonsList({
         // at what is left on the chosen days.
         const stockCeiling = addonStockCeiling(addon)
         const atStock = !soldOut && Number.isFinite(stockCeiling) && qty >= stockCeiling
+        // landr-hzovu.2: the add-on's own rule (1 / participants / max); room
+        // add-ons are exempt (occupancy above).
+        const atRule = qty >= addonRuleCeiling(addon, participantCount)
         const atMax =
           soldOut ||
           atStock ||
+          atRule ||
           (occupancyCap !== undefined && qty >= occupancyCap) ||
           (addon.max_qty !== null && qty >= addon.max_qty)
 

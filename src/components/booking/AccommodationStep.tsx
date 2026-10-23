@@ -966,7 +966,7 @@ export function AccommodationStep({
         // since sold out, and never clobber a value the customer (or the
         // restore above) already set.
         setServiceAddonSelection((prev) => {
-          const next = { ...withoutSoldOut(prev, list) }
+          const next = { ...withoutSoldOut(prev, list, participantCount) }
           for (const a of list) {
             if (isAddonSoldOut(a)) continue
             if (next[a.addon_product_id] !== undefined) continue
@@ -2431,6 +2431,7 @@ export function AccommodationStep({
                 )
               }}
               expectedQty={1}
+              participantCount={participantCount}
             />
           </fieldset>
         ) : null}
