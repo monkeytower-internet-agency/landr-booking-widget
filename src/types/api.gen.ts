@@ -4389,13 +4389,31 @@ export interface paths {
         /**
          * Switch Booking Product
          * @description Replace a line's product with another of the same kind
-         *     (landr-d7ij2.3) — same days and quantity, re-priced.
+         *     (landr-d7ij2.3; activities landr-nnwlq.1) — room -> room or activity ->
+         *     activity, same days and quantity, re-priced.
          *
          *     ``dry_run=true`` writes nothing (confirm dialog). The old product shows
          *     in ``removed_lines``, the new one in ``added_lines`` (or, merged into a
-         *     line of that product the booking already holds, in ``changed_lines``).
+         *     line of that product the booking already holds, in ``changed_lines``);
+         *     ``old_product`` / ``new_product`` name both and
+         *     ``switched_booking_product_id`` the line that carries the new product
+         *     (a new id when the line had to be recreated). Each commit is recorded in
+         *     ``booking_product_change_events``.
          *     ``PATCH .../products/{booking_product_id}`` with ``{"product_id"}`` runs
          *     the same commit. Same guards and 409s as ``POST .../products``.
+         *
+         *     422s: ``line_not_switchable`` (an add-on line), ``product_not_addable``
+         *     (``reason`` ``kind_mismatch`` for activity <-> room, ``not_accommodation``,
+         *     ``inactive``), ``same_product``, ``addon_not_offered`` /
+         *     ``addon_not_addable``, ``un_priceable``, ``product_already_on_booking``
+         *     and ``dates_not_valid_for_product`` — ``{error, message, product_id,
+         *     service_time_shape, reason, days}`` where ``days`` are the offending ISO
+         *     days and ``reason`` one of ``single_date_required``,
+         *     ``contiguous_range_required``, ``fixed_window_mismatch`` (+ ``windows``),
+         *     ``day_not_offered``, ``time_slot_unsupported``,
+         *     ``daily_slots_unsupported``. 409s: ``booking_locked_for_edit``,
+         *     ``capacity_exceeded`` (``conflicts``; pass the days as ``forced_days``),
+         *     ``line_changed`` (the line changed since it was read).
          */
         post: operations["staff_switch_booking_product"];
         delete?: never;
@@ -11903,7 +11921,7 @@ export interface components {
              * Reason
              * @enum {string}
              */
-            reason: "requested" | "follows_room" | "follows_stay";
+            reason: "requested" | "follows_room" | "follows_stay" | "follows_product";
             /** Selected Days */
             selected_days: string[];
         };
@@ -11936,7 +11954,7 @@ export interface components {
              * Reason
              * @enum {string}
              */
-            reason: "requested" | "follows_room" | "follows_stay";
+            reason: "requested" | "follows_room" | "follows_stay" | "follows_product";
             /** Selected Days After */
             selected_days_after: string[];
             /** Selected Days Before */
@@ -11972,8 +11990,10 @@ export interface components {
              * @default false
              */
             hotel_will_be_notified: boolean;
+            new_product?: components["schemas"]["BookingLineProductRef"] | null;
             /** Notification Kind */
             notification_kind?: ("cancellation" | "modification" | "request") | null;
+            old_product?: components["schemas"]["BookingLineProductRef"] | null;
             /** Override Gross Total */
             override_gross_total?: string | null;
             /**
@@ -11990,6 +12010,8 @@ export interface components {
             removed_lines?: components["schemas"]["BookingLineEditLine"][];
             /** Stage After */
             stage_after?: string | null;
+            /** Switched Booking Product Id */
+            switched_booking_product_id?: string | null;
             /** Totals After */
             totals_after: {
                 [key: string]: string;
@@ -11998,6 +12020,22 @@ export interface components {
             totals_before: {
                 [key: string]: string;
             };
+        };
+        /**
+         * BookingLineProductRef
+         * @description A product a ``switch`` moves a line from / to (landr-nnwlq.1).
+         */
+        BookingLineProductRef: {
+            /** Is Addon Only */
+            is_addon_only: boolean;
+            /** Product Id */
+            product_id: string;
+            /** Product Kind */
+            product_kind: string;
+            /** Product Name */
+            product_name: string;
+            /** Service Time Shape */
+            service_time_shape?: string | null;
         };
         /**
          * BookingNoteIn

@@ -1930,7 +1930,8 @@
             "enum": [
               "requested",
               "follows_room",
-              "follows_stay"
+              "follows_stay",
+              "follows_product"
             ],
             "title": "Reason",
             "type": "string"
@@ -2000,7 +2001,8 @@
             "enum": [
               "requested",
               "follows_room",
-              "follows_stay"
+              "follows_stay",
+              "follows_product"
             ],
             "title": "Reason",
             "type": "string"
@@ -2091,6 +2093,16 @@
             "title": "Hotel Will Be Notified",
             "type": "boolean"
           },
+          "new_product": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BookingLineProductRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "notification_kind": {
             "anyOf": [
               {
@@ -2106,6 +2118,16 @@
               }
             ],
             "title": "Notification Kind"
+          },
+          "old_product": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BookingLineProductRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "override_gross_total": {
             "anyOf": [
@@ -2146,6 +2168,17 @@
             ],
             "title": "Stage After"
           },
+          "switched_booking_product_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Switched Booking Product Id"
+          },
           "totals_after": {
             "additionalProperties": {
               "type": "string"
@@ -2169,6 +2202,46 @@
           "totals_after"
         ],
         "title": "BookingLineEditOutcome",
+        "type": "object"
+      },
+      "BookingLineProductRef": {
+        "description": "A product a ``switch`` moves a line from / to (landr-nnwlq.1).",
+        "properties": {
+          "is_addon_only": {
+            "title": "Is Addon Only",
+            "type": "boolean"
+          },
+          "product_id": {
+            "title": "Product Id",
+            "type": "string"
+          },
+          "product_kind": {
+            "title": "Product Kind",
+            "type": "string"
+          },
+          "product_name": {
+            "title": "Product Name",
+            "type": "string"
+          },
+          "service_time_shape": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Service Time Shape"
+          }
+        },
+        "required": [
+          "product_id",
+          "product_name",
+          "product_kind",
+          "is_addon_only"
+        ],
+        "title": "BookingLineProductRef",
         "type": "object"
       },
       "BookingNoteIn": {
@@ -41080,7 +41153,7 @@
     },
     "/api/staff/bookings/{booking_id}/products/{booking_product_id}/switch": {
       "post": {
-        "description": "Replace a line's product with another of the same kind\n(landr-d7ij2.3) \u2014 same days and quantity, re-priced.\n\n``dry_run=true`` writes nothing (confirm dialog). The old product shows\nin ``removed_lines``, the new one in ``added_lines`` (or, merged into a\nline of that product the booking already holds, in ``changed_lines``).\n``PATCH .../products/{booking_product_id}`` with ``{\"product_id\"}`` runs\nthe same commit. Same guards and 409s as ``POST .../products``.",
+        "description": "Replace a line's product with another of the same kind\n(landr-d7ij2.3; activities landr-nnwlq.1) \u2014 room -> room or activity ->\nactivity, same days and quantity, re-priced.\n\n``dry_run=true`` writes nothing (confirm dialog). The old product shows\nin ``removed_lines``, the new one in ``added_lines`` (or, merged into a\nline of that product the booking already holds, in ``changed_lines``);\n``old_product`` / ``new_product`` name both and\n``switched_booking_product_id`` the line that carries the new product\n(a new id when the line had to be recreated). Each commit is recorded in\n``booking_product_change_events``.\n``PATCH .../products/{booking_product_id}`` with ``{\"product_id\"}`` runs\nthe same commit. Same guards and 409s as ``POST .../products``.\n\n422s: ``line_not_switchable`` (an add-on line), ``product_not_addable``\n(``reason`` ``kind_mismatch`` for activity <-> room, ``not_accommodation``,\n``inactive``), ``same_product``, ``addon_not_offered`` /\n``addon_not_addable``, ``un_priceable``, ``product_already_on_booking``\nand ``dates_not_valid_for_product`` \u2014 ``{error, message, product_id,\nservice_time_shape, reason, days}`` where ``days`` are the offending ISO\ndays and ``reason`` one of ``single_date_required``,\n``contiguous_range_required``, ``fixed_window_mismatch`` (+ ``windows``),\n``day_not_offered``, ``time_slot_unsupported``,\n``daily_slots_unsupported``. 409s: ``booking_locked_for_edit``,\n``capacity_exceeded`` (``conflicts``; pass the days as ``forced_days``),\n``line_changed`` (the line changed since it was read).",
         "operationId": "staff_switch_booking_product",
         "parameters": [
           {
