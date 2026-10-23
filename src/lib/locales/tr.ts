@@ -34,6 +34,8 @@ export const tr: Bundle = {
   priceNoteWeekends: 'Hafta sonları',
   priceNoteWeekdays: 'Hafta içi',
   priceNoteStartTemplate: 'Başlangıç {time}',
+  priceNoteDetailsShow: '{name} ile ilgili ayrıntıları göster',
+  priceNoteDetailsHide: '{name} ile ilgili ayrıntıları gizle',
   priceFromTemplate: 'Başlangıç fiyatı: {price}',
   singleDatePickerCue: 'bir tarih seçin',
   multiDayPickerCue: 'tarihlerinizi seçin',

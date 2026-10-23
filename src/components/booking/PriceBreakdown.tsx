@@ -24,6 +24,7 @@ import type { SavingLine, SurchargeLine } from '@/api/types'
 import { browserLocale } from '@/lib/locale'
 import { tr } from '@/lib/strings'
 import { cn } from '@/lib/utils'
+import { DescribedLabel } from './DescribedLabel'
 import { formatMoney } from './priceSidebarHelpers'
 import { savingLabel } from './savingRows'
 
@@ -98,7 +99,12 @@ export function PriceBreakdown({
               className="flex items-baseline justify-between gap-2 text-sm"
               data-testid={`${testIdPrefix}-surcharge`}
             >
-              <span>+ {surcharge.label}</span>
+              <DescribedLabel
+                prefix="+ "
+                text={surcharge.label}
+                description={surcharge.description}
+                testId={`${testIdPrefix}-surcharge-label`}
+              />
               <span className="tabular-nums">
                 +{formatMoney(surcharge.amount, currency, locale)}
               </span>
@@ -115,7 +121,12 @@ export function PriceBreakdown({
                 className="flex items-baseline justify-between gap-2 text-sm text-emerald-700 dark:text-emerald-400"
                 data-testid={`${testIdPrefix}-saving`}
               >
-                <span>− {savingLabel(saving, locale)}</span>
+                <DescribedLabel
+                  prefix="− "
+                  text={savingLabel(saving, locale)}
+                  description={saving.description}
+                  testId={`${testIdPrefix}-saving-label`}
+                />
                 <span className="tabular-nums">
                   −{formatMoney(saving.amount, currency, locale)}
                 </span>

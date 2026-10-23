@@ -1,6 +1,6 @@
 /** landr-bwm91.4: price notes line builder. */
 import { describe, expect, it } from 'vitest'
-import { formatPriceNotes } from './priceNotes'
+import { formatPriceNotes, priceNoteItems } from './priceNotes'
 
 type In = Parameters<typeof formatPriceNotes>[0]
 
@@ -67,5 +67,52 @@ describe('formatPriceNotes', () => {
       'en',
     )
     expect(out).toEqual(['Holidays +€8'])
+  })
+})
+
+describe('named price notes (landr-soewf)', () => {
+  const named: In = {
+    currency: 'EUR',
+    price_base: '150.00',
+    price_notes: [
+      {
+        kind: 'surcharge', label: 'Weekends', amount: '20', amount_type: 'flat', per_participant: true,
+        weekdays: [6, 7],
+        name: 'Weekend surcharge',
+        name_localized: { de: 'Wochenend-Zuschlag', es: 'Recargo de fin de semana' },
+        description: 'Our pilots earn a little bit more during the weekend.',
+        description_localized: { de: 'Unsere Piloten verdienen am Wochenende etwas mehr.' },
+      },
+      { kind: 'discount', label: '09:00 start', amount: '-10', amount_type: 'flat', per_participant: true, time_from: '09:00', time_to: '09:00', name: 'Early Bird' },
+    ],
+  }
+
+  it('shows the name instead of the automatic label, in the customer language', () => {
+    expect(formatPriceNotes(named, 'en-GB')).toEqual(['Base price €150', 'Weekend surcharge +€20', 'Early Bird −€10'])
+    expect(formatPriceNotes(named, 'de-DE')[1]).toMatch(/^Wochenend-Zuschlag \+20\s€$/)
+    expect(formatPriceNotes(named, 'es')[1]).toMatch(/^Recargo de fin de semana \+20/)
+  })
+
+  it('falls back to the plain name, then to the automatic label', () => {
+    // No TR entry -> plain name; the unnamed note keeps today's wording.
+    expect(formatPriceNotes(named, 'tr')[1]).toMatch(/^Weekend surcharge /)
+    const unnamed = { ...named, price_notes: [{ ...named.price_notes![0], name: '', name_localized: { de: '' } }] }
+    expect(formatPriceNotes(unnamed, 'de-DE')[1]).toMatch(/^Wochenende /)
+  })
+
+  it('carries the description in the customer language with the same fallbacks', () => {
+    const items = priceNoteItems(named, 'de')
+    expect(items[1].description).toBe('Unsere Piloten verdienen am Wochenende etwas mehr.')
+    expect(priceNoteItems(named, 'en')[1].description).toBe('Our pilots earn a little bit more during the weekend.')
+    expect(items[0].description).toBeUndefined()
+    expect(items[2].description).toBeUndefined()
+  })
+
+  it('works for a language added later without a code change', () => {
+    const fr: In = {
+      currency: 'EUR',
+      price_notes: [{ ...named.price_notes![0], name_localized: { fr: 'Supplément week-end' } }],
+    }
+    expect(formatPriceNotes(fr, 'fr-FR')[0]).toMatch(/^Supplément week-end /)
   })
 })

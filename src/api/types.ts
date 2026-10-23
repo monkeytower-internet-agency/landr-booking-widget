@@ -1880,6 +1880,8 @@ export interface SavingLine {
     | 'price_override'
   label: string
   amount: string
+  /** landr-soewf: the operator's explanation of a named weekday / start-time price, in the request locale. */
+  description?: string | null
 }
 
 /**
@@ -1891,6 +1893,8 @@ export interface SurchargeLine {
   kind: 'surcharge'
   label: string
   amount: string
+  /** landr-soewf: the operator's explanation of a named weekday / start-time price, in the request locale. */
+  description?: string | null
 }
 
 /**

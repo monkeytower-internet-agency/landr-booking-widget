@@ -53,6 +53,9 @@ export type Bundle = {
   priceNoteWeekends: string
   priceNoteWeekdays: string
   priceNoteStartTemplate: string
+  /** landr-soewf: chevron next to a named price note / surcharge row that has a description. */
+  priceNoteDetailsShow: string
+  priceNoteDetailsHide: string
   // landr-bwm91.7: the "from €X" headline on product cards + the detail page.
   priceFromTemplate: string
   singleDatePickerCue: string
@@ -891,6 +894,8 @@ const en: Bundle = {
   priceNoteWeekends: 'Weekends',
   priceNoteWeekdays: 'Weekdays',
   priceNoteStartTemplate: '{time} start',
+  priceNoteDetailsShow: 'Show details about {name}',
+  priceNoteDetailsHide: 'Hide details about {name}',
   priceFromTemplate: 'from {price}',
   // landr-80ubl.2: deliberately NOT "pick a date" / "pick your dates" — the
   // NextAction cue's text ("Next: <cue>") sits right beside the step's own
