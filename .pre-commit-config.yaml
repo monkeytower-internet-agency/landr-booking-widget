@@ -1,0 +1,12 @@
+# landr-0unqx.1 — secret scan on every commit (this repo is PUBLIC). Local hook, nothing to
+# install by hand: scripts/ci-gitleaks.sh fetches the pinned gitleaks into ~/.cache and
+# verifies its sha256. Install once per checkout:
+#   uvx pre-commit install        # or: pipx run pre-commit install
+repos:
+  - repo: local
+    hooks:
+      - id: gitleaks
+        name: gitleaks (staged changes)
+        entry: scripts/ci-gitleaks.sh staged
+        language: system
+        pass_filenames: false
