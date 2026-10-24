@@ -1,0 +1,84 @@
+name: dependency-audit
+
+# landr-0unqx.2: osv-scanner over the lockfile(s). Fails the job on any
+# HIGH/CRITICAL (CVSS >= 7.0) advisory that is not listed in the checked-in
+# osv-scanner.toml. Every ignore carries a reason and an ignoreUntil expiry;
+# once the date passes the finding resurfaces and the job goes red again.
+# Also runs weekly so new advisories surface without a code change.
+# Separate file from the secret-scan workflow (landr-0unqx.1) on purpose.
+
+on:
+  pull_request:
+    branches: [dev]
+  push:
+    branches: [dev]
+  schedule:
+    - cron: '17 5 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dependency-audit-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  OSV_SCANNER_VERSION: v2.7.0
+  OSV_SCANNER_SHA256: 160c6253e2922e9e0a6a9771c5c4c40a4b3c6090b34a3cdd5e80c96cc2e4218b
+  LOCKFILES: 'package-lock.json'
+
+jobs:
+  osv-scan:
+    name: osv-scanner (HIGH/CRITICAL gate)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Install osv-scanner (pinned, checksum-verified)
+        run: |
+          set -euo pipefail
+          curl -fsSL -o "$RUNNER_TEMP/osv-scanner" \
+            "https://github.com/google/osv-scanner/releases/download/${OSV_SCANNER_VERSION}/osv-scanner_linux_amd64"
+          echo "${OSV_SCANNER_SHA256}  $RUNNER_TEMP/osv-scanner" | sha256sum -c -
+          chmod +x "$RUNNER_TEMP/osv-scanner"
+
+      - name: Scan lockfiles
+        run: |
+          set -uo pipefail
+          args=()
+          for f in $LOCKFILES; do args+=(-L "$f"); done
+          # exit 1 = vulnerabilities found (judged by the gate below); >1 = scanner error
+          "$RUNNER_TEMP/osv-scanner" scan source --config osv-scanner.toml --format json \
+            "${args[@]}" > "$RUNNER_TEMP/osv.json" 2> "$RUNNER_TEMP/osv.err"
+          rc=$?
+          cat "$RUNNER_TEMP/osv.err" >&2
+          if [ "$rc" -gt 1 ]; then echo "osv-scanner failed (exit $rc)"; exit "$rc"; fi
+          # The table (all severities) is informational; the gate is next step.
+          "$RUNNER_TEMP/osv-scanner" scan source --config osv-scanner.toml "${args[@]}" || true
+
+      - name: Gate on HIGH/CRITICAL
+        run: |
+          python3 - "$RUNNER_TEMP/osv.json" <<'PY'
+          import json, sys
+          data = json.load(open(sys.argv[1]))
+          bad = []
+          for res in data.get("results", []):
+              for pkg in res.get("packages", []):
+                  p = pkg["package"]
+                  for g in pkg.get("groups", []):
+                      try:
+                          score = float(g.get("max_severity") or 0)
+                      except ValueError:
+                          score = 0.0
+                      if score >= 7.0:
+                          bad.append((score, p["name"], p["version"], ",".join(g["ids"])))
+          for s, n, v, ids in sorted(bad, reverse=True):
+              print(f"::error::HIGH/CRITICAL {s}: {n}@{v} {ids}")
+          if bad:
+              print(f"{len(bad)} un-ignored HIGH/CRITICAL advisories. Fix the dependency, or add an "
+                    "[[IgnoredVulns]] entry with reason + ignoreUntil to osv-scanner.toml and file a bd ticket.")
+              sys.exit(1)
+          print("No un-ignored HIGH/CRITICAL advisories.")
+          PY
