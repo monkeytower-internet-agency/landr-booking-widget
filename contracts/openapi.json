@@ -2084,6 +2084,11 @@
             "title": "Changed Lines",
             "type": "array"
           },
+          "days_changed": {
+            "default": false,
+            "title": "Days Changed",
+            "type": "boolean"
+          },
           "dry_run": {
             "title": "Dry Run",
             "type": "boolean"
@@ -2092,6 +2097,26 @@
             "default": false,
             "title": "Hotel Will Be Notified",
             "type": "boolean"
+          },
+          "hotel_window_after": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BookingLineStayWindow"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "hotel_window_before": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BookingLineStayWindow"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "new_product": {
             "anyOf": [
@@ -2168,6 +2193,18 @@
             ],
             "title": "Stage After"
           },
+          "stay_changed": {
+            "default": false,
+            "title": "Stay Changed",
+            "type": "boolean"
+          },
+          "superseded_reschedule_request_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Superseded Reschedule Request Ids",
+            "type": "array"
+          },
           "switched_booking_product_id": {
             "anyOf": [
               {
@@ -2242,6 +2279,32 @@
           "is_addon_only"
         ],
         "title": "BookingLineProductRef",
+        "type": "object"
+      },
+      "BookingLineStayWindow": {
+        "description": "The hotel stay as a check-in / check-out window \u2014 the shape of the\nday-change preview's ``window_before`` / ``window_after`` (landr-nnwlq.2).",
+        "properties": {
+          "check_in": {
+            "format": "date",
+            "title": "Check In",
+            "type": "string"
+          },
+          "check_out": {
+            "format": "date",
+            "title": "Check Out",
+            "type": "string"
+          },
+          "nights": {
+            "title": "Nights",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "check_in",
+          "check_out",
+          "nights"
+        ],
+        "title": "BookingLineStayWindow",
         "type": "object"
       },
       "BookingNoteIn": {
@@ -2615,6 +2678,18 @@
             "title": "Dry Run",
             "type": "boolean"
           },
+          "fixed_date_window_id": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fixed Date Window Id"
+          },
           "forced_days": {
             "anyOf": [
               {
@@ -2634,6 +2709,22 @@
             "minLength": 1,
             "title": "Product Id",
             "type": "string"
+          },
+          "selected_days": {
+            "anyOf": [
+              {
+                "items": {
+                  "format": "date",
+                  "type": "string"
+                },
+                "minItems": 1,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selected Days"
           }
         },
         "required": [
@@ -41203,7 +41294,7 @@
     },
     "/api/staff/bookings/{booking_id}/products/{booking_product_id}/switch": {
       "post": {
-        "description": "Replace a line's product with another of the same kind\n(landr-d7ij2.3; activities landr-nnwlq.1) \u2014 room -> room or activity ->\nactivity, same days and quantity, re-priced.\n\n``dry_run=true`` writes nothing (confirm dialog). The old product shows\nin ``removed_lines``, the new one in ``added_lines`` (or, merged into a\nline of that product the booking already holds, in ``changed_lines``);\n``old_product`` / ``new_product`` name both and\n``switched_booking_product_id`` the line that carries the new product\n(a new id when the line had to be recreated). Each commit is recorded in\n``booking_product_change_events``.\n``PATCH .../products/{booking_product_id}`` with ``{\"product_id\"}`` runs\nthe same commit. Same guards and 409s as ``POST .../products``.\n\n422s: ``line_not_switchable`` (an add-on line), ``product_not_addable``\n(``reason`` ``kind_mismatch`` for activity <-> room, ``not_accommodation``,\n``inactive``), ``same_product``, ``addon_not_offered`` /\n``addon_not_addable``, ``un_priceable``, ``product_already_on_booking``\nand ``dates_not_valid_for_product`` \u2014 ``{error, message, product_id,\nservice_time_shape, reason, days}`` where ``days`` are the offending ISO\ndays and ``reason`` one of ``single_date_required``,\n``contiguous_range_required``, ``fixed_window_mismatch`` (+ ``windows``),\n``day_not_offered``, ``time_slot_unsupported``,\n``daily_slots_unsupported``. 409s: ``booking_locked_for_edit``,\n``capacity_exceeded`` (``conflicts``; pass the days as ``forced_days``),\n``line_changed`` (the line changed since it was read).",
+        "description": "Replace a line's product with another of the same kind\n(landr-d7ij2.3; activities landr-nnwlq.1) \u2014 room -> room or activity ->\nactivity, same days and quantity, re-priced.\n\n``dry_run=true`` writes nothing (confirm dialog). The old product shows\nin ``removed_lines``, the new one in ``added_lines`` (or, merged into a\nline of that product the booking already holds, in ``changed_lines``);\n``old_product`` / ``new_product`` name both and\n``switched_booking_product_id`` the line that carries the new product\n(a new id when the line had to be recreated). Each commit is recorded in\n``booking_product_change_events``.\n``PATCH .../products/{booking_product_id}`` with ``{\"product_id\"}`` runs\nthe same commit. Same guards and 409s as ``POST .../products``.\n\n``selected_days`` (landr-nnwlq.2, activity lines; also on the dry run)\nmoves the line to new days in the same edit: they must fit the target's\nbooking shape, capacity is judged on them, the room nights and room\nadd-ons follow like a staff day edit, the accommodation partner is\nre-asked as a change when it was asked before (the response previews the\nstay before / after) and the customer's pending\nreschedule request on the line is closed\n(``superseded_reschedule_request_ids``). ``fixed_date_window_id`` picks\nthe course window when two span exactly those days (else 422\n``fixed_date_window_ambiguous`` with ``candidates``, dry run too).\n\n422s: ``line_not_switchable`` (an add-on line), ``product_not_addable``\n(``reason`` ``kind_mismatch`` for activity <-> room, ``not_accommodation``,\n``inactive``), ``same_product``, ``addon_not_offered`` /\n``addon_not_addable``, ``un_priceable``, ``product_already_on_booking``\nand ``dates_not_valid_for_product`` \u2014 ``{error, message, product_id,\nservice_time_shape, reason, days}`` where ``days`` are the offending ISO\ndays and ``reason`` one of ``single_date_required``,\n``contiguous_range_required``, ``fixed_window_mismatch`` (+ ``windows``),\n``day_not_offered``, ``time_slot_unsupported``,\n``daily_slots_unsupported``. 409s: ``booking_locked_for_edit``,\n``capacity_exceeded`` (``conflicts``; pass the days as ``forced_days``),\n``line_changed`` (the line changed since it was read).",
         "operationId": "staff_switch_booking_product",
         "parameters": [
           {

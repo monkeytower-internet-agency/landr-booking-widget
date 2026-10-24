@@ -4402,6 +4402,17 @@ export interface paths {
          *     ``PATCH .../products/{booking_product_id}`` with ``{"product_id"}`` runs
          *     the same commit. Same guards and 409s as ``POST .../products``.
          *
+         *     ``selected_days`` (landr-nnwlq.2, activity lines; also on the dry run)
+         *     moves the line to new days in the same edit: they must fit the target's
+         *     booking shape, capacity is judged on them, the room nights and room
+         *     add-ons follow like a staff day edit, the accommodation partner is
+         *     re-asked as a change when it was asked before (the response previews the
+         *     stay before / after) and the customer's pending
+         *     reschedule request on the line is closed
+         *     (``superseded_reschedule_request_ids``). ``fixed_date_window_id`` picks
+         *     the course window when two span exactly those days (else 422
+         *     ``fixed_date_window_ambiguous`` with ``candidates``, dry run too).
+         *
          *     422s: ``line_not_switchable`` (an add-on line), ``product_not_addable``
          *     (``reason`` ``kind_mismatch`` for activity <-> room, ``not_accommodation``,
          *     ``inactive``), ``same_product``, ``addon_not_offered`` /
@@ -11983,6 +11994,11 @@ export interface components {
             capacity_conflicts?: components["schemas"]["BookingLineCapacityConflict"][];
             /** Changed Lines */
             changed_lines?: components["schemas"]["BookingLineEditLine"][];
+            /**
+             * Days Changed
+             * @default false
+             */
+            days_changed: boolean;
             /** Dry Run */
             dry_run: boolean;
             /**
@@ -11990,6 +12006,8 @@ export interface components {
              * @default false
              */
             hotel_will_be_notified: boolean;
+            hotel_window_after?: components["schemas"]["BookingLineStayWindow"] | null;
+            hotel_window_before?: components["schemas"]["BookingLineStayWindow"] | null;
             new_product?: components["schemas"]["BookingLineProductRef"] | null;
             /** Notification Kind */
             notification_kind?: ("cancellation" | "modification" | "request") | null;
@@ -12010,6 +12028,13 @@ export interface components {
             removed_lines?: components["schemas"]["BookingLineEditLine"][];
             /** Stage After */
             stage_after?: string | null;
+            /**
+             * Stay Changed
+             * @default false
+             */
+            stay_changed: boolean;
+            /** Superseded Reschedule Request Ids */
+            superseded_reschedule_request_ids?: string[];
             /** Switched Booking Product Id */
             switched_booking_product_id?: string | null;
             /** Totals After */
@@ -12036,6 +12061,25 @@ export interface components {
             product_name: string;
             /** Service Time Shape */
             service_time_shape?: string | null;
+        };
+        /**
+         * BookingLineStayWindow
+         * @description The hotel stay as a check-in / check-out window — the shape of the
+         *     day-change preview's ``window_before`` / ``window_after`` (landr-nnwlq.2).
+         */
+        BookingLineStayWindow: {
+            /**
+             * Check In
+             * Format: date
+             */
+            check_in: string;
+            /**
+             * Check Out
+             * Format: date
+             */
+            check_out: string;
+            /** Nights */
+            nights: number;
         };
         /**
          * BookingNoteIn
@@ -12156,10 +12200,14 @@ export interface components {
              * @default false
              */
             dry_run: boolean;
+            /** Fixed Date Window Id */
+            fixed_date_window_id?: string | null;
             /** Forced Days */
             forced_days?: string[] | null;
             /** Product Id */
             product_id: string;
+            /** Selected Days */
+            selected_days?: string[] | null;
         };
         /** BookingProductsRemoveIn */
         BookingProductsRemoveIn: {
