@@ -2177,6 +2177,41 @@ describe('OfferPage — special price rows (mode="pay", landr-1l6hl.5)', () => {
     expect(screen.getByTestId('offer-balance-due')).toHaveTextContent(formatCurrency(800, 'EUR'))
   })
 
+  it('shows a named adjustment\'s description behind a chevron, only when it has one', async () => {
+    mocks.getBookingByToken.mockResolvedValue({
+      ...SPECIAL_PRICE_PAY,
+      savings: [
+        {
+          kind: 'discount',
+          label: 'Weekday special',
+          amount: '100.00',
+          description: 'Quieter on weekdays, so we pass it on.',
+        },
+        { kind: 'group_discount', label: 'Group discount', amount: '80.00' },
+      ],
+      savings_total: '180.00',
+    })
+    render(<OfferPage token={TOKEN} mode="pay" />)
+    await waitFor(() => screen.getByTestId('offer-ready'))
+
+    const rows = screen.getAllByTestId('offer-saving')
+    expect(rows[0]).toHaveTextContent('Weekday special')
+    const toggle = screen.getByTestId('offer-saving-label-toggle')
+    expect(screen.getAllByTestId('offer-saving-label-toggle')).toHaveLength(1)
+    expect(screen.getByTestId('offer-saving-label')).toHaveAttribute(
+      'title',
+      'Quieter on weekdays, so we pass it on.',
+    )
+    expect(screen.queryByTestId('offer-saving-label-description')).not.toBeInTheDocument()
+    fireEvent.click(toggle)
+    expect(screen.getByTestId('offer-saving-label-description')).toHaveTextContent(
+      'Quieter on weekdays, so we pass it on.',
+    )
+    // The row without a description renders as before: plain text, no chevron.
+    expect(rows[1]).toHaveTextContent('Group discount')
+    expect(rows[1].querySelector('button')).toBeNull()
+  })
+
   it('explains a legacy imported price with an "Imported price" row', async () => {
     mocks.getBookingByToken.mockResolvedValue({
       ...SPECIAL_PRICE_PAY,

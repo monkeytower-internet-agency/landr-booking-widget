@@ -38,6 +38,7 @@ import {
   periodRowsFromApi,
   type OfferPeriodRow,
 } from './offerDates'
+import { DescribedLabel } from './DescribedLabel'
 import { hasSaving } from './offerPositions'
 import { PerformerPaySections } from './PerformerPaySections'
 import { groupPerformerLines } from './priceSidebarHelpers'
@@ -1649,7 +1650,13 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
                       data-testid="offer-saving"
                       data-kind={row.kind}
                     >
-                      <td className="px-4 py-1">{savingLabel(row, locale)}</td>
+                      <td className="px-4 py-1">
+                        <DescribedLabel
+                          text={savingLabel(row, locale)}
+                          description={row.description}
+                          testId="offer-saving-label"
+                        />
+                      </td>
                       <td
                         className="px-4 py-1 text-right tabular-nums"
                         data-testid="offer-saving-amount"
