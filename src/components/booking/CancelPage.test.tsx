@@ -271,4 +271,20 @@ describe('CancelPage change-activity hint', () => {
       'Du möchtest eine andere Aktivität? Wende dich an Sky Op, um sie zu ändern.',
     )
   })
+
+  it('falls back to generic wording when the operator name is blank', async () => {
+    await renderLoaded(
+      preview({ operator: { name: '   ', phone: null, email: 'hello@sky.example' } }),
+    )
+    expect(textOf('cancel-change-activity-hint')).toBe(
+      'Want a different activity? Contact the operator to change it.',
+    )
+  })
+
+  it('keeps the hint below the Yes/No buttons', async () => {
+    await renderLoaded()
+    const no = screen.getByRole('button', { name: /^no/i })
+    const hint = screen.getByTestId('cancel-change-activity-hint')
+    expect(no.compareDocumentPosition(hint) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
 })
