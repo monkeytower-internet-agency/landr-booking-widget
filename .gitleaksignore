@@ -1,0 +1,7 @@
+# landr-0unqx.1 baseline: benign findings from the 2026-10-25 full-history scan (gitleaks v8.21.2).
+# Test fixtures, public-by-design Supabase anon/publishable keys, Firebase client keys, a dev-only token.
+# Fingerprints are commit-pinned, so only these exact historical lines are ignored. Do not add real secrets.
+ca2b27a6c63d68c6b5b9758e367bd266cd67266b:src/detectRoute.test.ts:generic-api-key:202
+a06e1b5b1cee476a8b35eafbf20e7abd654f95db:src/detectRoute.test.ts:generic-api-key:153
+a06e1b5b1cee476a8b35eafbf20e7abd654f95db:src/detectRoute.test.ts:generic-api-key:170
+9ddd24a5110ba3f5e8c5000206ae2525f99e3caf:src/detectRoute.test.ts:generic-api-key:38
