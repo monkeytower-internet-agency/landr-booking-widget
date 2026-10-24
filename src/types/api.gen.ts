@@ -4456,8 +4456,10 @@ export interface paths {
          *     service_time_shape, reason, days}`` where ``days`` are the offending ISO
          *     days and ``reason`` one of ``single_date_required``,
          *     ``contiguous_range_required``, ``fixed_window_mismatch`` (+ ``windows``),
-         *     ``day_not_offered``, ``time_slot_unsupported``,
-         *     ``daily_slots_unsupported``. 409s: ``booking_locked_for_edit``,
+         *     ``day_not_offered``, and for slot-based targets (landr-sgf63;
+         *     ``slot_start_time`` + exactly one day) ``slot_required``,
+         *     ``slot_not_offered``, ``slot_not_applicable``. Service add-on lines on the
+         *     booking follow the new day and slot (``changed_lines``). 409s: ``booking_locked_for_edit``,
          *     ``capacity_exceeded`` (``conflicts``; pass the days as ``forced_days``),
          *     ``line_changed`` (the line changed since it was read).
          */
@@ -12289,6 +12291,8 @@ export interface components {
             product_id: string;
             /** Selected Days */
             selected_days?: string[] | null;
+            /** Slot Start Time */
+            slot_start_time?: string | null;
         };
         /** BookingProductsRemoveIn */
         BookingProductsRemoveIn: {
