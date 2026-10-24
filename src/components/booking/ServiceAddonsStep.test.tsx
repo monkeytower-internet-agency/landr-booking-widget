@@ -145,8 +145,11 @@ describe('ServiceAddonsStep (landr-cip6)', () => {
     await waitFor(() =>
       expect(screen.getByText('Video Package')).toBeInTheDocument(),
     )
-    // Catalogue loaded with nothing picked: an empty live selection.
-    expect(onLive).toHaveBeenLastCalledWith([])
+    // Catalogue loaded with nothing picked: an empty live selection. The lift
+    // happens in a passive effect that React may flush a tick after the DOM
+    // paint `getByText` saw (an update outside act), so poll for it instead of
+    // asserting in the same tick - under full-suite load the gap is real.
+    await waitFor(() => expect(onLive).toHaveBeenLastCalledWith([]))
 
     const plus = screen.getByRole('button', { name: /Increase Video Package/i })
     fireEvent.click(plus)

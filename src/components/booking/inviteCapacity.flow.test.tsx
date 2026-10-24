@@ -97,40 +97,48 @@ const prefill = (over: Record<string, unknown> = {}) => ({
 
 const inSeventyTwoHours = () => new Date(Date.now() + 72 * 3_600_000).toISOString()
 
+// Every step of this walk renders the whole App in jsdom (~0.3-0.7s a step on
+// an idle box); under a loaded full-suite run the default 1s waitFor budget
+// ran out mid-walk, and the 5s test budget with it. Scoped to this file's
+// walks only - same idea as SLOW_FLOW in App.test.tsx.
+const SLOW_FLOW = { timeout: 8000 }
+const SLOW_TEST = 30_000
+vi.setConfig({ testTimeout: SLOW_TEST })
+
 async function driveToConfirm() {
   const setInput = (name: string, value: string) =>
     fireEvent.change(document.querySelector<HTMLInputElement>(`input[name="${name}"]`)!, {
       target: { value },
     })
-  await waitFor(() => expect(screen.getByText(/Pick a date/i)).toBeInTheDocument())
+  await waitFor(() => expect(screen.getByText(/Pick a date/i)).toBeInTheDocument(), SLOW_FLOW)
   await waitFor(() => {
     const enabled = screen
       .getAllByRole('gridcell')
       .map((c) => c.querySelector('button'))
       .filter((b): b is HTMLButtonElement => !!b && !b.disabled)
     expect(enabled.length).toBeGreaterThan(0)
-  })
+  }, SLOW_FLOW)
   const days = screen
     .getAllByRole('gridcell')
     .map((c) => c.querySelector('button'))
     .filter((b): b is HTMLButtonElement => !!b && !b.disabled)
   fireEvent.click(days[0]!)
-  fireEvent.click(await screen.findByRole('button', { name: /continue/i }))
-  await waitFor(() => expect(screen.getByText(/your contact details/i)).toBeInTheDocument())
+  fireEvent.click(await screen.findByRole('button', { name: /continue/i }, SLOW_FLOW))
+  await waitFor(() => expect(screen.getByText(/your contact details/i)).toBeInTheDocument(), SLOW_FLOW)
   setInput('booker_first_name', 'Olaf')
   setInput('booker_last_name', 'Klein')
   setInput('booker_email', 'olaf@example.com')
   setInput('booker_phone', '+34 600000000')
   fillBillingFields()
   fireEvent.click(screen.getByRole('button', { name: /continue/i }))
-  await screen.findByTestId('participant-language-board')
+  await screen.findByTestId('participant-language-board', undefined, SLOW_FLOW)
   const submit = screen.getByTestId('language-step-submit') as HTMLButtonElement
   if (submit.disabled) {
     fireEvent.click(screen.getByTestId('lang-add-en'))
-    await waitFor(() => expect(screen.getByTestId('language-step-submit')).toBeEnabled())
+    await waitFor(() => expect(screen.getByTestId('language-step-submit')).toBeEnabled(), SLOW_FLOW)
   }
   fireEvent.click(screen.getByTestId('language-step-submit'))
-  await waitFor(() => expect(screen.getByText(/review your booking/i)).toBeInTheDocument())
+  await waitFor(() => expect(screen.getByText(/review your booking/i)).toBeInTheDocument(), SLOW_FLOW)
   fireEvent.click(screen.getByRole('button', { name: /confirm booking/i }))
 }
 
@@ -191,7 +199,7 @@ describe('host confirmation — seat hold text', () => {
     window.history.replaceState({}, '', '/i/tok-host')
     render(<App />)
     await driveToConfirm()
-    return screen.findByTestId('invite-hold-line')
+    return screen.findByTestId('invite-hold-line', undefined, SLOW_FLOW)
   }
 
   it('held: names the invitee, hours and deadline', async () => {
@@ -225,7 +233,7 @@ describe('host confirmation — seat hold text', () => {
     window.history.replaceState({}, '', '/i/tok-host')
     render(<App />)
     await driveToConfirm()
-    await screen.findByTestId('invite-card')
+    await screen.findByTestId('invite-card', undefined, SLOW_FLOW)
     expect(screen.queryByTestId('invite-hold-line')).not.toBeInTheDocument()
   })
 })
@@ -293,7 +301,7 @@ describe('422 capacity_exceeded with days', () => {
     )
     render(<App />)
     await driveToConfirm()
-    const err = await screen.findByTestId('review-error')
+    const err = await screen.findByTestId('review-error', undefined, SLOW_FLOW)
     expect(err).toHaveTextContent(/seats? left on .* — you need 1\./)
     expect(err).not.toHaveTextContent(/not enough space left/i)
     expect(screen.getByTestId('review-change-dates')).toBeInTheDocument()
