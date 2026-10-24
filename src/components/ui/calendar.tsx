@@ -247,6 +247,9 @@ function CalendarDayButton({
   // needs (MultiDayPicker / SingleDatePicker feed it). Struck through in
   // amber; the hint context adds "n seats left" to the label + tooltip.
   const short = modifiers.short === true
+  // Staff override pickers: a day customers cannot book (blocked weekday, full,
+  // outside the schedule) that the operator may still force-book.
+  const override = modifiers.override === true
   const hintFor = React.useContext(CalendarDayHintContext)
   const hint = hintFor?.(day.date)
 
@@ -305,6 +308,7 @@ function CalendarDayButton({
       data-range-middle={modifiers.range_middle}
       data-diff={diffAdded ? "added" : diffRemoved ? "removed" : undefined}
       data-short={short || undefined}
+      data-override={override || undefined}
       aria-label={ariaLabel}
       title={hint}
       className={cn(
@@ -327,6 +331,9 @@ function CalendarDayButton({
         short &&
           !modifiers.selected &&
           "text-amber-700 decoration-amber-600 dark:text-amber-400 dark:decoration-amber-400",
+        override &&
+          !modifiers.selected &&
+          "text-muted-foreground underline decoration-dotted underline-offset-4",
         defaultClassNames.day,
         className
       )}
