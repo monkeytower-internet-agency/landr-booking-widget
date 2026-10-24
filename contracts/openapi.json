@@ -34702,6 +34702,56 @@
         ]
       }
     },
+    "/api/landr-staff/operators/{operator_id}/resend-verification": {
+      "post": {
+        "description": "landr-dgbkm: re-send the sign-up confirmation email to an owner who never\nconfirmed. EMAIL ONLY, like the password reset: the link is never returned\nor logged. 409 ``owner_already_confirmed`` when there is nothing to confirm.",
+        "operationId": "landr_staff_resend_verification",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Landr Staff Resend Verification",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Landr Staff Resend Verification",
+        "tags": [
+          "landr-staff-operators"
+        ]
+      }
+    },
     "/api/landr-staff/operators/{operator_id}/restore": {
       "post": {
         "operationId": "landr_staff_restore_operator",

@@ -975,6 +975,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/landr-staff/operators/{operator_id}/resend-verification": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Landr Staff Resend Verification
+         * @description landr-dgbkm: re-send the sign-up confirmation email to an owner who never
+         *     confirmed. EMAIL ONLY, like the password reset: the link is never returned
+         *     or logged. 409 ``owner_already_confirmed`` when there is nothing to confirm.
+         */
+        post: operations["landr_staff_resend_verification"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/landr-staff/operators/{operator_id}/restore": {
         parameters: {
             query?: never;
@@ -24254,6 +24276,39 @@ export interface operations {
                 "application/json": components["schemas"]["ConfirmBody"];
             };
         };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    landr_staff_resend_verification: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {
