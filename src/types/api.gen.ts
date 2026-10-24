@@ -4402,6 +4402,19 @@ export interface paths {
          *     ``PATCH .../products/{booking_product_id}`` with ``{"product_id"}`` runs
          *     the same commit. Same guards and 409s as ``POST .../products``.
          *
+         *     ``price_decision`` (landr-nnwlq.3): ``apply`` (default) re-prices — an
+         *     upgrade is balance due, a downgrade is settled by ``downgrade_settlement``
+         *     (``credit`` default: stays on the booking; ``refund``: returned to the
+         *     original payment). ``keep`` pins the booking total to its pre-switch
+         *     value through the booking price override (reason ``product change``);
+         *     403 ``role_not_allowed`` without the price-override power. The dry run
+         *     always returns ``price_old_total`` / ``price_new_total`` /
+         *     ``price_difference``. ``notify_customer`` (default true) sends the
+         *     updated booking confirmation after the commit (``customer_notified``;
+         *     ``customer_notify_skipped`` says why not, e.g. the booking was never
+         *     confirmed); the switch is recorded with its price decision and
+         *     settlement in ``booking_product_change_events``.
+         *
          *     ``selected_days`` (landr-nnwlq.2, activity lines; also on the dry run)
          *     moves the line to new days in the same edit: they must fit the target's
          *     booking shape, capacity is judged on them, the room nights and room
@@ -11988,17 +12001,30 @@ export interface components {
              * @default false
              */
             approval_gate_skipped: boolean;
+            /** Balance Due After */
+            balance_due_after?: string | null;
             /** Booking Id */
             booking_id: string;
             /** Capacity Conflicts */
             capacity_conflicts?: components["schemas"]["BookingLineCapacityConflict"][];
             /** Changed Lines */
             changed_lines?: components["schemas"]["BookingLineEditLine"][];
+            /** Customer Notified */
+            customer_notified?: boolean | null;
+            /** Customer Notify Skipped */
+            customer_notify_skipped?: string | null;
+            /**
+             * Customer Will Be Notified
+             * @default false
+             */
+            customer_will_be_notified: boolean;
             /**
              * Days Changed
              * @default false
              */
             days_changed: boolean;
+            /** Downgrade Settlement */
+            downgrade_settlement?: ("refund" | "credit") | null;
             /** Dry Run */
             dry_run: boolean;
             /**
@@ -12024,8 +12050,24 @@ export interface components {
              * @default 0
              */
             participants_unassigned: number;
+            /** Price Decision */
+            price_decision?: ("apply" | "keep") | null;
+            /** Price Difference */
+            price_difference?: string | null;
+            /** Price Kept Total */
+            price_kept_total?: string | null;
+            /** Price New Total */
+            price_new_total?: string | null;
+            /** Price Old Total */
+            price_old_total?: string | null;
+            /** Refunded Amount */
+            refunded_amount?: string | null;
             /** Removed Lines */
             removed_lines?: components["schemas"]["BookingLineEditLine"][];
+            /** Settlement */
+            settlement?: ("refund" | "credit") | null;
+            /** Settlement Action */
+            settlement_action?: string | null;
             /** Stage After */
             stage_after?: string | null;
             /**
@@ -12196,6 +12238,12 @@ export interface components {
             /** Addons */
             addons?: components["schemas"]["BookingProductAddonIn"][];
             /**
+             * Downgrade Settlement
+             * @default credit
+             * @enum {string}
+             */
+            downgrade_settlement: "refund" | "credit";
+            /**
              * Dry Run
              * @default false
              */
@@ -12204,6 +12252,17 @@ export interface components {
             fixed_date_window_id?: string | null;
             /** Forced Days */
             forced_days?: string[] | null;
+            /**
+             * Notify Customer
+             * @default true
+             */
+            notify_customer: boolean;
+            /**
+             * Price Decision
+             * @default apply
+             * @enum {string}
+             */
+            price_decision: "apply" | "keep";
             /** Product Id */
             product_id: string;
             /** Selected Days */
