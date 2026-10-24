@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { detectRoute, invitePathToken, startsAtDates } from './detectRoute'
+import { detectRoute, invitePathToken, shortLinkCode, startsAtDates } from './detectRoute'
 
 /**
  * Path-based route detection (landr-sgnd). The widget is otherwise a
@@ -261,5 +261,19 @@ describe('startsAtDates', () => {
     expect(startsAtDates('?w=tok&product=guided-day')).toBe(false)
     expect(startsAtDates('?w=tok&product=guided-day&start=overview')).toBe(false)
     expect(startsAtDates('?w=tok&product=guided-day&start=')).toBe(false)
+  })
+})
+
+describe('shortLinkCode (/s/{code})', () => {
+  it('extracts the code', () => {
+    expect(shortLinkCode('/s/k3m9xq')).toBe('k3m9xq')
+    expect(shortLinkCode('/s/k3m9xq/')).toBe('k3m9xq')
+  })
+  it('returns null for other paths', () => {
+    expect(shortLinkCode('/')).toBeNull()
+    expect(shortLinkCode('/s')).toBeNull()
+    expect(shortLinkCode('/s/')).toBeNull()
+    expect(shortLinkCode('/i/abc')).toBeNull()
+    expect(shortLinkCode('/s/a/b')).toBeNull()
   })
 })
