@@ -1275,75 +1275,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/landr-staff/promotions/prod-hotfix/candidates": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List Prod Hotfix Candidates
-         * @description Staging hotfix merges that main lacks, per deployable repo (landr-ctqww).
-         *     Approver. A repo whose read fails carries ``error``.
-         */
-        get: operations["list_prod_hotfix_candidates"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/landr-staff/promotions/prod-hotfix/code": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Create Prod Hotfix Code
-         * @description Hotfix to production (landr-ctqww). Approver, staging api only.
-         *
-         *     Creates a queued run that cherry-picks the picked staging hotfix merges
-         *     onto ``hotfix-prod/<run-id>`` off each repo's main tip, checks the
-         *     back-merge into staging is clean, applies the picked landr-api migrations
-         *     to the production DB (only those), merges into ``main`` and back-merges
-         *     main into ``staging``. Any conflict before the merge ⇒ nothing changes.
-         */
-        post: operations["create_prod_hotfix_code"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/landr-staff/promotions/prod-hotfix/preview": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Preview Prod Hotfix
-         * @description What a Hotfix to production with these picks would cherry-pick onto
-         *     main and which migrations would reach the production DB (landr-ctqww).
-         *     Read-only. 422 on a bad pick set.
-         */
-        post: operations["preview_prod_hotfix"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/landr-staff/promotions/staging-hotfix": {
         parameters: {
             query?: never;
@@ -3841,10 +3772,6 @@ export interface paths {
          *     booking's `booking_group`) and `narrow_participant_ids`; for a code those
          *     are `null` and `[]`.
          *
-         *     A valid booking reference whose only activity is on a later day answers
-         *     409 `activity_not_today` with `next_activity_date` (landr-zv5gf); every
-         *     other miss, and every activity code, stays the opaque 404.
-         *
          *     A valid code for a product with nobody on it today returns an EMPTY
          *     participant list, not a 404: "the code works, nothing is scheduled" is a
          *     real and useful answer, and collapsing it into the not-found body would
@@ -3875,26 +3802,6 @@ export interface paths {
          *     one whose fingerprint the token has to carry.
          */
         post: operations["public_today_session"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/public/ui-locales": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List Ui Locales
-         * @description The languages the staff dashboard UI can be shown in (switcher order).
-         */
-        get: operations["public_list_ui_locales"];
-        put?: never;
-        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -3949,10 +3856,6 @@ export interface paths {
          *     before landr-5oox.9 the delete succeeded. A slot row instead relies
          *     entirely on the pointer signal (``live_count``, already the correct
          *     per-slot match) for both the block decision AND ``booked_participants``.
-         *
-         *     landr-8ht3m.15: on a plain time_slot product (no ``daily_start_times``) the
-         *     slot row also counts staff free-time lines at exactly its start time
-         *     (``free_time_load_per_slot``), which carry no pointer.
          */
         delete: operations["delete_availability"];
         options?: never;
@@ -4389,79 +4292,19 @@ export interface paths {
         /**
          * Switch Booking Product
          * @description Replace a line's product with another of the same kind
-         *     (landr-d7ij2.3; activities landr-nnwlq.1) — room -> room or activity ->
-         *     activity, same days and quantity, re-priced.
+         *     (landr-d7ij2.3) — same days and quantity, re-priced.
          *
          *     ``dry_run=true`` writes nothing (confirm dialog). The old product shows
          *     in ``removed_lines``, the new one in ``added_lines`` (or, merged into a
-         *     line of that product the booking already holds, in ``changed_lines``);
-         *     ``old_product`` / ``new_product`` name both and
-         *     ``switched_booking_product_id`` the line that carries the new product
-         *     (a new id when the line had to be recreated). Each commit is recorded in
-         *     ``booking_product_change_events``.
+         *     line of that product the booking already holds, in ``changed_lines``).
          *     ``PATCH .../products/{booking_product_id}`` with ``{"product_id"}`` runs
          *     the same commit. Same guards and 409s as ``POST .../products``.
-         *
-         *     ``price_decision`` (landr-nnwlq.3): ``apply`` (default) re-prices — an
-         *     upgrade is balance due, a downgrade is settled by ``downgrade_settlement``
-         *     (``credit`` default: stays on the booking; ``refund``: returned to the
-         *     original payment). ``keep`` pins the booking total to its pre-switch
-         *     value through the booking price override (reason ``product change``);
-         *     403 ``role_not_allowed`` without the price-override power. The dry run
-         *     always returns ``price_old_total`` / ``price_new_total`` /
-         *     ``price_difference``. ``notify_customer`` (default true) sends the
-         *     updated booking confirmation after the commit (``customer_notified``;
-         *     ``customer_notify_skipped`` says why not, e.g. the booking was never
-         *     confirmed); the switch is recorded with its price decision and
-         *     settlement in ``booking_product_change_events``.
-         *
-         *     ``selected_days`` (landr-nnwlq.2, activity lines; also on the dry run)
-         *     moves the line to new days in the same edit: they must fit the target's
-         *     booking shape, capacity is judged on them, the room nights and room
-         *     add-ons follow like a staff day edit, the accommodation partner is
-         *     re-asked as a change when it was asked before (the response previews the
-         *     stay before / after) and the customer's pending
-         *     reschedule request on the line is closed
-         *     (``superseded_reschedule_request_ids``). ``fixed_date_window_id`` picks
-         *     the course window when two span exactly those days (else 422
-         *     ``fixed_date_window_ambiguous`` with ``candidates``, dry run too).
-         *
-         *     422s: ``line_not_switchable`` (an add-on line), ``product_not_addable``
-         *     (``reason`` ``kind_mismatch`` for activity <-> room, ``not_accommodation``,
-         *     ``inactive``), ``same_product``, ``addon_not_offered`` /
-         *     ``addon_not_addable``, ``un_priceable``, ``product_already_on_booking``
-         *     and ``dates_not_valid_for_product`` — ``{error, message, product_id,
-         *     service_time_shape, reason, days}`` where ``days`` are the offending ISO
-         *     days and ``reason`` one of ``single_date_required``,
-         *     ``contiguous_range_required``, ``fixed_window_mismatch`` (+ ``windows``),
-         *     ``day_not_offered``, ``time_slot_unsupported``,
-         *     ``daily_slots_unsupported``. 409s: ``booking_locked_for_edit``,
-         *     ``capacity_exceeded`` (``conflicts``; pass the days as ``forced_days``),
-         *     ``line_changed`` (the line changed since it was read).
          */
         post: operations["staff_switch_booking_product"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
-        trace?: never;
-    };
-    "/api/staff/me/profile": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get My Profile */
-        get: operations["staff_get_my_profile"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /** Patch My Profile */
-        patch: operations["staff_patch_my_profile"];
         trace?: never;
     };
     "/api/staff/operators": {
@@ -4479,8 +4322,7 @@ export interface paths {
          *
          *     Responses: 201 `{operator_id, slug}`; 422 `invalid_slug` /
          *     `unknown_preset_key` (+ suggestions on the former); 409 `slug_taken` +
-         *     suggestions; 403 `not_a_member` (no `public.users` row); 403
-         *     `free_tier_limit` (no paid operator owned, landr-981dz); 429
+         *     suggestions; 403 `not_a_member` (no `public.users` row); 429
          *     `rate_limited` (5/user/day).
          */
         post: operations["create_operator"];
@@ -4732,33 +4574,6 @@ export interface paths {
          *     bookings list uses, so a customer name finds its cancelled booking.
          */
         get: operations["staff_list_cancelled_bookings"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/staff/operators/{operator_id}/bookings/customer-unnotified": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List Customer Unnotified
-         * @description Booking ids whose ``customer_unnotified`` flag is true.
-         *
-         *     A live booking an operator created (``booking_channel`` != ``public_website``)
-         *     that the customer has heard nothing about: no confirmation mail sent, no
-         *     offer sent, no custom offer applied (those carry "Offer not sent" instead).
-         *     No ``ids`` -> every flagged booking of the operator; with repeated ``ids``
-         *     -> only those among them (the page being rendered). Operator-scoped:
-         *     another operator's ids are never reported.
-         */
-        get: operations["staff_list_customer_unnotified"];
         put?: never;
         post?: never;
         delete?: never;
@@ -5706,9 +5521,7 @@ export interface paths {
          *     - Guards: only allowed when the booking is in/past the confirmed set (same
          *       gate as resend, landr-tf39) AND no prior confirmation exists yet.
          *       If a prior exists → 409 {"error": "already_confirmed"} (use resend).
-         *       If the stage is not yet confirmed/due → 409 {"error": "confirmation_not_allowed_yet"}
-         *       (public-website bookings only; staff-created bookings skip this stage gate,
-         *       the hotel and offer guards still apply).
+         *       If the stage is not yet confirmed/due → 409 {"error": "confirmation_not_allowed_yet"}.
          *     - Calls send_booking_confirmation(is_update=False, no extra_context) which
          *       records the initial last_confirmation_context snapshot.
          *     - Returns {"sent": true, "email_id": "<id or null>"}.
@@ -7896,21 +7709,12 @@ export interface paths {
          *     cannot show a second seat definition. ``booked`` is the
          *     guiding participants of live bookings (``product_day_seat_load``).
          *
-         *     landr-8ht3m.24: a single_date product with start times (the public RPC
-         *     sells each open day as one timed row per start time) is ONE row per day
-         *     here: ``capacity`` = the sum of its slots' seats, ``available`` = the sum
-         *     of their free seats, ``booked`` = the seats held across the slots
-         *     (``product_slot_seat_load``: a booking with no start time holds a seat in
-         *     every slot). Slots already started are gone from the RPC, so they leave the
-         *     sums too. The response shape is unchanged.
-         *
          *     Omitted: products limited by ``resources`` (the pool lanes already show
          *     them), days whose ``seat_limit_source`` is not ``product`` (sentinel /
-         *     ``none`` / pool-filled days; for a timed day: any of its slots), closed
-         *     days (the RPC does not return them), and slot rows of time_slot and
-         *     days_range products (a per-day number needs a whole-day shape). Like the
-         *     widget, products that are inactive or not publicly listed return no rows.
-         *     Ordered by product name, then date.
+         *     ``none`` / pool-filled days), closed days (the RPC does not return them),
+         *     and slot rows of time_slot products (a per-day number needs a whole-day
+         *     shape). Like the widget, products that are inactive or not publicly
+         *     listed return no rows. Ordered by product name, then date.
          */
         get: operations["list_product_day_capacity"];
         put?: never;
@@ -11577,8 +11381,6 @@ export interface components {
              * Format: date
              */
             date: string;
-            /** Range Id */
-            range_id?: string | null;
         };
         /** AvailabilityBulkIn */
         AvailabilityBulkIn: {
@@ -11945,7 +11747,7 @@ export interface components {
              * Reason
              * @enum {string}
              */
-            reason: "requested" | "follows_room" | "follows_stay" | "follows_product";
+            reason: "requested" | "follows_room" | "follows_stay";
             /** Selected Days */
             selected_days: string[];
         };
@@ -11978,7 +11780,7 @@ export interface components {
              * Reason
              * @enum {string}
              */
-            reason: "requested" | "follows_room" | "follows_stay" | "follows_product";
+            reason: "requested" | "follows_room" | "follows_stay";
             /** Selected Days After */
             selected_days_after: string[];
             /** Selected Days Before */
@@ -12001,30 +11803,12 @@ export interface components {
              * @default false
              */
             approval_gate_skipped: boolean;
-            /** Balance Due After */
-            balance_due_after?: string | null;
             /** Booking Id */
             booking_id: string;
             /** Capacity Conflicts */
             capacity_conflicts?: components["schemas"]["BookingLineCapacityConflict"][];
             /** Changed Lines */
             changed_lines?: components["schemas"]["BookingLineEditLine"][];
-            /** Customer Notified */
-            customer_notified?: boolean | null;
-            /** Customer Notify Skipped */
-            customer_notify_skipped?: string | null;
-            /**
-             * Customer Will Be Notified
-             * @default false
-             */
-            customer_will_be_notified: boolean;
-            /**
-             * Days Changed
-             * @default false
-             */
-            days_changed: boolean;
-            /** Downgrade Settlement */
-            downgrade_settlement?: ("refund" | "credit") | null;
             /** Dry Run */
             dry_run: boolean;
             /**
@@ -12032,12 +11816,8 @@ export interface components {
              * @default false
              */
             hotel_will_be_notified: boolean;
-            hotel_window_after?: components["schemas"]["BookingLineStayWindow"] | null;
-            hotel_window_before?: components["schemas"]["BookingLineStayWindow"] | null;
-            new_product?: components["schemas"]["BookingLineProductRef"] | null;
             /** Notification Kind */
             notification_kind?: ("cancellation" | "modification" | "request") | null;
-            old_product?: components["schemas"]["BookingLineProductRef"] | null;
             /** Override Gross Total */
             override_gross_total?: string | null;
             /**
@@ -12050,35 +11830,10 @@ export interface components {
              * @default 0
              */
             participants_unassigned: number;
-            /** Price Decision */
-            price_decision?: ("apply" | "keep") | null;
-            /** Price Difference */
-            price_difference?: string | null;
-            /** Price Kept Total */
-            price_kept_total?: string | null;
-            /** Price New Total */
-            price_new_total?: string | null;
-            /** Price Old Total */
-            price_old_total?: string | null;
-            /** Refunded Amount */
-            refunded_amount?: string | null;
             /** Removed Lines */
             removed_lines?: components["schemas"]["BookingLineEditLine"][];
-            /** Settlement */
-            settlement?: ("refund" | "credit") | null;
-            /** Settlement Action */
-            settlement_action?: string | null;
             /** Stage After */
             stage_after?: string | null;
-            /**
-             * Stay Changed
-             * @default false
-             */
-            stay_changed: boolean;
-            /** Superseded Reschedule Request Ids */
-            superseded_reschedule_request_ids?: string[];
-            /** Switched Booking Product Id */
-            switched_booking_product_id?: string | null;
             /** Totals After */
             totals_after: {
                 [key: string]: string;
@@ -12087,41 +11842,6 @@ export interface components {
             totals_before: {
                 [key: string]: string;
             };
-        };
-        /**
-         * BookingLineProductRef
-         * @description A product a ``switch`` moves a line from / to (landr-nnwlq.1).
-         */
-        BookingLineProductRef: {
-            /** Is Addon Only */
-            is_addon_only: boolean;
-            /** Product Id */
-            product_id: string;
-            /** Product Kind */
-            product_kind: string;
-            /** Product Name */
-            product_name: string;
-            /** Service Time Shape */
-            service_time_shape?: string | null;
-        };
-        /**
-         * BookingLineStayWindow
-         * @description The hotel stay as a check-in / check-out window — the shape of the
-         *     day-change preview's ``window_before`` / ``window_after`` (landr-nnwlq.2).
-         */
-        BookingLineStayWindow: {
-            /**
-             * Check In
-             * Format: date
-             */
-            check_in: string;
-            /**
-             * Check Out
-             * Format: date
-             */
-            check_out: string;
-            /** Nights */
-            nights: number;
         };
         /**
          * BookingNoteIn
@@ -12238,35 +11958,14 @@ export interface components {
             /** Addons */
             addons?: components["schemas"]["BookingProductAddonIn"][];
             /**
-             * Downgrade Settlement
-             * @default credit
-             * @enum {string}
-             */
-            downgrade_settlement: "refund" | "credit";
-            /**
              * Dry Run
              * @default false
              */
             dry_run: boolean;
-            /** Fixed Date Window Id */
-            fixed_date_window_id?: string | null;
             /** Forced Days */
             forced_days?: string[] | null;
-            /**
-             * Notify Customer
-             * @default true
-             */
-            notify_customer: boolean;
-            /**
-             * Price Decision
-             * @default apply
-             * @enum {string}
-             */
-            price_decision: "apply" | "keep";
             /** Product Id */
             product_id: string;
-            /** Selected Days */
-            selected_days?: string[] | null;
         };
         /** BookingProductsRemoveIn */
         BookingProductsRemoveIn: {
@@ -12325,8 +12024,6 @@ export interface components {
             participant_count: number;
             /** Participants */
             participants?: components["schemas"]["BookingSummaryParticipant"][];
-            /** Performer Total */
-            performer_total?: string | null;
             /** Periods */
             periods?: {
                 [key: string]: unknown;
@@ -12352,12 +12049,6 @@ export interface components {
             savings_total: string;
             /** Subtotal Before Savings */
             subtotal_before_savings: string;
-            /** Subtotal Before Surcharges */
-            subtotal_before_surcharges?: string | null;
-            /** Surcharges */
-            surcharges?: components["schemas"]["SavingLineOut"][];
-            /** Surcharges Total */
-            surcharges_total?: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -13353,11 +13044,6 @@ export interface components {
             original_total: string;
             /** Paying Count */
             paying_count: number;
-            /**
-             * Performer Total
-             * @default 0
-             */
-            performer_total: string;
             /** Periods */
             periods?: {
                 [key: string]: unknown;
@@ -14268,15 +13954,8 @@ export interface components {
             label: string;
             /** Line Total */
             line_total: string;
-            /**
-             * Paid To
-             * @enum {string}
-             */
-            paid_to: "operator" | "hotel" | "performer";
-            /** Payee Label */
-            payee_label?: string | null;
-            /** Payment Note */
-            payment_note?: string | null;
+            /** Paid To */
+            paid_to: string;
             /** Product Id */
             product_id: string;
             /** Qty */
@@ -14299,12 +13978,8 @@ export interface components {
              * @default 1
              */
             participants_count: number;
-            /** Product Availability Id */
-            product_availability_id?: string | null;
             /** Selected Days */
             selected_days?: string[];
-            /** Slot Start Time */
-            slot_start_time?: string | null;
         };
         /**
          * EstimateResponse
@@ -14329,20 +14004,12 @@ export interface components {
             multi_day_savings?: components["schemas"]["MultiDaySavingsOut"] | null;
             /** Operator Total */
             operator_total: string;
-            /** Performer Total */
-            performer_total: string;
             /** Savings */
             savings?: components["schemas"]["SavingLineOut"][] | null;
             /** Savings Total */
             savings_total?: string | null;
             /** Subtotal Before Savings */
             subtotal_before_savings?: string | null;
-            /** Subtotal Before Surcharges */
-            subtotal_before_surcharges?: string | null;
-            /** Surcharges */
-            surcharges?: components["schemas"]["SavingLineOut"][] | null;
-            /** Surcharges Total */
-            surcharges_total?: string | null;
             /**
              * Un Priceable
              * @default false
@@ -16351,13 +16018,9 @@ export interface components {
              * Paid To
              * @enum {string}
              */
-            paid_to: "operator" | "hotel" | "performer";
+            paid_to: "operator" | "hotel";
             /** Participants */
             participants?: number | null;
-            /** Payee Label */
-            payee_label?: string | null;
-            /** Payment Note */
-            payment_note?: string | null;
             /** Per Person Price */
             per_person_price?: number | null;
             /** Product Id */
@@ -16665,12 +16328,6 @@ export interface components {
             operator_net_total?: number | null;
             /** Operator Tax Total */
             operator_tax_total?: number | null;
-            /** Performer Gross Total */
-            performer_gross_total?: number | null;
-            /** Performer Net Total */
-            performer_net_total?: number | null;
-            /** Performer Tax Total */
-            performer_tax_total?: number | null;
             /** Tax Total */
             tax_total: number;
         } & {
@@ -16701,8 +16358,6 @@ export interface components {
             default_locale?: string | null;
             /** Default Tax Rate */
             default_tax_rate?: number | string | null;
-            /** Default Ui Locale */
-            default_ui_locale?: string | null;
             /** Deposit Percent */
             deposit_percent?: number | null;
             /** First Day Of Week */
@@ -16745,6 +16400,8 @@ export interface components {
             public_contact_email?: string | null;
             /** Region */
             region?: string | null;
+            /** Require Declarations */
+            require_declarations?: boolean | null;
             /** Show Premium Teasers */
             show_premium_teasers?: boolean | null;
             /** Street */
@@ -16848,12 +16505,8 @@ export interface components {
             next_window_end?: string | null;
             /** Next Window Start */
             next_window_start?: string | null;
-            /** Price Base */
-            price_base?: string | null;
             /** Price From */
             price_from?: string | null;
-            /** Price Notes */
-            price_notes?: components["schemas"]["PriceNote"][];
             /** Product Id */
             product_id: string;
             /**
@@ -16996,8 +16649,6 @@ export interface components {
             theme?: {
                 [key: string]: unknown;
             } | null;
-            /** Timezone */
-            timezone?: string | null;
             /** Widget Catalog Layout */
             widget_catalog_layout?: string | null;
             /** Widget Category Columns */
@@ -17530,53 +17181,6 @@ export interface components {
             /** Season Name */
             season_name?: string | null;
         };
-        /**
-         * PriceNote
-         * @description landr-bwm91.4: one visible price adjustment of a product.
-         */
-        PriceNote: {
-            /** Amount */
-            amount: string;
-            /**
-             * Amount Type
-             * @enum {string}
-             */
-            amount_type: "flat" | "percent";
-            /** Description */
-            description?: string | null;
-            /** Description Localized */
-            description_localized?: {
-                [key: string]: string;
-            } | null;
-            /**
-             * Kind
-             * @enum {string}
-             */
-            kind: "surcharge" | "discount";
-            /** Label */
-            label: string;
-            /** Name */
-            name?: string | null;
-            /** Name Localized */
-            name_localized?: {
-                [key: string]: string;
-            } | null;
-            /**
-             * Per Participant
-             * @default false
-             */
-            per_participant: boolean;
-            /** Rule Kind */
-            rule_kind?: string | null;
-            /** Time From */
-            time_from?: string | null;
-            /** Time To */
-            time_to?: string | null;
-            /** Weekdays */
-            weekdays?: number[] | null;
-        } & {
-            [key: string]: unknown;
-        };
         /** PriceOverrideIn */
         PriceOverrideIn: {
             /** Override Gross Total */
@@ -17680,11 +17284,6 @@ export interface components {
             /** Id */
             id: string;
             /**
-             * Is Addon Only
-             * @default false
-             */
-            is_addon_only: boolean;
-            /**
              * Is Publicly Listed
              * @default false
              */
@@ -17716,13 +17315,8 @@ export interface components {
             label: string;
             /** Line Total */
             line_total: string;
-            /**
-             * Paid To
-             * @enum {string}
-             */
-            paid_to: "operator" | "hotel" | "performer";
-            /** Payment Note */
-            payment_note?: string | null;
+            /** Paid To */
+            paid_to: string;
             /** Product Id */
             product_id: string;
             /** Qty */
@@ -17764,8 +17358,6 @@ export interface components {
             } | null;
             /** Operator Total */
             operator_total: string;
-            /** Performer Total */
-            performer_total: string;
             /** Price Adjustment */
             price_adjustment?: {
                 [key: string]: string;
@@ -17824,7 +17416,7 @@ export interface components {
              * Rule Kind
              * @enum {string}
              */
-            rule_kind: "per_day_base" | "per_streak_tier" | "per_total_days_tier" | "per_participant_tier" | "fixed_total" | "percentage_discount" | "flat_discount" | "time_of_day_surcharge" | "manual_override" | "slot_time_adjustment" | "weekday_adjustment";
+            rule_kind: "per_day_base" | "per_streak_tier" | "per_total_days_tier" | "per_participant_tier" | "fixed_total" | "percentage_discount" | "flat_discount" | "time_of_day_surcharge" | "manual_override";
             /** Sort Order */
             sort_order: number;
             /** Tiers */
@@ -18006,60 +17598,6 @@ export interface components {
             starts_on: string;
         };
         /**
-         * ProdHotfixCandidate
-         * @description landr-ctqww — one staging hotfix merge main lacks.
-         */
-        ProdHotfixCandidate: {
-            /** Author */
-            author?: string | null;
-            /** Date */
-            date?: string | null;
-            /** Files */
-            files: string[];
-            /** Migrations */
-            migrations: string[];
-            /** Number */
-            number?: number | null;
-            /**
-             * On Main
-             * @default false
-             */
-            on_main: boolean;
-            /** Prs */
-            prs: components["schemas"]["ProdHotfixPr"][];
-            /** Run Id */
-            run_id: string;
-            /** Sha */
-            sha: string;
-            /** Title */
-            title: string;
-            /** Url */
-            url?: string | null;
-        };
-        /** ProdHotfixCandidateRepo */
-        ProdHotfixCandidateRepo: {
-            /** Candidates */
-            candidates: components["schemas"]["ProdHotfixCandidate"][];
-            /** Error */
-            error?: string | null;
-            /** Label */
-            label: string;
-            /** Repo */
-            repo: string;
-        };
-        /** ProdHotfixCandidatesResponse */
-        ProdHotfixCandidatesResponse: {
-            /** Repos */
-            repos: components["schemas"]["ProdHotfixCandidateRepo"][];
-        };
-        /** ProdHotfixPr */
-        ProdHotfixPr: {
-            /** Number */
-            number: number;
-            /** Title */
-            title: string;
-        };
-        /**
          * ProductAddon
          * @description One row returned by the public_get_product_addons RPC (landr-cip6 /
          *     epic landr-ie8g). Mirrors the widget's ``ProductAddon`` TypeScript
@@ -18068,14 +17606,6 @@ export interface components {
         ProductAddon: {
             /** Addon Product Id */
             addon_product_id: string;
-            /** Addon Quantity Max */
-            addon_quantity_max?: number | null;
-            /**
-             * Addon Quantity Rule
-             * @default any
-             * @enum {string}
-             */
-            addon_quantity_rule: "one_per_booking" | "one_per_participant" | "any";
             /**
              * Available
              * @default true
@@ -18332,10 +17862,6 @@ export interface components {
              * @default true
              */
             active: boolean;
-            /** Addon Quantity Max */
-            addon_quantity_max?: number | null;
-            /** Addon Quantity Rule */
-            addon_quantity_rule?: ("one_per_booking" | "one_per_participant" | "any") | null;
             /**
              * Booking Mode
              * @default scheduled
@@ -18422,18 +17948,15 @@ export interface components {
              * @default 2
              */
             on_request_daily_capacity: number;
-            /** Paid To */
-            paid_to?: ("operator" | "hotel" | "performer") | null;
-            /** Payment Note Localized */
-            payment_note_localized?: {
-                [key: string]: unknown;
-            } | null;
             /** Product Group Id */
             product_group_id?: string | null;
             /** Product Kind */
             product_kind?: ("service" | "subscription" | "hotel_room" | "digital_good" | "physical_good" | "gift_card") | null;
-            /** Revenue Flows Through Operator */
-            revenue_flows_through_operator?: boolean | null;
+            /**
+             * Revenue Flows Through Operator
+             * @default true
+             */
+            revenue_flows_through_operator: boolean;
             /** Service Time Shape */
             service_time_shape?: ("single_date" | "days_range" | "fixed_window" | "time_slot") | null;
             /**
@@ -18490,10 +18013,6 @@ export interface components {
             accommodation_lead_time_minutes?: number | null;
             /** Active */
             active?: boolean | null;
-            /** Addon Quantity Max */
-            addon_quantity_max?: number | null;
-            /** Addon Quantity Rule */
-            addon_quantity_rule?: ("one_per_booking" | "one_per_participant" | "any") | null;
             /** Booking Mode */
             booking_mode?: ("scheduled" | "on_request") | null;
             /** Briefing Content */
@@ -18552,12 +18071,6 @@ export interface components {
             needs_provider?: boolean | null;
             /** On Request Daily Capacity */
             on_request_daily_capacity?: number | null;
-            /** Paid To */
-            paid_to?: ("operator" | "hotel" | "performer") | null;
-            /** Payment Note Localized */
-            payment_note_localized?: {
-                [key: string]: unknown;
-            } | null;
             /** Product Group Id */
             product_group_id?: string | null;
             /** Product Kind */
@@ -20428,16 +19941,13 @@ export interface components {
          * SavingLineOut
          * @description One "− <label>  <amount>" row of a customer-facing price breakdown
          *     (landr-nva1a.1, see ``app/services/booking_savings.py``). ``kind`` is
-         *     ``multi_day`` | ``voucher`` | ``perk`` | ``discount`` (or ``surcharge`` in
-         *     a ``surcharges`` list, landr-fcoh2); ``amount`` is a
+         *     ``multi_day`` | ``voucher`` | ``perk`` | ``discount``; ``amount`` is a
          *     positive decimal string. Shared by the estimate, the staff pricing
          *     breakdown, and the submit response's ``summary``.
          */
         SavingLineOut: {
             /** Amount */
             amount: string;
-            /** Description */
-            description?: string | null;
             /** Kind */
             kind: string;
             /** Label */
@@ -20863,8 +20373,7 @@ export interface components {
          *     the desired public handle. `turnstile_token` is the Cloudflare widget's
          *     client response token. `password` is the new account password (GoTrue
          *     enforces its own minimum; we keep a soft floor here). `locale` selects the
-         *     verification-email language (any `public.ui_locales` code or
-         *     browser tag such as `es-ES`; bundled en/de/es/tr, else en; defaults en).
+         *     verification-email language (en/de; defaults en).
          *
          *     Both field names and their marketing-site aliases are accepted (back-compat):
          *       name / operator_name, slug / operator_slug  (landr-oqrz.1)
@@ -20904,8 +20413,6 @@ export interface components {
          *     when ``product_id`` is given.
          */
         SimulateDraftIn: {
-            /** Daily Start Times */
-            daily_start_times?: string[] | null;
             /** Locale */
             locale?: string | null;
             /**
@@ -20923,8 +20430,6 @@ export interface components {
             selected_days?: string[];
             /** Service Time Shape */
             service_time_shape?: string | null;
-            /** Slot Start Time */
-            slot_start_time?: string | null;
             standard?: components["schemas"]["PricingDraftListIn"] | null;
         };
         /** SiteFlyabilityResponse */
@@ -21039,53 +20544,6 @@ export interface components {
             /** Reject Reason Code */
             reject_reason_code?: string | null;
             unit_release?: components["schemas"]["StaffUnitReleaseIn"] | null;
-        };
-        /**
-         * StaffProfileOut
-         * @description The caller's UI-language preference and the effective result.
-         */
-        StaffProfileOut: {
-            /**
-             * Effective Ui Locale
-             * @description What the UI should render in after user -> operator -> browser -> en.
-             */
-            effective_ui_locale: string;
-            /**
-             * Operator Default Ui Locale
-             * @description That operator's team default; null when unset or no operator_id given.
-             */
-            operator_default_ui_locale: string | null;
-            /**
-             * Operator Id
-             * @description Echo of ?operator_id= — the operator the operator rung was read from.
-             */
-            operator_id: string | null;
-            /** Supported Ui Locales */
-            supported_ui_locales: components["schemas"]["UiLocaleOut"][];
-            /**
-             * Ui Locale
-             * @description The caller's own choice; null = none (fall back down the chain).
-             */
-            ui_locale: string | null;
-            /**
-             * Ui Locale Source
-             * @description Which rung produced effective_ui_locale.
-             * @enum {string}
-             */
-            ui_locale_source: "user" | "operator" | "browser" | "fallback";
-            /** User Id */
-            user_id: string;
-        };
-        /**
-         * StaffProfilePatch
-         * @description Partial update of the caller's own profile. Unknown keys 422.
-         */
-        StaffProfilePatch: {
-            /**
-             * Ui Locale
-             * @description A registry code (case-insensitive); null clears the personal choice.
-             */
-            ui_locale?: string | null;
         };
         /** StaffSubmitBookingIn */
         StaffSubmitBookingIn: {
@@ -21932,40 +21390,6 @@ export interface components {
             /** Quantity */
             quantity?: number | null;
         };
-        /**
-         * UiLocaleOut
-         * @description One supported dashboard UI language.
-         */
-        UiLocaleOut: {
-            /**
-             * Code
-             * @description BCP-47 code stored in ui_locale columns, e.g. 'de'.
-             */
-            code: string;
-            /**
-             * English Name
-             * @description English name, e.g. 'German'.
-             */
-            english_name: string;
-            /**
-             * Native Name
-             * @description Endonym for the switcher, e.g. 'Deutsch'.
-             */
-            native_name: string;
-        };
-        /**
-         * UiLocaleRegistryOut
-         * @description The supported-UI-locale registry, in switcher order.
-         */
-        UiLocaleRegistryOut: {
-            /**
-             * Fallback
-             * @description The chain's last rung; always present in `locales`.
-             */
-            fallback: string;
-            /** Locales */
-            locales: components["schemas"]["UiLocaleOut"][];
-        };
         /** UnavailabilityIn */
         UnavailabilityIn: {
             /**
@@ -22777,7 +22201,7 @@ export interface components {
              * Rule Kind
              * @enum {string}
              */
-            rule_kind: "per_day_base" | "per_streak_tier" | "per_total_days_tier" | "per_participant_tier" | "fixed_total" | "percentage_discount" | "flat_discount" | "time_of_day_surcharge" | "manual_override" | "slot_time_adjustment" | "weekday_adjustment";
+            rule_kind: "per_day_base" | "per_streak_tier" | "per_total_days_tier" | "per_participant_tier" | "fixed_total" | "percentage_discount" | "flat_discount" | "time_of_day_surcharge" | "manual_override";
             /** Sort Order */
             sort_order: number;
             /** Tiers */
@@ -22796,7 +22220,7 @@ export interface components {
                 [key: string]: unknown;
             } | null;
             /** Rule Kind */
-            rule_kind?: ("per_day_base" | "per_streak_tier" | "per_total_days_tier" | "per_participant_tier" | "fixed_total" | "percentage_discount" | "flat_discount" | "time_of_day_surcharge" | "manual_override" | "slot_time_adjustment" | "weekday_adjustment") | null;
+            rule_kind?: ("per_day_base" | "per_streak_tier" | "per_total_days_tier" | "per_participant_tier" | "fixed_total" | "percentage_discount" | "flat_discount" | "time_of_day_surcharge" | "manual_override") | null;
             /** Sort Order */
             sort_order?: number | null;
         };
@@ -24609,94 +24033,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PreviewMigrationsResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_prod_hotfix_candidates: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProdHotfixCandidatesResponse"];
-                };
-            };
-        };
-    };
-    create_prod_hotfix_code: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["StagingHotfixCodeIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    preview_prod_hotfix: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["StagingHotfixPreviewIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HotfixPreviewResponse"];
                 };
             };
             /** @description Validation Error */
@@ -27913,13 +27249,6 @@ export interface operations {
                     };
                 };
             };
-            /** @description A valid booking reference whose activity is not today: `{detail: {error: 'activity_not_today', next_activity_date}}`. */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -27962,26 +27291,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    public_list_ui_locales: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["UiLocaleRegistryOut"];
                 };
             };
         };
@@ -28675,78 +27984,6 @@ export interface operations {
             };
         };
     };
-    staff_get_my_profile: {
-        parameters: {
-            query?: {
-                /** @description The operator the dashboard is on; enables the operator-default rung. */
-                operator_id?: string | null;
-            };
-            header?: {
-                "accept-language"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["StaffProfileOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    staff_patch_my_profile: {
-        parameters: {
-            query?: {
-                /** @description The operator the dashboard is on; only shapes the response's resolution. */
-                operator_id?: string | null;
-            };
-            header?: {
-                "accept-language"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["StaffProfilePatch"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["StaffProfileOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     create_operator: {
         parameters: {
             query?: never;
@@ -29207,41 +28444,6 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     }[];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    staff_list_customer_unnotified: {
-        parameters: {
-            query?: {
-                ids?: string[] | null;
-            };
-            header?: never;
-            path: {
-                operator_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
                 };
             };
             /** @description Validation Error */
