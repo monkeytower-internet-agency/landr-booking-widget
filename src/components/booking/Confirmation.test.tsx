@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { Confirmation } from './Confirmation'
+import { fmt, tr } from '@/lib/strings'
 import { HttpError } from '@/api/client'
 import type {
   BookingCalendarEvent,
@@ -1956,5 +1957,28 @@ describe('Confirmation change-activity hint', () => {
     expect(screen.getByTestId('confirmation-change-activity-hint')).toHaveTextContent(
       'Want a different activity? Contact the operator to change it.',
     )
+  })
+
+  describe('in German', () => {
+    beforeEach(() => {
+      vi.spyOn(window.navigator, 'language', 'get').mockReturnValue('de-DE')
+    })
+    afterEach(() => {
+      vi.restoreAllMocks()
+    })
+
+    it('names the operator through the de bundle', () => {
+      render(<Confirmation response={baseResponse()} onRestart={() => {}} operatorName="Para42" />)
+      expect(screen.getByTestId('confirmation-change-activity-hint')).toHaveTextContent(
+        fmt(tr('changeActivityHint', 'de'), { operator: 'Para42' }),
+      )
+    })
+
+    it('falls back to the de generic wording when no operator name is known', () => {
+      render(<Confirmation response={baseResponse()} onRestart={() => {}} />)
+      expect(screen.getByTestId('confirmation-change-activity-hint')).toHaveTextContent(
+        tr('changeActivityHintNoOperator', 'de'),
+      )
+    })
   })
 })

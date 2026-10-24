@@ -31,6 +31,7 @@ export interface CancelBundle {
   contactCall: string
   contactEmail: string
   changeActivityHint: string
+  changeActivityHintNoOperator: string
   alreadyTitle: string
   successTitle: string
   successBody: string
@@ -64,6 +65,7 @@ const en: CancelBundle = {
   contactCall: 'Call {phone}',
   contactEmail: 'Email {email}',
   changeActivityHint: 'Want a different activity? Contact {operator} to change it.',
+  changeActivityHintNoOperator: 'Want a different activity? Contact the operator to change it.',
   alreadyTitle: 'This booking is already cancelled',
   successTitle: 'Booking cancelled',
   successBody:
@@ -101,6 +103,7 @@ const de: CancelBundle = {
   contactCall: 'Anrufen: {phone}',
   contactEmail: 'E-Mail: {email}',
   changeActivityHint: 'Du möchtest eine andere Aktivität? Wende dich an {operator}, um sie zu ändern.',
+  changeActivityHintNoOperator: 'Du möchtest eine andere Aktivität? Wende dich an den Anbieter, um sie zu ändern.',
   alreadyTitle: 'Diese Buchung ist bereits storniert',
   successTitle: 'Buchung storniert',
   successBody:
@@ -137,6 +140,7 @@ const es: CancelBundle = {
   contactCall: 'Llamar al {phone}',
   contactEmail: 'Escribir a {email}',
   changeActivityHint: '¿Quieres otra actividad? Contacta con {operator} para cambiarla.',
+  changeActivityHintNoOperator: '¿Quieres otra actividad? Contacta con el organizador para cambiarla.',
   alreadyTitle: 'Esta reserva ya está cancelada',
   successTitle: 'Reserva cancelada',
   successBody:
@@ -172,6 +176,7 @@ const tr: CancelBundle = {
   contactCall: 'Ara: {phone}',
   contactEmail: 'E-posta gönder: {email}',
   changeActivityHint: 'Farklı bir etkinlik mi istiyorsunuz? Değiştirmek için {operator} ile iletişime geçin.',
+  changeActivityHintNoOperator: 'Farklı bir etkinlik mi istiyorsunuz? Değiştirmek için işletmeyle iletişime geçin.',
   alreadyTitle: 'Bu rezervasyon zaten iptal edilmiş',
   successTitle: 'Rezervasyon iptal edildi',
   successBody:

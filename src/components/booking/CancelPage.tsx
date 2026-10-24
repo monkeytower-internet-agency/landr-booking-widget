@@ -305,6 +305,7 @@ export function CancelPage({ token }: Props) {
   // while the POST is in flight (the API treats a double submit as an
   // idempotent OK, but a busy state is clearer).
   const busy = status === 'submitting'
+  const changeHintOperator = preview.operator.name.trim()
   return (
     <Card>
       <CardHeader>
@@ -326,10 +327,6 @@ export function CancelPage({ token }: Props) {
           </p>
         ) : null}
         <p className="text-muted-foreground text-xs">{t.confirmBody}</p>
-        <p className="text-sm" data-testid="cancel-change-activity-hint">
-          {fmtCancel(t.changeActivityHint, { operator: preview.operator.name })}
-        </p>
-        <ContactLinks t={t} preview={preview} />
         <div className="flex flex-wrap gap-2">
           <Button
             type="button"
@@ -345,6 +342,12 @@ export function CancelPage({ token }: Props) {
             {t.no}
           </Button>
         </div>
+        <p className="text-sm" data-testid="cancel-change-activity-hint">
+          {changeHintOperator
+            ? fmtCancel(t.changeActivityHint, { operator: changeHintOperator })
+            : t.changeActivityHintNoOperator}
+        </p>
+        <ContactLinks t={t} preview={preview} />
       </CardContent>
     </Card>
   )
