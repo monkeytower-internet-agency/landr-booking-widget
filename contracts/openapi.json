@@ -27358,6 +27358,47 @@
         "title": "ShareMessage",
         "type": "object"
       },
+      "ShortLinkCreateIn": {
+        "properties": {
+          "query": {
+            "maxLength": 1100,
+            "minLength": 1,
+            "title": "Query",
+            "type": "string"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "title": "ShortLinkCreateIn",
+        "type": "object"
+      },
+      "ShortLinkCreateOut": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "title": "ShortLinkCreateOut",
+        "type": "object"
+      },
+      "ShortLinkResolveOut": {
+        "properties": {
+          "query": {
+            "title": "Query",
+            "type": "string"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "title": "ShortLinkResolveOut",
+        "type": "object"
+      },
       "SignedUrlResponse": {
         "properties": {
           "expires_in": {
@@ -39581,6 +39622,48 @@
         "summary": "Get Product Fixed Date Windows",
         "tags": [
           "public-operators"
+        ]
+      }
+    },
+    "/api/public/short-links/{code}": {
+      "get": {
+        "operationId": "public_resolve_short_link",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "title": "Code",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShortLinkResolveOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Resolve Short Link",
+        "tags": [
+          "public-short-links"
         ]
       }
     },
@@ -62477,6 +62560,63 @@
         "summary": "Get Setup Checklist",
         "tags": [
           "staff-setup-checklist"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/short-links": {
+      "post": {
+        "operationId": "staff_create_widget_short_link",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShortLinkCreateIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShortLinkCreateOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Short Link",
+        "tags": [
+          "staff-widget-short-links"
         ]
       }
     },
