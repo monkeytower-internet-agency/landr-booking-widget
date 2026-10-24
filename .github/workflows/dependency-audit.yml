@@ -46,7 +46,7 @@ jobs:
 
       - name: Scan lockfiles
         run: |
-          set -uo pipefail
+          set +e -uo pipefail
           args=()
           for f in $LOCKFILES; do args+=(-L "$f"); done
           # exit 1 = vulnerabilities found (judged by the gate below); >1 = scanner error
