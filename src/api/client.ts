@@ -612,6 +612,16 @@ export async function getInvitePrefill(token: string): Promise<InvitePrefill> {
 }
 
 /**
+ * landr-nun2y: resolve a `/s/<code>` short link to the widget query string
+ * (no leading `?`). Opaque 404 on a miss. No mock fallback.
+ */
+export async function resolveShortLink(code: string): Promise<{ query: string }> {
+  return http<{ query: string }>(
+    `/api/public/short-links/${encodeURIComponent(code)}`,
+  )
+}
+
+/**
  * landr-frqgv.3 (epic landr-frqgv D1): resolve a `?c=<token>` link from a
  * customer's own contact page (`my.landr.de/c/{token}`, the "re-book" CTA)
  * to their own name/email/phone/language. 404 on every miss (bad/expired/
