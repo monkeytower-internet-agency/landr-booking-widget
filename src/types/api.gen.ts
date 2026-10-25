@@ -13966,12 +13966,16 @@ export interface components {
             base_fee_monthly?: number | string | null;
             /** Contract Start */
             contract_start?: string | null;
+            /** Debit Day Of Month */
+            debit_day_of_month?: number | null;
             /** Minimum Term Months */
             minimum_term_months?: number | null;
             /** Notes */
             notes?: string | null;
             /** Pause Fee Monthly */
             pause_fee_monthly?: number | string | null;
+            /** Pre Notification Days */
+            pre_notification_days?: number | null;
             /** Rates */
             rates?: components["schemas"]["ContractRateIn"][];
         };
