@@ -3458,6 +3458,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/public/products/{product_id}/alternatives": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Product Alternatives
+         * @description Linked alternatives of a product with their available dates (day
+         *     shapes) or course windows (fixed_window) inside [from, to]
+         *     (landr-w1q0y.2). One call per visible month; the widget filters
+         *     client-side. Operator isolation: the RPC only returns alternatives of the
+         *     parent's own operator that are publicly listed and bookable. Unknown or
+         *     unlisted product -> [].
+         */
+        get: operations["get_product_alternatives"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/public/products/{product_id}/availability": {
         parameters: {
             query?: never;
@@ -3499,6 +3524,23 @@ export interface paths {
          *     existing get_product_addons wrapper above.
          */
         get: operations["get_product_fixed_date_windows"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/short-links/{code}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Resolve Short Link */
+        get: operations["public_resolve_short_link"];
         put?: never;
         post?: never;
         delete?: never;
@@ -10257,6 +10299,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/short-links": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Short Link */
+        post: operations["staff_create_widget_short_link"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/staffing": {
         parameters: {
             query?: never;
@@ -11162,6 +11221,28 @@ export interface components {
             severity: string;
             /** User Id */
             user_id: string;
+        };
+        /**
+         * AlternativeWindow
+         * @description One bookable fixed-window course of an alternative product.
+         */
+        AlternativeWindow: {
+            /** Available Seats */
+            available_seats: number;
+            /**
+             * End Date
+             * Format: date
+             */
+            end_date: string;
+            /** Id */
+            id: string;
+            /** Label */
+            label?: string | null;
+            /**
+             * Start Date
+             * Format: date
+             */
+            start_date: string;
         };
         /**
          * ApiBudget
@@ -18138,6 +18219,42 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /**
+         * ProductAlternative
+         * @description One linked alternative of a product (landr-w1q0y.2). Day-shaped
+         *     alternatives carry ``available_dates``; ``fixed_window`` ones carry
+         *     ``windows``; the other field is null. Mirrors the widget's
+         *     ``ProductAlternative`` interface (src/api/types.ts).
+         */
+        ProductAlternative: {
+            /** Available Dates */
+            available_dates?: string[] | null;
+            /** Currency */
+            currency?: string | null;
+            /** Name */
+            name: string;
+            /** Name Localized */
+            name_localized?: {
+                [key: string]: unknown;
+            } | null;
+            /** Price From */
+            price_from?: string | null;
+            /** Product Id */
+            product_id: string;
+            /**
+             * Service Time Shape
+             * @enum {string}
+             */
+            service_time_shape: "single_date" | "days_range" | "fixed_window" | "time_slot";
+            /** Slug */
+            slug: string;
+            /** Thumb Url */
+            thumb_url?: string | null;
+            /** Windows */
+            windows?: components["schemas"]["AlternativeWindow"][] | null;
+        } & {
+            [key: string]: unknown;
+        };
         /** ProductCategoryIn */
         ProductCategoryIn: {
             /**
@@ -20829,6 +20946,21 @@ export interface components {
             url?: string | null;
             /** Whatsapp Url */
             whatsapp_url: string | null;
+        };
+        /** ShortLinkCreateIn */
+        ShortLinkCreateIn: {
+            /** Query */
+            query: string;
+        };
+        /** ShortLinkCreateOut */
+        ShortLinkCreateOut: {
+            /** Code */
+            code: string;
+        };
+        /** ShortLinkResolveOut */
+        ShortLinkResolveOut: {
+            /** Query */
+            query: string;
         };
         /** SignedUrlResponse */
         SignedUrlResponse: {
@@ -27369,6 +27501,41 @@ export interface operations {
             };
         };
     };
+    get_product_alternatives: {
+        parameters: {
+            query: {
+                from: string;
+                to: string;
+                party?: number;
+            };
+            header?: never;
+            path: {
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductAlternative"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_product_availability: {
         parameters: {
             query: {
@@ -27422,6 +27589,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FixedDateWindow"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_resolve_short_link: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShortLinkResolveOut"];
                 };
             };
             /** @description Validation Error */
@@ -39866,6 +40064,41 @@ export interface operations {
                             [key: string]: unknown;
                         }[];
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_create_widget_short_link: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ShortLinkCreateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShortLinkCreateOut"];
                 };
             };
             /** @description Validation Error */

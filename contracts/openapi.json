@@ -230,6 +230,48 @@
         "title": "AlertOut",
         "type": "object"
       },
+      "AlternativeWindow": {
+        "description": "One bookable fixed-window course of an alternative product.",
+        "properties": {
+          "available_seats": {
+            "title": "Available Seats",
+            "type": "integer"
+          },
+          "end_date": {
+            "format": "date",
+            "title": "End Date",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "start_date": {
+            "format": "date",
+            "title": "Start Date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "start_date",
+          "end_date",
+          "available_seats"
+        ],
+        "title": "AlternativeWindow",
+        "type": "object"
+      },
       "ApiBudget": {
         "description": "landr-g1ao.7: the operator's latest known Holded API quota snapshot,\nfrom ``operator_integration_usage`` (populated by\n``app/workers/holded_usage_probe.py``, itself opt-in and default-off \u2014\nsee ``Settings.holded_usage_probe_enabled``). The dashboard renders a\nwarning band once ``used`` crosses the same 95% threshold\n``run_holded_sync`` itself guards on (``HOLDED_BUDGET_GUARD_THRESHOLD``).",
         "properties": {
@@ -19332,6 +19374,117 @@
         "title": "ProductAddon",
         "type": "object"
       },
+      "ProductAlternative": {
+        "additionalProperties": true,
+        "description": "One linked alternative of a product (landr-w1q0y.2). Day-shaped\nalternatives carry ``available_dates``; ``fixed_window`` ones carry\n``windows``; the other field is null. Mirrors the widget's\n``ProductAlternative`` interface (src/api/types.ts).",
+        "properties": {
+          "available_dates": {
+            "anyOf": [
+              {
+                "items": {
+                  "format": "date",
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Available Dates"
+          },
+          "currency": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Currency"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "name_localized": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name Localized"
+          },
+          "price_from": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price From"
+          },
+          "product_id": {
+            "title": "Product Id",
+            "type": "string"
+          },
+          "service_time_shape": {
+            "enum": [
+              "single_date",
+              "days_range",
+              "fixed_window",
+              "time_slot"
+            ],
+            "title": "Service Time Shape",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "thumb_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thumb Url"
+          },
+          "windows": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/AlternativeWindow"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Windows"
+          }
+        },
+        "required": [
+          "product_id",
+          "slug",
+          "name",
+          "service_time_shape"
+        ],
+        "title": "ProductAlternative",
+        "type": "object"
+      },
       "ProductCategoryIn": {
         "additionalProperties": false,
         "properties": {
@@ -27356,6 +27509,47 @@
           "whatsapp_url"
         ],
         "title": "ShareMessage",
+        "type": "object"
+      },
+      "ShortLinkCreateIn": {
+        "properties": {
+          "query": {
+            "maxLength": 1100,
+            "minLength": 1,
+            "title": "Query",
+            "type": "string"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "title": "ShortLinkCreateIn",
+        "type": "object"
+      },
+      "ShortLinkCreateOut": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "title": "ShortLinkCreateOut",
+        "type": "object"
+      },
+      "ShortLinkResolveOut": {
+        "properties": {
+          "query": {
+            "title": "Query",
+            "type": "string"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "title": "ShortLinkResolveOut",
         "type": "object"
       },
       "SignedUrlResponse": {
@@ -39453,6 +39647,85 @@
         ]
       }
     },
+    "/api/public/products/{product_id}/alternatives": {
+      "get": {
+        "description": "Linked alternatives of a product with their available dates (day\nshapes) or course windows (fixed_window) inside [from, to]\n(landr-w1q0y.2). One call per visible month; the widget filters\nclient-side. Operator isolation: the RPC only returns alternatives of the\nparent's own operator that are publicly listed and bookable. Unknown or\nunlisted product -> [].",
+        "operationId": "get_product_alternatives",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "title": "Product Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "from",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "From",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "To",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "party",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "maximum": 1000,
+              "minimum": 1,
+              "title": "Party",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProductAlternative"
+                  },
+                  "title": "Response Get Product Alternatives",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Product Alternatives",
+        "tags": [
+          "public-operators"
+        ]
+      }
+    },
     "/api/public/products/{product_id}/availability": {
       "get": {
         "description": "Per-day availability. landr-f987a.3: with ``invite=<token>`` naming a\nlive invite seat hold, the invitee's held seat counts as available on the\nhost's days. An unknown / expired / claimed token is plain availability\n\u2014 no error, nothing revealed beyond what the invite prefill shows.",
@@ -39581,6 +39854,48 @@
         "summary": "Get Product Fixed Date Windows",
         "tags": [
           "public-operators"
+        ]
+      }
+    },
+    "/api/public/short-links/{code}": {
+      "get": {
+        "operationId": "public_resolve_short_link",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "title": "Code",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShortLinkResolveOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Resolve Short Link",
+        "tags": [
+          "public-short-links"
         ]
       }
     },
@@ -62477,6 +62792,63 @@
         "summary": "Get Setup Checklist",
         "tags": [
           "staff-setup-checklist"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/short-links": {
+      "post": {
+        "operationId": "staff_create_widget_short_link",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShortLinkCreateIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShortLinkCreateOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Short Link",
+        "tags": [
+          "staff-widget-short-links"
         ]
       }
     },
