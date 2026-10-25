@@ -300,7 +300,13 @@ export function AvailabilityPicker({
     alternatives,
     todayIso: isoDate(today),
   })
-  const selectedAltOnly = !!selectedDate && altOnlyDays.has(isoDate(selectedDate))
+  // Unbookable for a customer whether or not the alternatives have loaded.
+  const selectedAltOnly =
+    !!selectedDate &&
+    slots !== null &&
+    !canOverrideDay &&
+    !fitDates.has(isoDate(selectedDate)) &&
+    !shortSeats.has(isoDate(selectedDate))
 
   // landr-xtkae.2: on a fixed-daily-times product the day's times are a menu
   // the operator published, so a FULL (or lead-time-closed) time stays visible

@@ -187,4 +187,36 @@ describe('SingleDatePicker alt-only days', () => {
       /^Tandem flight is not offered on /,
     )
   })
+
+  async function pickDotDayThenRaiseParty(next: () => Promise<ProductAlternative[]>) {
+    mocks.getProductAlternatives
+      .mockResolvedValueOnce([alt(['2026-05-20', '2026-05-21'])])
+      .mockImplementation(next)
+    render(
+      <SingleDatePicker
+        product={{ ...product, max_party_size: 4 }}
+        showPartySizeStepper
+        onBack={() => {}}
+        onConfirm={() => {}}
+      />,
+    )
+    await waitFor(() => expect(dayBtn(21).dataset.altOnly).toBe('true'))
+    fireEvent.click(dayBtn(21))
+    expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled()
+    fireEvent.click(screen.getByTestId('party-size-increase'))
+    await waitFor(() => expect(mocks.getProductAlternatives).toHaveBeenCalledTimes(2))
+  }
+
+  it('keeps Continue off while alternatives reload after a party change', async () => {
+    await pickDotDayThenRaiseParty(() => new Promise(() => {}))
+    expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled()
+    expect(screen.getByTestId('alt-only-notice')).toBeInTheDocument()
+  })
+
+  it('keeps Continue off when the alternative is gone after a party change', async () => {
+    await pickDotDayThenRaiseParty(() => Promise.resolve([]))
+    await waitFor(() => expect(mocks.getProductAlternatives).toHaveBeenCalledTimes(2))
+    expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled()
+    expect(screen.getByTestId('alt-only-notice')).toBeInTheDocument()
+  })
 })

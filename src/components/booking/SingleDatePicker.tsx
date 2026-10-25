@@ -240,7 +240,16 @@ export function SingleDatePicker({
     alternatives,
     todayIso: isoDate(today),
   })
-  const selectedAltOnly = selectedIso !== null && altOnlyDays.has(selectedIso)
+  // Not bookable for a customer, whether or not the alternatives have loaded
+  // (they go null while a month or a new party size is fetched): the pick
+  // must never turn Continue on for such a day.
+  const selectedUnbookable =
+    selectedIso !== null &&
+    slots !== null &&
+    !canForce &&
+    !availableSet.has(selectedIso) &&
+    !shortSeats.has(selectedIso)
+  const selectedAltOnly = selectedUnbookable
 
   // landr-t869m.5: date → slot lookup so a force-booked pick can name WHICH
   // gate(s) it bypassed. landr-8ht3m.4: a date with no matching slot at all has
@@ -304,8 +313,8 @@ export function SingleDatePicker({
     }
     setSelected(d)
     // An alt-only day is not bookable here: the price sidebar must not price it.
-    onLiveDaysChange?.(d && !altOnlyDays.has(isoDate(d)) ? [isoDate(d)] : [])
-  }, [availableSet, canForce, onLiveDaysChange, altOnlyDays])
+    onLiveDaysChange?.(d && availableSet.has(isoDate(d)) ? [isoDate(d)] : [])
+  }, [availableSet, canForce, onLiveDaysChange])
 
   if (error) {
     return (
