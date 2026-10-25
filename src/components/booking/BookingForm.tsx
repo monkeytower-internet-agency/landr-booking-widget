@@ -338,6 +338,12 @@ interface Props {
    */
   inviteToken?: string
   /**
+   * The product the guest switched away from via the "Also available" panel.
+   * Sent as `via_alternative_of`; the API keeps it only when it is a linked
+   * alternative of the booked product. Omitted otherwise.
+   */
+  viaAlternativeOf?: string
+  /**
    * landr-otml0.3: the shared-double reference the customer confirmed via
    * AccommodationStep's masked-lookup field, sent as `join_ref`. Omitted
    * when no reference was entered/confirmed (the common case).
@@ -904,6 +910,7 @@ export function BookingForm({
   productFlow,
   memberPerkOtp,
   inviteToken,
+  viaAlternativeOf,
   joinRef,
   unPriceable = false,
   calculatedTotal = null,
@@ -1557,6 +1564,7 @@ export function BookingForm({
         // no-reference booking, matching every other optional-marker field
         // in this payload.
         ...(inviteToken ? { invite_token: inviteToken } : {}),
+        ...(viaAlternativeOf ? { via_alternative_of: viaAlternativeOf } : {}),
         // landr-jiagg.2: a shared-double reference joins the booker's OWN bed
         // into the host's group — gated exactly like is_shared_double, so a
         // reference confirmed before the booker stepped out never links a

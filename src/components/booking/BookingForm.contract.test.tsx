@@ -1026,6 +1026,34 @@ describe('BookingForm submit body — matches /api/public/bookings PublicSubmitB
     expect(body).not.toHaveProperty('join_ref')
   })
 
+  it('sends via_alternative_of only when the product was switched via an alternative', async () => {
+    const submit = async (via?: string) => {
+      fetchSpy.mockClear()
+      const { unmount } = render(
+        <BookingForm
+          widgetToken="para42"
+          product={makeServiceProduct()}
+          selection={SELECTION}
+          booker={BOOKER}
+          participants={[{ ...BOOKER, service_role_code: '' }]}
+          pickupLocationId={null}
+          viaAlternativeOf={via}
+          onBack={vi.fn()}
+          onConfirmed={vi.fn()}
+        />,
+      )
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+      })
+      await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(1))
+      const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit]
+      unmount()
+      return JSON.parse(String(init.body)) as Record<string, unknown>
+    }
+    expect(await submit()).not.toHaveProperty('via_alternative_of')
+    expect((await submit('prod-original')).via_alternative_of).toBe('prod-original')
+  })
+
   it('sends join_ref when the customer confirmed a shared-double reference', async () => {
     render(
       <BookingForm
