@@ -250,6 +250,9 @@ function CalendarDayButton({
   // Staff override pickers: a day customers cannot book (blocked weekday, full,
   // outside the schedule) that the operator may still force-book.
   const override = modifiers.override === true
+  // The product itself is full that day but another activity is free: the day
+  // stays clickable, marked by a small dot (never a fill colour).
+  const altOnly = modifiers.altOnly === true
   const hintFor = React.useContext(CalendarDayHintContext)
   const hint = hintFor?.(day.date)
 
@@ -292,6 +295,29 @@ function CalendarDayButton({
     )
   }
 
+  if (altOnly) {
+    const base =
+      typeof ariaLabelProp === "string"
+        ? stripSelectedSuffix(ariaLabelProp, tr("calendarDaySelected", customerLocale))
+        : ""
+    ariaLabel = `${base}: ${tr("altDayAria", customerLocale)}${
+      modifiers.selected ? `, ${tr("calendarDaySelected", customerLocale)}` : ""
+    }`
+    content = (
+      <>
+        {content}
+        <span
+          aria-hidden="true"
+          data-testid="alt-only-dot"
+          className={cn(
+            "absolute bottom-1 left-1/2 size-1 -translate-x-1/2 rounded-full bg-primary",
+            modifiers.selected && "bg-primary-foreground",
+          )}
+        />
+      </>
+    )
+  }
+
   if (hint) {
     ariaLabel = ariaLabel ? `${ariaLabel}, ${hint}` : hint
   }
@@ -309,6 +335,7 @@ function CalendarDayButton({
       data-diff={diffAdded ? "added" : diffRemoved ? "removed" : undefined}
       data-short={short || undefined}
       data-override={override || undefined}
+      data-alt-only={altOnly || undefined}
       aria-label={ariaLabel}
       title={hint}
       className={cn(

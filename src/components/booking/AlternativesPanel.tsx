@@ -179,6 +179,11 @@ interface SectionProps {
   anyOpen?: boolean
   /** Landr: tapping a row (wired by the product switch). No-op when absent. */
   onSelectAlternative?: AlternativeSelectHandler
+  /**
+   * Alternatives the caller already fetched (the calendar dots read the same
+   * response). When given, this panel makes no request of its own.
+   */
+  alternatives?: ProductAlternative[] | null
 }
 
 /**
@@ -195,6 +200,7 @@ export function AlternativesSection({
   month,
   anyOpen = false,
   onSelectAlternative,
+  alternatives,
 }: SectionProps) {
   const locale = browserLocale()
   const visible = month ?? new Date()
@@ -202,7 +208,12 @@ export function AlternativesSection({
   const months = anyOpen
     ? [visibleKey, monthKey(new Date(visible.getFullYear(), visible.getMonth() + 1, 1))]
     : [...new Set([visibleKey, ...selectedDays.map(monthKeyOfIso)])].sort()
-  const data = useProductAlternatives(productId, months, party)
+  const fetched = useProductAlternatives(
+    productId,
+    alternatives === undefined ? months : [],
+    party,
+  )
+  const data = alternatives === undefined ? fetched : alternatives
   if (!data) return null
 
   const groups: { heading: string; rows: AlternativeRow[] }[] = []
