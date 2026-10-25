@@ -4700,6 +4700,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/billing-profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Billing Profile */
+        get: operations["get_billing_profile"];
+        /** Put Billing Profile */
+        put: operations["put_billing_profile"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/booking-lifecycle-stages": {
         parameters: {
             query?: never;
@@ -7640,6 +7658,25 @@ export interface paths {
          */
         post: operations["staff_decide_participant_unit_request"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/payment-method": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Payment Method */
+        get: operations["get_payment_method"];
+        /** Put Payment Method */
+        put: operations["put_payment_method"];
+        post?: never;
+        /** Revoke Payment Method */
+        delete: operations["revoke_payment_method"];
         options?: never;
         head?: never;
         patch?: never;
@@ -11960,6 +11997,27 @@ export interface components {
              * @default false
              */
             billing_address_missing: boolean;
+        };
+        /** BillingProfileIn */
+        BillingProfileIn: {
+            /** Address Line1 */
+            address_line1: string;
+            /** Address Line2 */
+            address_line2?: string | null;
+            /** City */
+            city: string;
+            /** Country */
+            country: string;
+            /** Invoice Email */
+            invoice_email: string;
+            /** Legal Name */
+            legal_name: string;
+            /** Postal Code */
+            postal_code: string;
+            /** Region */
+            region?: string | null;
+            /** Vat Id */
+            vat_id?: string | null;
         };
         /**
          * BookingCalendarEvent
@@ -17344,6 +17402,28 @@ export interface components {
             url: string;
             /** Whatsapp Url */
             whatsapp_url: string | null;
+        };
+        /** PaymentMethodIn */
+        PaymentMethodIn: {
+            /**
+             * Accept Mandate
+             * @default false
+             */
+            accept_mandate: boolean;
+            /**
+             * Accept Surcharge
+             * @default false
+             */
+            accept_surcharge: boolean;
+            /** Account Holder */
+            account_holder?: string | null;
+            /** Iban */
+            iban?: string | null;
+            /**
+             * Method
+             * @enum {string}
+             */
+            method: "sepa_core" | "open_invoice";
         };
         /**
          * PendingDecisionDetail
@@ -29326,6 +29406,76 @@ export interface operations {
             };
         };
     };
+    get_billing_profile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_billing_profile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BillingProfileIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_lifecycle_stages: {
         parameters: {
             query?: {
@@ -34832,6 +34982,109 @@ export interface operations {
                 "application/json": components["schemas"]["UnitRequestDecisionIn"];
             };
         };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_payment_method: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_payment_method: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PaymentMethodIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    revoke_payment_method: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {
