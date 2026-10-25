@@ -31,6 +31,7 @@ import type { Product, ProductGroup, SubmitBookingResponse } from '@/api/types'
 import type { FormResponseEntry, ProductFlowResponse } from '@/api/flowTypes'
 import {
   buildFlowPlan,
+  isBookableKind,
   planHasParticipantsFirst,
   productHasHotelOffering,
   type FlowModule,
@@ -1234,7 +1235,9 @@ export function sidebarInputsForStep(
     case 'fully-booked':
       return null
     case 'pick-selection':
-      if (step.product.product_kind !== 'service') return null
+      // A stay prices like a service: the sidebar shows nights × rate once
+      // the range is picked (the live days are the night list).
+      if (!isBookableKind(step.product.product_kind)) return null
       return {
         product: step.product,
         selectedDays: [],

@@ -8752,6 +8752,17 @@
         "additionalProperties": true,
         "description": "One row in the PriceSidebar breakdown (landr-qez0). Mirrors the\nwidget's ``EstimateLineItem`` TypeScript interface (src/api/types.ts)\nand the dashboard's ``SimulateLineItem`` (src/lib/pricing-simulator.ts)\nfield-for-field. ``unit_price``/``line_total`` are decimal strings\n(e.g. \"60.00\"), matching ``_compute_line``'s wire format exactly.",
         "properties": {
+          "cleaning_fee": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cleaning Fee"
+          },
           "label": {
             "title": "Label",
             "type": "string"
@@ -8790,6 +8801,23 @@
               }
             ],
             "title": "Payment Note"
+          },
+          "price_unit": {
+            "anyOf": [
+              {
+                "enum": [
+                  "night",
+                  "stay",
+                  "guest",
+                  "guest_night"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Unit"
           },
           "product_id": {
             "title": "Product Id",
@@ -8966,6 +8994,16 @@
               }
             ],
             "title": "Savings Total"
+          },
+          "stay": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StayEstimate"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "subtotal_before_savings": {
             "anyOf": [
@@ -16391,6 +16429,16 @@
             "title": "Slug",
             "type": "string"
           },
+          "stay": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StayConfig"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "thumb_url": {
             "anyOf": [
               {
@@ -19909,6 +19957,18 @@
             ],
             "title": "Price Per Unit"
           },
+          "price_unit": {
+            "default": "booking",
+            "enum": [
+              "booking",
+              "night",
+              "stay",
+              "guest",
+              "guest_night"
+            ],
+            "title": "Price Unit",
+            "type": "string"
+          },
           "product_addon_id": {
             "title": "Product Addon Id",
             "type": "string"
@@ -20779,6 +20839,43 @@
             ],
             "title": "Category Id"
           },
+          "check_in_time": {
+            "anyOf": [
+              {
+                "pattern": "^([01]\\d|2[0-3]):([0-5]\\d)(:00)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Check In Time"
+          },
+          "check_out_time": {
+            "anyOf": [
+              {
+                "pattern": "^([01]\\d|2[0-3]):([0-5]\\d)(:00)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Check Out Time"
+          },
+          "cleaning_fee_cents": {
+            "anyOf": [
+              {
+                "maximum": 10000000.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cleaning Fee Cents"
+          },
           "daily_start_times": {
             "anyOf": [
               {
@@ -20951,6 +21048,19 @@
             "title": "Lead Time Minutes",
             "type": "integer"
           },
+          "max_nights": {
+            "anyOf": [
+              {
+                "maximum": 366.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Nights"
+          },
           "max_party_size": {
             "anyOf": [
               {
@@ -20962,6 +21072,19 @@
               }
             ],
             "title": "Max Party Size"
+          },
+          "min_nights": {
+            "anyOf": [
+              {
+                "maximum": 366.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Nights"
           },
           "name": {
             "maxLength": 200,
@@ -21028,6 +21151,24 @@
             ],
             "title": "Payment Note Localized"
           },
+          "price_unit": {
+            "anyOf": [
+              {
+                "enum": [
+                  "booking",
+                  "night",
+                  "stay",
+                  "guest",
+                  "guest_night"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Unit"
+          },
           "product_group_id": {
             "anyOf": [
               {
@@ -21048,7 +21189,8 @@
                   "hotel_room",
                   "digital_good",
                   "physical_good",
-                  "gift_card"
+                  "gift_card",
+                  "stay"
                 ],
                 "type": "string"
               },
@@ -21350,6 +21492,43 @@
             ],
             "title": "Category Id"
           },
+          "check_in_time": {
+            "anyOf": [
+              {
+                "pattern": "^([01]\\d|2[0-3]):([0-5]\\d)(:00)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Check In Time"
+          },
+          "check_out_time": {
+            "anyOf": [
+              {
+                "pattern": "^([01]\\d|2[0-3]):([0-5]\\d)(:00)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Check Out Time"
+          },
+          "cleaning_fee_cents": {
+            "anyOf": [
+              {
+                "maximum": 10000000.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cleaning Fee Cents"
+          },
           "daily_start_times": {
             "anyOf": [
               {
@@ -21552,6 +21731,19 @@
             ],
             "title": "Lead Time Minutes"
           },
+          "max_nights": {
+            "anyOf": [
+              {
+                "maximum": 366.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Nights"
+          },
           "max_party_size": {
             "anyOf": [
               {
@@ -21563,6 +21755,19 @@
               }
             ],
             "title": "Max Party Size"
+          },
+          "min_nights": {
+            "anyOf": [
+              {
+                "maximum": 366.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Nights"
           },
           "name": {
             "anyOf": [
@@ -21654,6 +21859,24 @@
             ],
             "title": "Payment Note Localized"
           },
+          "price_unit": {
+            "anyOf": [
+              {
+                "enum": [
+                  "booking",
+                  "night",
+                  "stay",
+                  "guest",
+                  "guest_night"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Unit"
+          },
           "product_group_id": {
             "anyOf": [
               {
@@ -21674,7 +21897,8 @@
                   "hotel_room",
                   "digital_good",
                   "physical_good",
-                  "gift_card"
+                  "gift_card",
+                  "stay"
                 ],
                 "type": "string"
               },
@@ -29761,6 +29985,140 @@
           "id"
         ],
         "title": "StatusOut",
+        "type": "object"
+      },
+      "StayConfig": {
+        "description": "landr-m6tp4.2: the booking rules of a ``product_kind='stay'`` product,\nfor the widget's range picker and price breakdown. The nightly price is\nthe catalogue's ``price_from`` / ``price_base`` (a per-night rate).",
+        "properties": {
+          "check_in_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Check In Time"
+          },
+          "check_out_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Check Out Time"
+          },
+          "cleaning_fee_cents": {
+            "default": 0,
+            "title": "Cleaning Fee Cents",
+            "type": "integer"
+          },
+          "max_nights": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Nights"
+          },
+          "min_nights": {
+            "default": 1,
+            "title": "Min Nights",
+            "type": "integer"
+          },
+          "sleeps": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sleeps"
+          }
+        },
+        "title": "StayConfig",
+        "type": "object"
+      },
+      "StayEstimate": {
+        "description": "landr-m6tp4.2: the stay half of an estimate for a stay product.",
+        "properties": {
+          "check_in": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Check In"
+          },
+          "check_out": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Check Out"
+          },
+          "cleaning_fee": {
+            "title": "Cleaning Fee",
+            "type": "string"
+          },
+          "errors": {
+            "items": {
+              "$ref": "#/components/schemas/StayEstimateError"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "nights": {
+            "title": "Nights",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "nights",
+          "cleaning_fee"
+        ],
+        "title": "StayEstimate",
+        "type": "object"
+      },
+      "StayEstimateError": {
+        "description": "One broken stay rule (app/services/stay_pricing.VIOLATION_CODES).",
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "title": "StayEstimateError",
         "type": "object"
       },
       "SubmitBookingResponse": {

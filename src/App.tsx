@@ -76,6 +76,8 @@ import {
 } from '@/lib/strings'
 import { FullyBookedNotice } from '@/components/booking/FullyBookedNotice'
 import { ShopComingSoonStub } from '@/components/booking/ShopComingSoonStub'
+import { StayRangePicker } from '@/components/booking/StayRangePicker'
+import { stayGuestLanguages, withStayPartyCap } from '@/components/booking/stayFlow'
 import { SingleDatePicker } from '@/components/booking/SingleDatePicker'
 import {
   getContactPagePrefill,
@@ -126,7 +128,7 @@ import {
   type AlternativeCarry,
 } from './appStepMachine'
 import type { AlternativeSelection } from '@/components/booking/AlternativesPanel'
-import type { RemoteFlow } from './flowPlan'
+import { isBookableKind, isStayKind, type RemoteFlow } from './flowPlan'
 import { BreadcrumbNavContext } from '@/components/booking/breadcrumbNav'
 import {
   clearStoredProgress,
@@ -1023,9 +1025,13 @@ function BookingFlowApp() {
   // product would dead-end on a 422 with nothing the customer could do.
   const offeredLanguagesForProduct = useCallback(
     (product: Product) =>
-      productAcceptsAnyLanguage(product.guide_languages)
-        ? []
-        : normaliseOfferedLanguages(product.guide_languages),
+      // A stay has no guide: its guests get the customer's own language,
+      // auto-filled at the review seam (one offered language skips the step).
+      isStayKind(product.product_kind)
+        ? stayGuestLanguages()
+        : productAcceptsAnyLanguage(product.guide_languages)
+          ? []
+          : normaliseOfferedLanguages(product.guide_languages),
     [],
   )
   // landr-h0opd.3: the language step only runs when there is a real choice —
@@ -1560,7 +1566,9 @@ function BookingFlowApp() {
       })
       return
     }
-    if (product.product_kind === 'service') {
+    // A stay walks the same add-ons probe as a service (breakfast, transfers,
+    // late check-out), priced per its own unit.
+    if (isBookableKind(product.product_kind)) {
       void (async () => {
         let hasAddons: boolean
         try {
@@ -1862,10 +1870,11 @@ function BookingFlowApp() {
       expandedCatalogLoaded,
       selectionNeedsData:
         step.name === 'pick-selection' &&
-        step.product.product_kind === 'service' &&
-        ['time_slot', 'fixed_window', 'days_range', 'single_date'].includes(
-          step.product.service_time_shape ?? '',
-        ),
+        ((step.product.product_kind === 'service' &&
+          ['time_slot', 'fixed_window', 'days_range', 'single_date'].includes(
+            step.product.service_time_shape ?? '',
+          )) ||
+          isStayKind(step.product.product_kind)),
       selectionLoaded,
     })
   useEffect(() => {
@@ -2428,7 +2437,7 @@ function BookingFlowApp() {
           and consecutive-only modes.
         */}
         {step.name === 'pick-selection' &&
-        step.product.product_kind !== 'service' &&
+        !isBookableKind(step.product.product_kind) &&
         step.product.product_kind !== 'subscription' ? (
           <ShopComingSoonStub product={step.product} onBack={datePickerBack} />
         ) : null}
@@ -2635,9 +2644,27 @@ function BookingFlowApp() {
           />
         ) : null}
 
+        {step.name === 'pick-selection' && isStayKind(step.product.product_kind) ? (
+          <StayRangePicker
+            // A product switch must remount, not reuse the old picker's state.
+            key={step.product.product_id}
+            product={step.product}
+            operatorTimezone={operatorSettings.timezone}
+            onLoaded={onSelectionLoaded}
+            onBack={datePickerBack}
+            initialSelectedDays={
+              step.selection?.kind === 'days' ? step.selection.selectedDays : undefined
+            }
+            onLiveDaysChange={setLiveSelectionDays}
+            onConfirm={(nights) =>
+              afterSelection(step.product, { kind: 'days', selectedDays: nights })
+            }
+          />
+        ) : null}
+
         {step.name === 'details' ? (
           <DetailsStep
-            product={step.product}
+            product={withStayPartyCap(step.product)}
             selection={step.selection}
             serviceRoles={serviceRoles}
             // landr-4uyu: operator contact email for the participant-max

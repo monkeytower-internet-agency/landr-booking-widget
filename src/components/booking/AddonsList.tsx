@@ -1,7 +1,7 @@
 import { Button } from '@/components/ui/button'
 import type { ProductAddon } from '@/api/types'
 import { browserLocale, pickLocalized } from '@/lib/locale'
-import { addonDeviationMessage, qtyAdjustAriaLabel, tr } from '@/lib/strings'
+import { addonDeviationMessage, addonUnitSuffix, qtyAdjustAriaLabel, tr } from '@/lib/strings'
 import { formatCurrency } from './accommodationCalc'
 import {
   clampAddonQty,
@@ -179,7 +179,7 @@ export function AddonsList({
                       addon.currency,
                       locale,
                     )}{' '}
-                    {tr('eachSuffix', locale)}
+                    {addonUnitSuffix(addon.price_unit, locale)}
                   </span>
                 ) : (
                   <span className="text-xs text-muted-foreground">
