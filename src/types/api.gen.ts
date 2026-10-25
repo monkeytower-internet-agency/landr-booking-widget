@@ -886,6 +886,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/landr-staff/billing/invoices/{invoice_id}/partial-credit-note": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Partial Credit Note */
+        post: operations["create_partial_credit_note"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/landr-staff/billing/invoices/{invoice_id}/payment": {
         parameters: {
             query?: never;
@@ -14076,6 +14093,13 @@ export interface components {
             /** Stripe Webhook Secret */
             stripe_webhook_secret?: string | null;
         };
+        /** CreditLineIn */
+        CreditLineIn: {
+            /** Amount */
+            amount: number | string;
+            /** Line */
+            line: number;
+        };
         /** CreditNoteIn */
         CreditNoteIn: {
             /** Reason */
@@ -17963,6 +17987,13 @@ export interface components {
              * @default true
              */
             prices_net_of_vat: boolean;
+        };
+        /** PartialCreditNoteIn */
+        PartialCreditNoteIn: {
+            /** Lines */
+            lines: components["schemas"]["CreditLineIn"][];
+            /** Reason */
+            reason: string;
         };
         /**
          * ParticipantDayStatusIn
@@ -25194,6 +25225,43 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_partial_credit_note: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invoice_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PartialCreditNoteIn"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
