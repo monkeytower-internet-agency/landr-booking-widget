@@ -8438,7 +8438,17 @@ export interface paths {
          */
         get: operations["list_product_requirements"];
         put?: never;
-        post?: never;
+        /**
+         * Create Product Requirement
+         * @description Blocking requirement on ``resource_type_id``. A staff-only type
+         *     ("Tandem pilot") is switched to count seats in the same transaction: the
+         *     Capacity facet, one seat per person, every active person released; its
+         *     row is 1 per booking. Any other type: 1 seat per participant. 404
+         *     ``product_not_found`` / ``resource_type_not_found``; 422
+         *     ``facet_required`` / ``resource_type_inactive``; 409
+         *     ``requirement_exists``.
+         */
+        post: operations["create_product_requirement"];
         delete?: never;
         options?: never;
         head?: never;
@@ -18760,6 +18770,14 @@ export interface components {
             periods?: components["schemas"]["ProductPeriodPriceOut"][];
             product: components["schemas"]["PricingProductOut"];
             standard?: components["schemas"]["PriceListOut"] | null;
+        };
+        /**
+         * ProductRequirementIn
+         * @description Link a resource type to the product (landr-1cib9).
+         */
+        ProductRequirementIn: {
+            /** Resource Type Id */
+            resource_type_id: string;
         };
         /**
          * ProductRequirementOut
@@ -36599,6 +36617,42 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProductRequirementOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_product_requirement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProductRequirementIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductRequirementOut"];
                 };
             };
             /** @description Validation Error */

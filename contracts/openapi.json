@@ -21291,6 +21291,20 @@
         "title": "ProductPricingOut",
         "type": "object"
       },
+      "ProductRequirementIn": {
+        "description": "Link a resource type to the product (landr-1cib9).",
+        "properties": {
+          "resource_type_id": {
+            "title": "Resource Type Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "resource_type_id"
+        ],
+        "title": "ProductRequirementIn",
+        "type": "object"
+      },
       "ProductRequirementOut": {
         "description": "A product-owned ``resource_requirements`` row (landr-lmudr.19).",
         "properties": {
@@ -55978,6 +55992,71 @@
           }
         ],
         "summary": "List Product Requirements",
+        "tags": [
+          "staff-staffing"
+        ]
+      },
+      "post": {
+        "description": "Blocking requirement on ``resource_type_id``. A staff-only type\n(\"Tandem pilot\") is switched to count seats in the same transaction: the\nCapacity facet, one seat per person, every active person released; its\nrow is 1 per booking. Any other type: 1 seat per participant. 404\n``product_not_found`` / ``resource_type_not_found``; 422\n``facet_required`` / ``resource_type_inactive``; 409\n``requirement_exists``.",
+        "operationId": "create_product_requirement",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "title": "Product Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductRequirementIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductRequirementOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Product Requirement",
         "tags": [
           "staff-staffing"
         ]
