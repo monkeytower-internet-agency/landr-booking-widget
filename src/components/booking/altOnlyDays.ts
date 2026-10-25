@@ -19,9 +19,10 @@ export function useDateStepAlternatives(
   month: Date,
   selectedDays: string[],
   party: number,
+  operatorTimezone?: string | null,
 ): ProductAlternative[] | null {
   const months = alternativesMonths(month, selectedDays)
-  return useProductAlternatives(productId, months, party)
+  return useProductAlternatives(productId, months, party, operatorTimezone)
 }
 
 /**

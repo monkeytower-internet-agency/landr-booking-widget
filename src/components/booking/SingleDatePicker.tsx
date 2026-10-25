@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { getAvailability } from '@/api/client'
 import type { AvailabilitySlot, Product } from '@/api/types'
 import { Calendar } from '@/components/ui/calendar'
-import { CalendarDayHintContext } from '@/components/ui/calendarDayHints'
+import { CalendarDayHintContext, CalendarPartyContext } from '@/components/ui/calendarDayHints'
 import { forceReasonsFor } from '@/components/booking/bookability'
 import {
   availableDaysForLabel,
@@ -232,6 +232,7 @@ export function SingleDatePicker({
     month,
     selectedIso ? [selectedIso] : [],
     need,
+    operatorTimezone,
   )
   const { days: altOnlyDays, dates: altOnlyDates } = useAltOnly({
     slots: canForce ? null : slots,
@@ -364,6 +365,7 @@ export function SingleDatePicker({
             takes over. */}
         <NextAction active={selected === null} cue={tr('singleDatePickerCue', locale)}>
           <CalendarDayHintContext.Provider value={dayHint}>
+          <CalendarPartyContext.Provider value={need}>
             <Calendar
               mode="single"
               selected={selected ?? undefined}
@@ -382,6 +384,7 @@ export function SingleDatePicker({
               onMonthChange={setMonth}
               modifiers={{ short: shortDates, altOnly: altOnlyDates }}
             />
+          </CalendarPartyContext.Provider>
           </CalendarDayHintContext.Provider>
           {shortSeats.size > 0 ? <ShortDayLegend /> : null}
           {monthHasAltOnly(altOnlyDays, month) ? <AltOnlyLegend /> : null}
@@ -420,6 +423,7 @@ export function SingleDatePicker({
           selectedDays={selected ? [isoDate(selected)] : []}
           month={month}
           alternatives={alternatives}
+          operatorTimezone={operatorTimezone}
           onSelectAlternative={onSelectAlternative}
         />
         <ContinueAction

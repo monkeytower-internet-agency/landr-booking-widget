@@ -184,6 +184,8 @@ interface SectionProps {
    * response). When given, this panel makes no request of its own.
    */
   alternatives?: ProductAlternative[] | null
+  /** Operator IANA zone; the request range starts at the operator's today. */
+  operatorTimezone?: string | null
 }
 
 /**
@@ -201,6 +203,7 @@ export function AlternativesSection({
   anyOpen = false,
   onSelectAlternative,
   alternatives,
+  operatorTimezone,
 }: SectionProps) {
   const locale = browserLocale()
   const visible = month ?? new Date()
@@ -212,6 +215,7 @@ export function AlternativesSection({
     productId,
     alternatives === undefined ? months : [],
     party,
+    operatorTimezone,
   )
   const data = alternatives === undefined ? fetched : alternatives
   if (!data) return null

@@ -2421,6 +2421,7 @@ function BookingFlowApp() {
             // A product switch must remount, not reuse the old picker's state.
             key={step.product.product_id}
             product={step.product}
+            operatorTimezone={operatorSettings.timezone}
             onLoaded={onSelectionLoaded}
             exposeSeats={operatorSettings.expose_seats_to_customer}
             // landr-rmcsu.7: group-size stepper + seat-aware windows.
