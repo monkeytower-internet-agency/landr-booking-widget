@@ -40,6 +40,8 @@ import {
 
 interface Props {
   product: Product
+  /** Operator IANA zone; alternatives are requested from the operator's today. */
+  operatorTimezone?: string | null
   /** Absent → no Back affordance (landr-6eita.1: start=dates entry). */
   onBack?: () => void
   /**
@@ -162,6 +164,7 @@ export function FixedDateWindowPicker({
   operatorToken,
   contactEmail,
   onSelectAlternative,
+  operatorTimezone,
 }: Props) {
   const { tokens } = useVariant()
   const party = usePartySize(
@@ -459,6 +462,7 @@ export function FixedDateWindowPicker({
           party={need}
           selectedDays={selectedWindow ? expandWindowDays(selectedWindow) : []}
           month={alternativesMonth}
+          operatorTimezone={operatorTimezone}
           onSelectAlternative={onSelectAlternative}
         />
 

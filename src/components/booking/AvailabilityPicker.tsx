@@ -16,7 +16,7 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { Calendar } from '@/components/ui/calendar'
-import { CalendarDayHintContext } from '@/components/ui/calendarDayHints'
+import { CalendarDayHintContext, CalendarPartyContext } from '@/components/ui/calendarDayHints'
 import { PartySizeStepper, SeatFitNotice, ShortDayLegend } from '@/components/booking/PartySize'
 import { usePartySize } from '@/lib/usePartySize'
 import { seatFit, windowRangeLabel } from '@/lib/seatHold'
@@ -306,6 +306,7 @@ export function AvailabilityPicker({
     month,
     selectedDate ? [isoDate(selectedDate)] : [],
     need,
+    operatorTimezone,
   )
   const { days: altOnlyDays, dates: altOnlyDates } = useAltOnly({
     slots: canOverrideDay ? null : slots,
@@ -467,6 +468,7 @@ export function AvailabilityPicker({
             </p>
           ) : null}
           <CalendarDayHintContext.Provider value={dayHint}>
+          <CalendarPartyContext.Provider value={need}>
             <Calendar
               className={slots === null ? 'pointer-events-none opacity-40' : undefined}
               mode="single"
@@ -489,6 +491,7 @@ export function AvailabilityPicker({
               onMonthChange={setMonth}
               modifiers={{ short: shortDates, override: overrideDates, altOnly: altOnlyDates }}
             />
+          </CalendarPartyContext.Provider>
           </CalendarDayHintContext.Provider>
           {shortSeats.size > 0 ? <ShortDayLegend /> : null}
           {monthHasAltOnly(altOnlyDays, month) ? <AltOnlyLegend /> : null}
@@ -612,6 +615,7 @@ export function AvailabilityPicker({
           selectedDays={selectedDate ? [isoDate(selectedDate)] : []}
           month={month}
           alternatives={alternatives}
+          operatorTimezone={operatorTimezone}
           onSelectAlternative={onSelectAlternative}
         />
         <ContinueAction

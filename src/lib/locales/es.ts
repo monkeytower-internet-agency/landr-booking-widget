@@ -642,6 +642,7 @@ export const es: Bundle = {
   alternativesHeadingAny: 'También disponible',
   alternativesStartsTemplate: 'Comienza el {date}',
   altDayAria: 'completo, otras actividades disponibles',
+  altDayShortAria: 'no hay suficientes plazas para {n} personas, otras actividades disponibles',
   altDayFullNotice: '{product} está completo el {date}',
   altDayNotOfferedNotice: '{product} no se ofrece el {date}',
   altDayShortNotice: 'A {product} no le quedan plazas suficientes para tu grupo el {date}',

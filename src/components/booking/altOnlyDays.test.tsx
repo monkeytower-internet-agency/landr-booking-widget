@@ -160,6 +160,19 @@ describe('SingleDatePicker alt-only days', () => {
     )
   })
 
+  it('labels a day only too small for the party as not enough places, not fully booked', async () => {
+    mocks.getAvailability.mockResolvedValue([slot('2026-05-20', 0), slot('2026-05-22', 5), slot('2026-05-25', 2)])
+    mocks.getProductAlternatives.mockResolvedValue([alt(['2026-05-20', '2026-05-25'])])
+    render(
+      <SingleDatePicker product={product} seatsNeeded={3} onBack={() => {}} onConfirm={() => {}} />,
+    )
+    await waitFor(() => expect(dayBtn(25).dataset.altOnly).toBe('true'))
+    expect(dayBtn(25).getAttribute('aria-label')).toMatch(
+      /: not enough places for 3 people, other activities available/,
+    )
+    expect(dayBtn(20).getAttribute('aria-label')).toMatch(/: fully booked, other activities available$/)
+  })
+
   it('no dot, no legend and a disabled day when the alternative is also full', async () => {
     mocks.getProductAlternatives.mockResolvedValue([alt(['2026-05-22'])])
     await renderPicker()

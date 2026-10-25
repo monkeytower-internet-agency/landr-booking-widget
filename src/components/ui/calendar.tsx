@@ -15,7 +15,7 @@ import { de as dayPickerDe, es as dayPickerEs, tr as dayPickerTr } from "react-d
 import { cn } from "@/lib/utils"
 import { browserLocale } from "@/lib/locale"
 import { resolveUiLanguage, tr } from "@/lib/strings"
-import { CalendarDayHintContext } from "@/components/ui/calendarDayHints"
+import { CalendarDayHintContext, CalendarPartyContext } from "@/components/ui/calendarDayHints"
 import { Button, buttonVariants } from "@/components/ui/button"
 
 // landr-8r6oc.4: month/weekday names follow the customer's resolved locale.
@@ -254,6 +254,7 @@ function CalendarDayButton({
   // stays clickable, marked by a small dot (never a fill colour).
   const altOnly = modifiers.altOnly === true
   const hintFor = React.useContext(CalendarDayHintContext)
+  const party = React.useContext(CalendarPartyContext)
   const hint = hintFor?.(day.date)
 
   const isSelectedSingle =
@@ -300,7 +301,11 @@ function CalendarDayButton({
       typeof ariaLabelProp === "string"
         ? stripSelectedSuffix(ariaLabelProp, tr("calendarDaySelected", customerLocale))
         : ""
-    ariaLabel = `${base}: ${tr("altDayAria", customerLocale)}${
+    const altWord =
+      short && party !== null
+        ? tr("altDayShortAria", customerLocale).replace("{n}", String(party))
+        : tr("altDayAria", customerLocale)
+    ariaLabel = `${base}: ${altWord}${
       modifiers.selected ? `, ${tr("calendarDaySelected", customerLocale)}` : ""
     }`
     content = (

@@ -646,6 +646,7 @@ export const tr: Bundle = {
   alternativesHeadingAny: 'Ayrıca müsait',
   alternativesStartsTemplate: 'Başlangıç: {date}',
   altDayAria: 'dolu, diğer etkinlikler müsait',
+  altDayShortAria: '{n} kişi için yeterli yer yok, diğer etkinlikler müsait',
   altDayFullNotice: '{product}, {date} tarihinde dolu',
   altDayNotOfferedNotice: '{product}, {date} tarihinde sunulmuyor',
   altDayShortNotice: '{product}, {date} tarihinde grubunuz için yeterli yer kalmadı',
