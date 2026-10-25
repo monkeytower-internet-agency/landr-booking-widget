@@ -1141,6 +1141,55 @@ export interface ProductLine {
    * `product_availability_id`.
    */
   slot_start_time?: string | null
+  /**
+   * the pass tier bought on a product_kind='pass' line. The API
+   * validates it, computes the validity window from selected_days[0] (the start
+   * date; ignored for a season tier) and prices the line from the tier.
+   */
+  pass_tier_id?: string | null
+}
+
+/** how long a pass tier is valid. */
+export type PassValidityKind = 'day' | 'days' | 'week' | 'season'
+
+/** One sellable tier of a pass product (GET .../pass-tiers). */
+export interface PassTier {
+  id: string
+  label: string
+  validity_kind: PassValidityKind
+  validity_days: number | null
+  season_start: string | null
+  season_end: string | null
+  /** Guest price in cents. */
+  price_cents: number
+  /** True when the tier has a cheaper member price. */
+  has_member_price: boolean
+  /** The member amount; only present for a verified member. */
+  member_price_cents: number | null
+  /** What the caller pays per pass: member price for a verified member, else guest. */
+  unit_price_cents: number
+}
+
+export interface PassTiersResponse {
+  product_id: string
+  currency: string
+  is_member: boolean
+  tiers: PassTier[]
+}
+
+export interface PassMemberProofResponse {
+  member_proof: string
+  expires_in: number
+}
+
+/** A pass QR ticket on the submit response (one per guest). */
+export interface PassTicket {
+  participant_id: string
+  first_name: string
+  png_url: string
+  pass_label: string
+  valid_from: string
+  valid_until: string
 }
 
 /**
@@ -1187,6 +1236,12 @@ export interface SubmitBookingBody {
    * signal, and only after this submit resolves.
    */
   member_perk_otp?: string | null
+  /**
+   * stateless proof from POST .../passes/member-proof that the
+   * booker is a member; selects the member price of a pass tier. Absent or
+   * expired falls back to the guest price, never a 4xx.
+   */
+  pass_member_proof?: string | null
   booking_channel?: string
   products: ProductLine[]
   participants: Participant[]
@@ -1408,6 +1463,8 @@ export interface BookingCalendarEvent {
 
 export interface SubmitBookingResponse {
   booking_id: string
+  /** present when the cart held a pass — one QR ticket per guest. */
+  pass_tickets?: PassTicket[]
   /**
    * Booking lifecycle state, e.g. 'pending'. This is the API's
    * `semantic_state` field — the previous `state` name never existed on

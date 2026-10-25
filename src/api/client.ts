@@ -16,6 +16,8 @@ import type {
   Location,
   MeetingPoint,
   OperatorSettings,
+  PassMemberProofResponse,
+  PassTiersResponse,
   PriceAdjustment,
   Product,
   ProductAddon,
@@ -383,6 +385,38 @@ export async function requestSubscriptionPerkOtp(
       method: 'POST',
       body: JSON.stringify({ email }),
     },
+  )
+}
+
+/**
+ * the tiers of a pass product. The member amount only comes
+ * back when `email` + `memberProof` (from requestPassMemberProof) check out.
+ */
+export async function getPassTiers(
+  operatorToken: string,
+  productId: string,
+  member?: { email: string; memberProof: string },
+): Promise<PassTiersResponse> {
+  const qs = member
+    ? `?${new URLSearchParams({ email: member.email, member_proof: member.memberProof })}`
+    : ''
+  return http<PassTiersResponse>(
+    `/api/public/operators/${encodeURIComponent(operatorToken)}/products/${encodeURIComponent(productId)}/pass-tiers${qs}`,
+  )
+}
+
+/**
+ * exchange the member OTP (emailed by requestSubscriptionPerkOtp)
+ * for a short-lived proof. Every failure is the same 403 (no membership oracle).
+ */
+export async function requestPassMemberProof(
+  operatorToken: string,
+  email: string,
+  otp: string,
+): Promise<PassMemberProofResponse> {
+  return http<PassMemberProofResponse>(
+    `/api/public/operators/${encodeURIComponent(operatorToken)}/passes/member-proof`,
+    { method: 'POST', body: JSON.stringify({ email, otp }) },
   )
 }
 

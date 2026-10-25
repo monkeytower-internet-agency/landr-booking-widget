@@ -62,6 +62,7 @@ import { FixedDateWindowPicker } from '@/components/booking/FixedDateWindowPicke
 import { expandWindowDays } from '@/components/booking/expandWindowDays'
 import { MembershipCheckoutStep } from '@/components/booking/MembershipCheckoutStep'
 import { MembershipReturnPage } from '@/components/booking/MembershipReturnPage'
+import { PassCheckoutStep } from '@/components/booking/PassCheckoutStep'
 import { MultiDayStep } from '@/components/booking/MultiDayStep'
 import { PickupLocationPicker } from '@/components/booking/PickupLocationPicker'
 import PriceSidebar, { type CalculatedTotal } from '@/components/booking/PriceSidebar'
@@ -2438,7 +2439,8 @@ function BookingFlowApp() {
         */}
         {step.name === 'pick-selection' &&
         !isBookableKind(step.product.product_kind) &&
-        step.product.product_kind !== 'subscription' ? (
+        step.product.product_kind !== 'subscription' &&
+        step.product.product_kind !== 'pass' ? (
           <ShopComingSoonStub product={step.product} onBack={datePickerBack} />
         ) : null}
 
@@ -2450,6 +2452,33 @@ function BookingFlowApp() {
             product={step.product}
             onBack={datePickerBack}
             widgetToken={token!}
+          />
+        ) : null}
+
+        {/* pass checkout (validity tiers, start date, member
+            price) for product_kind='pass'. Books through the normal submit and
+            lands on the same confirmation screen, with the QR tickets. */}
+        {step.name === 'pick-selection' && step.product.product_kind === 'pass' ? (
+          <PassCheckoutStep
+            // A product switch must remount, not reuse the old tier state.
+            key={step.product.product_id}
+            product={step.product}
+            widgetToken={token!}
+            serviceRoles={serviceRoles}
+            operatorTimezone={operatorSettings.timezone}
+            operatorCountry={operatorSettings.country ?? null}
+            previewToken={previewToken ?? undefined}
+            onBack={datePickerBack}
+            onConfirmed={(response, email) => {
+              clearStoredProgress()
+              setStep({
+                name: 'confirmed',
+                response,
+                email,
+                isSharedDouble: false,
+                shareReferenceEnabled: false,
+              })
+            }}
           />
         ) : null}
 

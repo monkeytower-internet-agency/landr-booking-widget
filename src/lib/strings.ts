@@ -641,6 +641,36 @@ export type Bundle = {
   lastNameLabel: string
   becomeAMemberCue: string
   membershipUnavailableTitle: string
+  shopKindPass: string
+  passPickTier: string
+  passNoTiers: string
+  passLoadFailed: string
+  passValidityDay: string
+  passValidityDays: string
+  passValidityWeek: string
+  passValiditySeason: string
+  passPerGuest: string
+  passStartDateLabel: string
+  passSeasonStartNote: string
+  passGuestsLabel: string
+  passGuestNameLabel: string
+  passMemberHint: string
+  passMemberToggle: string
+  passMemberSendCode: string
+  passMemberCodeSent: string
+  passMemberCodeLabel: string
+  passMemberApply: string
+  passMemberApplied: string
+  passMemberFailed: string
+  passMemberPriceLabel: string
+  passTotalLabel: string
+  passBuyCta: string
+  passBuying: string
+  passCheckoutError: string
+  passStartInPast: string
+  passTicketsTitle: string
+  passTicketsHelp: string
+  passEnterDetailsCue: string
   membershipUnavailableBody: string
   tooManyAttemptsTitle: string
   tooManyAttemptsBody: string
@@ -1513,6 +1543,36 @@ const en: Bundle = {
   lastNameLabel: 'Last name',
   becomeAMemberCue: 'become a member',
   membershipUnavailableTitle: 'Membership unavailable',
+  shopKindPass: 'pass',
+  passPickTier: 'Choose your pass',
+  passNoTiers: 'No passes are on sale right now.',
+  passLoadFailed: 'Passes could not be loaded. Please try again.',
+  passValidityDay: 'Valid for 1 day',
+  passValidityDays: 'Valid for {n} days',
+  passValidityWeek: 'Valid for 7 days',
+  passValiditySeason: 'Valid {from} – {until}',
+  passPerGuest: '{price} per guest',
+  passStartDateLabel: 'Start date',
+  passSeasonStartNote: 'A season pass is valid for the whole season.',
+  passGuestsLabel: 'Guests',
+  passGuestNameLabel: 'Guest {n}: first and last name',
+  passMemberHint: 'Members pay less on this pass.',
+  passMemberToggle: 'I am a member',
+  passMemberSendCode: 'Email me a code',
+  passMemberCodeSent: 'If this address belongs to a member, a code is on its way.',
+  passMemberCodeLabel: 'Code from your email',
+  passMemberApply: 'Apply member price',
+  passMemberApplied: 'Member price applied',
+  passMemberFailed: 'That code did not work. Request a new one.',
+  passMemberPriceLabel: 'Member price',
+  passTotalLabel: 'Total',
+  passBuyCta: 'Book pass',
+  passBuying: 'Booking…',
+  passCheckoutError: 'We could not book your pass. Please check your details and try again.',
+  passStartInPast: 'Pick today or a later start date.',
+  passTicketsTitle: 'Your pass tickets',
+  passTicketsHelp: 'Show this QR code at the entrance. Valid {from} – {until}.',
+  passEnterDetailsCue: 'enter your name, email, phone and billing address',
   membershipUnavailableBody:
     'This membership option is not available right now. Please contact the operator directly.',
   tooManyAttemptsTitle: 'Too many attempts',
