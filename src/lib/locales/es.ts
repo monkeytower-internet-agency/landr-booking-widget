@@ -365,6 +365,7 @@ export const es: Bundle = {
   notTakingPartPaysInvoice: 'No participa · paga la factura',
   maxParticipantsReachedOne: 'Has alcanzado el máximo de 1 participante',
   maxParticipantsReachedTemplate: 'Has alcanzado el máximo de {n} participantes',
+  alternativePartyClampedTemplate: '{name} admite hasta {n} personas, así que el grupo se ha reducido a {n}.',
   tooManyPeopleRemoveSomeone:
     'Hay más personas de las que admite esta actividad: quita a alguien para continuar.',
   sharedDoubleRequiresBookerMessage:

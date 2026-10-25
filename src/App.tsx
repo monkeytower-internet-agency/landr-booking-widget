@@ -66,6 +66,7 @@ import { PickupLocationPicker } from '@/components/booking/PickupLocationPicker'
 import PriceSidebar, { type CalculatedTotal } from '@/components/booking/PriceSidebar'
 import { ProductList } from '@/components/booking/ProductList'
 import {
+  alternativePartyClampedMessage,
   getUiCatalogVersion,
   inviteBannerMessage,
   loadUiCatalog,
@@ -120,6 +121,8 @@ import {
   stepBeforeReview,
   draftForProductSwitch,
   stepForAlternativeSwitch,
+  partyClampForSwitch,
+  type AlternativeCarry,
 } from './appStepMachine'
 import type { AlternativeSelection } from '@/components/booking/AlternativesPanel'
 import type { RemoteFlow } from './flowPlan'
@@ -492,6 +495,12 @@ function BookingFlowApp() {
   // AccommodationStep's masked-lookup field, lifted live (mirrors
   // memberPerkOtp above — it only matters at the final submit).
   const [joinRef, setJoinRef] = useState<string | null>(null)
+  // Shown on the first steps of a product reached through an "Also available"
+  // switch whose group was cut to that product's cap.
+  const [partyClampNote, setPartyClampNote] = useState<{
+    productId: string
+    text: string
+  } | null>(null)
   // landr-otml0.3 review fix (MINOR 6): one-shot "which companion row to
   // highlight" set after BookingForm's submit was rejected with the API's
   // companion_contact_required 422. Cleared by DetailsStep itself once
@@ -1116,16 +1125,17 @@ function BookingFlowApp() {
     // flow was known (start=dates deep link, invite link, reload, or a Book
     // click that beat the fetch) is swapped for the participants step when
     // the flow runs them first — but only while the customer is still on
-    // that untouched dates step and has no committed party yet.
+    // that dates step and has no committed party yet.
     const draftAtFetch = bookingDraft
     void ensureProductFlow(activeProductId).then((flow) => {
       setStep((prev) =>
         prev.name === 'pick-selection' &&
         prev.product.product_id === activeProductId &&
-        !prev.selection &&
         !(draftAtFetch.participants && draftAtFetch.participants.length > 0) &&
         participantsBeforeSelection(prev.product, flow)
-          ? detailsFromDraft(prev.product, undefined, draftAtFetch)
+          ? // A day/time carried by an "Also available" switch rides through
+            // the participants step to the dates step that follows it.
+            detailsFromDraft(prev.product, prev.selection, draftAtFetch, prev.carry)
           : prev,
       )
     })
@@ -1159,6 +1169,11 @@ function BookingFlowApp() {
   // the clear this fix exists for.
   const lastProductIdRef = useRef<string | undefined>(undefined)
   const alternativeSwitchRef = useRef(false)
+  const stepRef = useRef(step)
+  useEffect(() => {
+    stepRef.current = step
+  })
+  const switchSeqRef = useRef(0)
   useEffect(() => {
     const lastProductId = lastProductIdRef.current
     if (activeProductId && lastProductId && lastProductId !== activeProductId) {
@@ -1299,6 +1314,7 @@ function BookingFlowApp() {
       // landr-otml0.3: same reasoning — a confirmed shared-double reference
       // from the PREVIOUS booking must not silently ride along either.
       setJoinRef(null)
+      setPartyClampNote(null)
       // landr-87n9.2: clear live accommodation state on a full restart.
       clearLiveAccommodation()
       // landr-nmed: a full restart (post-booking, or "← All categories" /
@@ -1469,13 +1485,14 @@ function BookingFlowApp() {
     participants: ParticipantDetails[],
     companions: CompanionDetails[],
     comment: string,
+    carry?: AlternativeCarry,
   ) => {
     commitDetails(product, booker, participants, companions, comment)
     setLiveSelectionDays([])
     setLiveSlot(null)
     setLiveParticipantCount(0)
     setLiveParticipantNames([])
-    setStep({ name: 'pick-selection', product, selection })
+    setStep({ name: 'pick-selection', product, selection, ...(carry ? { carry } : {}) })
   }
 
   /**
@@ -1878,6 +1895,12 @@ function BookingFlowApp() {
   // Forced/overridden picks live in the picker's own state and are not carried.
   const onSelectAlternative = async (pick: AlternativeSelection) => {
     if (!token || step.name === 'pick-product') return
+    // The product list is fetched before switching; the customer may press
+    // Continue (or tap another row) meanwhile. Remember where the tap
+    // happened and drop the switch if the funnel moved on since.
+    const seq = ++switchSeqRef.current
+    const tappedName = step.name
+    const tappedProductId = 'product' in step ? step.product.product_id : undefined
     let target: Product | undefined
     try {
       const products = await listProducts(token)
@@ -1885,6 +1908,13 @@ function BookingFlowApp() {
     } catch {
       return
     }
+    const now = stepRef.current
+    if (
+      seq !== switchSeqRef.current ||
+      now.name !== tappedName ||
+      ('product' in now ? now.product.product_id : undefined) !== tappedProductId
+    )
+      return
     if (!target || !isBookable(target)) return
     const days = pick.date
       ? [pick.date, ...liveSelectionDays.filter((d) => d !== pick.date)]
@@ -1892,7 +1922,24 @@ function BookingFlowApp() {
     alternativeSwitchRef.current = true
     setLiveSelectionDays([])
     setLiveSlot(null)
-    setBookingDraft((prev) => draftForProductSwitch(prev))
+    // The shared-double reference and the live accommodation edits belong to
+    // the product being left; goToProductStep resets them the same way.
+    setJoinRef(null)
+    clearLiveAccommodation()
+    const clampedTo = partyClampForSwitch(bookingDraft, target)
+    setPartyClampNote(
+      clampedTo === null
+        ? null
+        : {
+            productId: target.product_id,
+            text: alternativePartyClampedMessage(
+              pickLocalized(target.name, target.name_localized, browserLocale()),
+              clampedTo,
+              browserLocale(),
+            ),
+          },
+    )
+    setBookingDraft((prev) => draftForProductSwitch(prev, target))
     setStep(
       stepForAlternativeSwitch({
         target,
@@ -2322,6 +2369,18 @@ function BookingFlowApp() {
           pickedGroupSlug); a top-level ?product= deep link has no
           catalogue to go back to.
         */}
+        {partyClampNote &&
+        (step.name === 'pick-selection' || step.name === 'details') &&
+        step.product.product_id === partyClampNote.productId ? (
+          <div
+            className="rounded-md border border-border bg-surface-well px-3 py-2 text-sm shadow-well"
+            data-testid="party-clamp-note"
+            role="status"
+          >
+            {partyClampNote.text}
+          </div>
+        ) : null}
+
         {step.name === 'fully-booked' ? (
           <FullyBookedNotice
             productId={step.product.product_id}
@@ -2648,6 +2707,7 @@ function BookingFlowApp() {
                   participants,
                   companions,
                   comment,
+                  step.carry,
                 )
                 return
               }

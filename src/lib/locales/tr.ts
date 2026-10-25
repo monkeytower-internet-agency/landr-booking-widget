@@ -369,6 +369,7 @@ export const tr: Bundle = {
   notTakingPartPaysInvoice: 'Katılmıyor · faturayı ödüyor',
   maxParticipantsReachedOne: 'En fazla 1 katılımcıya ulaşıldı',
   maxParticipantsReachedTemplate: 'En fazla {n} katılımcıya ulaşıldı',
+  alternativePartyClampedTemplate: '{name} en fazla {n} kişiye uygundur, bu yüzden grup {n} kişiye düşürüldü.',
   tooManyPeopleRemoveSomeone:
     'Bu aktivite için izin verilenden fazla kişi var — devam etmek için birini çıkarın.',
   sharedDoubleRequiresBookerMessage:
