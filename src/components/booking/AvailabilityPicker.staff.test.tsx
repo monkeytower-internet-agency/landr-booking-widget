@@ -22,7 +22,7 @@ const { mocks } = vi.hoisted(() => ({
     >(),
   },
 }))
-vi.mock('@/api/client', () => ({ getAvailability: mocks.getAvailability }))
+vi.mock('@/api/client', () => ({ getAvailability: mocks.getAvailability, getProductAlternatives: vi.fn().mockResolvedValue([]) }))
 
 const STAFF: StaffSession = {
   active: true,

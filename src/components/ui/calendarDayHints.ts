@@ -12,3 +12,9 @@ import { createContext } from 'react'
 export type CalendarDayHint = (date: Date) => string | undefined
 
 export const CalendarDayHintContext = createContext<CalendarDayHint | null>(null)
+
+/**
+ * Group size the picker is filtering for. A dot day that is only too small for
+ * this party (not full) says so in its aria-label. Null → no party known.
+ */
+export const CalendarPartyContext = createContext<number | null>(null)

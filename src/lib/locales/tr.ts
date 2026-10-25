@@ -369,6 +369,7 @@ export const tr: Bundle = {
   notTakingPartPaysInvoice: 'Katılmıyor · faturayı ödüyor',
   maxParticipantsReachedOne: 'En fazla 1 katılımcıya ulaşıldı',
   maxParticipantsReachedTemplate: 'En fazla {n} katılımcıya ulaşıldı',
+  alternativePartyClampedTemplate: '{name} en fazla {n} kişiye uygundur, bu yüzden grup {n} kişiye düşürüldü.',
   tooManyPeopleRemoveSomeone:
     'Bu aktivite için izin verilenden fazla kişi var — devam etmek için birini çıkarın.',
   sharedDoubleRequiresBookerMessage:
@@ -640,6 +641,19 @@ export const tr: Bundle = {
 
   fullyBookedLabel: 'Tamamen dolu',
   fullyBookedBlurb: 'Bu ürün için şu anda yaklaşan uygun tarih yok. Lütfen daha sonra tekrar kontrol edin.',
+  alternativesHeadingDay: 'Bu gün de müsait',
+  alternativesHeadingDays: 'Bu günlerde de müsait',
+  alternativesHeadingCourses: '{month} ayında başlayanlar',
+  alternativesHeadingAny: 'Ayrıca müsait',
+  alternativesStartsTemplate: 'Başlangıç: {date}',
+  altDayAria: 'dolu, diğer etkinlikler müsait',
+  altDayNotOfferedAria: 'sunulmuyor, diğer etkinlikler müsait',
+  altDayShortAria: '{n} kişi için yeterli yer yok, diğer etkinlikler müsait',
+  altDayFullNotice: '{product}, {date} tarihinde dolu',
+  altDayNotOfferedNotice: '{product}, {date} tarihinde sunulmuyor',
+  altDayShortNotice: '{product}, {date} tarihinde grubunuz için yeterli yer kalmadı',
+  altDayGate: 'Aşağıdaki diğer etkinliklerden birini seçin',
+  altDayLegend: 'bu gün başka bir etkinlik müsait',
   gridViewLabel: 'Izgara görünümü',
   listViewLabel: 'Liste görünümü',
   catalogueLayoutAria: 'Katalog düzeni',

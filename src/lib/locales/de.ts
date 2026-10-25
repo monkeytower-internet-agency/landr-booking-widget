@@ -372,6 +372,7 @@ export const de: Bundle = {
   notTakingPartPaysInvoice: 'Nimmt nicht teil · zahlt die Rechnung',
   maxParticipantsReachedOne: 'Maximal 1 Teilnehmer erreicht',
   maxParticipantsReachedTemplate: 'Maximal {n} Teilnehmer erreicht',
+  alternativePartyClampedTemplate: '{name} ist für maximal {n} Personen buchbar, die Gruppe wurde auf {n} reduziert.',
   tooManyPeopleRemoveSomeone:
     'Es sind mehr Personen eingetragen, als diese Aktivität erlaubt — entfernen Sie jemanden, um fortzufahren.',
   sharedDoubleRequiresBookerMessage:
@@ -645,6 +646,19 @@ export const de: Bundle = {
 
   fullyBookedLabel: 'Ausgebucht',
   fullyBookedBlurb: 'Für dieses Angebot sind derzeit keine bevorstehenden Termine verfügbar. Bitte schauen Sie später wieder vorbei.',
+  alternativesHeadingDay: 'Auch verfügbar an diesem Tag',
+  alternativesHeadingDays: 'Auch verfügbar an diesen Tagen',
+  alternativesHeadingCourses: 'Starten auch im {month}',
+  alternativesHeadingAny: 'Auch verfügbar',
+  alternativesStartsTemplate: 'Start: {date}',
+  altDayAria: 'ausgebucht, andere Aktivitäten verfügbar',
+  altDayNotOfferedAria: 'nicht im Angebot, andere Aktivitäten verfügbar',
+  altDayShortAria: 'nicht genug Plätze für {n} Personen, andere Aktivitäten verfügbar',
+  altDayFullNotice: '{product} ist am {date} ausgebucht',
+  altDayNotOfferedNotice: '{product} wird am {date} nicht angeboten',
+  altDayShortNotice: 'Für {product} sind am {date} nicht mehr genug Plätze für deine Gruppe frei',
+  altDayGate: 'Wählen Sie unten eine andere Aktivität',
+  altDayLegend: 'an diesem Tag ist eine andere Aktivität frei',
   gridViewLabel: 'Rasteransicht',
   listViewLabel: 'Listenansicht',
   catalogueLayoutAria: 'Katalog-Layout',

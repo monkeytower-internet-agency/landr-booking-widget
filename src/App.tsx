@@ -66,6 +66,7 @@ import { PickupLocationPicker } from '@/components/booking/PickupLocationPicker'
 import PriceSidebar, { type CalculatedTotal } from '@/components/booking/PriceSidebar'
 import { ProductList } from '@/components/booking/ProductList'
 import {
+  alternativePartyClampedMessage,
   getUiCatalogVersion,
   inviteBannerMessage,
   loadUiCatalog,
@@ -118,7 +119,12 @@ import {
   stepAfterLanguages,
   stepBeforeLanguages,
   stepBeforeReview,
+  draftForProductSwitch,
+  stepForAlternativeSwitch,
+  partyClampForSwitch,
+  type AlternativeCarry,
 } from './appStepMachine'
+import type { AlternativeSelection } from '@/components/booking/AlternativesPanel'
 import type { RemoteFlow } from './flowPlan'
 import { BreadcrumbNavContext } from '@/components/booking/breadcrumbNav'
 import {
@@ -489,6 +495,12 @@ function BookingFlowApp() {
   // AccommodationStep's masked-lookup field, lifted live (mirrors
   // memberPerkOtp above — it only matters at the final submit).
   const [joinRef, setJoinRef] = useState<string | null>(null)
+  // Shown on the first steps of a product reached through an "Also available"
+  // switch whose group was cut to that product's cap.
+  const [partyClampNote, setPartyClampNote] = useState<{
+    productId: string
+    text: string
+  } | null>(null)
   // landr-otml0.3 review fix (MINOR 6): one-shot "which companion row to
   // highlight" set after BookingForm's submit was rejected with the API's
   // companion_contact_required 422. Cleared by DetailsStep itself once
@@ -1113,16 +1125,17 @@ function BookingFlowApp() {
     // flow was known (start=dates deep link, invite link, reload, or a Book
     // click that beat the fetch) is swapped for the participants step when
     // the flow runs them first — but only while the customer is still on
-    // that untouched dates step and has no committed party yet.
+    // that dates step and has no committed party yet.
     const draftAtFetch = bookingDraft
     void ensureProductFlow(activeProductId).then((flow) => {
       setStep((prev) =>
         prev.name === 'pick-selection' &&
         prev.product.product_id === activeProductId &&
-        !prev.selection &&
         !(draftAtFetch.participants && draftAtFetch.participants.length > 0) &&
         participantsBeforeSelection(prev.product, flow)
-          ? detailsFromDraft(prev.product, undefined, draftAtFetch)
+          ? // A day/time carried by an "Also available" switch rides through
+            // the participants step to the dates step that follows it.
+            detailsFromDraft(prev.product, prev.selection, draftAtFetch, prev.carry)
           : prev,
       )
     })
@@ -1155,22 +1168,39 @@ function BookingFlowApp() {
   // pick" (prev undefined) rather than a genuine switch, silently skipping
   // the clear this fix exists for.
   const lastProductIdRef = useRef<string | undefined>(undefined)
+  const alternativeSwitchRef = useRef(false)
+  const stepRef = useRef(step)
+  useEffect(() => {
+    stepRef.current = step
+  })
+  const switchSeqRef = useRef(0)
+  // Last switch made through the "Also available" panel: the product the guest
+  // left (`from`) and the one they landed on (`to`). Sent as via_alternative_of
+  // on submit only while the booked product is still `to`, so choosing a
+  // product any other way (catalogue, breadcrumb) drops the attribution.
+  const [alternativeOrigin, setAlternativeOrigin] = useState<{
+    from: string
+    to: string
+  } | null>(null)
   useEffect(() => {
     const lastProductId = lastProductIdRef.current
     if (activeProductId && lastProductId && lastProductId !== activeProductId) {
+      // A switch via the "Also available" panel keeps the party size.
+      const keepParty = alternativeSwitchRef.current
+      alternativeSwitchRef.current = false
       // landr-rmcsu.7: the dates-step group size belongs to the product it
       // was chosen for (its own max_party_size and seat counts) — clear it
       // too so a stale "5 of you" doesn't seed the new product's stepper.
       setBookingDraft((prev) =>
         prev.customFormAnswers ||
         prev.customFormResponses ||
-        prev.partySize !== undefined
+        (!keepParty && prev.partySize !== undefined)
           ? {
               ...prev,
               customFormAnswers: undefined,
               // landr-kcxx5.8: the submitted entries belong to the same product.
               customFormResponses: undefined,
-              partySize: undefined,
+              ...(keepParty ? {} : { partySize: undefined }),
             }
           : prev,
       )
@@ -1292,6 +1322,7 @@ function BookingFlowApp() {
       // landr-otml0.3: same reasoning — a confirmed shared-double reference
       // from the PREVIOUS booking must not silently ride along either.
       setJoinRef(null)
+      setPartyClampNote(null)
       // landr-87n9.2: clear live accommodation state on a full restart.
       clearLiveAccommodation()
       // landr-nmed: a full restart (post-booking, or "← All categories" /
@@ -1462,13 +1493,14 @@ function BookingFlowApp() {
     participants: ParticipantDetails[],
     companions: CompanionDetails[],
     comment: string,
+    carry?: AlternativeCarry,
   ) => {
     commitDetails(product, booker, participants, companions, comment)
     setLiveSelectionDays([])
     setLiveSlot(null)
     setLiveParticipantCount(0)
     setLiveParticipantNames([])
-    setStep({ name: 'pick-selection', product, selection })
+    setStep({ name: 'pick-selection', product, selection, ...(carry ? { carry } : {}) })
   }
 
   /**
@@ -1861,6 +1893,76 @@ function BookingFlowApp() {
   // it and pick-product are the initial entry point, so either qualifies.
   const isFirstStep =
     step.name === 'pick-product' || step.name === 'pick-category'
+
+  // Tapping an "Also available" row: switch to that product on its own date
+  // step, keeping the picked day(s), start time and party. The draft keeps the
+  // booker/party and drops what belonged to the product being left; the new
+  // product's flow loads through the activeProductId effect, so extra steps
+  // appear as for a direct booking. Seat holds exist server-side only for an
+  // invite (see inviteTokenFor), so leaving that product needs no client call.
+  // Forced/overridden picks live in the picker's own state and are not carried.
+  const onSelectAlternative = async (pick: AlternativeSelection) => {
+    if (!token || step.name === 'pick-product') return
+    // The product list is fetched before switching; the customer may press
+    // Continue (or tap another row) meanwhile. Remember where the tap
+    // happened and drop the switch if the funnel moved on since.
+    const seq = ++switchSeqRef.current
+    const tappedName = step.name
+    const tappedProductId = 'product' in step ? step.product.product_id : undefined
+    let target: Product | undefined
+    try {
+      const products = await listProducts(token)
+      target = products.find((p) => p.product_id === pick.product.product_id)
+    } catch {
+      return
+    }
+    const now = stepRef.current
+    if (
+      seq !== switchSeqRef.current ||
+      now.name !== tappedName ||
+      ('product' in now ? now.product.product_id : undefined) !== tappedProductId
+    )
+      return
+    if (!target || !isBookable(target)) return
+    const days = pick.date
+      ? [pick.date, ...liveSelectionDays.filter((d) => d !== pick.date)]
+      : liveSelectionDays
+    alternativeSwitchRef.current = true
+    if (tappedProductId && tappedProductId !== target.product_id) {
+      setAlternativeOrigin({ from: tappedProductId, to: target.product_id })
+    }
+    setLiveSelectionDays([])
+    setLiveSlot(null)
+    // The shared-double reference and the live accommodation edits belong to
+    // the product being left; goToProductStep resets them the same way.
+    setJoinRef(null)
+    clearLiveAccommodation()
+    const clampedTo = partyClampForSwitch(bookingDraft, target)
+    setPartyClampNote(
+      clampedTo === null
+        ? null
+        : {
+            productId: target.product_id,
+            text: alternativePartyClampedMessage(
+              pickLocalized(target.name, target.name_localized, browserLocale()),
+              clampedTo,
+              browserLocale(),
+            ),
+          },
+    )
+    setBookingDraft((prev) => draftForProductSwitch(prev, target))
+    setStep(
+      stepForAlternativeSwitch({
+        target,
+        days: pick.windowId ? (pick.date ? [pick.date] : []) : days,
+        windowId: pick.windowId,
+        startTime: liveSlot ? liveSlot.start_time : null,
+      }),
+    )
+  }
+  // An invite's hold counts for the product it was minted for only.
+  const inviteTokenFor = (p: Product) =>
+    inviteData && inviteData.product_id === p.product_id ? (invite ?? undefined) : undefined
 
   // landr-6eita.1: the date picker's Back returns to the catalogue, whose
   // ?product= preselect lands on product-detail again. A start=dates product
@@ -2278,8 +2380,21 @@ function BookingFlowApp() {
           pickedGroupSlug); a top-level ?product= deep link has no
           catalogue to go back to.
         */}
+        {partyClampNote &&
+        (step.name === 'pick-selection' || step.name === 'details') &&
+        step.product.product_id === partyClampNote.productId ? (
+          <div
+            className="rounded-md border border-border bg-surface-well px-3 py-2 text-sm shadow-well"
+            data-testid="party-clamp-note"
+            role="status"
+          >
+            {partyClampNote.text}
+          </div>
+        ) : null}
+
         {step.name === 'fully-booked' ? (
           <FullyBookedNotice
+            productId={step.product.product_id}
             name={pickLocalized(
               step.product.name,
               step.product.name_localized,
@@ -2293,6 +2408,8 @@ function BookingFlowApp() {
             onBack={
               group || pickedGroupSlug ? goToProductStep : undefined
             }
+            operatorTimezone={operatorSettings.timezone}
+            onSelectAlternative={onSelectAlternative}
           />
         ) : null}
 
@@ -2333,8 +2450,10 @@ function BookingFlowApp() {
           (hasFixedStartTimes(step.product) &&
             step.product.service_time_shape === 'single_date')) ? (
           <AvailabilityPicker
+            // A product switch must remount, not reuse the old picker's state.
+            key={step.product.product_id}
             product={step.product}
-            inviteToken={inviteData ? (invite ?? undefined) : undefined}
+            inviteToken={inviteTokenFor(step.product)}
             onLoaded={onSelectionLoaded}
             exposeSeatsToCustomer={operatorSettings.expose_seats_to_customer}
             // landr-rmcsu.7: group-size stepper + seat-aware times.
@@ -2351,6 +2470,9 @@ function BookingFlowApp() {
               step.selection?.kind === 'slot' ? step.selection.slot : undefined
             }
             onLiveSlotChange={onLiveSlotChange}
+            initialDate={step.carry?.date}
+            initialStartTime={step.carry?.startTime}
+            onSelectAlternative={onSelectAlternative}
             onConfirm={(slot, forced, forcedReasons) =>
               afterSelection(step.product, {
                 kind: 'slot',
@@ -2367,7 +2489,10 @@ function BookingFlowApp() {
         step.product.product_kind === 'service' &&
         step.product.service_time_shape === 'fixed_window' ? (
           <FixedDateWindowPicker
+            // A product switch must remount, not reuse the old picker's state.
+            key={step.product.product_id}
             product={step.product}
+            operatorTimezone={operatorSettings.timezone}
             onLoaded={onSelectionLoaded}
             exposeSeats={operatorSettings.expose_seats_to_customer}
             // landr-rmcsu.7: group-size stepper + seat-aware windows.
@@ -2406,6 +2531,7 @@ function BookingFlowApp() {
               })
             }}
             onLiveDaysChange={setLiveSelectionDays}
+            onSelectAlternative={onSelectAlternative}
           />
         ) : null}
 
@@ -2413,6 +2539,8 @@ function BookingFlowApp() {
         step.product.product_kind === 'service' &&
         step.product.service_time_shape === 'days_range' ? (
           <MultiDayStep
+            // A product switch must remount, not reuse the old picker's state.
+            key={step.product.product_id}
             product={step.product}
             onLoaded={onSelectionLoaded}
             onBack={datePickerBack}
@@ -2437,7 +2565,7 @@ function BookingFlowApp() {
             originalDaysLabel={inviteData?.host_display_name}
             // landr-f987a.4: invitee's token (live hold counts as available)
             // and the host party's seat need once known (Back nav from details).
-            inviteToken={inviteData ? (invite ?? undefined) : undefined}
+            inviteToken={inviteTokenFor(step.product)}
             // landr-rmcsu.5: the group size (stepper / entered party) drives
             // the seat-aware calendar; the stepper persists into the draft.
             seatsNeeded={draftSeatsNeeded(step.product)}
@@ -2459,6 +2587,7 @@ function BookingFlowApp() {
               })
             }
             onLiveDaysChange={setLiveSelectionDays}
+            onSelectAlternative={onSelectAlternative}
           />
         ) : null}
 
@@ -2467,8 +2596,10 @@ function BookingFlowApp() {
         step.product.service_time_shape === 'single_date' &&
         !hasFixedStartTimes(step.product) ? (
           <SingleDatePicker
+            // A product switch must remount, not reuse the old picker's state.
+            key={step.product.product_id}
             product={step.product}
-            inviteToken={inviteData ? (invite ?? undefined) : undefined}
+            inviteToken={inviteTokenFor(step.product)}
             // landr-rmcsu.5: same group-size contract as MultiDayStep.
             seatsNeeded={draftSeatsNeeded(step.product)}
             // landr-rmcsu.6: participants already entered → N is known.
@@ -2497,6 +2628,7 @@ function BookingFlowApp() {
               })
             }
             onLiveDaysChange={setLiveSelectionDays}
+            onSelectAlternative={onSelectAlternative}
           />
         ) : null}
 
@@ -2586,6 +2718,7 @@ function BookingFlowApp() {
                   participants,
                   companions,
                   comment,
+                  step.carry,
                 )
                 return
               }
@@ -3228,6 +3361,11 @@ function BookingFlowApp() {
             product={step.product}
             selection={step.selection}
             booker={step.booker}
+            viaAlternativeOf={
+              alternativeOrigin && alternativeOrigin.to === step.product.product_id
+                ? alternativeOrigin.from
+                : undefined
+            }
             participants={step.participants}
             // landr-87n9.3: non-guiding companions for the submit body's
             // top-level companions[] + whole-party room assignment.

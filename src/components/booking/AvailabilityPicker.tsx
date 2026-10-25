@@ -3,6 +3,7 @@ import { getAvailability } from '@/api/client'
 import type { AvailabilitySlot, Product } from '@/api/types'
 import { forceReasonsFor, isDayBookable } from '@/components/booking/bookability'
 import { OperatorOverrideBadge } from '@/components/booking/OperatorOverrideBadge'
+import { confirmOverride } from '@/lib/confirmOverride'
 import { useStaffMode } from '@/lib/staffMode'
 import { hasFixedStartTimes, slotKey, toHHMM } from '@/components/booking/slotKey'
 import { Button } from '@/components/ui/button'
@@ -15,7 +16,7 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { Calendar } from '@/components/ui/calendar'
-import { CalendarDayHintContext } from '@/components/ui/calendarDayHints'
+import { CalendarDayHintContext, CalendarPartyContext } from '@/components/ui/calendarDayHints'
 import { PartySizeStepper, SeatFitNotice, ShortDayLegend } from '@/components/booking/PartySize'
 import { usePartySize } from '@/lib/usePartySize'
 import { seatFit, windowRangeLabel } from '@/lib/seatHold'
@@ -30,7 +31,7 @@ import {
 import {
   availabilityGate,
   availableDaysForLabel,
-  OUTSIDE_SCHEDULE_CONFIRM,
+  OVERRIDE_DAY_LEGEND,
   seatsCountLabel,
   seatsLeftLabel,
   slotSeatsShortLabel,
@@ -43,6 +44,17 @@ import { operatorWallClock } from '@/lib/operatorClock'
 import { NextAction } from '@/components/booking/NextAction'
 import { ContinueAction } from '@/components/booking/ContinueAction'
 import { useReportLoaded } from '@/lib/bootSplash'
+import {
+  AlternativesSection,
+  type AlternativeSelectHandler,
+} from '@/components/booking/AlternativesPanel'
+import { AltOnlyLegend, AltOnlyNotice } from '@/components/booking/AltOnlyParts'
+import {
+  monthHasAltOnly,
+  notOfferedDatesFor,
+  useAltOnly,
+  useDateStepAlternatives,
+} from '@/components/booking/altOnlyDays'
 
 interface Props {
   product: Product
@@ -75,6 +87,12 @@ interface Props {
    */
   initialSlot?: AvailabilitySlot
   /**
+   * Switched here from another product's date step: preselect this day, and
+   * the start time too when the day has a slot at that time.
+   */
+  initialDate?: string
+  initialStartTime?: string
+  /**
    * landr-tkgx8.1: called once the initial fetch settles (data or error), so
    * the boot splash can stay up until this step has something to show.
    */
@@ -103,6 +121,11 @@ interface Props {
    * so the price sidebar prices it live — the day pickers' onLiveDaysChange.
    */
   onLiveSlotChange?: (slot: AvailabilitySlot | null) => void
+  /**
+   * Tapping a row of the "Also available" panel. A wiring point: the product
+   * switch hooks in here; without a handler a tap does nothing.
+   */
+  onSelectAlternative?: AlternativeSelectHandler
 }
 
 // Stable empty reference while availability loads (an unstable [] in a memo
@@ -115,6 +138,8 @@ export function AvailabilityPicker({
   onConfirm,
   exposeSeatsToCustomer = false,
   initialSlot,
+  initialDate,
+  initialStartTime,
   onLoaded,
   inviteToken,
   seatsNeeded,
@@ -124,6 +149,7 @@ export function AvailabilityPicker({
   operatorTimezone,
   contactEmail,
   onLiveSlotChange,
+  onSelectAlternative,
 }: Props) {
   const staff = useStaffMode()
   const party = usePartySize(
@@ -138,12 +164,18 @@ export function AvailabilityPicker({
   useReportLoaded(slots !== null || error !== null, onLoaded)
   // landr (breadcrumb): seed date + slot from the restored selection.
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(() =>
-    initialSlot ? dateFromIso(initialSlot.date) : undefined,
+    initialSlot
+      ? dateFromIso(initialSlot.date)
+      : initialDate
+        ? dateFromIso(initialDate)
+        : undefined,
   )
   // landr-k9pji.1: keyed by slotKey(), not availability_id — a synthesised
   // on-request day has availability_id === null.
-  const [selectedSlotId, setSelectedSlotId] = useState<string | null>(
-    initialSlot ? slotKey(initialSlot) : null,
+  // `undefined` = the customer has not touched the time yet (a carried start
+  // time from a product switch may fill in); `null` = explicitly none.
+  const [pickedSlotId, setSelectedSlotId] = useState<string | null | undefined>(
+    initialSlot ? slotKey(initialSlot) : initialStartTime ? undefined : null,
   )
   const locale = browserLocale()
 
@@ -234,6 +266,17 @@ export function AvailabilityPicker({
     // Staff can open any day that has times, even a full / closed one.
     return canForce ? new Set(slots.map((s) => s.date)) : fitDates
   }, [slots, canForce, fitDates])
+  // Staff override: days customers cannot book are still openable — mark them.
+  const overrideDates = useMemo(() => {
+    if (!canOverrideDay) return []
+    const out: Date[] = []
+    const d = new Date(today)
+    for (let i = 0; i < 366; i++) {
+      if (!fitDates.has(isoDate(d))) out.push(new Date(d))
+      d.setDate(d.getDate() + 1)
+    }
+    return out
+  }, [canOverrideDay, fitDates, today])
   const shortDates = useMemo(
     () => Array.from(shortSeats.keys()).sort().map(dateFromIso),
     [shortSeats],
@@ -257,6 +300,39 @@ export function AvailabilityPicker({
   )
   const nothingBefore = useNothingBeforeNotice(availableDates, undefined, operatorTimezone)
 
+  // A full / unscheduled day where another activity is free stays clickable
+  // (dot + notice + alternatives panel). Customers only: staff override wins.
+  const alternatives = useDateStepAlternatives(
+    product.product_id,
+    month,
+    selectedDate ? [isoDate(selectedDate)] : [],
+    need,
+    operatorTimezone,
+  )
+  const { days: altOnlyDays, dates: altOnlyDates } = useAltOnly({
+    slots: canOverrideDay ? null : slots,
+    fit: fitDates,
+    short: shortSeats,
+    alternatives,
+    todayIso: isoDate(today),
+  })
+  // Unbookable for a customer whether or not the alternatives have loaded.
+  const selectedUnbookable =
+    !!selectedDate &&
+    slots !== null &&
+    !canOverrideDay &&
+    !fitDates.has(isoDate(selectedDate)) &&
+    !shortSeats.has(isoDate(selectedDate))
+  // A short day (seats left, fewer than the party) is rescued only once an
+  // alternative is in; until then its slots show as short and stay disabled.
+  const selectedShortAlt =
+    !!selectedDate && altOnlyDays.has(isoDate(selectedDate)) && shortSeats.has(isoDate(selectedDate))
+  const selectedAltOnly = selectedUnbookable || selectedShortAlt
+  const notOfferedDates = useMemo(
+    () => notOfferedDatesFor(altOnlyDays, slotDates, shortSeats),
+    [altOnlyDays, slotDates, shortSeats],
+  )
+
   // landr-xtkae.2: on a fixed-daily-times product the day's times are a menu
   // the operator published, so a FULL (or lead-time-closed) time stays visible
   // but disabled — hiding it would make "the 11:00 flight" vanish with no
@@ -273,6 +349,16 @@ export function AvailabilityPicker({
     )
     // eslint-disable-next-line react-hooks/exhaustive-deps -- offScheduleSlots closes over product.daily_start_times, today and operatorTimezone
   }, [slots, selectedDate, product.hotel_offering, product.daily_start_times, fixedTimes, canForce, slotDates, today, operatorTimezone])
+
+  // Product switch: keep the start time when this product has that time open
+  // on the carried day; otherwise the customer stays on the day and picks.
+  const carriedSlotId =
+    pickedSlotId === undefined && initialStartTime && selectedDate && isoDate(selectedDate) === initialDate
+      ? slotsForSelectedDate.find(
+          (s) => toHHMM(s.start_time) === toHHMM(initialStartTime) && slotIsPickable(s),
+        )
+      : undefined
+  const selectedSlotId = pickedSlotId ?? (carriedSlotId ? slotKey(carriedSlotId) : null)
 
   // The slot Continue would commit — ONE lookup shared by `ready`, the gate
   // line and onContinue, so the button is never enabled while it would do
@@ -387,6 +473,7 @@ export function AvailabilityPicker({
             </p>
           ) : null}
           <CalendarDayHintContext.Provider value={dayHint}>
+          <CalendarPartyContext.Provider value={need}>
             <Calendar
               className={slots === null ? 'pointer-events-none opacity-40' : undefined}
               mode="single"
@@ -394,21 +481,31 @@ export function AvailabilityPicker({
               onSelect={(date) => {
                 // landr-8ht3m.4: a day outside the schedule needs ONE confirm.
                 if (date && isOffSchedule(isoDate(date))) {
-                  if (!window.confirm(OUTSIDE_SCHEDULE_CONFIRM)) return
+                  if (!confirmOverride()) return
                 }
                 setSelectedDate(date)
                 setSelectedSlotId(null)
               }}
               disabled={(date) =>
                 // Staff (force_book) can open any day that is not in the past.
-                canOverrideDay ? date < today : !availableDates.has(isoDate(date))
+                canOverrideDay
+                  ? date < today
+                  : !availableDates.has(isoDate(date)) && !altOnlyDays.has(isoDate(date))
               }
               month={month}
               onMonthChange={setMonth}
-              modifiers={{ short: shortDates }}
+              modifiers={{ short: shortDates, override: overrideDates, altOnly: altOnlyDates, notOffered: notOfferedDates }}
             />
+          </CalendarPartyContext.Provider>
           </CalendarDayHintContext.Provider>
           {shortSeats.size > 0 ? <ShortDayLegend /> : null}
+          {monthHasAltOnly(altOnlyDays, month) ? <AltOnlyLegend /> : null}
+          {overrideDates.length > 0 ? (
+            <p className="text-xs text-muted-foreground" data-testid="override-day-legend">
+              <span className="underline decoration-dotted underline-offset-4">11</span>{' '}
+              {OVERRIDE_DAY_LEGEND}
+            </p>
+          ) : null}
           {nothingBefore ? (
             <p
               className="text-xs text-muted-foreground"
@@ -418,7 +515,14 @@ export function AvailabilityPicker({
             </p>
           ) : null}
         </NextAction>
-        {selectedDate && freeTimeDay ? (
+        {selectedDate && selectedAltOnly ? (
+          <AltOnlyNotice
+            productName={product.name}
+            iso={isoDate(selectedDate)}
+            offered={slotDates.has(isoDate(selectedDate))}
+            short={selectedShortAlt}
+          />
+        ) : selectedDate && freeTimeDay ? (
           <NextAction active={!freeSlot} cue={tr('availabilityTimeCue', locale)}>
             <label className="flex flex-col gap-1.5 text-sm font-medium">
               {tr('freeStartTimeLabel', locale)}
@@ -466,9 +570,7 @@ export function AvailabilityPicker({
                         canForce &&
                         !slotIsPickable(slot) &&
                         !isOffSchedule(slot.date) &&
-                        !window.confirm(
-                          OUTSIDE_SCHEDULE_CONFIRM,
-                        )
+                        !confirmOverride()
                       ) {
                         return
                       }
@@ -512,9 +614,22 @@ export function AvailabilityPicker({
           </NextAction>
         ) : null}
         {selectedForceReasons.length > 0 ? <OperatorOverrideBadge /> : null}
+        <AlternativesSection
+          productId={product.product_id}
+          party={need}
+          selectedDays={selectedDate ? [isoDate(selectedDate)] : []}
+          month={month}
+          alternatives={alternatives}
+          operatorTimezone={operatorTimezone}
+          onSelectAlternative={onSelectAlternative}
+        />
         <ContinueAction
           ready={!!selectedSlot}
-          reason={availabilityGate(!!selectedDate, !!selectedSlot, locale)}
+          reason={
+            selectedAltOnly
+              ? tr('altDayGate', locale)
+              : availabilityGate(!!selectedDate, !!selectedSlot, locale)
+          }
           reasonId="availability-picker-gate"
           onContinue={() => {
             if (!selectedSlot) return

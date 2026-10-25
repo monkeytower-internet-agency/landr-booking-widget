@@ -391,6 +391,8 @@ export type Bundle = {
   sharedDoubleRequiresBookerMessage: string
   maxParticipantsReachedOne: string
   maxParticipantsReachedTemplate: string
+  /** Product switch: the carried party was cut to the new product's cap. */
+  alternativePartyClampedTemplate: string
   tooManyPeopleRemoveSomeone: string
   notAMemberOrNoCode: string
   companionsShareAccommodationExplainer: string
@@ -677,6 +679,19 @@ export type Bundle = {
   // ---- FullyBookedNotice / ViewToggle / catalog ----
   fullyBookedLabel: string
   fullyBookedBlurb: string
+  alternativesHeadingDay: string
+  alternativesHeadingDays: string
+  alternativesHeadingCourses: string
+  alternativesHeadingAny: string
+  alternativesStartsTemplate: string
+  altDayAria: string
+  altDayNotOfferedAria: string
+  altDayShortAria: string
+  altDayFullNotice: string
+  altDayNotOfferedNotice: string
+  altDayShortNotice: string
+  altDayGate: string
+  altDayLegend: string
   gridViewLabel: string
   listViewLabel: string
   catalogueLayoutAria: string
@@ -1238,6 +1253,7 @@ const en: Bundle = {
   notTakingPartPaysInvoice: 'Not taking part · pays the invoice',
   maxParticipantsReachedOne: 'Maximum of 1 participant reached',
   maxParticipantsReachedTemplate: 'Maximum of {n} participants reached',
+  alternativePartyClampedTemplate: '{name} takes up to {n} people, so the group was reduced to {n}.',
   tooManyPeopleRemoveSomeone:
     'There are more people than this activity allows — remove someone to continue.',
   sharedDoubleRequiresBookerMessage:
@@ -1509,6 +1525,19 @@ const en: Bundle = {
 
   fullyBookedLabel: 'Fully booked',
   fullyBookedBlurb: 'There are no upcoming dates available for this product right now. Please check back later.',
+  alternativesHeadingDay: 'Also available on this day',
+  alternativesHeadingDays: 'Also available on these days',
+  alternativesHeadingCourses: 'Also starting in {month}',
+  alternativesHeadingAny: 'Also available',
+  alternativesStartsTemplate: 'Starts {date}',
+  altDayAria: 'fully booked, other activities available',
+  altDayNotOfferedAria: 'not offered, other activities available',
+  altDayShortAria: 'not enough places for {n} people, other activities available',
+  altDayFullNotice: '{product} is fully booked on {date}',
+  altDayNotOfferedNotice: '{product} is not offered on {date}',
+  altDayShortNotice: '{product} has too few seats left for your group on {date}',
+  altDayGate: 'Pick one of the other activities below',
+  altDayLegend: 'another activity is free on this day',
   gridViewLabel: 'Grid view',
   listViewLabel: 'List view',
   catalogueLayoutAria: 'Catalogue layout',
@@ -2275,6 +2304,9 @@ export type ForceReason =
  */
 export const OUTSIDE_SCHEDULE_CONFIRM = 'Outside your schedule — book anyway?'
 
+/** Legend for the dotted-underline days an operator can force-book (staff mode only). */
+export const OVERRIDE_DAY_LEGEND = 'Not regularly bookable — you can still book (override)'
+
 const FORCE_REASON_CLAUSE: Record<ForceReason, string> = {
   capacity: 'past capacity',
   lead_time: 'inside the lead-time window',
@@ -2475,6 +2507,13 @@ export function maxParticipantsReachedMessage(n: number, locale?: string): strin
 /** landr-jiagg.2 DetailsStep (booker not taking part): "Participants ({n} total)". */
 export function participantsTotalHeading(n: number, locale?: string): string {
   return tr('participantsTotalTemplate', locale).replace('{n}', String(n))
+}
+
+/** Product switch note: "{name} takes up to {n} people, so the group was reduced to {n}." */
+export function alternativePartyClampedMessage(name: string, n: number, locale?: string): string {
+  return tr('alternativePartyClampedTemplate', locale)
+    .replaceAll('{name}', name)
+    .replaceAll('{n}', String(n))
 }
 
 /** DetailsStep: "Add anyone else taking part. You can add up to {n} more." */

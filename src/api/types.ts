@@ -47,6 +47,35 @@ export type ServiceTimeShape =
   | 'fixed_window'
   | 'time_slot'
 
+/** One bookable fixed-window course of an alternative product. */
+export interface AlternativeWindow {
+  id: string
+  start_date: string
+  end_date: string
+  available_seats: number
+  label?: string | null
+}
+
+/**
+ * One linked alternative of a product, from
+ * `GET /api/public/products/{id}/alternatives`. Day-shaped alternatives carry
+ * `available_dates` (ISO days with enough seats for the requested party);
+ * `fixed_window` ones carry `windows`. The other field is null.
+ */
+export interface ProductAlternative {
+  product_id: string
+  slug: string
+  name: string
+  name_localized?: Record<string, unknown> | null
+  service_time_shape: ServiceTimeShape
+  thumb_url?: string | null
+  /** Decimal string, e.g. "89.00". */
+  price_from?: string | null
+  currency?: string | null
+  available_dates?: string[] | null
+  windows?: AlternativeWindow[] | null
+}
+
 export interface FixedDateWindow {
   id: string
   /** landr-my6fc.9: optional operator-given course name (e.g. "Bus 1"). */
@@ -1123,6 +1152,8 @@ export interface SubmitBookingBody {
   cancellation_deadline: string
   voucher_code?: string | null
   campaign_id?: string | null
+  /** Product the guest switched away from via the alternatives panel (hint; API validates). */
+  via_alternative_of?: string | null
   /**
    * landr-fn4i / landr-5krc: one-time subscription-perk code the customer
    * typed into the optional inline field DetailsStep shows after

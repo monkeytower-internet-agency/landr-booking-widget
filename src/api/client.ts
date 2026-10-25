@@ -19,6 +19,7 @@ import type {
   PriceAdjustment,
   Product,
   ProductAddon,
+  ProductAlternative,
   ProductGroup,
   SavingLine,
   ServiceRole,
@@ -458,6 +459,28 @@ export async function getFixedDateWindows(
   if (mocksEnabled()) return mockFixedDateWindows()
   return http<FixedDateWindow[]>(
     `/api/public/products/${encodeURIComponent(productId)}/fixed-date-windows`,
+  )
+}
+
+/**
+ * Linked alternatives of a product with their available dates (day shapes) or
+ * course windows (fixed_window) inside `[fromIso, toIso]` - one call per
+ * visible month. `party` filters to days/windows seating that many people.
+ */
+export async function getProductAlternatives(
+  productId: string,
+  fromIso: string,
+  toIso: string,
+  party = 1,
+): Promise<ProductAlternative[]> {
+  if (mocksEnabled()) return []
+  const qs = new URLSearchParams({
+    from: fromIso,
+    to: toIso,
+    party: String(Math.max(1, party)),
+  })
+  return http<ProductAlternative[]>(
+    `/api/public/products/${encodeURIComponent(productId)}/alternatives?${qs}`,
   )
 }
 

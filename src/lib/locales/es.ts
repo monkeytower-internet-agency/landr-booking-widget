@@ -365,6 +365,7 @@ export const es: Bundle = {
   notTakingPartPaysInvoice: 'No participa · paga la factura',
   maxParticipantsReachedOne: 'Has alcanzado el máximo de 1 participante',
   maxParticipantsReachedTemplate: 'Has alcanzado el máximo de {n} participantes',
+  alternativePartyClampedTemplate: '{name} admite hasta {n} personas, así que el grupo se ha reducido a {n}.',
   tooManyPeopleRemoveSomeone:
     'Hay más personas de las que admite esta actividad: quita a alguien para continuar.',
   sharedDoubleRequiresBookerMessage:
@@ -636,6 +637,19 @@ export const es: Bundle = {
 
   fullyBookedLabel: 'Completo',
   fullyBookedBlurb: 'Ahora mismo no hay próximas fechas disponibles para esta actividad. Vuelve a mirar más tarde.',
+  alternativesHeadingDay: 'También disponible este día',
+  alternativesHeadingDays: 'También disponible estos días',
+  alternativesHeadingCourses: 'También comienzan en {month}',
+  alternativesHeadingAny: 'También disponible',
+  alternativesStartsTemplate: 'Comienza el {date}',
+  altDayAria: 'completo, otras actividades disponibles',
+  altDayNotOfferedAria: 'no disponible, otras actividades disponibles',
+  altDayShortAria: 'no hay suficientes plazas para {n} personas, otras actividades disponibles',
+  altDayFullNotice: '{product} está completo el {date}',
+  altDayNotOfferedNotice: '{product} no se ofrece el {date}',
+  altDayShortNotice: 'A {product} no le quedan plazas suficientes para tu grupo el {date}',
+  altDayGate: 'Elige abajo una de las otras actividades',
+  altDayLegend: 'otra actividad está libre este día',
   gridViewLabel: 'Vista de cuadrícula',
   listViewLabel: 'Vista de lista',
   catalogueLayoutAria: 'Diseño del catálogo',
