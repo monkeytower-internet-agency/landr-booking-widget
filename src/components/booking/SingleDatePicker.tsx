@@ -45,6 +45,12 @@ import {
   AlternativesSection,
   type AlternativeSelectHandler,
 } from '@/components/booking/AlternativesPanel'
+import { AltOnlyLegend, AltOnlyNotice } from '@/components/booking/AltOnlyParts'
+import {
+  monthHasAltOnly,
+  useAltOnly,
+  useDateStepAlternatives,
+} from '@/components/booking/altOnlyDays'
 
 interface Props {
   product: Product
@@ -218,6 +224,24 @@ export function SingleDatePicker({
   )
   const nothingBefore = useNothingBeforeNotice(availableSet, undefined, operatorTimezone)
 
+  // A full / unscheduled day where another activity is free stays clickable
+  // (dot + notice + alternatives panel). Customers only: staff force-book wins.
+  const selectedIso = selected ? isoDate(selected) : null
+  const alternatives = useDateStepAlternatives(
+    product.product_id,
+    month,
+    selectedIso ? [selectedIso] : [],
+    need,
+  )
+  const { days: altOnlyDays, dates: altOnlyDates } = useAltOnly({
+    slots: canForce ? null : slots,
+    fit: availableSet,
+    short: shortSeats,
+    alternatives,
+    todayIso: isoDate(today),
+  })
+  const selectedAltOnly = selectedIso !== null && altOnlyDays.has(selectedIso)
+
   // landr-t869m.5: date → slot lookup so a force-booked pick can name WHICH
   // gate(s) it bypassed. landr-8ht3m.4: a date with no matching slot at all has
   // no availability on the schedule — it is OUTSIDE the schedule
@@ -279,8 +303,9 @@ export function SingleDatePicker({
       return
     }
     setSelected(d)
-    onLiveDaysChange?.(d ? [isoDate(d)] : [])
-  }, [availableSet, canForce, onLiveDaysChange])
+    // An alt-only day is not bookable here: the price sidebar must not price it.
+    onLiveDaysChange?.(d && !altOnlyDays.has(isoDate(d)) ? [isoDate(d)] : [])
+  }, [availableSet, canForce, onLiveDaysChange, altOnlyDays])
 
   if (error) {
     return (
@@ -336,14 +361,18 @@ export function SingleDatePicker({
               // remain disabled for everyone. Normal customers keep today's exact
               // behaviour (both predicates apply).
               disabled={(date) =>
-                date < today || (!canForce && !availableSet.has(isoDate(date)))
+                date < today ||
+                (!canForce &&
+                  !availableSet.has(isoDate(date)) &&
+                  !altOnlyDays.has(isoDate(date)))
               }
               month={month}
               onMonthChange={setMonth}
-              modifiers={{ short: shortDates }}
+              modifiers={{ short: shortDates, altOnly: altOnlyDates }}
             />
           </CalendarDayHintContext.Provider>
           {shortSeats.size > 0 ? <ShortDayLegend /> : null}
+          {monthHasAltOnly(altOnlyDays, month) ? <AltOnlyLegend /> : null}
           {nothingBefore ? (
             <p
               className="text-xs text-muted-foreground"
@@ -352,7 +381,13 @@ export function SingleDatePicker({
               {nothingBefore}
             </p>
           ) : null}
-          {selected ? (
+          {selected && selectedAltOnly ? (
+            <AltOnlyNotice
+              productName={product.name}
+              iso={isoDate(selected)}
+              offered={slotsByDate.has(isoDate(selected))}
+            />
+          ) : selected ? (
             // landr-3mo4: selected date confirmed in a tinted (borderless) chip
             // so the choice reads as committed, not as muted helper text.
             <div className="flex flex-wrap items-center gap-2">
@@ -371,12 +406,15 @@ export function SingleDatePicker({
           party={need}
           selectedDays={selected ? [isoDate(selected)] : []}
           month={month}
+          alternatives={alternatives}
           onSelectAlternative={onSelectAlternative}
         />
         <ContinueAction
-          ready={selected !== null && selectedShort === null}
+          ready={selected !== null && selectedShort === null && !selectedAltOnly}
           reason={
-            selectedShort
+            selectedAltOnly
+              ? tr('altDayGate', locale)
+              : selectedShort
               ? seatsShortMessage(
                   formatDayLabel(selectedShort.date, locale),
                   selectedShort.left,

@@ -48,6 +48,12 @@ import {
   AlternativesSection,
   type AlternativeSelectHandler,
 } from '@/components/booking/AlternativesPanel'
+import { AltOnlyLegend, AltOnlyNotice } from '@/components/booking/AltOnlyParts'
+import {
+  monthHasAltOnly,
+  useAltOnly,
+  useDateStepAlternatives,
+} from '@/components/booking/altOnlyDays'
 
 interface Props {
   product: Product
@@ -279,6 +285,23 @@ export function AvailabilityPicker({
   )
   const nothingBefore = useNothingBeforeNotice(availableDates, undefined, operatorTimezone)
 
+  // A full / unscheduled day where another activity is free stays clickable
+  // (dot + notice + alternatives panel). Customers only: staff override wins.
+  const alternatives = useDateStepAlternatives(
+    product.product_id,
+    month,
+    selectedDate ? [isoDate(selectedDate)] : [],
+    need,
+  )
+  const { days: altOnlyDays, dates: altOnlyDates } = useAltOnly({
+    slots: canOverrideDay ? null : slots,
+    fit: fitDates,
+    short: shortSeats,
+    alternatives,
+    todayIso: isoDate(today),
+  })
+  const selectedAltOnly = !!selectedDate && altOnlyDays.has(isoDate(selectedDate))
+
   // landr-xtkae.2: on a fixed-daily-times product the day's times are a menu
   // the operator published, so a FULL (or lead-time-closed) time stays visible
   // but disabled — hiding it would make "the 11:00 flight" vanish with no
@@ -423,14 +446,17 @@ export function AvailabilityPicker({
               }}
               disabled={(date) =>
                 // Staff (force_book) can open any day that is not in the past.
-                canOverrideDay ? date < today : !availableDates.has(isoDate(date))
+                canOverrideDay
+                  ? date < today
+                  : !availableDates.has(isoDate(date)) && !altOnlyDays.has(isoDate(date))
               }
               month={month}
               onMonthChange={setMonth}
-              modifiers={{ short: shortDates, override: overrideDates }}
+              modifiers={{ short: shortDates, override: overrideDates, altOnly: altOnlyDates }}
             />
           </CalendarDayHintContext.Provider>
           {shortSeats.size > 0 ? <ShortDayLegend /> : null}
+          {monthHasAltOnly(altOnlyDays, month) ? <AltOnlyLegend /> : null}
           {overrideDates.length > 0 ? (
             <p className="text-xs text-muted-foreground" data-testid="override-day-legend">
               <span className="underline decoration-dotted underline-offset-4">11</span>{' '}
@@ -446,7 +472,13 @@ export function AvailabilityPicker({
             </p>
           ) : null}
         </NextAction>
-        {selectedDate && freeTimeDay ? (
+        {selectedDate && selectedAltOnly ? (
+          <AltOnlyNotice
+            productName={product.name}
+            iso={isoDate(selectedDate)}
+            offered={slotDates.has(isoDate(selectedDate))}
+          />
+        ) : selectedDate && freeTimeDay ? (
           <NextAction active={!freeSlot} cue={tr('availabilityTimeCue', locale)}>
             <label className="flex flex-col gap-1.5 text-sm font-medium">
               {tr('freeStartTimeLabel', locale)}
@@ -543,11 +575,16 @@ export function AvailabilityPicker({
           party={need}
           selectedDays={selectedDate ? [isoDate(selectedDate)] : []}
           month={month}
+          alternatives={alternatives}
           onSelectAlternative={onSelectAlternative}
         />
         <ContinueAction
           ready={!!selectedSlot}
-          reason={availabilityGate(!!selectedDate, !!selectedSlot, locale)}
+          reason={
+            selectedAltOnly
+              ? tr('altDayGate', locale)
+              : availabilityGate(!!selectedDate, !!selectedSlot, locale)
+          }
           reasonId="availability-picker-gate"
           onContinue={() => {
             if (!selectedSlot) return
