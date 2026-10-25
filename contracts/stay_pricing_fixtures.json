@@ -1,0 +1,112 @@
+{
+  "version": 1,
+  "about": "Shared stay-pricing fixtures (landr-m6tp4.2). landr-api app/services/stay_pricing.py and the booking widget's accommodationCalc.ts both run these cases; the widget keeps a byte-identical copy (contracts/stay_pricing_fixtures.json) and both test suites pin its SHA-256.",
+  "addon_units": [
+    {"price_unit": "booking", "nights": 3, "guests": 2, "expected": 1},
+    {"price_unit": "stay", "nights": 3, "guests": 2, "expected": 1},
+    {"price_unit": "night", "nights": 3, "guests": 2, "expected": 3},
+    {"price_unit": "guest", "nights": 3, "guests": 2, "expected": 2},
+    {"price_unit": "guest_night", "nights": 3, "guests": 2, "expected": 6},
+    {"price_unit": "guest_night", "nights": 0, "guests": 0, "expected": 1},
+    {"price_unit": "unknown", "nights": 5, "guests": 4, "expected": 1}
+  ],
+  "quotes": [
+    {
+      "name": "one night, no add-ons",
+      "input": {"check_in": "2031-06-01", "check_out": "2031-06-02", "nightly_price_cents": 9000,
+                "cleaning_fee_cents": 3500, "guests": 2, "addons": []},
+      "expected": {"nights": 1, "lodging_cents": 9000, "cleaning_fee_cents": 3500,
+                   "addons": [], "total_cents": 12500}
+    },
+    {
+      "name": "three nights with a guest_night breakfast and a per-stay transfer",
+      "input": {"check_in": "2031-06-01", "check_out": "2031-06-04", "nightly_price_cents": 12000,
+                "cleaning_fee_cents": 5000, "guests": 2,
+                "addons": [
+                  {"key": "breakfast", "unit_price_cents": 1200, "price_unit": "guest_night", "quantity": 1},
+                  {"key": "transfer", "unit_price_cents": 4000, "price_unit": "stay", "quantity": 1}
+                ]},
+      "expected": {"nights": 3, "lodging_cents": 36000, "cleaning_fee_cents": 5000,
+                   "addons": [
+                     {"key": "breakfast", "price_unit": "guest_night", "units": 6, "quantity": 1, "total_cents": 7200},
+                     {"key": "transfer", "price_unit": "stay", "units": 1, "quantity": 1, "total_cents": 4000}
+                   ],
+                   "total_cents": 52200}
+    },
+    {
+      "name": "every unit once: night, guest, booking with quantity 2",
+      "input": {"check_in": "2031-07-10", "check_out": "2031-07-15", "nightly_price_cents": 8000,
+                "cleaning_fee_cents": 0, "guests": 3,
+                "addons": [
+                  {"key": "parking", "unit_price_cents": 500, "price_unit": "night", "quantity": 1},
+                  {"key": "towels", "unit_price_cents": 300, "price_unit": "guest", "quantity": 1},
+                  {"key": "bike", "unit_price_cents": 2000, "price_unit": "booking", "quantity": 2}
+                ]},
+      "expected": {"nights": 5, "lodging_cents": 40000, "cleaning_fee_cents": 0,
+                   "addons": [
+                     {"key": "parking", "price_unit": "night", "units": 5, "quantity": 1, "total_cents": 2500},
+                     {"key": "towels", "price_unit": "guest", "units": 3, "quantity": 1, "total_cents": 900},
+                     {"key": "bike", "price_unit": "booking", "units": 1, "quantity": 2, "total_cents": 4000}
+                   ],
+                   "total_cents": 47400}
+    },
+    {
+      "name": "per-night rates (weekend dearer)",
+      "input": {"check_in": "2031-06-06", "check_out": "2031-06-09", "nightly_price_cents": [10000, 15000, 15000],
+                "cleaning_fee_cents": 2500, "guests": 1, "addons": []},
+      "expected": {"nights": 3, "lodging_cents": 40000, "cleaning_fee_cents": 2500,
+                   "addons": [], "total_cents": 42500}
+    }
+  ],
+  "ranges": [
+    {
+      "name": "one night is bookable",
+      "input": {"check_in": "2031-06-01", "check_out": "2031-06-02", "min_nights": 1, "max_nights": null,
+                "guests": 2, "capacity": 2, "today": "2031-05-01", "blocked": [], "unavailable": []},
+      "expected": []
+    },
+    {
+      "name": "min-nights violation",
+      "input": {"check_in": "2031-06-01", "check_out": "2031-06-03", "min_nights": 3, "max_nights": null,
+                "guests": 2, "capacity": 4, "today": "2031-05-01", "blocked": [], "unavailable": []},
+      "expected": [{"code": "below_min_nights"}]
+    },
+    {
+      "name": "max-nights violation",
+      "input": {"check_in": "2031-06-01", "check_out": "2031-06-10", "min_nights": 1, "max_nights": 7,
+                "guests": 2, "capacity": 4, "today": "2031-05-01", "blocked": [], "unavailable": []},
+      "expected": [{"code": "above_max_nights"}]
+    },
+    {
+      "name": "blocked night inside the stay",
+      "input": {"check_in": "2031-06-01", "check_out": "2031-06-04", "min_nights": 1, "max_nights": null,
+                "guests": 2, "capacity": 4, "today": "2031-05-01", "blocked": ["2031-06-02"], "unavailable": []},
+      "expected": [{"code": "blocked_night", "date": "2031-06-02"}]
+    },
+    {
+      "name": "check-out day blocked and taken: back-to-back is fine",
+      "input": {"check_in": "2031-06-01", "check_out": "2031-06-04", "min_nights": 1, "max_nights": null,
+                "guests": 2, "capacity": 4, "today": "2031-05-01", "blocked": ["2031-06-04"],
+                "unavailable": ["2031-06-04", "2031-05-31"]},
+      "expected": []
+    },
+    {
+      "name": "taken night",
+      "input": {"check_in": "2031-06-01", "check_out": "2031-06-04", "min_nights": 1, "max_nights": null,
+                "guests": 2, "capacity": 4, "today": "2031-05-01", "blocked": [], "unavailable": ["2031-06-03"]},
+      "expected": [{"code": "night_unavailable", "date": "2031-06-03"}]
+    },
+    {
+      "name": "empty range",
+      "input": {"check_in": "2031-06-04", "check_out": "2031-06-04", "min_nights": 1, "max_nights": null,
+                "guests": 2, "capacity": 4, "today": "2031-05-01", "blocked": [], "unavailable": []},
+      "expected": [{"code": "invalid_range"}]
+    },
+    {
+      "name": "check-in in the past and too many guests",
+      "input": {"check_in": "2031-04-30", "check_out": "2031-05-02", "min_nights": 1, "max_nights": null,
+                "guests": 5, "capacity": 4, "today": "2031-05-01", "blocked": [], "unavailable": []},
+      "expected": [{"code": "check_in_past", "date": "2031-04-30"}, {"code": "too_many_guests"}]
+    }
+  ]
+}

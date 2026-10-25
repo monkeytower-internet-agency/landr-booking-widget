@@ -878,6 +878,28 @@ export type Bundle = {
   calendarDaySelected: string
   calendarDayAdded: string
   calendarDayRemoved: string
+  // Standalone stays (range picker, price breakdown, add-on units).
+  stayPickerTitle: string
+  stayPickerCue: string
+  stayTimesTemplate: string
+  staySpanTemplate: string
+  stayMinNightsTemplate: string
+  stayGateEmpty: string
+  stayGateCheckOut: string
+  stayErrInvalidRange: string
+  stayErrNotContiguous: string
+  stayErrCheckInPast: string
+  stayErrBelowMin: string
+  stayErrAboveMax: string
+  stayErrTooManyGuests: string
+  stayErrBlockedTemplate: string
+  stayErrTakenTemplate: string
+  cleaningFeeLabel: string
+  stayNightsTimesRateTemplate: string
+  perGuestSuffix: string
+  perGuestNightSuffix: string
+  perStaySuffix: string
+  addonUnitsTimesRateTemplate: string
 }
 
 const en: Bundle = {
@@ -1717,6 +1739,28 @@ const en: Bundle = {
   calendarDaySelected: 'selected',
   calendarDayAdded: 'added',
   calendarDayRemoved: 'removed',
+  // Standalone stays.
+  stayPickerTitle: 'Choose your dates',
+  stayPickerCue: 'Pick your check-in day, then your check-out day.',
+  stayTimesTemplate: 'Check-in from {checkIn} · check-out by {checkOut}',
+  staySpanTemplate: '{from} → {to}, {nights} {nightWord}',
+  stayMinNightsTemplate: 'Minimum stay: {count} {nightWord}',
+  stayGateEmpty: 'Choose a check-in and a check-out date to continue.',
+  stayGateCheckOut: 'Now choose your check-out date.',
+  stayErrInvalidRange: 'Pick a check-out date after the check-in date.',
+  stayErrNotContiguous: 'A stay must cover every night between check-in and check-out.',
+  stayErrCheckInPast: 'The check-in date has already passed.',
+  stayErrBelowMin: 'This stay needs more nights.',
+  stayErrAboveMax: 'This stay allows fewer nights.',
+  stayErrTooManyGuests: 'This place sleeps fewer guests than selected.',
+  stayErrBlockedTemplate: 'The night of {date} is not available.',
+  stayErrTakenTemplate: 'The night of {date} is already booked.',
+  cleaningFeeLabel: 'Cleaning fee',
+  stayNightsTimesRateTemplate: '{nights} {nightWord} × {rate}',
+  perGuestSuffix: '/ guest',
+  perGuestNightSuffix: '/ guest / night',
+  perStaySuffix: '/ stay',
+  addonUnitsTimesRateTemplate: '{units} × {rate} {suffix}',
 }
 
 /**
@@ -2688,4 +2732,90 @@ export function removeCompanionAriaLabel(n: number, locale?: string): string {
 export function copyFromBookerAriaLabel(field: 'email' | 'phone', locale?: string): string {
   const t = pickBundle(locale)
   return field === 'email' ? t.useYourEmailAria : t.useYourPhoneAria
+}
+
+/** Standalone stays: "Sat 1 Jun → Tue 4 Jun, 3 nights". */
+export function staySpanLabel(from: string, to: string, nights: number, locale?: string): string {
+  const t = pickBundle(locale)
+  return fmt(t.staySpanTemplate, {
+    from,
+    to,
+    nights,
+    nightWord: plural(nights, t.nightSingular, t.nightPlural),
+  })
+}
+
+/** Standalone stays: "3 nights × €90.00". */
+export function stayNightsTimesRate(nights: number, rate: string, locale?: string): string {
+  const t = pickBundle(locale)
+  return fmt(t.stayNightsTimesRateTemplate, {
+    nights,
+    rate,
+    nightWord: plural(nights, t.nightSingular, t.nightPlural),
+  })
+}
+
+/** Standalone stays: "Minimum stay: 2 nights". */
+export function stayMinNightsLabel(count: number, locale?: string): string {
+  const t = pickBundle(locale)
+  return fmt(t.stayMinNightsTemplate, {
+    count,
+    nightWord: plural(count, t.nightSingular, t.nightPlural),
+  })
+}
+
+/** The price-unit suffix an add-on's price is shown with ("each", "/ night", …). */
+export function addonUnitSuffix(priceUnit: string | null | undefined, locale?: string): string {
+  const t = pickBundle(locale)
+  switch (priceUnit) {
+    case 'night':
+      return t.perNightSuffix
+    case 'guest':
+      return t.perGuestSuffix
+    case 'guest_night':
+      return t.perGuestNightSuffix
+    case 'stay':
+      return t.perStaySuffix
+    default:
+      return t.eachSuffix
+  }
+}
+
+/** An add-on line priced by unit: "6 × €12.00 / guest / night". */
+export function addonUnitsTimesRate(
+  units: number,
+  rate: string,
+  priceUnit: string | null | undefined,
+  locale?: string,
+): string {
+  return fmt(pickBundle(locale).addonUnitsTimesRateTemplate, {
+    units,
+    rate,
+    suffix: addonUnitSuffix(priceUnit, locale),
+  })
+}
+
+/** Customer text for one broken stay rule (the API's violation codes). */
+export function stayViolationMessage(code: string, date: string | undefined, locale?: string): string {
+  const t = pickBundle(locale)
+  switch (code) {
+    case 'invalid_range':
+      return t.stayErrInvalidRange
+    case 'not_contiguous':
+      return t.stayErrNotContiguous
+    case 'check_in_past':
+      return t.stayErrCheckInPast
+    case 'below_min_nights':
+      return t.stayErrBelowMin
+    case 'above_max_nights':
+      return t.stayErrAboveMax
+    case 'too_many_guests':
+      return t.stayErrTooManyGuests
+    case 'blocked_night':
+      return fmt(t.stayErrBlockedTemplate, { date: date ?? '' })
+    case 'night_unavailable':
+      return fmt(t.stayErrTakenTemplate, { date: date ?? '' })
+    default:
+      return t.stayErrInvalidRange
+  }
 }

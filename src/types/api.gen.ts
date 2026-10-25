@@ -15192,6 +15192,8 @@ export interface components {
          *     (e.g. "60.00"), matching ``_compute_line``'s wire format exactly.
          */
         EstimateLineItem: {
+            /** Cleaning Fee */
+            cleaning_fee?: string | null;
             /** Label */
             label: string;
             /** Line Total */
@@ -15205,6 +15207,8 @@ export interface components {
             payee_label?: string | null;
             /** Payment Note */
             payment_note?: string | null;
+            /** Price Unit */
+            price_unit?: ("night" | "stay" | "guest" | "guest_night") | null;
             /** Product Id */
             product_id: string;
             /** Qty */
@@ -15263,6 +15267,7 @@ export interface components {
             savings?: components["schemas"]["SavingLineOut"][] | null;
             /** Savings Total */
             savings_total?: string | null;
+            stay?: components["schemas"]["StayEstimate"] | null;
             /** Subtotal Before Savings */
             subtotal_before_savings?: string | null;
             /** Subtotal Before Surcharges */
@@ -17791,6 +17796,7 @@ export interface components {
             share_reference_enabled: boolean;
             /** Slug */
             slug: string;
+            stay?: components["schemas"]["StayConfig"] | null;
             /** Thumb Url */
             thumb_url?: string | null;
         } & {
@@ -19103,6 +19109,12 @@ export interface components {
             } | null;
             /** Price Per Unit */
             price_per_unit?: number | null;
+            /**
+             * Price Unit
+             * @default booking
+             * @enum {string}
+             */
+            price_unit: "booking" | "night" | "stay" | "guest" | "guest_night";
             /** Product Addon Id */
             product_addon_id: string;
             /** Product Kind */
@@ -19392,6 +19404,12 @@ export interface components {
             capacity_per_unit?: number | null;
             /** Category Id */
             category_id?: string | null;
+            /** Check In Time */
+            check_in_time?: string | null;
+            /** Check Out Time */
+            check_out_time?: string | null;
+            /** Cleaning Fee Cents */
+            cleaning_fee_cents?: number | null;
             /** Daily Start Times */
             daily_start_times?: string[] | null;
             /** Daily Start Weekdays */
@@ -19441,8 +19459,12 @@ export interface components {
              * @default 0
              */
             lead_time_minutes: number;
+            /** Max Nights */
+            max_nights?: number | null;
             /** Max Party Size */
             max_party_size?: number | null;
+            /** Min Nights */
+            min_nights?: number | null;
             /** Name */
             name: string;
             /** Name Localized */
@@ -19470,10 +19492,12 @@ export interface components {
             payment_note_localized?: {
                 [key: string]: unknown;
             } | null;
+            /** Price Unit */
+            price_unit?: ("booking" | "night" | "stay" | "guest" | "guest_night") | null;
             /** Product Group Id */
             product_group_id?: string | null;
             /** Product Kind */
-            product_kind?: ("service" | "subscription" | "hotel_room" | "digital_good" | "physical_good" | "gift_card") | null;
+            product_kind?: ("service" | "subscription" | "hotel_room" | "digital_good" | "physical_good" | "gift_card" | "stay") | null;
             /** Revenue Flows Through Operator */
             revenue_flows_through_operator?: boolean | null;
             /** Service Time Shape */
@@ -19546,6 +19570,12 @@ export interface components {
             capacity_per_unit?: number | null;
             /** Category Id */
             category_id?: string | null;
+            /** Check In Time */
+            check_in_time?: string | null;
+            /** Check Out Time */
+            check_out_time?: string | null;
+            /** Cleaning Fee Cents */
+            cleaning_fee_cents?: number | null;
             /** Daily Start Times */
             daily_start_times?: string[] | null;
             /** Daily Start Weekdays */
@@ -19580,8 +19610,12 @@ export interface components {
             is_publicly_listed?: boolean | null;
             /** Lead Time Minutes */
             lead_time_minutes?: number | null;
+            /** Max Nights */
+            max_nights?: number | null;
             /** Max Party Size */
             max_party_size?: number | null;
+            /** Min Nights */
+            min_nights?: number | null;
             /** Name */
             name?: string | null;
             /** Name Localized */
@@ -19600,10 +19634,12 @@ export interface components {
             payment_note_localized?: {
                 [key: string]: unknown;
             } | null;
+            /** Price Unit */
+            price_unit?: ("booking" | "night" | "stay" | "guest" | "guest_night") | null;
             /** Product Group Id */
             product_group_id?: string | null;
             /** Product Kind */
-            product_kind?: ("service" | "subscription" | "hotel_room" | "digital_good" | "physical_good" | "gift_card") | null;
+            product_kind?: ("service" | "subscription" | "hotel_room" | "digital_good" | "physical_good" | "gift_card" | "stay") | null;
             /** Revenue Flows Through Operator */
             revenue_flows_through_operator?: boolean | null;
             /** Service Time Shape */
@@ -22448,6 +22484,58 @@ export interface components {
             id: string;
             /** Status */
             status: string;
+        };
+        /**
+         * StayConfig
+         * @description landr-m6tp4.2: the booking rules of a ``product_kind='stay'`` product,
+         *     for the widget's range picker and price breakdown. The nightly price is
+         *     the catalogue's ``price_from`` / ``price_base`` (a per-night rate).
+         */
+        StayConfig: {
+            /** Check In Time */
+            check_in_time?: string | null;
+            /** Check Out Time */
+            check_out_time?: string | null;
+            /**
+             * Cleaning Fee Cents
+             * @default 0
+             */
+            cleaning_fee_cents: number;
+            /** Max Nights */
+            max_nights?: number | null;
+            /**
+             * Min Nights
+             * @default 1
+             */
+            min_nights: number;
+            /** Sleeps */
+            sleeps?: number | null;
+        };
+        /**
+         * StayEstimate
+         * @description landr-m6tp4.2: the stay half of an estimate for a stay product.
+         */
+        StayEstimate: {
+            /** Check In */
+            check_in?: string | null;
+            /** Check Out */
+            check_out?: string | null;
+            /** Cleaning Fee */
+            cleaning_fee: string;
+            /** Errors */
+            errors?: components["schemas"]["StayEstimateError"][];
+            /** Nights */
+            nights: number;
+        };
+        /**
+         * StayEstimateError
+         * @description One broken stay rule (app/services/stay_pricing.VIOLATION_CODES).
+         */
+        StayEstimateError: {
+            /** Code */
+            code: string;
+            /** Date */
+            date?: string | null;
         };
         /**
          * SubmitBookingResponse
