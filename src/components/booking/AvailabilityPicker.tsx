@@ -3,6 +3,7 @@ import { getAvailability } from '@/api/client'
 import type { AvailabilitySlot, Product } from '@/api/types'
 import { forceReasonsFor, isDayBookable } from '@/components/booking/bookability'
 import { OperatorOverrideBadge } from '@/components/booking/OperatorOverrideBadge'
+import { confirmOverride } from '@/lib/confirmOverride'
 import { useStaffMode } from '@/lib/staffMode'
 import { hasFixedStartTimes, slotKey, toHHMM } from '@/components/booking/slotKey'
 import { Button } from '@/components/ui/button'
@@ -30,7 +31,6 @@ import {
 import {
   availabilityGate,
   availableDaysForLabel,
-  OUTSIDE_SCHEDULE_CONFIRM,
   OVERRIDE_DAY_LEGEND,
   seatsCountLabel,
   seatsLeftLabel,
@@ -406,7 +406,7 @@ export function AvailabilityPicker({
               onSelect={(date) => {
                 // landr-8ht3m.4: a day outside the schedule needs ONE confirm.
                 if (date && isOffSchedule(isoDate(date))) {
-                  if (!window.confirm(OUTSIDE_SCHEDULE_CONFIRM)) return
+                  if (!confirmOverride()) return
                 }
                 setSelectedDate(date)
                 setSelectedSlotId(null)
@@ -484,9 +484,7 @@ export function AvailabilityPicker({
                         canForce &&
                         !slotIsPickable(slot) &&
                         !isOffSchedule(slot.date) &&
-                        !window.confirm(
-                          OUTSIDE_SCHEDULE_CONFIRM,
-                        )
+                        !confirmOverride()
                       ) {
                         return
                       }

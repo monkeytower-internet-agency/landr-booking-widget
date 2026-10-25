@@ -10,12 +10,12 @@ import {
   multiDayDiffSummary,
   multiDayResetDroppedNotice,
   multiDayResetToDatesLabel,
-  OUTSIDE_SCHEDULE_CONFIRM,
   seatsLeftLabel,
   tr,
   type ForceReason,
 } from '@/lib/strings'
 import { browserLocale } from '@/lib/locale'
+import { confirmOverride } from '@/lib/confirmOverride'
 import { useStaffMode } from '@/lib/staffMode'
 import { OperatorOverrideBadge } from '@/components/booking/OperatorOverrideBadge'
 import { dateFromIso, isoDate } from '@/components/booking/dateUtils'
@@ -313,7 +313,7 @@ export function MultiDayPicker({
           }
           return
         }
-        if (!window.confirm(OUTSIDE_SCHEDULE_CONFIRM)) {
+        if (!confirmOverride()) {
           return
         }
         const forcedNext = new Set(valueSet)

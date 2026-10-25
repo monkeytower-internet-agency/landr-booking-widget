@@ -8,7 +8,6 @@ import {
   availableDaysForLabel,
   seatsLeftLabel,
   seatsShortMessage,
-  OUTSIDE_SCHEDULE_CONFIRM,
   singleDateGate,
   tr,
   type ForceReason,
@@ -36,6 +35,7 @@ import {
   useNothingBeforeNotice,
   useStartMonth,
 } from '@/components/booking/calendarStart'
+import { confirmOverride } from '@/lib/confirmOverride'
 import { useStaffMode } from '@/lib/staffMode'
 import { OperatorOverrideBadge } from '@/components/booking/OperatorOverrideBadge'
 import { NextAction } from '@/components/booking/NextAction'
@@ -261,7 +261,7 @@ export function SingleDatePicker({
   const handleSelect = useCallback((date: Date | undefined) => {
     const d = date ?? null
     if (d && canForce && !availableSet.has(isoDate(d))) {
-      if (!window.confirm(OUTSIDE_SCHEDULE_CONFIRM)) {
+      if (!confirmOverride()) {
         return
       }
       setSelected(d)
