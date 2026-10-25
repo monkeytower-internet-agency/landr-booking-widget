@@ -2275,6 +2275,9 @@ export type ForceReason =
  */
 export const OUTSIDE_SCHEDULE_CONFIRM = 'Outside your schedule — book anyway?'
 
+/** Legend for the dotted-underline days an operator can force-book (staff mode only). */
+export const OVERRIDE_DAY_LEGEND = 'Not regularly bookable — you can still book (override)'
+
 const FORCE_REASON_CLAUSE: Record<ForceReason, string> = {
   capacity: 'past capacity',
   lead_time: 'inside the lead-time window',

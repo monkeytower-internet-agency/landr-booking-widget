@@ -3,6 +3,7 @@ import { getAvailability } from '@/api/client'
 import type { AvailabilitySlot, Product } from '@/api/types'
 import { forceReasonsFor, isDayBookable } from '@/components/booking/bookability'
 import { OperatorOverrideBadge } from '@/components/booking/OperatorOverrideBadge'
+import { confirmOverride } from '@/lib/confirmOverride'
 import { useStaffMode } from '@/lib/staffMode'
 import { hasFixedStartTimes, slotKey, toHHMM } from '@/components/booking/slotKey'
 import { Button } from '@/components/ui/button'
@@ -30,7 +31,7 @@ import {
 import {
   availabilityGate,
   availableDaysForLabel,
-  OUTSIDE_SCHEDULE_CONFIRM,
+  OVERRIDE_DAY_LEGEND,
   seatsCountLabel,
   seatsLeftLabel,
   slotSeatsShortLabel,
@@ -234,6 +235,17 @@ export function AvailabilityPicker({
     // Staff can open any day that has times, even a full / closed one.
     return canForce ? new Set(slots.map((s) => s.date)) : fitDates
   }, [slots, canForce, fitDates])
+  // Staff override: days customers cannot book are still openable — mark them.
+  const overrideDates = useMemo(() => {
+    if (!canOverrideDay) return []
+    const out: Date[] = []
+    const d = new Date(today)
+    for (let i = 0; i < 366; i++) {
+      if (!fitDates.has(isoDate(d))) out.push(new Date(d))
+      d.setDate(d.getDate() + 1)
+    }
+    return out
+  }, [canOverrideDay, fitDates, today])
   const shortDates = useMemo(
     () => Array.from(shortSeats.keys()).sort().map(dateFromIso),
     [shortSeats],
@@ -394,7 +406,7 @@ export function AvailabilityPicker({
               onSelect={(date) => {
                 // landr-8ht3m.4: a day outside the schedule needs ONE confirm.
                 if (date && isOffSchedule(isoDate(date))) {
-                  if (!window.confirm(OUTSIDE_SCHEDULE_CONFIRM)) return
+                  if (!confirmOverride()) return
                 }
                 setSelectedDate(date)
                 setSelectedSlotId(null)
@@ -405,10 +417,16 @@ export function AvailabilityPicker({
               }
               month={month}
               onMonthChange={setMonth}
-              modifiers={{ short: shortDates }}
+              modifiers={{ short: shortDates, override: overrideDates }}
             />
           </CalendarDayHintContext.Provider>
           {shortSeats.size > 0 ? <ShortDayLegend /> : null}
+          {overrideDates.length > 0 ? (
+            <p className="text-xs text-muted-foreground" data-testid="override-day-legend">
+              <span className="underline decoration-dotted underline-offset-4">11</span>{' '}
+              {OVERRIDE_DAY_LEGEND}
+            </p>
+          ) : null}
           {nothingBefore ? (
             <p
               className="text-xs text-muted-foreground"
@@ -466,9 +484,7 @@ export function AvailabilityPicker({
                         canForce &&
                         !slotIsPickable(slot) &&
                         !isOffSchedule(slot.date) &&
-                        !window.confirm(
-                          OUTSIDE_SCHEDULE_CONFIRM,
-                        )
+                        !confirmOverride()
                       ) {
                         return
                       }
