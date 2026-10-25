@@ -1152,6 +1152,8 @@ export interface SubmitBookingBody {
   cancellation_deadline: string
   voucher_code?: string | null
   campaign_id?: string | null
+  /** Product the guest switched away from via the alternatives panel (hint; API validates). */
+  via_alternative_of?: string | null
   /**
    * landr-fn4i / landr-5krc: one-time subscription-perk code the customer
    * typed into the optional inline field DetailsStep shows after

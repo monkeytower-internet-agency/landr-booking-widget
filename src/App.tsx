@@ -1174,6 +1174,14 @@ function BookingFlowApp() {
     stepRef.current = step
   })
   const switchSeqRef = useRef(0)
+  // Last switch made through the "Also available" panel: the product the guest
+  // left (`from`) and the one they landed on (`to`). Sent as via_alternative_of
+  // on submit only while the booked product is still `to`, so choosing a
+  // product any other way (catalogue, breadcrumb) drops the attribution.
+  const [alternativeOrigin, setAlternativeOrigin] = useState<{
+    from: string
+    to: string
+  } | null>(null)
   useEffect(() => {
     const lastProductId = lastProductIdRef.current
     if (activeProductId && lastProductId && lastProductId !== activeProductId) {
@@ -1920,6 +1928,9 @@ function BookingFlowApp() {
       ? [pick.date, ...liveSelectionDays.filter((d) => d !== pick.date)]
       : liveSelectionDays
     alternativeSwitchRef.current = true
+    if (tappedProductId && tappedProductId !== target.product_id) {
+      setAlternativeOrigin({ from: tappedProductId, to: target.product_id })
+    }
     setLiveSelectionDays([])
     setLiveSlot(null)
     // The shared-double reference and the live accommodation edits belong to
@@ -3350,6 +3361,11 @@ function BookingFlowApp() {
             product={step.product}
             selection={step.selection}
             booker={step.booker}
+            viaAlternativeOf={
+              alternativeOrigin && alternativeOrigin.to === step.product.product_id
+                ? alternativeOrigin.from
+                : undefined
+            }
             participants={step.participants}
             // landr-87n9.3: non-guiding companions for the submit body's
             // top-level companions[] + whole-party room assignment.
