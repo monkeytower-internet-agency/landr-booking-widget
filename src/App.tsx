@@ -1,4 +1,6 @@
 import { PausedGate } from '@/components/booking/PausedGate'
+import { DemoBanner, DemoCongrats } from '@/components/booking/DemoMode'
+import { demoSlug, demoToken } from '@/lib/demo'
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import type { CSSProperties } from 'react'
 import {
@@ -184,9 +186,12 @@ function readQueryParams() {
     }
   }
   const params = new URLSearchParams(window.location.search)
+  // Demo mode (`?demo=<template>`): a synthetic token stands in for the widget
+  // token; src/api/demo.ts answers every request made with it.
+  const demo = demoSlug()
   return {
     // landr-il9f.2: opaque widget token — no slug fallback.
-    token: params.get('w'),
+    token: params.get('w') ?? (demo ? demoToken(demo) : null),
     product: params.get('product'),
     group: params.get('group'),
     // landr-otml0.3: invite link — resolved via GET /api/public/invites/{token}.
@@ -2106,6 +2111,8 @@ function BookingFlowApp() {
           Customers visiting the live embed never see this banner because
           no preview_token is present in the published embed URL.
         */}
+        {demoSlug() ? <DemoBanner /> : null}
+
         {previewToken ? (
           <div
             className="flex items-center gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800"
@@ -3604,7 +3611,11 @@ function BookingFlowApp() {
           />
         ) : null}
 
-        {step.name === 'confirmed' ? (
+        {step.name === 'confirmed' && demoSlug() ? (
+          <DemoCongrats slug={demoSlug()!} onRestart={goToProductStep} />
+        ) : null}
+
+        {step.name === 'confirmed' && !demoSlug() ? (
           <>
             <Confirmation
               response={step.response}
