@@ -22420,6 +22420,18 @@
             "title": "Products",
             "type": "array"
           },
+          "via_alternative_of": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Via Alternative Of"
+          },
           "voucher_code": {
             "anyOf": [
               {

@@ -19113,6 +19113,8 @@ export interface components {
             preview_token?: string | null;
             /** Products */
             products: components["schemas"]["ProductLineIn"][];
+            /** Via Alternative Of */
+            via_alternative_of?: string | null;
             /** Voucher Code */
             voucher_code?: string | null;
             /** Widget Token */
