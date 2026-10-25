@@ -595,6 +595,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/internal/mail/drain": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Drain Mail
+         * @description Run one pass of the tenant and the platform outbound-email drain.
+         */
+        post: operations["drain_mail"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/internal/release/changelog": {
         parameters: {
             query?: never;
@@ -25540,6 +25560,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StagingActivityOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    drain_mail: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Mail-Drain-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: number;
+                    };
                 };
             };
             /** @description Validation Error */
