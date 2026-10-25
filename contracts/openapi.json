@@ -36026,6 +36026,60 @@
         ]
       }
     },
+    "/api/internal/mail/drain": {
+      "post": {
+        "description": "Run one pass of the tenant and the platform outbound-email drain.",
+        "operationId": "drain_mail",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Mail-Drain-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Mail-Drain-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "integer"
+                  },
+                  "title": "Response Drain Mail",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Drain Mail",
+        "tags": [
+          "mail-drain-internal"
+        ]
+      }
+    },
     "/api/internal/release/changelog": {
       "get": {
         "description": "The control-plane-side implementation of operator_release.get_changelog.\n\nAuth: X-Release-Relay-Token. Returns the FULL entry shape (category,\ndescription, sha, author, url, repo) \u2014 operator_release.py trims to\ncategory/description before handing the untrusted end-user response\nback (``ChangelogEntryOut``); this internal, service-to-service boundary\ncarries the richer data so it isn't lost if a future internal consumer\nneeds it. Also carries ``partial`` straight through (landr-zxgs) \u2014 always\nFalse for the staging/prod tiers this relay is actually ever called with\nin practice (see operator_release.py's module docstring: tier='dev'\nnever relays), but correct if a future internal consumer ever asks this\nendpoint for tier='dev' directly.",
