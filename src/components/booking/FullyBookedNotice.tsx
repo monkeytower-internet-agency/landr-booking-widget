@@ -36,6 +36,8 @@ interface Props {
   /** Product id; when given (standalone page only) alternatives are listed. */
   productId?: string
   onSelectAlternative?: AlternativeSelectHandler
+  /** Operator IANA zone; the alternatives range starts at the operator's today. */
+  operatorTimezone?: string | null
 }
 
 // Exported (landr-872c) so the Categories layout's disabled category tiles
@@ -56,6 +58,7 @@ export function FullyBookedNotice({
   compact,
   productId,
   onSelectAlternative,
+  operatorTimezone,
 }: Props) {
   const locale = browserLocale()
   return (
@@ -81,6 +84,7 @@ export function FullyBookedNotice({
               productId={productId}
               anyOpen
               onSelectAlternative={onSelectAlternative}
+              operatorTimezone={operatorTimezone}
             />
           </div>
         ) : null}

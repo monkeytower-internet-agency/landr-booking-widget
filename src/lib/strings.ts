@@ -683,6 +683,7 @@ export type Bundle = {
   alternativesHeadingAny: string
   alternativesStartsTemplate: string
   altDayAria: string
+  altDayNotOfferedAria: string
   altDayShortAria: string
   altDayFullNotice: string
   altDayNotOfferedNotice: string
@@ -1527,6 +1528,7 @@ const en: Bundle = {
   alternativesHeadingAny: 'Also available',
   alternativesStartsTemplate: 'Starts {date}',
   altDayAria: 'fully booked, other activities available',
+  altDayNotOfferedAria: 'not offered, other activities available',
   altDayShortAria: 'not enough places for {n} people, other activities available',
   altDayFullNotice: '{product} is fully booked on {date}',
   altDayNotOfferedNotice: '{product} is not offered on {date}',

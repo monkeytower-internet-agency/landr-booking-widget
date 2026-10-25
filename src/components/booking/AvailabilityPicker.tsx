@@ -51,6 +51,7 @@ import {
 import { AltOnlyLegend, AltOnlyNotice } from '@/components/booking/AltOnlyParts'
 import {
   monthHasAltOnly,
+  notOfferedDatesFor,
   useAltOnly,
   useDateStepAlternatives,
 } from '@/components/booking/altOnlyDays'
@@ -327,6 +328,10 @@ export function AvailabilityPicker({
   const selectedShortAlt =
     !!selectedDate && altOnlyDays.has(isoDate(selectedDate)) && shortSeats.has(isoDate(selectedDate))
   const selectedAltOnly = selectedUnbookable || selectedShortAlt
+  const notOfferedDates = useMemo(
+    () => notOfferedDatesFor(altOnlyDays, slotDates, shortSeats),
+    [altOnlyDays, slotDates, shortSeats],
+  )
 
   // landr-xtkae.2: on a fixed-daily-times product the day's times are a menu
   // the operator published, so a FULL (or lead-time-closed) time stays visible
@@ -489,7 +494,7 @@ export function AvailabilityPicker({
               }
               month={month}
               onMonthChange={setMonth}
-              modifiers={{ short: shortDates, override: overrideDates, altOnly: altOnlyDates }}
+              modifiers={{ short: shortDates, override: overrideDates, altOnly: altOnlyDates, notOffered: notOfferedDates }}
             />
           </CalendarPartyContext.Provider>
           </CalendarDayHintContext.Provider>

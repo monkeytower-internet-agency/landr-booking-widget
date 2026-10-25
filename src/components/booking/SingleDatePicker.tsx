@@ -48,6 +48,7 @@ import {
 import { AltOnlyLegend, AltOnlyNotice } from '@/components/booking/AltOnlyParts'
 import {
   monthHasAltOnly,
+  notOfferedDatesFor,
   useAltOnly,
   useDateStepAlternatives,
 } from '@/components/booking/altOnlyDays'
@@ -262,6 +263,10 @@ export function SingleDatePicker({
   const slotsByDate = useMemo(() => {
     return new Map((slots ?? []).map((slot) => [slot.date, slot]))
   }, [slots])
+  const notOfferedDates = useMemo(
+    () => notOfferedDatesFor(altOnlyDays, slotsByDate, shortSeats),
+    [altOnlyDays, slotsByDate, shortSeats],
+  )
 
   // landr-t869m.7: DERIVED from `selected`/`slots`/`availableSet`/`canForce`
   // rather than tracked as its own useState — that used to be the bug.
@@ -382,7 +387,7 @@ export function SingleDatePicker({
               }
               month={month}
               onMonthChange={setMonth}
-              modifiers={{ short: shortDates, altOnly: altOnlyDates }}
+              modifiers={{ short: shortDates, altOnly: altOnlyDates, notOffered: notOfferedDates }}
             />
           </CalendarPartyContext.Provider>
           </CalendarDayHintContext.Provider>

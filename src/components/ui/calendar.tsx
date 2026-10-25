@@ -253,6 +253,8 @@ function CalendarDayButton({
   // The product itself is full that day but another activity is free: the day
   // stays clickable, marked by a small dot (never a fill colour).
   const altOnly = modifiers.altOnly === true
+  // The product has no slot at all that day (not merely full): wording only.
+  const notOffered = modifiers.notOffered === true
   const hintFor = React.useContext(CalendarDayHintContext)
   const party = React.useContext(CalendarPartyContext)
   const hint = hintFor?.(day.date)
@@ -304,7 +306,7 @@ function CalendarDayButton({
     const altWord =
       short && party !== null
         ? tr("altDayShortAria", customerLocale).replace("{n}", String(party))
-        : tr("altDayAria", customerLocale)
+        : tr(notOffered ? "altDayNotOfferedAria" : "altDayAria", customerLocale)
     ariaLabel = `${base}: ${altWord}${
       modifiers.selected ? `, ${tr("calendarDaySelected", customerLocale)}` : ""
     }`

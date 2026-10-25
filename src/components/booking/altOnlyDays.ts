@@ -65,6 +65,21 @@ export function altOnlyDates(days: ReadonlySet<string>): Date[] {
   return Array.from(days).sort().map(dateFromIso)
 }
 
+/**
+ * Alt-only days on which the product has no slot at all (not merely full or
+ * short): the calendar words them "not offered" instead of "fully booked".
+ */
+export function notOfferedDatesFor(
+  days: ReadonlySet<string>,
+  slotDates: { has(iso: string): boolean },
+  short: { has(iso: string): boolean },
+): Date[] {
+  return Array.from(days)
+    .filter((iso) => !slotDates.has(iso) && !short.has(iso))
+    .sort()
+    .map(dateFromIso)
+}
+
 /** True when the month in view holds at least one such day. */
 export function monthHasAltOnly(days: ReadonlySet<string>, month: Date): boolean {
   const key = monthKey(month)
