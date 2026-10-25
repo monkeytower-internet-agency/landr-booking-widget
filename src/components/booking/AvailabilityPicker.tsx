@@ -301,12 +301,17 @@ export function AvailabilityPicker({
     todayIso: isoDate(today),
   })
   // Unbookable for a customer whether or not the alternatives have loaded.
-  const selectedAltOnly =
+  const selectedUnbookable =
     !!selectedDate &&
     slots !== null &&
     !canOverrideDay &&
     !fitDates.has(isoDate(selectedDate)) &&
     !shortSeats.has(isoDate(selectedDate))
+  // A short day (seats left, fewer than the party) is rescued only once an
+  // alternative is in; until then its slots show as short and stay disabled.
+  const selectedShortAlt =
+    !!selectedDate && altOnlyDays.has(isoDate(selectedDate)) && shortSeats.has(isoDate(selectedDate))
+  const selectedAltOnly = selectedUnbookable || selectedShortAlt
 
   // landr-xtkae.2: on a fixed-daily-times product the day's times are a menu
   // the operator published, so a FULL (or lead-time-closed) time stays visible
@@ -483,6 +488,7 @@ export function AvailabilityPicker({
             productName={product.name}
             iso={isoDate(selectedDate)}
             offered={slotDates.has(isoDate(selectedDate))}
+            short={selectedShortAlt}
           />
         ) : selectedDate && freeTimeDay ? (
           <NextAction active={!freeSlot} cue={tr('availabilityTimeCue', locale)}>

@@ -653,6 +653,7 @@ export const de: Bundle = {
   altDayAria: 'ausgebucht, andere Aktivitäten verfügbar',
   altDayFullNotice: '{product} ist am {date} ausgebucht',
   altDayNotOfferedNotice: '{product} wird am {date} nicht angeboten',
+  altDayShortNotice: 'Für {product} sind am {date} nicht mehr genug Plätze für deine Gruppe frei',
   altDayGate: 'Wählen Sie unten eine andere Aktivität',
   altDayLegend: 'an diesem Tag ist eine andere Aktivität frei',
   gridViewLabel: 'Rasteransicht',

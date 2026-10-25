@@ -25,10 +25,11 @@ export function useDateStepAlternatives(
 }
 
 /**
- * Days the product itself cannot be booked (full, or no slot at all) but where
- * at least one day-shaped alternative has free seats. Courses never count.
- * Past days, days short for the group (own marking), and days that still have
- * seats but are closed by lead time are left out, so they stay disabled.
+ * Days the product itself cannot be booked for this party (full, no slot at all,
+ * or seats left but fewer than the party) but where at least one day-shaped
+ * alternative has free seats for it. Courses never count. Past days and days
+ * that still have seats but are closed by lead time are left out, so they stay
+ * disabled. A short day keeps its own marking next to the dot.
  */
 export function altOnlyDaysFor(args: {
   slots: readonly AvailabilitySlot[] | null
@@ -50,8 +51,8 @@ export function altOnlyDaysFor(args: {
     for (const d of alt.available_dates ?? []) candidates.add(d)
   }
   for (const iso of candidates) {
-    if (iso < todayIso || fit.has(iso) || short.has(iso)) continue
-    if ((seatsLeft.get(iso) ?? 0) > 0) continue
+    if (iso < todayIso || fit.has(iso)) continue
+    if ((seatsLeft.get(iso) ?? 0) > 0 && !short.has(iso)) continue
     if (dayRowsFor(alternatives, [iso]).length === 0) continue
     out.add(iso)
   }

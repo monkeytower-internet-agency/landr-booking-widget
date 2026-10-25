@@ -22,14 +22,20 @@ export function AltOnlyNotice({
   productName,
   iso,
   offered,
+  short = false,
 }: {
   productName: string
   iso: string
   /** The product had a (full) slot that day; false → it is not offered then. */
   offered: boolean
+  /** Seats are left but fewer than the group needs. */
+  short?: boolean
 }) {
   const locale = browserLocale()
-  const text = tr(offered ? 'altDayFullNotice' : 'altDayNotOfferedNotice', locale)
+  const text = tr(
+    short ? 'altDayShortNotice' : offered ? 'altDayFullNotice' : 'altDayNotOfferedNotice',
+    locale,
+  )
     .replace('{product}', productName)
     .replace('{date}', formatDayLabel(iso, locale))
   return (
