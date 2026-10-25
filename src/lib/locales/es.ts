@@ -636,6 +636,11 @@ export const es: Bundle = {
 
   fullyBookedLabel: 'Completo',
   fullyBookedBlurb: 'Ahora mismo no hay próximas fechas disponibles para esta actividad. Vuelve a mirar más tarde.',
+  alternativesHeadingDay: 'También disponible este día',
+  alternativesHeadingDays: 'También disponible estos días',
+  alternativesHeadingCourses: 'También comienzan en {month}',
+  alternativesHeadingAny: 'También disponible',
+  alternativesStartsTemplate: 'Comienza el {date}',
   gridViewLabel: 'Vista de cuadrícula',
   listViewLabel: 'Vista de lista',
   catalogueLayoutAria: 'Diseño del catálogo',

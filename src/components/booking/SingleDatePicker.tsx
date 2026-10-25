@@ -41,6 +41,10 @@ import { OperatorOverrideBadge } from '@/components/booking/OperatorOverrideBadg
 import { NextAction } from '@/components/booking/NextAction'
 import { ContinueAction } from '@/components/booking/ContinueAction'
 import { useReportLoaded } from '@/lib/bootSplash'
+import {
+  AlternativesSection,
+  type AlternativeSelectHandler,
+} from '@/components/booking/AlternativesPanel'
 
 interface Props {
   product: Product
@@ -93,6 +97,11 @@ interface Props {
    */
   operatorTimezone?: string | null
   contactEmail?: string | null
+  /**
+   * Tapping a row of the "Also available" panel. A wiring point: the product
+   * switch hooks in here; without a handler a tap does nothing.
+   */
+  onSelectAlternative?: AlternativeSelectHandler
 }
 
 // Stable empty reference while availability loads (see MultiDayStep's
@@ -120,6 +129,7 @@ export function SingleDatePicker({
   operatorToken,
   operatorTimezone,
   contactEmail,
+  onSelectAlternative,
 }: Props) {
   const staff = useStaffMode()
   const locale = browserLocale()
@@ -356,6 +366,13 @@ export function SingleDatePicker({
             </div>
           ) : null}
         </NextAction>
+        <AlternativesSection
+          productId={product.product_id}
+          party={need}
+          selectedDays={selected ? [isoDate(selected)] : []}
+          month={month}
+          onSelectAlternative={onSelectAlternative}
+        />
         <ContinueAction
           ready={selected !== null && selectedShort === null}
           reason={

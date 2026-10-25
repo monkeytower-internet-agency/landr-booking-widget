@@ -22,6 +22,7 @@ const { mocks } = vi.hoisted(() => ({
 }))
 
 vi.mock('@/api/client', () => ({
+  getProductAlternatives: vi.fn().mockResolvedValue([]),
   getAvailability: mocks.getAvailability,
 }))
 

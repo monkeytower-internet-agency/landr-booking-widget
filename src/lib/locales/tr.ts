@@ -640,6 +640,11 @@ export const tr: Bundle = {
 
   fullyBookedLabel: 'Tamamen dolu',
   fullyBookedBlurb: 'Bu ürün için şu anda yaklaşan uygun tarih yok. Lütfen daha sonra tekrar kontrol edin.',
+  alternativesHeadingDay: 'Bu gün de müsait',
+  alternativesHeadingDays: 'Bu günlerde de müsait',
+  alternativesHeadingCourses: '{month} ayında başlayanlar',
+  alternativesHeadingAny: 'Ayrıca müsait',
+  alternativesStartsTemplate: 'Başlangıç: {date}',
   gridViewLabel: 'Izgara görünümü',
   listViewLabel: 'Liste görünümü',
   catalogueLayoutAria: 'Katalog düzeni',

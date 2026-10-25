@@ -1,3 +1,7 @@
+import {
+  AlternativesSection,
+  type AlternativeSelectHandler,
+} from '@/components/booking/AlternativesPanel'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CalendarDay, type Modifiers } from 'react-day-picker'
 import type { AvailabilitySlot, HotelOffering } from '@/api/types'
@@ -113,6 +117,16 @@ interface MultiDayPickerProps {
    * Absent -> browser clock.
    */
   operatorTimezone?: string | null
+  /**
+   * Product whose linked alternatives the "Also available" panel lists under
+   * the calendar. Absent -> no panel (the picker used outside a booking).
+   */
+  alternativesProductId?: string
+  /**
+   * Tapping a row of that panel. A wiring point: the product switch hooks in
+   * here; without a handler a tap does nothing.
+   */
+  onSelectAlternative?: AlternativeSelectHandler
 }
 
 
@@ -166,6 +180,8 @@ export function MultiDayPicker({
   initialDroppedCount,
   seatsNeeded,
   operatorTimezone,
+  alternativesProductId,
+  onSelectAlternative,
 }: MultiDayPickerProps) {
   const staff = useStaffMode()
   const locale = browserLocale()
@@ -724,6 +740,15 @@ export function MultiDayPicker({
       <HelpDisclosure>
         <p data-testid="multi-day-help">{text}</p>
       </HelpDisclosure>
+      {alternativesProductId ? (
+        <AlternativesSection
+          productId={alternativesProductId}
+          party={need}
+          selectedDays={value.map(isoDate).sort()}
+          month={month}
+          onSelectAlternative={onSelectAlternative}
+        />
+      ) : null}
     </div>
   )
 }

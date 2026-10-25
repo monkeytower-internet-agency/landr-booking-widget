@@ -32,6 +32,7 @@
  *   - Happy path: full breakdown with operator/hotel split + applied
  *     discount tags
  */
+import { ALTERNATIVES_SLOT_ID } from '@/components/booking/alternativesSlot'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronUp, RefreshCw } from 'lucide-react'
 import type { EstimateSlotFields, Product } from '@/api/types'
@@ -630,7 +631,8 @@ export default function PriceSidebar(props: Props) {
         {/* landr-3mo4: the rail is a level-2 elevated card on the tinted page,
             so it reads as a distinct panel rather than blending into the
             canvas. */}
-        <div className="sticky top-6 rounded-xl border bg-surface-card p-4 shadow-elev-2">
+        <div className="sticky top-6 flex flex-col gap-4">
+        <div className="rounded-xl border bg-surface-card p-4 shadow-elev-2">
           <div className="mb-1 flex items-center justify-between">
             <h3 className="text-base font-semibold">{tr('bookingOverviewTitle', locale)}</h3>
             {visible.isStale ? (
@@ -661,6 +663,9 @@ export default function PriceSidebar(props: Props) {
             accommodationCheckinOffsetDays={product.accommodation_checkin_offset_days}
             hasHotelRoom={hasHotelRoom}
           />
+        </div>
+        {/* "Also available" panel of the date step portals in here. */}
+        <div id={ALTERNATIVES_SLOT_ID} data-testid="alternatives-desktop-slot" />
         </div>
       </aside>
 
