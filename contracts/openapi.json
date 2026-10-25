@@ -5673,6 +5673,32 @@
         "title": "CredentialUpsertIn",
         "type": "object"
       },
+      "CreditLineIn": {
+        "properties": {
+          "amount": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "title": "Amount"
+          },
+          "line": {
+            "title": "Line",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "line",
+          "amount"
+        ],
+        "title": "CreditLineIn",
+        "type": "object"
+      },
       "CreditNoteIn": {
         "properties": {
           "reason": {
@@ -16863,6 +16889,27 @@
           "commission_rate"
         ],
         "title": "PackagePriceIn",
+        "type": "object"
+      },
+      "PartialCreditNoteIn": {
+        "properties": {
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/CreditLineIn"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason",
+          "lines"
+        ],
+        "title": "PartialCreditNoteIn",
         "type": "object"
       },
       "ParticipantDayStatusIn": {
@@ -35366,6 +35413,65 @@
           }
         ],
         "summary": "Finalize Invoice",
+        "tags": [
+          "landr-staff-billing"
+        ]
+      }
+    },
+    "/api/landr-staff/billing/invoices/{invoice_id}/partial-credit-note": {
+      "post": {
+        "operationId": "create_partial_credit_note",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "invoice_id",
+            "required": true,
+            "schema": {
+              "title": "Invoice Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PartialCreditNoteIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Create Partial Credit Note",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Partial Credit Note",
         "tags": [
           "landr-staff-billing"
         ]
