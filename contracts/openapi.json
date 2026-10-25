@@ -16463,6 +16463,17 @@
             ],
             "title": "Category Name Localized"
           },
+          "daily_cap": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Daily Cap"
+          },
           "daily_start_times": {
             "anyOf": [
               {
@@ -16566,6 +16577,11 @@
             "title": "Product Id",
             "type": "string"
           },
+          "requires_verification": {
+            "default": false,
+            "title": "Requires Verification",
+            "type": "boolean"
+          },
           "share_reference_enabled": {
             "default": false,
             "title": "Share Reference Enabled",
@@ -16595,6 +16611,20 @@
               }
             ],
             "title": "Thumb Url"
+          },
+          "waiver_text_localized": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Waiver Text Localized"
           }
         },
         "required": [
@@ -21347,6 +21377,19 @@
             ],
             "title": "Cleaning Fee Cents"
           },
+          "daily_cap": {
+            "anyOf": [
+              {
+                "maximum": 100000.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Daily Cap"
+          },
           "daily_start_times": {
             "anyOf": [
               {
@@ -21672,6 +21715,11 @@
             ],
             "title": "Product Kind"
           },
+          "requires_verification": {
+            "default": false,
+            "title": "Requires Verification",
+            "type": "boolean"
+          },
           "revenue_flows_through_operator": {
             "anyOf": [
               {
@@ -21748,6 +21796,18 @@
             "default": 0,
             "title": "Sort Order",
             "type": "integer"
+          },
+          "waiver_text_localized": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Waiver Text Localized"
           }
         },
         "required": [
@@ -22012,6 +22072,19 @@
               }
             ],
             "title": "Cleaning Fee Cents"
+          },
+          "daily_cap": {
+            "anyOf": [
+              {
+                "maximum": 100000.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Daily Cap"
           },
           "daily_start_times": {
             "anyOf": [
@@ -22393,6 +22466,17 @@
             ],
             "title": "Product Kind"
           },
+          "requires_verification": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requires Verification"
+          },
           "revenue_flows_through_operator": {
             "anyOf": [
               {
@@ -22481,6 +22565,18 @@
               }
             ],
             "title": "Sort Order"
+          },
+          "waiver_text_localized": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Waiver Text Localized"
           }
         },
         "title": "ProductPatch",
@@ -23737,6 +23833,16 @@
             "title": "Products",
             "type": "array"
           },
+          "verification": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VerificationIn"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "via_alternative_of": {
             "anyOf": [
               {
@@ -24209,21 +24315,6 @@
           "token_expires_at"
         ],
         "title": "ReissueApprovalRequestOut",
-        "type": "object"
-      },
-      "RejectIn": {
-        "properties": {
-          "notes": {
-            "maxLength": 2000,
-            "minLength": 1,
-            "title": "Notes",
-            "type": "string"
-          }
-        },
-        "required": [
-          "notes"
-        ],
-        "title": "RejectIn",
         "type": "object"
       },
       "RelayCommentIn": {
@@ -30915,6 +31006,18 @@
               }
             ],
             "title": "Token"
+          },
+          "verification": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verification"
           }
         },
         "required": [
@@ -32930,6 +33033,39 @@
         "title": "ValidationError",
         "type": "object"
       },
+      "VerificationIn": {
+        "description": "The customer's signed waiver on a verified registration.",
+        "properties": {
+          "waiver_accepted": {
+            "title": "Waiver Accepted",
+            "type": "boolean"
+          },
+          "waiver_locale": {
+            "anyOf": [
+              {
+                "maxLength": 16,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Waiver Locale"
+          },
+          "waiver_signature_name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Waiver Signature Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "waiver_accepted",
+          "waiver_signature_name"
+        ],
+        "title": "VerificationIn",
+        "type": "object"
+      },
       "VerifyResult": {
         "description": "Result of POST .../integrations/{provider}/{mode}/verify. Never\npersisted server-side \u2014 the dashboard holds this in local component state\nonly, so a page refresh reverts to the \"Configured\" (stored) badge.\n\n``checks``/``missing_scopes``/``required_scopes`` are populated only for\nprovider='holded' (landr-g1ao.4's scope preflight \u2014 see\n:meth:`HoldedClient.preflight`); Stripe verification stays a plain\nliveness check and leaves all three at their empty defaults.\n\nFor Holded, ``checks``/``missing_scopes`` cover ONLY the three READ\nscopes :meth:`HoldedClient.preflight` can cheaply probe without writing\ndata \u2014 ``contacts:contacts.read``, ``sales:invoices.read``,\n``accounting:taxes.read``. The two WRITE scopes\n(``contacts:contacts.write``, ``sales:invoices.write``) and\n``sales:invoicing-settings.read`` are ADVERTISED, NOT VERIFIED: Holded\nhas no scope-catalogue endpoint, and a write scope can only be proven\nby an actual write \u2014 which this always-safe \"Test connection\" check\nnever performs. ``required_scopes`` carries the full six-scope set\n(mirrors ``app.integrations.holded.HOLDED_REQUIRED_SCOPES`` verbatim)\nso neither frontend has to hard-code that list; diff it against\n``checks``'s keys to know which three of the six this call actually\nverified, and render the other three as advertised-not-verified.\n\n``detail`` is a SHORT CODE \u2014 one of ``'rejected_key'``,\n``'missing_scope'``, ``'rate_limited'``, or ``'likely_v1_key'`` (see\n``_verify_holded``) \u2014 for the paths this handler fully controls, OR A\nPLAIN-ENGLISH PROSE SENTENCE for the remaining error paths that only\nhave a safe, generic message to give: an unexpected Holded error, an\nunreachable Holded, a stored-credential decrypt failure, \"no\ncredentials configured\", and a probe that got a 200 whose body wasn't\nJSON (Holded is documented to serve its SPA HTML shell with a 200 on\nendpoints it isn't actually answering \u2014 a 200 alone is not proof a\nscope exists). A frontend MUST NOT build a fixed lookup keyed only on\nthe four short codes above and fall through to blank/raw output on\neverything else \u2014 treat any ``detail`` that isn't one of the four known\ncodes as already-safe prose and render it as-is. A scope name itself\nnever goes in ``detail``, only in ``missing_scopes``.\n\n``tax_rate_check`` (landr-g71ua.1) is an ADDITIVE CONFIGURATION\nWARNING and never influences ``ok``: the credential itself genuinely\nworks, and flipping ``ok`` to false would make both frontends render a\nperfectly valid key as broken. ``None`` means NOT CHECKABLE (Stripe, a\ntaxes probe that did not return a usable catalogue, or an operator with\nno ``default_tax_rate``) \u2014 the UI must then render NOTHING, never a\nspeculative \"incompatible\".",
         "properties": {
@@ -33672,6 +33808,21 @@
           "booking_count"
         ],
         "title": "YearBreakdown",
+        "type": "object"
+      },
+      "app__routers__landr_staff_promotions__RejectIn": {
+        "properties": {
+          "notes": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Notes",
+            "type": "string"
+          }
+        },
+        "required": [
+          "notes"
+        ],
+        "title": "RejectIn",
         "type": "object"
       },
       "app__routers__staff_commission__RuleIn": {
@@ -34504,6 +34655,21 @@
           }
         },
         "title": "TierPatch",
+        "type": "object"
+      },
+      "app__routers__staff_verifications__RejectIn": {
+        "properties": {
+          "note": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Note",
+            "type": "string"
+          }
+        },
+        "required": [
+          "note"
+        ],
+        "title": "RejectIn",
         "type": "object"
       }
     },
@@ -38980,7 +39146,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RejectIn"
+                "$ref": "#/components/schemas/app__routers__landr_staff_promotions__RejectIn"
               }
             }
           },
@@ -41770,6 +41936,103 @@
         "summary": "Put Booking Details",
         "tags": [
           "public-bookings"
+        ]
+      }
+    },
+    "/api/public/bookings/{token}/verification": {
+      "get": {
+        "operationId": "public_get_booking_verification",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Public Get Booking Verification",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Verification",
+        "tags": [
+          "public-booking-verification"
+        ]
+      }
+    },
+    "/api/public/bookings/{token}/verification/files/{kind}": {
+      "put": {
+        "operationId": "public_put_booking_verification_file",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "title": "Kind",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Public Put Booking Verification File",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Verification File",
+        "tags": [
+          "public-booking-verification"
         ]
       }
     },
@@ -69984,6 +70247,253 @@
         "summary": "Create Upgrade Request",
         "tags": [
           "staff-operator-upgrade-request"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/verifications": {
+      "get": {
+        "operationId": "staff_list_verifications",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "default": "pending",
+              "pattern": "^(pending|approved|rejected)$",
+              "title": "Status",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "title": "Response Staff List Verifications",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Verifications",
+        "tags": [
+          "staff-verifications"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/verifications/{verification_id}/approve": {
+      "post": {
+        "operationId": "staff_approve_verification",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "verification_id",
+            "required": true,
+            "schema": {
+              "title": "Verification Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Staff Approve Verification",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Approve Verification",
+        "tags": [
+          "staff-verifications"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/verifications/{verification_id}/files": {
+      "get": {
+        "operationId": "staff_verification_file_urls",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "verification_id",
+            "required": true,
+            "schema": {
+              "title": "Verification Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Staff Verification File Urls",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Verification Files",
+        "tags": [
+          "staff-verifications"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/verifications/{verification_id}/reject": {
+      "post": {
+        "operationId": "staff_reject_verification",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "verification_id",
+            "required": true,
+            "schema": {
+              "title": "Verification Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/app__routers__staff_verifications__RejectIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Staff Reject Verification",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Reject Verification",
+        "tags": [
+          "staff-verifications"
         ]
       }
     },

@@ -28,6 +28,8 @@ import type {
   StaffSubmitBody,
   SubmitBookingBody,
   SubmitBookingResponse,
+  VerificationFileKind,
+  VerificationState,
 } from './types'
 import type { ProductFlowResponse } from './flowTypes'
 import type {
@@ -660,6 +662,39 @@ export async function submitBooking(
     method: 'POST',
     body: JSON.stringify(payload),
   })
+}
+
+/**
+ * Upload one verification file (licence / insurance) for a booking.
+ * Raw-body PUT with the scoped token the submit returned; the API checks the
+ * real file type and the 10 MB limit. Returns the new verification progress.
+ */
+export async function uploadVerificationFile(
+  token: string,
+  kind: VerificationFileKind,
+  file: Blob,
+): Promise<VerificationState> {
+  if (!apiBase()) throw new Error('VITE_API_BASE_URL is not configured')
+  const res = await fetch(
+    `${apiBase()}/api/public/bookings/${encodeURIComponent(token)}/verification/files/${kind}`,
+    {
+      method: 'PUT',
+      headers: { 'Content-Type': file.type || 'application/octet-stream' },
+      body: file,
+    },
+  )
+  if (!res.ok) {
+    const body = await res.text().catch(() => '')
+    throw new HttpError(res.status, res.statusText, body)
+  }
+  return (await res.json()) as VerificationState
+}
+
+/** The verification progress of a booking, by its scoped token. */
+export async function getVerificationState(token: string): Promise<VerificationState> {
+  return http<VerificationState>(
+    `/api/public/bookings/${encodeURIComponent(token)}/verification`,
+  )
 }
 
 /**

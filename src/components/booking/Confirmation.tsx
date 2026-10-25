@@ -27,6 +27,7 @@ import { browserLocale, resolveCustomerStageLabel } from '@/lib/locale'
 import { useStaffMode } from '@/lib/staffMode'
 import { formatDayLabel } from './dateLabel'
 import { PassTickets } from './PassTickets'
+import { VerificationStatusPanel } from './VerificationStatusPanel'
 import { PeriodsTable } from './PeriodsTable'
 import { sanitizePostBookingHtml } from './postBookingSanitize'
 import { PriceBreakdown } from './PriceBreakdown'
@@ -1061,6 +1062,10 @@ export function Confirmation({
   const showSharedDoubleHint =
     Boolean(isSharedDouble) && !response.group && !response.join_error
 
+  // A EUR 0 booking has nothing to pay: no payment note ("pay on site",
+  // "payment link on its way") applies to it.
+  const isFreeBooking = summary !== null && Number(summary.grand_total) === 0
+
   return (
     <Card>
       <CardHeader>
@@ -1147,6 +1152,9 @@ export function Confirmation({
         {response.pass_tickets?.length ? (
           <PassTickets tickets={response.pass_tickets} />
         ) : null}
+        {response.verification && !staff.active ? (
+          <VerificationStatusPanel initial={response.verification} locale={locale} />
+        ) : null}
         {emailStatusKind === 'failed' ? (
           /*
            * landr-y31z: amber notice when the confirmation email could not
@@ -1205,7 +1213,7 @@ export function Confirmation({
           // outright — no "awaiting" language, no raw semantic_state.
           <p className="text-sm">
             {tr('bookingConfirmedInboxNote', locale)}
-            {paymentModeNote(response, locale) ? (
+            {!isFreeBooking && paymentModeNote(response, locale) ? (
               <span data-testid="confirmation-payment-mode-note">
                 {' '}
                 {paymentModeNote(response, locale)}

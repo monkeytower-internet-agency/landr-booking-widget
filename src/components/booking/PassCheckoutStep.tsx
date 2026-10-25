@@ -32,6 +32,17 @@ import { fmt, tr } from '@/lib/strings'
 import { formatDayLabel } from './dateLabel'
 import { formatMoney } from './priceSidebarHelpers'
 import { StepBackButton } from './StepBackButton'
+import { VerificationFields } from './VerificationFields'
+import {
+  dailyCapMessage,
+  EMPTY_VERIFICATION,
+  isDailyCapReached,
+  needsVerification,
+  toWaiver,
+  uploadChosenFiles,
+  verificationReady,
+  type VerificationInput,
+} from './verification'
 
 interface Props {
   product: Product
@@ -189,7 +200,14 @@ export function PassCheckoutStep({
     city.trim() !== '' &&
     country.trim() !== '' &&
     guestNames.slice(1).every((n) => n.trim() !== '')
-  const canBuy = tier !== null && !startInPast && detailsComplete && !submitting
+  const verificationRequired = needsVerification([product])
+  const [verification, setVerification] = useState<VerificationInput>(EMPTY_VERIFICATION)
+  const canBuy =
+    tier !== null &&
+    !startInPast &&
+    detailsComplete &&
+    !submitting &&
+    (!verificationRequired || verificationReady(verification))
 
   const sendCode = async () => {
     if (!emailOk) return
@@ -268,16 +286,25 @@ export function PassCheckoutStep({
       ],
       participants,
       ...(memberProof ? { pass_member_proof: memberProof } : {}),
+      ...(verificationRequired ? { verification: toWaiver(verification, locale) } : {}),
     }
     try {
-      const result = await submitBooking(body, previewToken ? { previewToken } : undefined)
+      let result = await submitBooking(body, previewToken ? { previewToken } : undefined)
+      if (result.verification) {
+        result = {
+          ...result,
+          verification: await uploadChosenFiles(result.verification, verification),
+        }
+      }
       onConfirmed(result, email.trim())
     } catch (err) {
       const detail = err instanceof HttpError ? (err.detail as { error?: string } | undefined) : undefined
       setError(
-        detail?.error === 'pass_start_in_past'
-          ? tr('passStartInPast', locale)
-          : tr('passCheckoutError', locale),
+        isDailyCapReached(err) && err instanceof HttpError
+          ? dailyCapMessage(err)
+          : detail?.error === 'pass_start_in_past'
+            ? tr('passStartInPast', locale)
+            : tr('passCheckoutError', locale),
       )
     } finally {
       setSubmitting(false)
@@ -498,6 +525,16 @@ export function PassCheckoutStep({
                 {money(total, currency, locale)}
               </span>
             </div>
+
+            {verificationRequired ? (
+              <VerificationFields
+                products={[product]}
+                value={verification}
+                onChange={setVerification}
+                locale={locale}
+                disabled={submitting}
+              />
+            ) : null}
 
             {error ? (
               <p className="text-sm text-destructive" role="alert" data-testid="pass-error">{error}</p>
