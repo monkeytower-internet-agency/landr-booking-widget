@@ -12,6 +12,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import type { AlternativeSelectHandler } from '@/components/booking/AlternativesPanel'
 import { MultiDayPicker } from '@/components/booking/MultiDayPicker'
 import { StepBackButton } from '@/components/booking/StepBackButton'
 import { dateFromIso, isoDate } from '@/components/booking/dateUtils'
@@ -108,6 +109,11 @@ interface Props {
    */
   operatorTimezone?: string | null
   contactEmail?: string | null
+  /**
+   * Tapping a row of the "Also available" panel. A wiring point: the product
+   * switch hooks in here; without a handler a tap does nothing.
+   */
+  onSelectAlternative?: AlternativeSelectHandler
 }
 
 // Stable empty reference for the availability prop while slots are still
@@ -135,6 +141,7 @@ export function MultiDayStep({
   onPartySizeChange,
   operatorToken,
   operatorTimezone,
+  onSelectAlternative,
   contactEmail,
 }: Props) {
   const [slots, setSlots] = useState<AvailabilitySlot[] | null>(null)
@@ -425,6 +432,8 @@ export function MultiDayStep({
             initialDroppedCount={droppedOnEdit}
             seatsNeeded={need}
             operatorTimezone={operatorTimezone}
+            alternativesProductId={product.product_id}
+            onSelectAlternative={onSelectAlternative}
           />
           {selectedDays.length > 0 ? (
             // landr-3mo4: selection count surfaced as a tinted chip (committed

@@ -16,6 +16,7 @@ import { PartySizeStepper, SeatFitNotice } from '@/components/booking/PartySize'
 import { usePartySize } from '@/lib/usePartySize'
 import { browserLocale } from '@/lib/locale'
 import { expandWindowDays } from './expandWindowDays'
+import { dateFromIso } from '@/components/booking/dateUtils'
 import { formatWindowRangeLabel } from './dateLabel'
 import {
   Card,
@@ -32,6 +33,10 @@ import { cn } from '@/lib/utils'
 import { NextAction } from '@/components/booking/NextAction'
 import { ContinueAction } from '@/components/booking/ContinueAction'
 import { useReportLoaded } from '@/lib/bootSplash'
+import {
+  AlternativesSection,
+  type AlternativeSelectHandler,
+} from '@/components/booking/AlternativesPanel'
 
 interface Props {
   product: Product
@@ -87,6 +92,11 @@ interface Props {
   /** landr-rmcsu.7: widget token + contact email for the group-inquiry exit. */
   operatorToken?: string
   contactEmail?: string | null
+  /**
+   * Tapping a row of the "Also available" panel. A wiring point: the product
+   * switch hooks in here; without a handler a tap does nothing.
+   */
+  onSelectAlternative?: AlternativeSelectHandler
 }
 
 function sortWindows(list: FixedDateWindow[]): FixedDateWindow[] {
@@ -151,6 +161,7 @@ export function FixedDateWindowPicker({
   onPartySizeChange,
   operatorToken,
   contactEmail,
+  onSelectAlternative,
 }: Props) {
   const { tokens } = useVariant()
   const party = usePartySize(
@@ -207,6 +218,14 @@ export function FixedDateWindowPicker({
     () => windows?.find((w) => w.id === selectedId) ?? null,
     [windows, selectedId],
   )
+  // The month whose courses the "Also available" panel lists: the picked
+  // window's start month, else the earliest window's (there is no calendar).
+  const alternativesMonth = useMemo(() => {
+    const iso =
+      selectedWindow?.start_date ??
+      (windows ?? []).map((w) => w.start_date).sort()[0]
+    return iso ? dateFromIso(iso) : new Date()
+  }, [selectedWindow, windows])
 
   // landr (breadcrumb): once the windows load, surface a restored selection in
   // the live sidebar so the price preview reflects the prior pick immediately.
@@ -434,6 +453,14 @@ export function FixedDateWindowPicker({
           </ul>
         )}
         </NextAction>
+
+        <AlternativesSection
+          productId={product.product_id}
+          party={need}
+          selectedDays={selectedWindow ? expandWindowDays(selectedWindow) : []}
+          month={alternativesMonth}
+          onSelectAlternative={onSelectAlternative}
+        />
 
         <ContinueAction
           ready={!!selectedWindow && !selectedUnfit}

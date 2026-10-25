@@ -6,6 +6,10 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { StepBackButton } from '@/components/booking/StepBackButton'
+import {
+  AlternativesSection,
+  type AlternativeSelectHandler,
+} from '@/components/booking/AlternativesPanel'
 import { browserLocale } from '@/lib/locale'
 import { tr } from '@/lib/strings'
 
@@ -29,6 +33,9 @@ interface Props {
   onBack?: () => void
   /** Compact variant for the catalogue grid (no min-height, tighter copy). */
   compact?: boolean
+  /** Product id; when given (standalone page only) alternatives are listed. */
+  productId?: string
+  onSelectAlternative?: AlternativeSelectHandler
 }
 
 // Exported (landr-872c) so the Categories layout's disabled category tiles
@@ -42,7 +49,14 @@ export const FULLY_BOOKED_LABEL = 'Fully booked'
 export const FULLY_BOOKED_BLURB =
   'There are no upcoming dates available for this product right now. Please check back later.'
 
-export function FullyBookedNotice({ name, description, onBack, compact }: Props) {
+export function FullyBookedNotice({
+  name,
+  description,
+  onBack,
+  compact,
+  productId,
+  onSelectAlternative,
+}: Props) {
   const locale = browserLocale()
   return (
     <Card className={compact ? 'flex flex-col opacity-75' : 'flex flex-col'}>
@@ -60,7 +74,16 @@ export function FullyBookedNotice({ name, description, onBack, compact }: Props)
         {description ? <CardDescription>{description}</CardDescription> : null}
       </CardHeader>
       <CardContent className="text-sm text-muted-foreground">
-        {tr('fullyBookedBlurb', locale)}
+        <p>{tr('fullyBookedBlurb', locale)}</p>
+        {productId && !compact ? (
+          <div className="mt-4 text-foreground">
+            <AlternativesSection
+              productId={productId}
+              anyOpen
+              onSelectAlternative={onSelectAlternative}
+            />
+          </div>
+        ) : null}
       </CardContent>
     </Card>
   )

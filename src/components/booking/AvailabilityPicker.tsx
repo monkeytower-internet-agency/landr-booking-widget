@@ -43,6 +43,10 @@ import { operatorWallClock } from '@/lib/operatorClock'
 import { NextAction } from '@/components/booking/NextAction'
 import { ContinueAction } from '@/components/booking/ContinueAction'
 import { useReportLoaded } from '@/lib/bootSplash'
+import {
+  AlternativesSection,
+  type AlternativeSelectHandler,
+} from '@/components/booking/AlternativesPanel'
 
 interface Props {
   product: Product
@@ -103,6 +107,11 @@ interface Props {
    * so the price sidebar prices it live — the day pickers' onLiveDaysChange.
    */
   onLiveSlotChange?: (slot: AvailabilitySlot | null) => void
+  /**
+   * Tapping a row of the "Also available" panel. A wiring point: the product
+   * switch hooks in here; without a handler a tap does nothing.
+   */
+  onSelectAlternative?: AlternativeSelectHandler
 }
 
 // Stable empty reference while availability loads (an unstable [] in a memo
@@ -124,6 +133,7 @@ export function AvailabilityPicker({
   operatorTimezone,
   contactEmail,
   onLiveSlotChange,
+  onSelectAlternative,
 }: Props) {
   const staff = useStaffMode()
   const party = usePartySize(
@@ -512,6 +522,13 @@ export function AvailabilityPicker({
           </NextAction>
         ) : null}
         {selectedForceReasons.length > 0 ? <OperatorOverrideBadge /> : null}
+        <AlternativesSection
+          productId={product.product_id}
+          party={need}
+          selectedDays={selectedDate ? [isoDate(selectedDate)] : []}
+          month={month}
+          onSelectAlternative={onSelectAlternative}
+        />
         <ContinueAction
           ready={!!selectedSlot}
           reason={availabilityGate(!!selectedDate, !!selectedSlot, locale)}

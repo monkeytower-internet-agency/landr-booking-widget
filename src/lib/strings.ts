@@ -677,6 +677,11 @@ export type Bundle = {
   // ---- FullyBookedNotice / ViewToggle / catalog ----
   fullyBookedLabel: string
   fullyBookedBlurb: string
+  alternativesHeadingDay: string
+  alternativesHeadingDays: string
+  alternativesHeadingCourses: string
+  alternativesHeadingAny: string
+  alternativesStartsTemplate: string
   gridViewLabel: string
   listViewLabel: string
   catalogueLayoutAria: string
@@ -1509,6 +1514,11 @@ const en: Bundle = {
 
   fullyBookedLabel: 'Fully booked',
   fullyBookedBlurb: 'There are no upcoming dates available for this product right now. Please check back later.',
+  alternativesHeadingDay: 'Also available on this day',
+  alternativesHeadingDays: 'Also available on these days',
+  alternativesHeadingCourses: 'Also starting in {month}',
+  alternativesHeadingAny: 'Also available',
+  alternativesStartsTemplate: 'Starts {date}',
   gridViewLabel: 'Grid view',
   listViewLabel: 'List view',
   catalogueLayoutAria: 'Catalogue layout',

@@ -645,6 +645,11 @@ export const de: Bundle = {
 
   fullyBookedLabel: 'Ausgebucht',
   fullyBookedBlurb: 'Für dieses Angebot sind derzeit keine bevorstehenden Termine verfügbar. Bitte schauen Sie später wieder vorbei.',
+  alternativesHeadingDay: 'Auch verfügbar an diesem Tag',
+  alternativesHeadingDays: 'Auch verfügbar an diesen Tagen',
+  alternativesHeadingCourses: 'Starten auch im {month}',
+  alternativesHeadingAny: 'Auch verfügbar',
+  alternativesStartsTemplate: 'Start: {date}',
   gridViewLabel: 'Rasteransicht',
   listViewLabel: 'Listenansicht',
   catalogueLayoutAria: 'Katalog-Layout',

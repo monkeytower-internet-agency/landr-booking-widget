@@ -2280,6 +2280,7 @@ function BookingFlowApp() {
         */}
         {step.name === 'fully-booked' ? (
           <FullyBookedNotice
+            productId={step.product.product_id}
             name={pickLocalized(
               step.product.name,
               step.product.name_localized,
