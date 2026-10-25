@@ -1063,6 +1063,153 @@ describe('App', () => {
       await waitFor(() => expect(screen.getByTestId('availability-picker-submit')).toBeEnabled())
     })
 
+    // Shared setup for the switch edge cases below: a roomy Tandem (cap 8)
+    // and a small Action (cap 2), both single_date, both offered to each other.
+    function switchSetup(opts: { actionFlow?: unknown } = {}) {
+      const day = new Date()
+      day.setDate(day.getDate() + 1)
+      const iso = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`
+      mocks.getAvailability.mockImplementation(async (id: string) => [
+        {
+          availability_id: `${id}-0`,
+          date: iso,
+          start_time: null,
+          end_time: null,
+          capacity: 10,
+          capacity_reserved: 0,
+          available_seats: 10,
+          status: 'open',
+        } as AvailabilitySlot,
+      ])
+      const alt = (id: string, name: string) => ({
+        product_id: id,
+        slug: id,
+        name,
+        service_time_shape: 'single_date',
+        price_from: '189.00',
+        currency: 'EUR',
+        available_dates: [iso],
+      })
+      mocks.getProductAlternatives.mockImplementation(async (id: string) =>
+        id === 'p-tandem' ? [alt('p-action', 'Action flight')] : [alt('p-tandem', 'Tandem flight')],
+      )
+      const products = [
+        makeProduct({
+          product_id: 'p-tandem',
+          slug: 'p-tandem',
+          service_time_shape: 'single_date',
+          max_party_size: 8,
+          name: 'Tandem flight',
+        }),
+        makeProduct({
+          product_id: 'p-action',
+          slug: 'p-action',
+          service_time_shape: 'single_date',
+          max_party_size: 2,
+          name: 'Action flight',
+        }),
+      ]
+      mocks.listProducts.mockResolvedValue(products)
+      mocks.getProductFlow.mockImplementation(async (_token: string, id: string) =>
+        id === 'p-action' && opts.actionFlow ? opts.actionFlow : { modules: null },
+      )
+      const pickDay = async () => {
+        const find = () =>
+          Array.from(document.querySelectorAll<HTMLButtonElement>('button[data-day]')).find(
+            (b) => {
+              const d = new Date(b.dataset.day ?? '')
+              return (
+                d.getFullYear() === day.getFullYear() &&
+                d.getMonth() === day.getMonth() &&
+                d.getDate() === day.getDate()
+              )
+            },
+          )
+        await waitFor(() => expect(find()).toBeDefined())
+        fireEvent.click(find()!)
+      }
+      return { iso, pickDay }
+    }
+
+    it('switch clamps a carried party to the target cap and says so', async () => {
+      const { pickDay } = switchSetup()
+      render(<App />)
+      await pickProduct('Tandem flight')
+      await pickDay()
+      for (let i = 0; i < 3; i++) {
+        fireEvent.click(await screen.findByTestId('party-size-increase'))
+      }
+      expect(screen.getByTestId('party-size-value')).toHaveTextContent('4')
+
+      fireEvent.click((await screen.findAllByTestId('alternative-row-p-action'))[0]!)
+      const note = await screen.findByTestId('party-clamp-note')
+      expect(note).toHaveTextContent(/Action flight takes up to 2 people/)
+      expect(screen.getByTestId('party-size-value')).toHaveTextContent('2')
+    })
+
+    it('a switch whose fetch resolves after Continue was pressed is ignored', async () => {
+      const { pickDay } = switchSetup()
+      render(<App />)
+      await pickProduct('Tandem flight')
+      await pickDay()
+      const row = (await screen.findAllByTestId('alternative-row-p-action'))[0]!
+      let release: (v: Product[]) => void = () => {}
+      const products = (await mocks.listProducts('t')) as Product[]
+      mocks.listProducts.mockImplementationOnce(
+        () => new Promise<Product[]>((resolve) => (release = resolve)),
+      )
+      fireEvent.click(row)
+      fireEvent.click(await screen.findByTestId('single-date-picker-submit'))
+      await waitFor(() =>
+        expect(screen.getByText(/your contact details/i)).toBeInTheDocument(),
+      )
+      release(products)
+      await new Promise((r) => setTimeout(r, 20))
+      expect(screen.getByText(/your contact details/i)).toBeInTheDocument()
+      expect(screen.queryByTestId('party-clamp-note')).not.toBeInTheDocument()
+      expect(mocks.getAvailability).not.toHaveBeenCalledWith(
+        'p-action',
+        expect.anything(),
+        expect.anything(),
+        undefined,
+      )
+    })
+
+    it('switching into a participants-first product keeps the day through the participants step', async () => {
+      const { pickDay } = switchSetup({
+        actionFlow: {
+          modules: [
+            { kind: 'participants', position: 1 },
+            { kind: 'selection', position: 2 },
+          ],
+        },
+      })
+      render(<App />)
+      await pickProduct('Tandem flight')
+      await pickDay()
+      fireEvent.click((await screen.findAllByTestId('alternative-row-p-action'))[0]!)
+
+      // Participants come first, with no second Dates step in between.
+      await waitFor(() =>
+        expect(screen.getByText(/your contact details/i)).toBeInTheDocument(),
+      )
+      const setInput = (name: string, value: string) =>
+        fireEvent.change(
+          document.querySelector<HTMLInputElement>(`input[name="${name}"]`)!,
+          { target: { value } },
+        )
+      setInput('booker_first_name', 'Ada')
+      setInput('booker_last_name', 'Lovelace')
+      setInput('booker_email', 'ada@example.com')
+      setInput('booker_phone', '+34 600000000')
+      fillBillingFields()
+      fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+
+      // Dates, with the carried day already chosen.
+      await waitFor(() => expect(screen.getByTestId('single-date-selected')).toBeInTheDocument())
+      expect(screen.getByTestId('single-date-picker-submit')).toBeEnabled()
+    })
+
     // landr-mfgx4: the sidebar prices the picked date + time on the dates
     // step itself, not only after Continue.
     it('single_date + daily_start_times → sidebar prices the live pick before Continue', async () => {

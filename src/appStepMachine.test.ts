@@ -15,6 +15,7 @@ import {
   detailsFromDraft,
   draftFromStep,
   draftForProductSwitch,
+  partyClampForSwitch,
   stepForAlternativeSwitch,
   frameBackStep,
   mergeCapturedDraft,
@@ -1487,5 +1488,49 @@ describe('draftForProductSwitch', () => {
       booker: ADA,
       customerComment: 'hi',
     })
+  })
+})
+
+describe('draftForProductSwitch party clamp (landr-w1q0y.15)', () => {
+  const person = (n: number) =>
+    ({ first_name: `P${n}`, last_name: 'X' }) as unknown as NonNullable<
+      BookingDraft['participants']
+    >[number]
+  const draft: BookingDraft = {
+    partySize: 5,
+    booker: ADA,
+    participants: [person(1), person(2), person(3), person(4), person(5)],
+    companions: [
+      { companion_kind: 'separate_guiding' } as never,
+      { companion_kind: 'non_guiding' } as never,
+    ],
+  }
+
+  it('cuts party size, roster and invitees to the target cap', () => {
+    const out = draftForProductSwitch(draft, { max_party_size: 2 })
+    expect(out.partySize).toBe(2)
+    expect(out.participants).toHaveLength(2)
+    expect(out.companions).toEqual([{ companion_kind: 'non_guiding' }])
+    expect(partyClampForSwitch(draft, { max_party_size: 2 })).toBe(2)
+  })
+
+  it('leaves a party that fits untouched', () => {
+    expect(partyClampForSwitch(draft, { max_party_size: 9 })).toBeNull()
+    const out = draftForProductSwitch(draft, { max_party_size: 9 })
+    expect(out.partySize).toBe(5)
+    expect(out.participants).toHaveLength(5)
+  })
+
+  it('falls back to the default cap of 6 when the target sets none', () => {
+    expect(partyClampForSwitch({ partySize: 9 }, { max_party_size: null })).toBe(6)
+  })
+})
+
+describe('stepForAlternativeSwitch + detailsFromDraft carry', () => {
+  it('detailsFromDraft hands a carried day/time on to the dates step', () => {
+    const target = { product_id: 'p' } as never
+    const step = detailsFromDraft(target, undefined, {}, { date: '2026-11-01', startTime: '11:00' })
+    expect(step.carry).toEqual({ date: '2026-11-01', startTime: '11:00' })
+    expect(detailsFromDraft(target, undefined, {})).not.toHaveProperty('carry')
   })
 })

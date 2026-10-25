@@ -372,6 +372,7 @@ export const de: Bundle = {
   notTakingPartPaysInvoice: 'Nimmt nicht teil · zahlt die Rechnung',
   maxParticipantsReachedOne: 'Maximal 1 Teilnehmer erreicht',
   maxParticipantsReachedTemplate: 'Maximal {n} Teilnehmer erreicht',
+  alternativePartyClampedTemplate: '{name} ist für maximal {n} Personen buchbar, die Gruppe wurde auf {n} reduziert.',
   tooManyPeopleRemoveSomeone:
     'Es sind mehr Personen eingetragen, als diese Aktivität erlaubt — entfernen Sie jemanden, um fortzufahren.',
   sharedDoubleRequiresBookerMessage:

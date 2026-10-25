@@ -391,6 +391,8 @@ export type Bundle = {
   sharedDoubleRequiresBookerMessage: string
   maxParticipantsReachedOne: string
   maxParticipantsReachedTemplate: string
+  /** Product switch: the carried party was cut to the new product's cap. */
+  alternativePartyClampedTemplate: string
   tooManyPeopleRemoveSomeone: string
   notAMemberOrNoCode: string
   companionsShareAccommodationExplainer: string
@@ -1251,6 +1253,7 @@ const en: Bundle = {
   notTakingPartPaysInvoice: 'Not taking part · pays the invoice',
   maxParticipantsReachedOne: 'Maximum of 1 participant reached',
   maxParticipantsReachedTemplate: 'Maximum of {n} participants reached',
+  alternativePartyClampedTemplate: '{name} takes up to {n} people, so the group was reduced to {n}.',
   tooManyPeopleRemoveSomeone:
     'There are more people than this activity allows — remove someone to continue.',
   sharedDoubleRequiresBookerMessage:
@@ -2504,6 +2507,13 @@ export function maxParticipantsReachedMessage(n: number, locale?: string): strin
 /** landr-jiagg.2 DetailsStep (booker not taking part): "Participants ({n} total)". */
 export function participantsTotalHeading(n: number, locale?: string): string {
   return tr('participantsTotalTemplate', locale).replace('{n}', String(n))
+}
+
+/** Product switch note: "{name} takes up to {n} people, so the group was reduced to {n}." */
+export function alternativePartyClampedMessage(name: string, n: number, locale?: string): string {
+  return tr('alternativePartyClampedTemplate', locale)
+    .replaceAll('{name}', name)
+    .replaceAll('{n}', String(n))
 }
 
 /** DetailsStep: "Add anyone else taking part. You can add up to {n} more." */

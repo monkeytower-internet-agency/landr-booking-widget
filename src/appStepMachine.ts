@@ -26,6 +26,7 @@ import type {
   ParticipantDetails,
 } from '@/components/booking/detailsTypes'
 import { hasFixedStartTimes } from '@/components/booking/slotKey'
+import { maxPartySize, seatsNeeded } from '@/lib/seatHold'
 import type { Product, ProductGroup, SubmitBookingResponse } from '@/api/types'
 import type { FormResponseEntry, ProductFlowResponse } from '@/api/flowTypes'
 import {
@@ -242,6 +243,11 @@ export type Step =
       participants?: ParticipantDetails[]
       // landr-87n9.3: non-guiding companions carry over on Back-restore.
       companions?: CompanionDetails[]
+      /**
+       * A day/start time carried over from an "Also available" switch while
+       * participants run first: handed on to the dates step that follows.
+       */
+      carry?: AlternativeCarry
     }
   // landr-yf0n: optional initialHotelLocationId / accommodationRooms /
   // addons / includeHotel let AccommodationStep re-seed its internal
@@ -1582,6 +1588,7 @@ export function detailsFromDraft(
   // no dates are committed yet.
   selection: BookingSelection | undefined,
   draft: BookingDraft | undefined,
+  carry?: AlternativeCarry,
 ): Extract<Step, { name: 'details' }> {
   return {
     name: 'details',
@@ -1590,6 +1597,7 @@ export function detailsFromDraft(
     booker: draft?.booker,
     participants: draft?.participants,
     companions: draft?.companions,
+    ...(carry ? { carry } : {}),
   }
 }
 
@@ -1815,16 +1823,52 @@ export function stepForAlternativeSwitch(args: AlternativeSwitchArgs): Step {
 }
 
 /**
+ * The party cap of the product being switched to, when the carried group
+ * exceeds it (the number to clamp to), else null.
+ */
+export function partyClampForSwitch(
+  draft: BookingDraft,
+  target: Pick<Product, 'max_party_size' | 'invite_hold_hours'>,
+): number | null {
+  const cap = maxPartySize(target.max_party_size)
+  const seats = seatsNeeded(
+    draft.participants?.length ?? 0,
+    draft.companions,
+    target.invite_hold_hours,
+  )
+  return Math.max(draft.partySize ?? 0, seats) > cap ? cap : null
+}
+
+/**
  * The draft that rides along a product switch: who is booking, how many, and
  * the comment. Everything that belongs to the product being left (add-ons,
- * rooms, pickup, custom-form answers, language assignment) is dropped.
+ * rooms, pickup, custom-form answers, language assignment) is dropped. A group
+ * larger than the target's max_party_size is cut to it (party size, roster and
+ * invitees) so the calendar and the server never see an impossible group.
  */
-export function draftForProductSwitch(draft: BookingDraft): BookingDraft {
+export function draftForProductSwitch(
+  draft: BookingDraft,
+  target?: Pick<Product, 'max_party_size' | 'invite_hold_hours'>,
+): BookingDraft {
   const kept: BookingDraft = {}
   if (draft.partySize !== undefined) kept.partySize = draft.partySize
   if (draft.booker) kept.booker = draft.booker
   if (draft.participants) kept.participants = draft.participants
   if (draft.companions) kept.companions = draft.companions
   if (draft.customerComment !== undefined) kept.customerComment = draft.customerComment
+  const cap = target ? partyClampForSwitch(draft, target) : null
+  if (cap !== null) {
+    if (kept.partySize !== undefined) kept.partySize = Math.min(kept.partySize, cap)
+    if (kept.participants) kept.participants = kept.participants.slice(0, cap)
+    if (kept.companions) {
+      const room = Math.max(0, cap - (kept.participants?.length ?? 0))
+      let invitees = 0
+      kept.companions = kept.companions.filter((c) => {
+        if (c.companion_kind !== 'separate_guiding') return true
+        invitees += 1
+        return invitees <= room
+      })
+    }
+  }
   return kept
 }
