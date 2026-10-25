@@ -14101,8 +14101,11 @@ export interface components {
         CreditLineIn: {
             /** Amount */
             amount: number | string;
-            /** Line */
-            line: number;
+            /**
+             * Line Id
+             * Format: uuid
+             */
+            line_id: string;
         };
         /** CreditNoteIn */
         CreditNoteIn: {
@@ -25241,6 +25244,11 @@ export interface operations {
         parameters: {
             query?: {
                 operator_id?: string | null;
+                /** @description issue month, YYYY-MM */
+                period?: string | null;
+                /** @description payment status (invoices only) */
+                status?: ("open" | "exported" | "paid" | "returned") | null;
+                kind?: ("invoice" | "credit_note") | null;
             };
             header?: never;
             path?: never;
