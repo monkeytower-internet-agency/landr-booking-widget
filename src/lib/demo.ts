@@ -47,7 +47,8 @@ export const demoToken = (slug: string): string => `demo-${slug}`
 
 /** Where the congrats screen sends visitors: signup with the template preselected. */
 export function demoSignupUrl(slug: string, lang: 'en' | 'de' = demoLang()): string {
-  const base = lang === 'de' ? 'https://www.landr.de/de/signup/' : 'https://www.landr.de/en/signup/'
+  // English is the site's unprefixed default locale.
+  const base = lang === 'de' ? 'https://www.landr.de/de/signup/' : 'https://www.landr.de/signup/'
   return `${base}?template=${encodeURIComponent(slug)}`
 }
 

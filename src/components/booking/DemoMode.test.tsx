@@ -36,7 +36,7 @@ describe('demo components', () => {
     expect(screen.getByTestId('demo-congrats')).toHaveTextContent('what your customers would see')
     expect(screen.getByTestId('demo-congrats-cta')).toHaveAttribute(
       'href',
-      'https://www.landr.de/en/signup/?template=tandem',
+      'https://www.landr.de/signup/?template=tandem',
     )
     fireEvent.click(screen.getByTestId('demo-congrats-restart'))
     expect(onRestart).toHaveBeenCalled()

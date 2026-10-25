@@ -56,6 +56,7 @@ describe('demo slug', () => {
 
   it('signup link carries the template slug', () => {
     expect(demoSignupUrl('kayak', 'de')).toBe('https://www.landr.de/de/signup/?template=kayak')
+    expect(demoSignupUrl('kayak', 'en')).toBe('https://www.landr.de/signup/?template=kayak')
   })
 })
 
