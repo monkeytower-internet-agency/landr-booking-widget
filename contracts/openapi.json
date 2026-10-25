@@ -13729,6 +13729,24 @@
         "title": "MeetingPointBlock",
         "type": "object"
       },
+      "MemberProofIn": {
+        "properties": {
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "otp": {
+            "title": "Otp",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "otp"
+        ],
+        "title": "MemberProofIn",
+        "type": "object"
+      },
       "MessagePostIn": {
         "additionalProperties": false,
         "properties": {
@@ -17426,6 +17444,211 @@
           "requests"
         ],
         "title": "PartnerRequestsOut",
+        "type": "object"
+      },
+      "PassTierIn": {
+        "properties": {
+          "label": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          },
+          "member_price_cents": {
+            "anyOf": [
+              {
+                "maximum": 10000000.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Member Price Cents"
+          },
+          "price_cents": {
+            "maximum": 10000000.0,
+            "minimum": 0.0,
+            "title": "Price Cents",
+            "type": "integer"
+          },
+          "season_end": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Season End"
+          },
+          "season_start": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Season Start"
+          },
+          "sort": {
+            "default": 0,
+            "title": "Sort",
+            "type": "integer"
+          },
+          "validity_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Validity Days"
+          },
+          "validity_kind": {
+            "enum": [
+              "day",
+              "days",
+              "week",
+              "season"
+            ],
+            "title": "Validity Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "label",
+          "validity_kind",
+          "price_cents"
+        ],
+        "title": "PassTierIn",
+        "type": "object"
+      },
+      "PassTierPatch": {
+        "properties": {
+          "active": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "member_price_cents": {
+            "anyOf": [
+              {
+                "maximum": 10000000.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Member Price Cents"
+          },
+          "price_cents": {
+            "anyOf": [
+              {
+                "maximum": 10000000.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Cents"
+          },
+          "season_end": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Season End"
+          },
+          "season_start": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Season Start"
+          },
+          "sort": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sort"
+          },
+          "validity_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Validity Days"
+          },
+          "validity_kind": {
+            "anyOf": [
+              {
+                "enum": [
+                  "day",
+                  "days",
+                  "week",
+                  "season"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Validity Kind"
+          }
+        },
+        "title": "PassTierPatch",
         "type": "object"
       },
       "PatchMoscowIn": {
@@ -21191,7 +21414,8 @@
                   "digital_good",
                   "physical_good",
                   "gift_card",
-                  "stay"
+                  "stay",
+                  "pass"
                 ],
                 "type": "string"
               },
@@ -21321,6 +21545,18 @@
               }
             ],
             "title": "Fixed Date Window Id"
+          },
+          "pass_tier_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pass Tier Id"
           },
           "product_availability_id": {
             "anyOf": [
@@ -21899,7 +22135,8 @@
                   "digital_good",
                   "physical_good",
                   "gift_card",
-                  "stay"
+                  "stay",
+                  "pass"
                 ],
                 "type": "string"
               },
@@ -23223,6 +23460,17 @@
             },
             "title": "Participants",
             "type": "array"
+          },
+          "pass_member_proof": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pass Member Proof"
           },
           "preview_token": {
             "anyOf": [
@@ -41900,6 +42148,61 @@
         ]
       }
     },
+    "/api/public/operators/{token}/passes/member-proof": {
+      "post": {
+        "description": "Exchange the emailed member OTP for a stateless proof (15 minutes).\n\nSame budget as the booking-time perk lookup (per widget token + IP), and\nthe OTP itself is single-use and attempt-limited. Every failure is the same\n403 body: no oracle for who is a member.",
+        "operationId": "public_pass_member_proof",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MemberProofIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Public Pass Member Proof",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Post Member Proof",
+        "tags": [
+          "public-passes"
+        ]
+      }
+    },
     "/api/public/operators/{token}/product-groups": {
       "get": {
         "description": "Operator's product_groups for the widget's category-first entrance\n(epic landr-d8rg, contract item [E]).\n\nReturns every ACTIVE, non-deleted group: id, slug, name, name_localized,\ndescription, description_localized, image_url, sort_order, parent_id,\n`product_count`, and `bookable_count` (landr-872c). `product_count` = the\nnumber of currently-listable products in the group's descendant subtree\n(the recursive parent_id walk lives in the RPC). `bookable_count` = the\nsubset of those that are currently bookable \u2014 same subtree, same\n_product_is_bookable() predicate the `bookable` flag on GET .../products\nalready uses \u2014 always <= product_count. EMPTY groups (product_count=0)\nare RETURNED \u2014 hiding them is the widget's job, so deep links into a\nnow-empty category still resolve. Ordered by (sort_order, name). 404 only\non an unknown widget_token.",
@@ -42141,6 +42444,93 @@
         "summary": "Get Product Flow",
         "tags": [
           "public-operators"
+        ]
+      }
+    },
+    "/api/public/operators/{token}/products/{product_id}/pass-tiers": {
+      "get": {
+        "operationId": "public_get_pass_tiers",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "title": "Product Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "email",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 320,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Email"
+            }
+          },
+          {
+            "in": "query",
+            "name": "member_proof",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 256,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Member Proof"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Public Get Pass Tiers",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Pass Tiers",
+        "tags": [
+          "public-passes"
         ]
       }
     },
@@ -50006,7 +50396,7 @@
     },
     "/api/staff/operators/{operator_id}/checkins/scan": {
       "post": {
-        "description": "landr-5aih0.10 (c10): a guide scans a participant's QR ticket.\n\nVerifies the ticket token (app.services.ticket_tokens \u2014 a SEPARATE\ntoken family from booking_tokens, see that module's docstring), then\nwrites the participant PRESENT for the operator-local today via the\nSAME atomic RPC the /today board's own status tap uses\n(staff_put_participant_day_state \u2014 app.routers.staff_participant_day_state,\nexactly like public_briefings_checkin._apply_day_state_side_write does\nfor the customer's own self-report path). ``p_set_by`` is this staff\nuser (unlike the customer path, which passes NULL) \u2014 a scan is a staff\naction, has a real ``users.id``, and should show up as such on the\nday-state row's provenance.\n\nEvery failure mode here is an opaque 404 EXCEPT the \"not a trip day\"\ncase, which is a 409 the scanning UI can render distinctly (\"wrong\nday\" vs \"this isn't a ticket\") \u2014 same shape distinction the CONTRACT\ncalls out. A bad/expired/tampered token and a ticket whose participant\nor booking no longer belongs to THIS operator collapse to the same\nopaque 404 \u2014 a stranger scanning garbage, or another operator's ticket,\nlearns nothing about why it failed.",
+        "description": "landr-5aih0.10 (c10): a guide scans a participant's QR ticket.\n\nVerifies the ticket token (app.services.ticket_tokens \u2014 a SEPARATE\ntoken family from booking_tokens, see that module's docstring), then\nwrites the participant PRESENT for the operator-local today via the\nSAME atomic RPC the /today board's own status tap uses\n(staff_put_participant_day_state \u2014 app.routers.staff_participant_day_state,\nexactly like public_briefings_checkin._apply_day_state_side_write does\nfor the customer's own self-report path). ``p_set_by`` is this staff\nuser (unlike the customer path, which passes NULL) \u2014 a scan is a staff\naction, has a real ``users.id``, and should show up as such on the\nday-state row's provenance.\n\nlandr-m6tp4.4: a PASS ticket (a booking line with a validity window) is\naccepted on every day inside ``[valid_from, valid_until]`` -- operator-local\n-- and records one presence row per day through the same RPC, so repeated\nscans on a day stay idempotent. Outside the window the 409 carries\n``{\"error\": \"pass_not_valid_today\", valid_from, valid_until}``.\n\nEvery failure mode here is an opaque 404 EXCEPT the \"not a trip day\"\ncase, which is a 409 the scanning UI can render distinctly (\"wrong\nday\" vs \"this isn't a ticket\") \u2014 same shape distinction the CONTRACT\ncalls out. A bad/expired/tampered token and a ticket whose participant\nor booking no longer belongs to THIS operator collapse to the same\nopaque 404 \u2014 a stranger scanning garbage, or another operator's ticket,\nlearns nothing about why it failed.",
         "operationId": "staff_scan_ticket_checkin",
         "parameters": [
           {
@@ -56004,6 +56394,191 @@
         ]
       }
     },
+    "/api/staff/operators/{operator_id}/pass-tiers/{tier_id}": {
+      "delete": {
+        "description": "Delete an unsold tier; archive (``active=false``) one that has bookings.",
+        "operationId": "staff_delete_pass_tier",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "tier_id",
+            "required": true,
+            "schema": {
+              "title": "Tier Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Staff Delete Pass Tier",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Delete Pass Tier",
+        "tags": [
+          "staff-pass-tiers"
+        ]
+      },
+      "patch": {
+        "operationId": "staff_patch_pass_tier",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "tier_id",
+            "required": true,
+            "schema": {
+              "title": "Tier Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PassTierPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Staff Patch Pass Tier",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Patch Pass Tier",
+        "tags": [
+          "staff-pass-tiers"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/passes/checkins": {
+      "get": {
+        "description": "Pass holders whose ticket was scanned on ``day_date`` (the today board).\n\nA holder is a participant with a PRESENT day-state row for the day on a\nbooking that carries a pass line whose window covers the day.",
+        "operationId": "staff_list_pass_checkins",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "day_date",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "Day Date",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Staff List Pass Checkins",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Pass Checkins",
+        "tags": [
+          "staff-pass-tiers"
+        ]
+      }
+    },
     "/api/staff/operators/{operator_id}/pause": {
       "get": {
         "operationId": "get_pause",
@@ -59499,6 +60074,133 @@
         "summary": "Patch Window",
         "tags": [
           "staff-fixed-date-windows"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/products/{product_id}/pass-tiers": {
+      "get": {
+        "operationId": "staff_list_pass_tiers",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "title": "Product Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "title": "Response Staff List Pass Tiers",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Pass Tiers",
+        "tags": [
+          "staff-pass-tiers"
+        ]
+      },
+      "post": {
+        "operationId": "staff_create_pass_tier",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "title": "Product Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PassTierIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Staff Create Pass Tier",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Pass Tier",
+        "tags": [
+          "staff-pass-tiers"
         ]
       }
     },

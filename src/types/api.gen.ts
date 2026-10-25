@@ -3631,6 +3631,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/public/operators/{token}/passes/member-proof": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Post Member Proof
+         * @description Exchange the emailed member OTP for a stateless proof (15 minutes).
+         *
+         *     Same budget as the booking-time perk lookup (per widget token + IP), and
+         *     the OTP itself is single-use and attempt-limited. Every failure is the same
+         *     403 body: no oracle for who is a member.
+         */
+        post: operations["public_pass_member_proof"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/public/operators/{token}/product-groups": {
         parameters: {
             query?: never;
@@ -3748,6 +3772,23 @@ export interface paths {
          *     here); an unknown token 404s via ``_resolve_operator_by_token``.
          */
         get: operations["get_product_flow"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/operators/{token}/products/{product_id}/pass-tiers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Pass Tiers */
+        get: operations["public_get_pass_tiers"];
         put?: never;
         post?: never;
         delete?: never;
@@ -6570,6 +6611,12 @@ export interface paths {
          *     action, has a real ``users.id``, and should show up as such on the
          *     day-state row's provenance.
          *
+         *     landr-m6tp4.4: a PASS ticket (a booking line with a validity window) is
+         *     accepted on every day inside ``[valid_from, valid_until]`` -- operator-local
+         *     -- and records one presence row per day through the same RPC, so repeated
+         *     scans on a day stay idempotent. Outside the window the 409 carries
+         *     ``{"error": "pass_not_valid_today", valid_from, valid_until}``.
+         *
          *     Every failure mode here is an opaque 404 EXCEPT the "not a trip day"
          *     case, which is a 409 the scanning UI can render distinctly ("wrong
          *     day" vs "this isn't a ticket") — same shape distinction the CONTRACT
@@ -8211,6 +8258,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/pass-tiers/{tier_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Pass Tier
+         * @description Delete an unsold tier; archive (``active=false``) one that has bookings.
+         */
+        delete: operations["staff_delete_pass_tier"];
+        options?: never;
+        head?: never;
+        /** Patch Pass Tier */
+        patch: operations["staff_patch_pass_tier"];
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/passes/checkins": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Pass Checkins
+         * @description Pass holders whose ticket was scanned on ``day_date`` (the today board).
+         *
+         *     A holder is a participant with a PRESENT day-state row for the day on a
+         *     booking that carries a pass line whose window covers the day.
+         */
+        get: operations["staff_list_pass_checkins"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/pause": {
         parameters: {
             query?: never;
@@ -9054,6 +9145,24 @@ export interface paths {
         head?: never;
         /** Patch Window */
         patch: operations["patch_window"];
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/products/{product_id}/pass-tiers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Pass Tiers */
+        get: operations["staff_list_pass_tiers"];
+        put?: never;
+        /** Create Pass Tier */
+        post: operations["staff_create_pass_tier"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/staff/operators/{operator_id}/products/{product_id}/pricing": {
@@ -16930,6 +17039,13 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /** MemberProofIn */
+        MemberProofIn: {
+            /** Email */
+            email: string;
+            /** Otp */
+            otp: string;
+        };
         /** MessagePostIn */
         MessagePostIn: {
             /** Body */
@@ -18154,6 +18270,52 @@ export interface components {
             partners: components["schemas"]["PartnerOut"][];
             /** Requests */
             requests: components["schemas"]["PartnerRequestOut"][];
+        };
+        /** PassTierIn */
+        PassTierIn: {
+            /** Label */
+            label: string;
+            /** Member Price Cents */
+            member_price_cents?: number | null;
+            /** Price Cents */
+            price_cents: number;
+            /** Season End */
+            season_end?: string | null;
+            /** Season Start */
+            season_start?: string | null;
+            /**
+             * Sort
+             * @default 0
+             */
+            sort: number;
+            /** Validity Days */
+            validity_days?: number | null;
+            /**
+             * Validity Kind
+             * @enum {string}
+             */
+            validity_kind: "day" | "days" | "week" | "season";
+        };
+        /** PassTierPatch */
+        PassTierPatch: {
+            /** Active */
+            active?: boolean | null;
+            /** Label */
+            label?: string | null;
+            /** Member Price Cents */
+            member_price_cents?: number | null;
+            /** Price Cents */
+            price_cents?: number | null;
+            /** Season End */
+            season_end?: string | null;
+            /** Season Start */
+            season_start?: string | null;
+            /** Sort */
+            sort?: number | null;
+            /** Validity Days */
+            validity_days?: number | null;
+            /** Validity Kind */
+            validity_kind?: ("day" | "days" | "week" | "season") | null;
         };
         /**
          * PatchMoscowIn
@@ -19500,7 +19662,7 @@ export interface components {
             /** Product Group Id */
             product_group_id?: string | null;
             /** Product Kind */
-            product_kind?: ("service" | "subscription" | "hotel_room" | "digital_good" | "physical_good" | "gift_card" | "stay") | null;
+            product_kind?: ("service" | "subscription" | "hotel_room" | "digital_good" | "physical_good" | "gift_card" | "stay" | "pass") | null;
             /** Revenue Flows Through Operator */
             revenue_flows_through_operator?: boolean | null;
             /** Service Time Shape */
@@ -19537,6 +19699,8 @@ export interface components {
             date_range_start?: string | null;
             /** Fixed Date Window Id */
             fixed_date_window_id?: string | null;
+            /** Pass Tier Id */
+            pass_tier_id?: string | null;
             /** Product Availability Id */
             product_availability_id?: string | null;
             /** Product Id */
@@ -19642,7 +19806,7 @@ export interface components {
             /** Product Group Id */
             product_group_id?: string | null;
             /** Product Kind */
-            product_kind?: ("service" | "subscription" | "hotel_room" | "digital_good" | "physical_good" | "gift_card" | "stay") | null;
+            product_kind?: ("service" | "subscription" | "hotel_room" | "digital_good" | "physical_good" | "gift_card" | "stay" | "pass") | null;
             /** Revenue Flows Through Operator */
             revenue_flows_through_operator?: boolean | null;
             /** Service Time Shape */
@@ -20037,6 +20201,8 @@ export interface components {
             member_perk_otp?: string | null;
             /** Participants */
             participants?: components["schemas"]["ParticipantIn"][];
+            /** Pass Member Proof */
+            pass_member_proof?: string | null;
             /** Preview Token */
             preview_token?: string | null;
             /** Products */
@@ -29237,6 +29403,43 @@ export interface operations {
             };
         };
     };
+    public_pass_member_proof: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MemberProofIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_operator_product_groups: {
         parameters: {
             query?: never;
@@ -29359,6 +29562,43 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProductFlowResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_get_pass_tiers: {
+        parameters: {
+            query?: {
+                email?: string | null;
+                member_proof?: string | null;
+            };
+            header?: never;
+            path: {
+                token: string;
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */
@@ -37173,6 +37413,113 @@ export interface operations {
             };
         };
     };
+    staff_delete_pass_tier: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                tier_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_patch_pass_tier: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                tier_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PassTierPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_list_pass_checkins: {
+        parameters: {
+            query: {
+                day_date: string;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_pause: {
         parameters: {
             query?: never;
@@ -39166,6 +39513,78 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_list_pass_tiers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    }[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_create_pass_tier: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PassTierIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };
