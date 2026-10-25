@@ -682,6 +682,11 @@ export type Bundle = {
   alternativesHeadingCourses: string
   alternativesHeadingAny: string
   alternativesStartsTemplate: string
+  altDayAria: string
+  altDayFullNotice: string
+  altDayNotOfferedNotice: string
+  altDayGate: string
+  altDayLegend: string
   gridViewLabel: string
   listViewLabel: string
   catalogueLayoutAria: string
@@ -1519,6 +1524,11 @@ const en: Bundle = {
   alternativesHeadingCourses: 'Also starting in {month}',
   alternativesHeadingAny: 'Also available',
   alternativesStartsTemplate: 'Starts {date}',
+  altDayAria: 'fully booked, other activities available',
+  altDayFullNotice: '{product} is fully booked on {date}',
+  altDayNotOfferedNotice: '{product} is not offered on {date}',
+  altDayGate: 'Pick one of the other activities below',
+  altDayLegend: 'another activity is free on this day',
   gridViewLabel: 'Grid view',
   listViewLabel: 'List view',
   catalogueLayoutAria: 'Catalogue layout',
