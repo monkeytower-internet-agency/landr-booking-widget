@@ -651,6 +651,7 @@ export const de: Bundle = {
   alternativesHeadingAny: 'Auch verfügbar',
   alternativesStartsTemplate: 'Start: {date}',
   altDayAria: 'ausgebucht, andere Aktivitäten verfügbar',
+  altDayNotOfferedAria: 'nicht im Angebot, andere Aktivitäten verfügbar',
   altDayShortAria: 'nicht genug Plätze für {n} Personen, andere Aktivitäten verfügbar',
   altDayFullNotice: '{product} ist am {date} ausgebucht',
   altDayNotOfferedNotice: '{product} wird am {date} nicht angeboten',

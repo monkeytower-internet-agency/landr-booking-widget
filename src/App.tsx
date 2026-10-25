@@ -2338,6 +2338,7 @@ function BookingFlowApp() {
             onBack={
               group || pickedGroupSlug ? goToProductStep : undefined
             }
+            operatorTimezone={operatorSettings.timezone}
             onSelectAlternative={onSelectAlternative}
           />
         ) : null}

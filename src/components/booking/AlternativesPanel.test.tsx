@@ -322,8 +322,44 @@ describe('FullyBookedNotice panel', () => {
     expect(screen.getAllByRole('button', { name: /Beginner course/ })).toHaveLength(2)
   })
 
+  it('starts the alternatives range at the operator today, not the browser clock', async () => {
+    // 12:00 UTC on May 15 is already May 16 in Kiritimati (UTC+14).
+    render(
+      <FullyBookedNotice
+        name="Main product"
+        productId="p-main"
+        operatorTimezone="Pacific/Kiritimati"
+      />,
+    )
+    await waitFor(() => expect(mocks.getProductAlternatives).toHaveBeenCalled())
+    expect(mocks.getProductAlternatives.mock.calls[0]?.[1]).toBe('2026-05-16')
+  })
+
   it('shows nothing extra in the compact catalogue card', () => {
     render(<FullyBookedNotice name="Main product" productId="p-main" compact />)
     expect(mocks.getProductAlternatives).not.toHaveBeenCalled()
+  })
+})
+
+describe('dot day wording', () => {
+  it('says "not offered" where the product has no slot and "fully booked" where it is full', async () => {
+    mocks.getAvailability.mockResolvedValue([
+      { ...slot('2026-05-21'), available_seats: 0, status: 'full' } as AvailabilitySlot,
+    ])
+    render(<SingleDatePicker product={product('single_date')} onConfirm={() => {}} />)
+    await waitFor(() => expect(mocks.getProductAlternatives).toHaveBeenCalled())
+    const label = async (n: number) => {
+      await waitFor(() => {
+        const b = Array.from(
+          document.querySelectorAll<HTMLButtonElement>('button[data-alt-only]'),
+        ).find((x) => new Date(x.dataset.day ?? '').getDate() === n)
+        expect(b).toBeTruthy()
+      })
+      return Array.from(
+        document.querySelectorAll<HTMLButtonElement>('button[data-alt-only]'),
+      ).find((x) => new Date(x.dataset.day ?? '').getDate() === n)?.getAttribute('aria-label')
+    }
+    expect(await label(20)).toContain('not offered, other activities available')
+    expect(await label(21)).toContain('fully booked, other activities available')
   })
 })
