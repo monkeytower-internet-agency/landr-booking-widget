@@ -17356,6 +17356,21 @@
         "title": "PatchMoscowOut",
         "type": "object"
       },
+      "PauseIn": {
+        "properties": {
+          "months": {
+            "maximum": 12.0,
+            "minimum": 1.0,
+            "title": "Months",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "months"
+        ],
+        "title": "PauseIn",
+        "type": "object"
+      },
       "PaymentLinkShare": {
         "properties": {
           "amount": {
@@ -55138,6 +55153,112 @@
         ]
       }
     },
+    "/api/staff/operators/{operator_id}/pause": {
+      "get": {
+        "operationId": "get_pause",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Pause",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Pause",
+        "tags": [
+          "operator-pause"
+        ]
+      },
+      "post": {
+        "operationId": "start_pause",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PauseIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Start Pause",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Start Pause",
+        "tags": [
+          "operator-pause"
+        ]
+      }
+    },
     "/api/staff/operators/{operator_id}/payment-gate": {
       "get": {
         "operationId": "get_payment_gate",
@@ -64484,6 +64605,55 @@
         "summary": "Patch Unavailability",
         "tags": [
           "staff-resources"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/resume": {
+      "post": {
+        "operationId": "resume",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Resume",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Resume",
+        "tags": [
+          "operator-pause"
         ]
       }
     },
