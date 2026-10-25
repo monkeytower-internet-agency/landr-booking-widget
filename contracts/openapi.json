@@ -1764,6 +1764,92 @@
         "title": "BillingAddressSavedOut",
         "type": "object"
       },
+      "BillingProfileIn": {
+        "properties": {
+          "address_line1": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Address Line1",
+            "type": "string"
+          },
+          "address_line2": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address Line2"
+          },
+          "city": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "City",
+            "type": "string"
+          },
+          "country": {
+            "maxLength": 2,
+            "minLength": 2,
+            "title": "Country",
+            "type": "string"
+          },
+          "invoice_email": {
+            "maxLength": 254,
+            "minLength": 3,
+            "title": "Invoice Email",
+            "type": "string"
+          },
+          "legal_name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Legal Name",
+            "type": "string"
+          },
+          "postal_code": {
+            "maxLength": 20,
+            "minLength": 1,
+            "title": "Postal Code",
+            "type": "string"
+          },
+          "region": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Region"
+          },
+          "vat_id": {
+            "anyOf": [
+              {
+                "maxLength": 30,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vat Id"
+          }
+        },
+        "required": [
+          "legal_name",
+          "address_line1",
+          "postal_code",
+          "city",
+          "country",
+          "invoice_email"
+        ],
+        "title": "BillingProfileIn",
+        "type": "object"
+      },
       "BookingCalendarEvent": {
         "description": "Parsed calendar event for client-side Google Calendar / Outlook deep-links.\n\nlandr-odsr: mirrors the widget's ``BookingCalendarEvent`` TypeScript interface\n(src/api/types.ts) exactly \u2014 field names must not diverge or the confirmation\nscreen goes blank (landr-9ut4).",
         "properties": {
@@ -17021,6 +17107,57 @@
           "whatsapp_url"
         ],
         "title": "PaymentLinkShare",
+        "type": "object"
+      },
+      "PaymentMethodIn": {
+        "properties": {
+          "accept_mandate": {
+            "default": false,
+            "title": "Accept Mandate",
+            "type": "boolean"
+          },
+          "accept_surcharge": {
+            "default": false,
+            "title": "Accept Surcharge",
+            "type": "boolean"
+          },
+          "account_holder": {
+            "anyOf": [
+              {
+                "maxLength": 140,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account Holder"
+          },
+          "iban": {
+            "anyOf": [
+              {
+                "maxLength": 50,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Iban"
+          },
+          "method": {
+            "enum": [
+              "sepa_core",
+              "open_invoice"
+            ],
+            "title": "Method",
+            "type": "string"
+          }
+        },
+        "required": [
+          "method"
+        ],
+        "title": "PaymentMethodIn",
         "type": "object"
       },
       "PendingDecisionDetail": {
@@ -42586,6 +42723,112 @@
         ]
       }
     },
+    "/api/staff/operators/{operator_id}/billing-profile": {
+      "get": {
+        "operationId": "get_billing_profile",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Billing Profile",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Billing Profile",
+        "tags": [
+          "staff-operator-billing"
+        ]
+      },
+      "put": {
+        "operationId": "put_billing_profile",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BillingProfileIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Put Billing Profile",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Put Billing Profile",
+        "tags": [
+          "staff-operator-billing"
+        ]
+      }
+    },
     "/api/staff/operators/{operator_id}/booking-lifecycle-stages": {
       "get": {
         "operationId": "list_lifecycle_stages",
@@ -52801,6 +53044,159 @@
         "summary": "Decide Unit Request",
         "tags": [
           "staff-participant-day-state"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/payment-method": {
+      "delete": {
+        "operationId": "revoke_payment_method",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Revoke Payment Method",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Revoke Payment Method",
+        "tags": [
+          "staff-operator-billing"
+        ]
+      },
+      "get": {
+        "operationId": "get_payment_method",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Payment Method",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Payment Method",
+        "tags": [
+          "staff-operator-billing"
+        ]
+      },
+      "put": {
+        "operationId": "put_payment_method",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentMethodIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Put Payment Method",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Put Payment Method",
+        "tags": [
+          "staff-operator-billing"
         ]
       }
     },
