@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "about": "Shared stay-pricing fixtures (landr-m6tp4.2). landr-api app/services/stay_pricing.py and the booking widget's accommodationCalc.ts both run these cases; the widget keeps a byte-identical copy (contracts/stay_pricing_fixtures.json) and both test suites pin its SHA-256.",
+  "about": "Shared stay-pricing fixtures. landr-api app/services/stay_pricing.py and the booking widget's accommodationCalc.ts both run these cases; the widget keeps a byte-identical copy (contracts/stay_pricing_fixtures.json) and both test suites pin its SHA-256.",
   "addon_units": [
     {"price_unit": "booking", "nights": 3, "guests": 2, "expected": 1},
     {"price_unit": "stay", "nights": 3, "guests": 2, "expected": 1},

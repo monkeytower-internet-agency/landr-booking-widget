@@ -33,7 +33,7 @@ const RAW = nodeProcess
 const sha256 = (data: Uint8Array) =>
   nodeProcess.getBuiltinModule('node:crypto').createHash('sha256').update(data).digest('hex')
 /** Must equal the SHA-256 the API test pins (test_stay_pricing.py). */
-const FIXTURE_SHA256 = 'fce7bc5e2920c26b9c47fdda1661bf60c53730d2a4a3ac733baa0991d1838fd2'
+const FIXTURE_SHA256 = '833c5cb5a2838c93504c2584f5519be767a6ba461b494c24a056bcd2c891e340'
 
 interface Fixtures {
   addon_units: Array<{ price_unit: string; nights: number; guests: number; expected: number }>
