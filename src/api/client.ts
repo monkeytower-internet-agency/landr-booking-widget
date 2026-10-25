@@ -33,6 +33,7 @@ import type {
   CustomerDetailsPutBody,
   DetailsFieldError,
 } from './customerDetailsTypes'
+import { parsePausedBody, setPaused } from './pauseStore'
 import {
   mockAvailability,
   mockEstimate,
@@ -131,6 +132,12 @@ async function http<T>(path: string, init?: RequestInit): Promise<T> {
   })
   if (!res.ok) {
     const body = await res.text().catch(() => '')
+    // Off-season pause: no booking flow may start; the app shows a
+    // "back in season" screen (PausedGate) instead of a generic error.
+    if (res.status === 409) {
+      const paused = parsePausedBody(body)
+      if (paused) setPaused(paused)
+    }
     throw new HttpError(res.status, res.statusText, body)
   }
   return (await res.json()) as T

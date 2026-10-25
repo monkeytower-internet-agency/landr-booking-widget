@@ -1,3 +1,4 @@
+import { PausedGate } from '@/components/booking/PausedGate'
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import type { CSSProperties } from 'react'
 import {
@@ -378,7 +379,9 @@ function App() {
       <StaffModeProvider>
         {/* landr-7dya.20: fixed tier badge — visible in all iframe embeds */}
         <TierBadge />
-        <BookingFlowApp />
+        <PausedGate>
+          <BookingFlowApp />
+        </PausedGate>
       </StaffModeProvider>
     </VariantProvider>
   )
