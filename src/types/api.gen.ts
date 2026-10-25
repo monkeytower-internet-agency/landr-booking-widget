@@ -2043,6 +2043,59 @@ export interface paths {
         patch: operations["set_site_warning_publisher"];
         trace?: never;
     };
+    "/api/landr-staff/templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Landr Staff List Templates */
+        get: operations["landr_staff_list_templates"];
+        put?: never;
+        /** Landr Staff Flag Template */
+        post: operations["landr_staff_flag_template"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/landr-staff/templates/{slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Landr Staff Unflag Template */
+        delete: operations["landr_staff_unflag_template"];
+        options?: never;
+        head?: never;
+        /** Landr Staff Patch Template */
+        patch: operations["landr_staff_patch_template"];
+        trace?: never;
+    };
+    "/api/landr-staff/templates/{slug}/bump-version": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Landr Staff Bump Template Version */
+        post: operations["landr_staff_bump_template_version"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/landr-staff/terms-changes": {
         parameters: {
             query?: never;
@@ -3422,6 +3475,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/public/environment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Public Get Environment
+         * @description landr-m6tp4.1 — which tier this API serves ('development' / 'staging'
+         *     / 'production'). The dashboard reads it once to decide whether staging-
+         *     only tools (the template editor) are shown. Cheap: no DB, no network.
+         */
+        get: operations["public_get_environment"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/public/health": {
         parameters: {
             query?: never;
@@ -3631,6 +3706,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/public/operators/{token}/passes/member-proof": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Post Member Proof
+         * @description Exchange the emailed member OTP for a stateless proof (15 minutes).
+         *
+         *     Same budget as the booking-time perk lookup (per widget token + IP), and
+         *     the OTP itself is single-use and attempt-limited. Every failure is the same
+         *     403 body: no oracle for who is a member.
+         */
+        post: operations["public_pass_member_proof"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/public/operators/{token}/product-groups": {
         parameters: {
             query?: never;
@@ -3748,6 +3847,23 @@ export interface paths {
          *     here); an unknown token 404s via ``_resolve_operator_by_token``.
          */
         get: operations["get_product_flow"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/operators/{token}/products/{product_id}/pass-tiers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Pass Tiers */
+        get: operations["public_get_pass_tiers"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4013,8 +4129,9 @@ export interface paths {
          *     user verifies their email (avoids email-enumeration oracle).
          *
          *     Error contract:
-         *       * 422 unknown_preset_key — preset_key is not in PRESET_KEYS (checked
-         *                           first, before Turnstile, so no token is burnt).
+         *       * 422 unknown_preset_key — preset_key is neither a flow key nor a live
+         *                           template slug (checked first, before Turnstile, so
+         *                           no token is burnt).
          *       * 403 captcha_*   — Turnstile failed / unavailable.
          *       * 429             — per-IP or global rate limit exceeded.
          *       * 503             — rate-limiter infra error (fail CLOSED).
@@ -4145,6 +4262,40 @@ export interface paths {
         put?: never;
         /** Run Send */
         post: operations["system_update_notice_run_send"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Public List Templates */
+        get: operations["public_list_templates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/templates/{slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Public Get Template */
+        get: operations["public_get_template"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -5095,8 +5246,28 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Apply Preset Endpoint */
+        /**
+         * Apply Preset Endpoint
+         * @deprecated
+         */
         post: operations["apply_preset_endpoint"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/apply-template": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Staff Apply Operator Template */
+        post: operations["staff_apply_operator_template"];
         delete?: never;
         options?: never;
         head?: never;
@@ -6569,6 +6740,12 @@ export interface paths {
          *     user (unlike the customer path, which passes NULL) — a scan is a staff
          *     action, has a real ``users.id``, and should show up as such on the
          *     day-state row's provenance.
+         *
+         *     landr-m6tp4.4: a PASS ticket (a booking line with a validity window) is
+         *     accepted on every day inside ``[valid_from, valid_until]`` -- operator-local
+         *     -- and records one presence row per day through the same RPC, so repeated
+         *     scans on a day stay idempotent. Outside the window the 409 carries
+         *     ``{"error": "pass_not_valid_today", valid_from, valid_until}``.
          *
          *     Every failure mode here is an opaque 404 EXCEPT the "not a trip day"
          *     case, which is a 409 the scanning UI can render distinctly ("wrong
@@ -8211,6 +8388,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/pass-tiers/{tier_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Pass Tier
+         * @description Delete an unsold tier; archive (``active=false``) one that has bookings.
+         */
+        delete: operations["staff_delete_pass_tier"];
+        options?: never;
+        head?: never;
+        /** Patch Pass Tier */
+        patch: operations["staff_patch_pass_tier"];
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/passes/checkins": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Pass Checkins
+         * @description Pass holders whose ticket was scanned on ``day_date`` (the today board).
+         *
+         *     A holder is a participant with a PRESENT day-state row for the day on a
+         *     booking that carries a pass line whose window covers the day.
+         */
+        get: operations["staff_list_pass_checkins"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/pause": {
         parameters: {
             query?: never;
@@ -8343,10 +8564,7 @@ export interface paths {
         };
         /**
          * List Presets Endpoint
-         * @description Every preset ``POST /apply-preset`` accepts, in the order the wizard
-         *     shows them (solo pilot first, blank last). Static registry data; the
-         *     operator's current choice is ``onboarding_preset_key`` on
-         *     ``GET /api/staff/operators/{operator_id}``.
+         * @deprecated
          */
         get: operations["list_presets_endpoint"];
         put?: never;
@@ -9054,6 +9272,24 @@ export interface paths {
         head?: never;
         /** Patch Window */
         patch: operations["patch_window"];
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/products/{product_id}/pass-tiers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Pass Tiers */
+        get: operations["staff_list_pass_tiers"];
+        put?: never;
+        /** Create Pass Tier */
+        post: operations["staff_create_pass_tier"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/staff/operators/{operator_id}/products/{product_id}/pricing": {
@@ -12025,6 +12261,40 @@ export interface components {
             /** Weekdays */
             weekdays?: number[] | null;
         };
+        /** ApplyTemplateOut */
+        ApplyTemplateOut: {
+            /** Counts */
+            counts: {
+                [key: string]: number;
+            };
+            /**
+             * Flow
+             * @enum {string}
+             */
+            flow: "solo" | "company";
+            /** Images Skipped */
+            images_skipped: {
+                [key: string]: unknown;
+            }[];
+            /** Onboarding Preset Key */
+            onboarding_preset_key: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "applied" | "already_applied";
+            /** Template Slug */
+            template_slug: string;
+            /** Template Version */
+            template_version: number;
+        };
+        /** ApplyTemplateRequest */
+        ApplyTemplateRequest: {
+            /** Product Family */
+            product_family?: ("activity" | "course") | null;
+            /** Slug */
+            slug: string;
+        };
         /** ApprovalMailRequest */
         ApprovalMailRequest: {
             /**
@@ -14000,8 +14270,9 @@ export interface components {
          *     `name` is the new operator's display name. `slug` is the desired public
          *     handle — same grammar as public signup (`app/services/operator_slugs.py`).
          *     `preset_key` (optional) is stored on the new operator only — mirrors
-         *     `SignupRequest.preset_key` (landr-k9pji.2); the onboarding wizard applies
-         *     it, nothing is applied here.
+         *     `SignupRequest.preset_key` (landr-k9pji.2; a flow key or a live template
+         *     slug, landr-m6tp4.1); the onboarding wizard applies it, nothing is
+         *     applied here.
          */
         CreateOperatorRequest: {
             /** Name */
@@ -14101,8 +14372,11 @@ export interface components {
         CreditLineIn: {
             /** Amount */
             amount: number | string;
-            /** Line */
-            line: number;
+            /**
+             * Line Id
+             * Format: uuid
+             */
+            line_id: string;
         };
         /** CreditNoteIn */
         CreditNoteIn: {
@@ -15132,6 +15406,11 @@ export interface components {
             /** Subject */
             subject?: string | null;
         };
+        /** EnvironmentOut */
+        EnvironmentOut: {
+            /** Environment */
+            environment: string;
+        };
         /** EstimateAddonLineIn */
         EstimateAddonLineIn: {
             /** Product Id */
@@ -15192,6 +15471,8 @@ export interface components {
          *     (e.g. "60.00"), matching ``_compute_line``'s wire format exactly.
          */
         EstimateLineItem: {
+            /** Cleaning Fee */
+            cleaning_fee?: string | null;
             /** Label */
             label: string;
             /** Line Total */
@@ -15205,6 +15486,8 @@ export interface components {
             payee_label?: string | null;
             /** Payment Note */
             payment_note?: string | null;
+            /** Price Unit */
+            price_unit?: ("night" | "stay" | "guest" | "guest_night") | null;
             /** Product Id */
             product_id: string;
             /** Qty */
@@ -15263,6 +15546,7 @@ export interface components {
             savings?: components["schemas"]["SavingLineOut"][] | null;
             /** Savings Total */
             savings_total?: string | null;
+            stay?: components["schemas"]["StayEstimate"] | null;
             /** Subtotal Before Savings */
             subtotal_before_savings?: string | null;
             /** Subtotal Before Surcharges */
@@ -15399,6 +15683,13 @@ export interface components {
             id: string;
             /** Moderation Status */
             moderation_status: string;
+        };
+        /** FlagTemplateIn */
+        FlagTemplateIn: {
+            /** Operator Id */
+            operator_id: string;
+            /** Slug */
+            slug: string;
         };
         /**
          * FlowFieldDef
@@ -16922,6 +17213,13 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /** MemberProofIn */
+        MemberProofIn: {
+            /** Email */
+            email: string;
+            /** Otp */
+            otp: string;
+        };
         /** MessagePostIn */
         MessagePostIn: {
             /** Body */
@@ -17791,6 +18089,7 @@ export interface components {
             share_reference_enabled: boolean;
             /** Slug */
             slug: string;
+            stay?: components["schemas"]["StayConfig"] | null;
             /** Thumb Url */
             thumb_url?: string | null;
         } & {
@@ -18146,6 +18445,52 @@ export interface components {
             /** Requests */
             requests: components["schemas"]["PartnerRequestOut"][];
         };
+        /** PassTierIn */
+        PassTierIn: {
+            /** Label */
+            label: string;
+            /** Member Price Cents */
+            member_price_cents?: number | null;
+            /** Price Cents */
+            price_cents: number;
+            /** Season End */
+            season_end?: string | null;
+            /** Season Start */
+            season_start?: string | null;
+            /**
+             * Sort
+             * @default 0
+             */
+            sort: number;
+            /** Validity Days */
+            validity_days?: number | null;
+            /**
+             * Validity Kind
+             * @enum {string}
+             */
+            validity_kind: "day" | "days" | "week" | "season";
+        };
+        /** PassTierPatch */
+        PassTierPatch: {
+            /** Active */
+            active?: boolean | null;
+            /** Label */
+            label?: string | null;
+            /** Member Price Cents */
+            member_price_cents?: number | null;
+            /** Price Cents */
+            price_cents?: number | null;
+            /** Season End */
+            season_end?: string | null;
+            /** Season Start */
+            season_start?: string | null;
+            /** Sort */
+            sort?: number | null;
+            /** Validity Days */
+            validity_days?: number | null;
+            /** Validity Kind */
+            validity_kind?: ("day" | "days" | "week" | "season") | null;
+        };
         /**
          * PatchMoscowIn
          * @description Body for the moscow PATCH endpoint.
@@ -18166,6 +18511,12 @@ export interface components {
             id: string;
             /** Moscow */
             moscow: string | null;
+        };
+        /** PatchTemplateIn */
+        PatchTemplateIn: {
+            pitch?: components["schemas"]["PitchIn"] | null;
+            /** Slug */
+            slug?: string | null;
         };
         /** PauseIn */
         PauseIn: {
@@ -18316,6 +18667,30 @@ export interface components {
             subject_id: string;
             /** Subject Type */
             subject_type: string;
+        };
+        /** PitchCompareIn */
+        PitchCompareIn: {
+            /** Label */
+            label: string;
+            /** Pct */
+            pct: number;
+        };
+        /** PitchIn */
+        PitchIn: {
+            de: components["schemas"]["PitchLocaleIn"];
+            en: components["schemas"]["PitchLocaleIn"];
+        };
+        /** PitchLocaleIn */
+        PitchLocaleIn: {
+            /** Audience */
+            audience: string;
+            /** Benefits */
+            benefits: string[];
+            compare?: components["schemas"]["PitchCompareIn"] | null;
+            /** Headline */
+            headline: string;
+            /** Hero Url */
+            hero_url?: string | null;
         };
         /** PlanChangeIn */
         PlanChangeIn: {
@@ -19103,6 +19478,12 @@ export interface components {
             } | null;
             /** Price Per Unit */
             price_per_unit?: number | null;
+            /**
+             * Price Unit
+             * @default booking
+             * @enum {string}
+             */
+            price_unit: "booking" | "night" | "stay" | "guest" | "guest_night";
             /** Product Addon Id */
             product_addon_id: string;
             /** Product Kind */
@@ -19392,6 +19773,12 @@ export interface components {
             capacity_per_unit?: number | null;
             /** Category Id */
             category_id?: string | null;
+            /** Check In Time */
+            check_in_time?: string | null;
+            /** Check Out Time */
+            check_out_time?: string | null;
+            /** Cleaning Fee Cents */
+            cleaning_fee_cents?: number | null;
             /** Daily Start Times */
             daily_start_times?: string[] | null;
             /** Daily Start Weekdays */
@@ -19441,8 +19828,12 @@ export interface components {
              * @default 0
              */
             lead_time_minutes: number;
+            /** Max Nights */
+            max_nights?: number | null;
             /** Max Party Size */
             max_party_size?: number | null;
+            /** Min Nights */
+            min_nights?: number | null;
             /** Name */
             name: string;
             /** Name Localized */
@@ -19470,10 +19861,12 @@ export interface components {
             payment_note_localized?: {
                 [key: string]: unknown;
             } | null;
+            /** Price Unit */
+            price_unit?: ("booking" | "night" | "stay" | "guest" | "guest_night") | null;
             /** Product Group Id */
             product_group_id?: string | null;
             /** Product Kind */
-            product_kind?: ("service" | "subscription" | "hotel_room" | "digital_good" | "physical_good" | "gift_card") | null;
+            product_kind?: ("service" | "subscription" | "hotel_room" | "digital_good" | "physical_good" | "gift_card" | "stay" | "pass") | null;
             /** Revenue Flows Through Operator */
             revenue_flows_through_operator?: boolean | null;
             /** Service Time Shape */
@@ -19510,6 +19903,8 @@ export interface components {
             date_range_start?: string | null;
             /** Fixed Date Window Id */
             fixed_date_window_id?: string | null;
+            /** Pass Tier Id */
+            pass_tier_id?: string | null;
             /** Product Availability Id */
             product_availability_id?: string | null;
             /** Product Id */
@@ -19546,6 +19941,12 @@ export interface components {
             capacity_per_unit?: number | null;
             /** Category Id */
             category_id?: string | null;
+            /** Check In Time */
+            check_in_time?: string | null;
+            /** Check Out Time */
+            check_out_time?: string | null;
+            /** Cleaning Fee Cents */
+            cleaning_fee_cents?: number | null;
             /** Daily Start Times */
             daily_start_times?: string[] | null;
             /** Daily Start Weekdays */
@@ -19580,8 +19981,12 @@ export interface components {
             is_publicly_listed?: boolean | null;
             /** Lead Time Minutes */
             lead_time_minutes?: number | null;
+            /** Max Nights */
+            max_nights?: number | null;
             /** Max Party Size */
             max_party_size?: number | null;
+            /** Min Nights */
+            min_nights?: number | null;
             /** Name */
             name?: string | null;
             /** Name Localized */
@@ -19600,10 +20005,12 @@ export interface components {
             payment_note_localized?: {
                 [key: string]: unknown;
             } | null;
+            /** Price Unit */
+            price_unit?: ("booking" | "night" | "stay" | "guest" | "guest_night") | null;
             /** Product Group Id */
             product_group_id?: string | null;
             /** Product Kind */
-            product_kind?: ("service" | "subscription" | "hotel_room" | "digital_good" | "physical_good" | "gift_card") | null;
+            product_kind?: ("service" | "subscription" | "hotel_room" | "digital_good" | "physical_good" | "gift_card" | "stay" | "pass") | null;
             /** Revenue Flows Through Operator */
             revenue_flows_through_operator?: boolean | null;
             /** Service Time Shape */
@@ -19998,6 +20405,8 @@ export interface components {
             member_perk_otp?: string | null;
             /** Participants */
             participants?: components["schemas"]["ParticipantIn"][];
+            /** Pass Member Proof */
+            pass_member_proof?: string | null;
             /** Preview Token */
             preview_token?: string | null;
             /** Products */
@@ -21943,10 +22352,12 @@ export interface components {
          *     Both field names and their marketing-site aliases are accepted (back-compat):
          *       name / operator_name, slug / operator_slug  (landr-oqrz.1)
          *
-         *     `preset_key` (optional, landr-k9pji.2) pre-selects the onboarding preset,
-         *     e.g. `solo_pilot` from the website's solo landing CTA. Must be one of
-         *     `app/services/presets.py` PRESET_KEYS, else 422 `unknown_preset_key`.
-         *     Blank = not sent. Stored on the operator only; the wizard applies it.
+         *     `preset_key` (optional, landr-k9pji.2) pre-selects the onboarding path,
+         *     e.g. `solo_pilot` from the website's solo landing CTA. One of
+         *     `app/services/onboarding_flow.py` FLOW_KEYS or a live operator-template
+         *     slug (landr-m6tp4.1; stored as that template's preset key), else 422
+         *     `unknown_preset_key`. Blank = not sent. Stored on the operator only; the
+         *     wizard applies the template.
          */
         SignupRequest: {
             /** Email */
@@ -22235,6 +22646,32 @@ export interface components {
             /** Staff Session */
             staff_session: string;
         };
+        /** StaffTemplateOut */
+        StaffTemplateOut: {
+            /**
+             * Flow
+             * @enum {string}
+             */
+            flow: "solo" | "company";
+            /** Name */
+            name: string | null;
+            /** Onboarding Preset Key */
+            onboarding_preset_key: string | null;
+            /** Operator Id */
+            operator_id: string;
+            /** Pitch */
+            pitch: {
+                [key: string]: components["schemas"]["TemplatePitchLocale"];
+            } | null;
+            /** Product Count */
+            product_count: number;
+            /** Slug */
+            slug: string;
+            /** Uses Pools */
+            uses_pools: boolean;
+            /** Version */
+            version: number;
+        };
         /**
          * StaffUnitReleaseIn
          * @description The operator's answer to the approve-time release question.
@@ -22448,6 +22885,58 @@ export interface components {
             id: string;
             /** Status */
             status: string;
+        };
+        /**
+         * StayConfig
+         * @description landr-m6tp4.2: the booking rules of a ``product_kind='stay'`` product,
+         *     for the widget's range picker and price breakdown. The nightly price is
+         *     the catalogue's ``price_from`` / ``price_base`` (a per-night rate).
+         */
+        StayConfig: {
+            /** Check In Time */
+            check_in_time?: string | null;
+            /** Check Out Time */
+            check_out_time?: string | null;
+            /**
+             * Cleaning Fee Cents
+             * @default 0
+             */
+            cleaning_fee_cents: number;
+            /** Max Nights */
+            max_nights?: number | null;
+            /**
+             * Min Nights
+             * @default 1
+             */
+            min_nights: number;
+            /** Sleeps */
+            sleeps?: number | null;
+        };
+        /**
+         * StayEstimate
+         * @description landr-m6tp4.2: the stay half of an estimate for a stay product.
+         */
+        StayEstimate: {
+            /** Check In */
+            check_in?: string | null;
+            /** Check Out */
+            check_out?: string | null;
+            /** Cleaning Fee */
+            cleaning_fee: string;
+            /** Errors */
+            errors?: components["schemas"]["StayEstimateError"][];
+            /** Nights */
+            nights: number;
+        };
+        /**
+         * StayEstimateError
+         * @description One broken stay rule (app/services/stay_pricing.VIOLATION_CODES).
+         */
+        StayEstimateError: {
+            /** Code */
+            code: string;
+            /** Date */
+            date?: string | null;
         };
         /**
          * SubmitBookingResponse
@@ -22827,6 +23316,50 @@ export interface components {
              * @description Component single-template keys (bundles only)
              */
             template_keys?: string[];
+        };
+        /** TemplateCompare */
+        TemplateCompare: {
+            /** Label */
+            label: string;
+            /** Pct */
+            pct: number;
+        };
+        /** TemplateOut */
+        TemplateOut: {
+            /**
+             * Flow
+             * @enum {string}
+             */
+            flow: "solo" | "company";
+            /** Onboarding Preset Key */
+            onboarding_preset_key: string | null;
+            /** Pitch */
+            pitch: {
+                [key: string]: components["schemas"]["TemplatePitchLocale"];
+            } | null;
+            /** Product Count */
+            product_count: number;
+            /** Slug */
+            slug: string;
+            /** Uses Pools */
+            uses_pools: boolean;
+            /** Version */
+            version: number;
+        };
+        /** TemplatePitchLocale */
+        TemplatePitchLocale: {
+            /** Audience */
+            audience?: string | null;
+            /**
+             * Benefits
+             * @default []
+             */
+            benefits: string[];
+            compare?: components["schemas"]["TemplateCompare"] | null;
+            /** Headline */
+            headline?: string | null;
+            /** Hero Url */
+            hero_url?: string | null;
         };
         /**
          * TermPair
@@ -25153,6 +25686,11 @@ export interface operations {
         parameters: {
             query?: {
                 operator_id?: string | null;
+                /** @description issue month, YYYY-MM */
+                period?: string | null;
+                /** @description payment status (invoices only) */
+                status?: ("open" | "exported" | "paid" | "returned") | null;
+                kind?: ("invoice" | "credit_note") | null;
             };
             header?: never;
             path?: never;
@@ -26933,6 +27471,154 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SiteWarningPublisherResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    landr_staff_list_templates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffTemplateOut"][];
+                };
+            };
+        };
+    };
+    landr_staff_flag_template: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FlagTemplateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffTemplateOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    landr_staff_unflag_template: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    landr_staff_patch_template: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PatchTemplateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffTemplateOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    landr_staff_bump_template_version: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffTemplateOut"];
                 };
             };
             /** @description Validation Error */
@@ -28788,6 +29474,26 @@ export interface operations {
             };
         };
     };
+    public_get_environment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvironmentOut"];
+                };
+            };
+        };
+    };
     health: {
         parameters: {
             query?: never;
@@ -29141,6 +29847,43 @@ export interface operations {
             };
         };
     };
+    public_pass_member_proof: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MemberProofIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_operator_product_groups: {
         parameters: {
             query?: never;
@@ -29263,6 +30006,43 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProductFlowResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_get_pass_tiers: {
+        parameters: {
+            query?: {
+                email?: string | null;
+                member_proof?: string | null;
+            };
+            header?: never;
+            path: {
+                token: string;
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */
@@ -29765,6 +30545,57 @@ export interface operations {
                 };
                 content: {
                     "text/html": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_list_templates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TemplateOut"][];
+                };
+            };
+        };
+    };
+    public_get_template: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TemplateOut"];
                 };
             };
             /** @description Validation Error */
@@ -31168,6 +31999,41 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_apply_operator_template: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApplyTemplateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplyTemplateOut"];
                 };
             };
             /** @description Validation Error */
@@ -37077,6 +37943,113 @@ export interface operations {
             };
         };
     };
+    staff_delete_pass_tier: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                tier_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_patch_pass_tier: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                tier_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PassTierPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_list_pass_checkins: {
+        parameters: {
+            query: {
+                day_date: string;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_pause: {
         parameters: {
             query?: never;
@@ -39070,6 +40043,78 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_list_pass_tiers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    }[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_create_pass_tier: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PassTierIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };

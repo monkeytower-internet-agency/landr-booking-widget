@@ -96,6 +96,21 @@ export interface RemoteFlow {
 }
 
 /**
+ * Can the widget take a booking for this kind? A `service` (an activity) and
+ * a `stay` (an accommodation sold on its own, booked per night) run the
+ * booking funnel; every shop kind gets the coming-soon stub, a subscription
+ * its own membership checkout.
+ */
+export function isBookableKind(kind: ProductKind): boolean {
+  return kind === 'service' || kind === 'stay'
+}
+
+/** A standalone stay (booked by check-in / check-out range). */
+export function isStayKind(kind: ProductKind): boolean {
+  return kind === 'stay'
+}
+
+/**
  * Does this product offer hotel accommodation? Mirrors the gate used
  * everywhere in the step machine today: a SERVICE product whose
  * `hotel_offering` is not 'none'. Pure + reused so the gate lives in one place.
@@ -238,7 +253,8 @@ export function buildFlowPlan(
   // auto-selected, so the picker step is dropped from the realised plan while
   // needs_pickup itself stays as the API sent it (product facts keep showing
   // pickup).
-  return product.auto_pickup_location_id
+  // A stay never has a pickup step: the guest travels to the accommodation.
+  return product.auto_pickup_location_id || isStayKind(product.product_kind)
     ? plan.filter((m) => m.kind !== 'pickup')
     : plan
 }

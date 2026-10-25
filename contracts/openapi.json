@@ -446,6 +446,101 @@
         "title": "ApplyPresetRequest",
         "type": "object"
       },
+      "ApplyTemplateOut": {
+        "properties": {
+          "counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Counts",
+            "type": "object"
+          },
+          "flow": {
+            "enum": [
+              "solo",
+              "company"
+            ],
+            "title": "Flow",
+            "type": "string"
+          },
+          "images_skipped": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Images Skipped",
+            "type": "array"
+          },
+          "onboarding_preset_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Onboarding Preset Key"
+          },
+          "status": {
+            "enum": [
+              "applied",
+              "already_applied"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "template_slug": {
+            "title": "Template Slug",
+            "type": "string"
+          },
+          "template_version": {
+            "title": "Template Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "status",
+          "template_slug",
+          "template_version",
+          "flow",
+          "onboarding_preset_key",
+          "counts",
+          "images_skipped"
+        ],
+        "title": "ApplyTemplateOut",
+        "type": "object"
+      },
+      "ApplyTemplateRequest": {
+        "properties": {
+          "product_family": {
+            "anyOf": [
+              {
+                "enum": [
+                  "activity",
+                  "course"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Family"
+          },
+          "slug": {
+            "maxLength": 26,
+            "minLength": 2,
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug"
+        ],
+        "title": "ApplyTemplateRequest",
+        "type": "object"
+      },
       "ApprovalMailRequest": {
         "properties": {
           "dry_run": {
@@ -5505,7 +5600,7 @@
         "type": "object"
       },
       "CreateOperatorRequest": {
-        "description": "POST /api/staff/operators body.\n\n`name` is the new operator's display name. `slug` is the desired public\nhandle \u2014 same grammar as public signup (`app/services/operator_slugs.py`).\n`preset_key` (optional) is stored on the new operator only \u2014 mirrors\n`SignupRequest.preset_key` (landr-k9pji.2); the onboarding wizard applies\nit, nothing is applied here.",
+        "description": "POST /api/staff/operators body.\n\n`name` is the new operator's display name. `slug` is the desired public\nhandle \u2014 same grammar as public signup (`app/services/operator_slugs.py`).\n`preset_key` (optional) is stored on the new operator only \u2014 mirrors\n`SignupRequest.preset_key` (landr-k9pji.2; a flow key or a live template\nslug, landr-m6tp4.1); the onboarding wizard applies it, nothing is\napplied here.",
         "properties": {
           "name": {
             "maxLength": 200,
@@ -5713,13 +5808,14 @@
             ],
             "title": "Amount"
           },
-          "line": {
-            "title": "Line",
-            "type": "integer"
+          "line_id": {
+            "format": "uuid",
+            "title": "Line Id",
+            "type": "string"
           }
         },
         "required": [
-          "line",
+          "line_id",
           "amount"
         ],
         "title": "CreditLineIn",
@@ -8653,6 +8749,19 @@
         "title": "EmailTemplatePatch",
         "type": "object"
       },
+      "EnvironmentOut": {
+        "properties": {
+          "environment": {
+            "title": "Environment",
+            "type": "string"
+          }
+        },
+        "required": [
+          "environment"
+        ],
+        "title": "EnvironmentOut",
+        "type": "object"
+      },
       "EstimateAddonLineIn": {
         "properties": {
           "product_id": {
@@ -8752,6 +8861,17 @@
         "additionalProperties": true,
         "description": "One row in the PriceSidebar breakdown (landr-qez0). Mirrors the\nwidget's ``EstimateLineItem`` TypeScript interface (src/api/types.ts)\nand the dashboard's ``SimulateLineItem`` (src/lib/pricing-simulator.ts)\nfield-for-field. ``unit_price``/``line_total`` are decimal strings\n(e.g. \"60.00\"), matching ``_compute_line``'s wire format exactly.",
         "properties": {
+          "cleaning_fee": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cleaning Fee"
+          },
           "label": {
             "title": "Label",
             "type": "string"
@@ -8790,6 +8910,23 @@
               }
             ],
             "title": "Payment Note"
+          },
+          "price_unit": {
+            "anyOf": [
+              {
+                "enum": [
+                  "night",
+                  "stay",
+                  "guest",
+                  "guest_night"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Unit"
           },
           "product_id": {
             "title": "Product Id",
@@ -8966,6 +9103,16 @@
               }
             ],
             "title": "Savings Total"
+          },
+          "stay": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StayEstimate"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "subtotal_before_savings": {
             "anyOf": [
@@ -9314,6 +9461,25 @@
           "moderation_status"
         ],
         "title": "FlagResponse",
+        "type": "object"
+      },
+      "FlagTemplateIn": {
+        "properties": {
+          "operator_id": {
+            "title": "Operator Id",
+            "type": "string"
+          },
+          "slug": {
+            "pattern": "^[a-z][a-z0-9_]{1,25}$",
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "operator_id",
+          "slug"
+        ],
+        "title": "FlagTemplateIn",
         "type": "object"
       },
       "FlowFieldDef": {
@@ -13690,6 +13856,24 @@
         "title": "MeetingPointBlock",
         "type": "object"
       },
+      "MemberProofIn": {
+        "properties": {
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "otp": {
+            "title": "Otp",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "otp"
+        ],
+        "title": "MemberProofIn",
+        "type": "object"
+      },
       "MessagePostIn": {
         "additionalProperties": false,
         "properties": {
@@ -16391,6 +16575,16 @@
             "title": "Slug",
             "type": "string"
           },
+          "stay": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StayConfig"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "thumb_url": {
             "anyOf": [
               {
@@ -17379,6 +17573,211 @@
         "title": "PartnerRequestsOut",
         "type": "object"
       },
+      "PassTierIn": {
+        "properties": {
+          "label": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          },
+          "member_price_cents": {
+            "anyOf": [
+              {
+                "maximum": 10000000.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Member Price Cents"
+          },
+          "price_cents": {
+            "maximum": 10000000.0,
+            "minimum": 0.0,
+            "title": "Price Cents",
+            "type": "integer"
+          },
+          "season_end": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Season End"
+          },
+          "season_start": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Season Start"
+          },
+          "sort": {
+            "default": 0,
+            "title": "Sort",
+            "type": "integer"
+          },
+          "validity_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Validity Days"
+          },
+          "validity_kind": {
+            "enum": [
+              "day",
+              "days",
+              "week",
+              "season"
+            ],
+            "title": "Validity Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "label",
+          "validity_kind",
+          "price_cents"
+        ],
+        "title": "PassTierIn",
+        "type": "object"
+      },
+      "PassTierPatch": {
+        "properties": {
+          "active": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "member_price_cents": {
+            "anyOf": [
+              {
+                "maximum": 10000000.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Member Price Cents"
+          },
+          "price_cents": {
+            "anyOf": [
+              {
+                "maximum": 10000000.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Cents"
+          },
+          "season_end": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Season End"
+          },
+          "season_start": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Season Start"
+          },
+          "sort": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sort"
+          },
+          "validity_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Validity Days"
+          },
+          "validity_kind": {
+            "anyOf": [
+              {
+                "enum": [
+                  "day",
+                  "days",
+                  "week",
+                  "season"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Validity Kind"
+          }
+        },
+        "title": "PassTierPatch",
+        "type": "object"
+      },
       "PatchMoscowIn": {
         "description": "Body for the moscow PATCH endpoint.\n\nmoscow: The MoSCoW category to assign, or null to clear it.\n    Allowed values: 'must' | 'should' | 'could' | 'wont' | null.",
         "properties": {
@@ -17427,6 +17826,34 @@
           "moscow"
         ],
         "title": "PatchMoscowOut",
+        "type": "object"
+      },
+      "PatchTemplateIn": {
+        "properties": {
+          "pitch": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PitchIn"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "slug": {
+            "anyOf": [
+              {
+                "pattern": "^[a-z][a-z0-9_]{1,25}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slug"
+          }
+        },
+        "title": "PatchTemplateIn",
         "type": "object"
       },
       "PauseIn": {
@@ -17833,6 +18260,98 @@
           "created_at"
         ],
         "title": "PhotoResponse",
+        "type": "object"
+      },
+      "PitchCompareIn": {
+        "properties": {
+          "label": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          },
+          "pct": {
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Pct",
+            "type": "number"
+          }
+        },
+        "required": [
+          "label",
+          "pct"
+        ],
+        "title": "PitchCompareIn",
+        "type": "object"
+      },
+      "PitchIn": {
+        "properties": {
+          "de": {
+            "$ref": "#/components/schemas/PitchLocaleIn"
+          },
+          "en": {
+            "$ref": "#/components/schemas/PitchLocaleIn"
+          }
+        },
+        "required": [
+          "en",
+          "de"
+        ],
+        "title": "PitchIn",
+        "type": "object"
+      },
+      "PitchLocaleIn": {
+        "properties": {
+          "audience": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Audience",
+            "type": "string"
+          },
+          "benefits": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 3,
+            "minItems": 3,
+            "title": "Benefits",
+            "type": "array"
+          },
+          "compare": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PitchCompareIn"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "headline": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Headline",
+            "type": "string"
+          },
+          "hero_url": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hero Url"
+          }
+        },
+        "required": [
+          "headline",
+          "benefits",
+          "audience"
+        ],
+        "title": "PitchLocaleIn",
         "type": "object"
       },
       "PlanChangeIn": {
@@ -19909,6 +20428,18 @@
             ],
             "title": "Price Per Unit"
           },
+          "price_unit": {
+            "default": "booking",
+            "enum": [
+              "booking",
+              "night",
+              "stay",
+              "guest",
+              "guest_night"
+            ],
+            "title": "Price Unit",
+            "type": "string"
+          },
           "product_addon_id": {
             "title": "Product Addon Id",
             "type": "string"
@@ -20779,6 +21310,43 @@
             ],
             "title": "Category Id"
           },
+          "check_in_time": {
+            "anyOf": [
+              {
+                "pattern": "^([01]\\d|2[0-3]):([0-5]\\d)(:00)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Check In Time"
+          },
+          "check_out_time": {
+            "anyOf": [
+              {
+                "pattern": "^([01]\\d|2[0-3]):([0-5]\\d)(:00)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Check Out Time"
+          },
+          "cleaning_fee_cents": {
+            "anyOf": [
+              {
+                "maximum": 10000000.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cleaning Fee Cents"
+          },
           "daily_start_times": {
             "anyOf": [
               {
@@ -20951,6 +21519,19 @@
             "title": "Lead Time Minutes",
             "type": "integer"
           },
+          "max_nights": {
+            "anyOf": [
+              {
+                "maximum": 366.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Nights"
+          },
           "max_party_size": {
             "anyOf": [
               {
@@ -20962,6 +21543,19 @@
               }
             ],
             "title": "Max Party Size"
+          },
+          "min_nights": {
+            "anyOf": [
+              {
+                "maximum": 366.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Nights"
           },
           "name": {
             "maxLength": 200,
@@ -21028,6 +21622,24 @@
             ],
             "title": "Payment Note Localized"
           },
+          "price_unit": {
+            "anyOf": [
+              {
+                "enum": [
+                  "booking",
+                  "night",
+                  "stay",
+                  "guest",
+                  "guest_night"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Unit"
+          },
           "product_group_id": {
             "anyOf": [
               {
@@ -21048,7 +21660,9 @@
                   "hotel_room",
                   "digital_good",
                   "physical_good",
-                  "gift_card"
+                  "gift_card",
+                  "stay",
+                  "pass"
                 ],
                 "type": "string"
               },
@@ -21178,6 +21792,18 @@
               }
             ],
             "title": "Fixed Date Window Id"
+          },
+          "pass_tier_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pass Tier Id"
           },
           "product_availability_id": {
             "anyOf": [
@@ -21349,6 +21975,43 @@
               }
             ],
             "title": "Category Id"
+          },
+          "check_in_time": {
+            "anyOf": [
+              {
+                "pattern": "^([01]\\d|2[0-3]):([0-5]\\d)(:00)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Check In Time"
+          },
+          "check_out_time": {
+            "anyOf": [
+              {
+                "pattern": "^([01]\\d|2[0-3]):([0-5]\\d)(:00)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Check Out Time"
+          },
+          "cleaning_fee_cents": {
+            "anyOf": [
+              {
+                "maximum": 10000000.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cleaning Fee Cents"
           },
           "daily_start_times": {
             "anyOf": [
@@ -21552,6 +22215,19 @@
             ],
             "title": "Lead Time Minutes"
           },
+          "max_nights": {
+            "anyOf": [
+              {
+                "maximum": 366.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Nights"
+          },
           "max_party_size": {
             "anyOf": [
               {
@@ -21563,6 +22239,19 @@
               }
             ],
             "title": "Max Party Size"
+          },
+          "min_nights": {
+            "anyOf": [
+              {
+                "maximum": 366.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Nights"
           },
           "name": {
             "anyOf": [
@@ -21654,6 +22343,24 @@
             ],
             "title": "Payment Note Localized"
           },
+          "price_unit": {
+            "anyOf": [
+              {
+                "enum": [
+                  "booking",
+                  "night",
+                  "stay",
+                  "guest",
+                  "guest_night"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Unit"
+          },
           "product_group_id": {
             "anyOf": [
               {
@@ -21674,7 +22381,9 @@
                   "hotel_room",
                   "digital_good",
                   "physical_good",
-                  "gift_card"
+                  "gift_card",
+                  "stay",
+                  "pass"
                 ],
                 "type": "string"
               },
@@ -22998,6 +23707,17 @@
             },
             "title": "Participants",
             "type": "array"
+          },
+          "pass_member_proof": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pass Member Proof"
           },
           "preview_token": {
             "anyOf": [
@@ -28318,7 +29038,7 @@
         "type": "object"
       },
       "SignupRequest": {
-        "description": "POST /api/public/signup body.\n\n`name` is the operator/business display name (-> operators.name). `slug` is\nthe desired public handle. `turnstile_token` is the Cloudflare widget's\nclient response token. `password` is the new account password (GoTrue\nenforces its own minimum; we keep a soft floor here). `locale` selects the\nverification-email language (any `public.ui_locales` code or\nbrowser tag such as `es-ES`; bundled en/de/es/tr, else en; defaults en).\n\nBoth field names and their marketing-site aliases are accepted (back-compat):\n  name / operator_name, slug / operator_slug  (landr-oqrz.1)\n\n`preset_key` (optional, landr-k9pji.2) pre-selects the onboarding preset,\ne.g. `solo_pilot` from the website's solo landing CTA. Must be one of\n`app/services/presets.py` PRESET_KEYS, else 422 `unknown_preset_key`.\nBlank = not sent. Stored on the operator only; the wizard applies it.",
+        "description": "POST /api/public/signup body.\n\n`name` is the operator/business display name (-> operators.name). `slug` is\nthe desired public handle. `turnstile_token` is the Cloudflare widget's\nclient response token. `password` is the new account password (GoTrue\nenforces its own minimum; we keep a soft floor here). `locale` selects the\nverification-email language (any `public.ui_locales` code or\nbrowser tag such as `es-ES`; bundled en/de/es/tr, else en; defaults en).\n\nBoth field names and their marketing-site aliases are accepted (back-compat):\n  name / operator_name, slug / operator_slug  (landr-oqrz.1)\n\n`preset_key` (optional, landr-k9pji.2) pre-selects the onboarding path,\ne.g. `solo_pilot` from the website's solo landing CTA. One of\n`app/services/onboarding_flow.py` FLOW_KEYS or a live operator-template\nslug (landr-m6tp4.1; stored as that template's preset key), else 422\n`unknown_preset_key`. Blank = not sent. Stored on the operator only; the\nwizard applies the template.",
         "properties": {
           "email": {
             "maxLength": 320,
@@ -29196,6 +29916,87 @@
         "title": "StaffSubmitBookingIn",
         "type": "object"
       },
+      "StaffTemplateOut": {
+        "properties": {
+          "flow": {
+            "enum": [
+              "solo",
+              "company"
+            ],
+            "title": "Flow",
+            "type": "string"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "onboarding_preset_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Onboarding Preset Key"
+          },
+          "operator_id": {
+            "title": "Operator Id",
+            "type": "string"
+          },
+          "pitch": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/TemplatePitchLocale"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pitch"
+          },
+          "product_count": {
+            "title": "Product Count",
+            "type": "integer"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "uses_pools": {
+            "title": "Uses Pools",
+            "type": "boolean"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "slug",
+          "version",
+          "flow",
+          "onboarding_preset_key",
+          "product_count",
+          "uses_pools",
+          "pitch",
+          "operator_id",
+          "name"
+        ],
+        "title": "StaffTemplateOut",
+        "type": "object"
+      },
       "StaffUnitReleaseIn": {
         "description": "The operator's answer to the approve-time release question.\n\nlandr-c6cpm.3. Sent ONLY when the approval would land on a unit that is\nnot released \u2014 which is a small minority of approvals, so the whole object\nis absent from a normal approve body rather than present-and-empty.\n\n``pool_id`` / ``date`` / ``unit_id`` are echoed back by the dashboard from\nthe gate it was shown, so the API never has to re-derive WHICH gate the\noperator answered and can refuse a stale answer (they sat on the dialog\nwhile a sibling approval moved the calendar) instead of applying it to a\ndifferent unit.",
         "properties": {
@@ -29761,6 +30562,140 @@
           "id"
         ],
         "title": "StatusOut",
+        "type": "object"
+      },
+      "StayConfig": {
+        "description": "landr-m6tp4.2: the booking rules of a ``product_kind='stay'`` product,\nfor the widget's range picker and price breakdown. The nightly price is\nthe catalogue's ``price_from`` / ``price_base`` (a per-night rate).",
+        "properties": {
+          "check_in_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Check In Time"
+          },
+          "check_out_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Check Out Time"
+          },
+          "cleaning_fee_cents": {
+            "default": 0,
+            "title": "Cleaning Fee Cents",
+            "type": "integer"
+          },
+          "max_nights": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Nights"
+          },
+          "min_nights": {
+            "default": 1,
+            "title": "Min Nights",
+            "type": "integer"
+          },
+          "sleeps": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sleeps"
+          }
+        },
+        "title": "StayConfig",
+        "type": "object"
+      },
+      "StayEstimate": {
+        "description": "landr-m6tp4.2: the stay half of an estimate for a stay product.",
+        "properties": {
+          "check_in": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Check In"
+          },
+          "check_out": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Check Out"
+          },
+          "cleaning_fee": {
+            "title": "Cleaning Fee",
+            "type": "string"
+          },
+          "errors": {
+            "items": {
+              "$ref": "#/components/schemas/StayEstimateError"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "nights": {
+            "title": "Nights",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "nights",
+          "cleaning_fee"
+        ],
+        "title": "StayEstimate",
+        "type": "object"
+      },
+      "StayEstimateError": {
+        "description": "One broken stay rule (app/services/stay_pricing.VIOLATION_CODES).",
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "title": "StayEstimateError",
         "type": "object"
       },
       "SubmitBookingResponse": {
@@ -30742,6 +31677,145 @@
           "enabled"
         ],
         "title": "TemplateCatalogueEntryOut",
+        "type": "object"
+      },
+      "TemplateCompare": {
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "pct": {
+            "title": "Pct",
+            "type": "number"
+          }
+        },
+        "required": [
+          "label",
+          "pct"
+        ],
+        "title": "TemplateCompare",
+        "type": "object"
+      },
+      "TemplateOut": {
+        "properties": {
+          "flow": {
+            "enum": [
+              "solo",
+              "company"
+            ],
+            "title": "Flow",
+            "type": "string"
+          },
+          "onboarding_preset_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Onboarding Preset Key"
+          },
+          "pitch": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/TemplatePitchLocale"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pitch"
+          },
+          "product_count": {
+            "title": "Product Count",
+            "type": "integer"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "uses_pools": {
+            "title": "Uses Pools",
+            "type": "boolean"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "slug",
+          "version",
+          "flow",
+          "onboarding_preset_key",
+          "product_count",
+          "uses_pools",
+          "pitch"
+        ],
+        "title": "TemplateOut",
+        "type": "object"
+      },
+      "TemplatePitchLocale": {
+        "properties": {
+          "audience": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Audience"
+          },
+          "benefits": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Benefits",
+            "type": "array"
+          },
+          "compare": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TemplateCompare"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "headline": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Headline"
+          },
+          "hero_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hero Url"
+          }
+        },
+        "title": "TemplatePitchLocale",
         "type": "object"
       },
       "TermPair": {
@@ -35299,6 +36373,68 @@
               ],
               "title": "Operator Id"
             }
+          },
+          {
+            "description": "issue month, YYYY-MM",
+            "in": "query",
+            "name": "period",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "issue month, YYYY-MM",
+              "title": "Period"
+            }
+          },
+          {
+            "description": "payment status (invoices only)",
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "open",
+                    "exported",
+                    "paid",
+                    "returned"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "payment status (invoices only)",
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "kind",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "invoice",
+                    "credit_note"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Kind"
+            }
           }
         ],
         "responses": {
@@ -38114,6 +39250,222 @@
         "summary": "Set Site Warning Publisher",
         "tags": [
           "landr-staff-site-warnings"
+        ]
+      }
+    },
+    "/api/landr-staff/templates": {
+      "get": {
+        "operationId": "landr_staff_list_templates",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/StaffTemplateOut"
+                  },
+                  "title": "Response Landr Staff List Templates",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Landr Staff List Templates",
+        "tags": [
+          "landr-staff-templates"
+        ]
+      },
+      "post": {
+        "operationId": "landr_staff_flag_template",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FlagTemplateIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaffTemplateOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Landr Staff Flag Template",
+        "tags": [
+          "landr-staff-templates"
+        ]
+      }
+    },
+    "/api/landr-staff/templates/{slug}": {
+      "delete": {
+        "operationId": "landr_staff_unflag_template",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "title": "Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Landr Staff Unflag Template",
+        "tags": [
+          "landr-staff-templates"
+        ]
+      },
+      "patch": {
+        "operationId": "landr_staff_patch_template",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "title": "Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchTemplateIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaffTemplateOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Landr Staff Patch Template",
+        "tags": [
+          "landr-staff-templates"
+        ]
+      }
+    },
+    "/api/landr-staff/templates/{slug}/bump-version": {
+      "post": {
+        "operationId": "landr_staff_bump_template_version",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "title": "Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaffTemplateOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Landr Staff Bump Template Version",
+        "tags": [
+          "landr-staff-templates"
         ]
       }
     },
@@ -40974,6 +42326,28 @@
         ]
       }
     },
+    "/api/public/environment": {
+      "get": {
+        "description": "landr-m6tp4.1 \u2014 which tier this API serves ('development' / 'staging'\n/ 'production'). The dashboard reads it once to decide whether staging-\nonly tools (the template editor) are shown. Cheap: no DB, no network.",
+        "operationId": "public_get_environment",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvironmentOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Public Get Environment",
+        "tags": [
+          "status"
+        ]
+      }
+    },
     "/api/public/health": {
       "get": {
         "operationId": "health",
@@ -41479,6 +42853,61 @@
         ]
       }
     },
+    "/api/public/operators/{token}/passes/member-proof": {
+      "post": {
+        "description": "Exchange the emailed member OTP for a stateless proof (15 minutes).\n\nSame budget as the booking-time perk lookup (per widget token + IP), and\nthe OTP itself is single-use and attempt-limited. Every failure is the same\n403 body: no oracle for who is a member.",
+        "operationId": "public_pass_member_proof",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MemberProofIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Public Pass Member Proof",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Post Member Proof",
+        "tags": [
+          "public-passes"
+        ]
+      }
+    },
     "/api/public/operators/{token}/product-groups": {
       "get": {
         "description": "Operator's product_groups for the widget's category-first entrance\n(epic landr-d8rg, contract item [E]).\n\nReturns every ACTIVE, non-deleted group: id, slug, name, name_localized,\ndescription, description_localized, image_url, sort_order, parent_id,\n`product_count`, and `bookable_count` (landr-872c). `product_count` = the\nnumber of currently-listable products in the group's descendant subtree\n(the recursive parent_id walk lives in the RPC). `bookable_count` = the\nsubset of those that are currently bookable \u2014 same subtree, same\n_product_is_bookable() predicate the `bookable` flag on GET .../products\nalready uses \u2014 always <= product_count. EMPTY groups (product_count=0)\nare RETURNED \u2014 hiding them is the widget's job, so deep links into a\nnow-empty category still resolve. Ordered by (sort_order, name). 404 only\non an unknown widget_token.",
@@ -41720,6 +43149,93 @@
         "summary": "Get Product Flow",
         "tags": [
           "public-operators"
+        ]
+      }
+    },
+    "/api/public/operators/{token}/products/{product_id}/pass-tiers": {
+      "get": {
+        "operationId": "public_get_pass_tiers",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "title": "Product Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "email",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 320,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Email"
+            }
+          },
+          {
+            "in": "query",
+            "name": "member_proof",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 256,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Member Proof"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Public Get Pass Tiers",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Pass Tiers",
+        "tags": [
+          "public-passes"
         ]
       }
     },
@@ -42253,7 +43769,7 @@
     },
     "/api/public/signup": {
       "post": {
-        "description": "Self-onboarding signup pipeline (see module docstring for the full flow).\n\nSuccess: 201 {\"status\": \"verification_email_sent\", \"verification_required\":\ntrue} \u2014 IDENTICAL on both fresh signup AND duplicate email (M1). The\ncreated operator is FREE tier; NO session is returned \u2014 the user must click\nthe verification link we emailed before they can sign in.\noperator_id is intentionally omitted here; callers must fetch it AFTER the\nuser verifies their email (avoids email-enumeration oracle).\n\nError contract:\n  * 422 unknown_preset_key \u2014 preset_key is not in PRESET_KEYS (checked\n                      first, before Turnstile, so no token is burnt).\n  * 403 captcha_*   \u2014 Turnstile failed / unavailable.\n  * 429             \u2014 per-IP or global rate limit exceeded.\n  * 503             \u2014 rate-limiter infra error (fail CLOSED).\n  * 422 invalid_slug \u2014 slug fails the grammar/reserved rules (+suggestions).\n  * 409 slug_taken   \u2014 slug collision (+3 suggested alternates).\n  * 500             \u2014 GoTrue create failed, OR the RPC failed AFTER the auth\n                      user was created (the auth user is then COMPENSATINGLY\n                      deleted before responding), OR the verification email\n                      could not even be ENQUEUED (also compensated). NOTE:\n                      the response 201s as soon as the email is queued \u2014\n                      it no longer waits for the actual Resend/SES send\n                      (landr-csot; see module docstring).\n\nNOTE (M1): an already-registered EMAIL does NOT yield a distinct error \u2014 it\nreturns the same generic \"verification_email_sent\" body as a new signup, so\nthe endpoint can't be used to enumerate which emails have accounts.",
+        "description": "Self-onboarding signup pipeline (see module docstring for the full flow).\n\nSuccess: 201 {\"status\": \"verification_email_sent\", \"verification_required\":\ntrue} \u2014 IDENTICAL on both fresh signup AND duplicate email (M1). The\ncreated operator is FREE tier; NO session is returned \u2014 the user must click\nthe verification link we emailed before they can sign in.\noperator_id is intentionally omitted here; callers must fetch it AFTER the\nuser verifies their email (avoids email-enumeration oracle).\n\nError contract:\n  * 422 unknown_preset_key \u2014 preset_key is neither a flow key nor a live\n                      template slug (checked first, before Turnstile, so\n                      no token is burnt).\n  * 403 captcha_*   \u2014 Turnstile failed / unavailable.\n  * 429             \u2014 per-IP or global rate limit exceeded.\n  * 503             \u2014 rate-limiter infra error (fail CLOSED).\n  * 422 invalid_slug \u2014 slug fails the grammar/reserved rules (+suggestions).\n  * 409 slug_taken   \u2014 slug collision (+3 suggested alternates).\n  * 500             \u2014 GoTrue create failed, OR the RPC failed AFTER the auth\n                      user was created (the auth user is then COMPENSATINGLY\n                      deleted before responding), OR the verification email\n                      could not even be ENQUEUED (also compensated). NOTE:\n                      the response 201s as soon as the email is queued \u2014\n                      it no longer waits for the actual Resend/SES send\n                      (landr-csot; see module docstring).\n\nNOTE (M1): an already-registered EMAIL does NOT yield a distinct error \u2014 it\nreturns the same generic \"verification_email_sent\" body as a new signup, so\nthe endpoint can't be used to enumerate which emails have accounts.",
         "operationId": "signup",
         "requestBody": {
           "content": {
@@ -42509,6 +44025,73 @@
         "summary": "Run Send",
         "tags": [
           "public-system-update-notice"
+        ]
+      }
+    },
+    "/api/public/templates": {
+      "get": {
+        "operationId": "public_list_templates",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TemplateOut"
+                  },
+                  "title": "Response Public List Templates",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Public List Templates",
+        "tags": [
+          "public-templates"
+        ]
+      }
+    },
+    "/api/public/templates/{slug}": {
+      "get": {
+        "operationId": "public_get_template",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "title": "Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TemplateOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Public Get Template",
+        "tags": [
+          "public-templates"
         ]
       }
     },
@@ -44747,6 +46330,7 @@
     },
     "/api/staff/operators/{operator_id}/apply-preset": {
       "post": {
+        "deprecated": true,
         "operationId": "apply_preset_endpoint",
         "parameters": [
           {
@@ -44801,6 +46385,63 @@
         "summary": "Apply Preset Endpoint",
         "tags": [
           "staff-operator-presets"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/apply-template": {
+      "post": {
+        "operationId": "staff_apply_operator_template",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApplyTemplateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplyTemplateOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Staff Apply Operator Template",
+        "tags": [
+          "staff-operator-templates"
         ]
       }
     },
@@ -49585,7 +51226,7 @@
     },
     "/api/staff/operators/{operator_id}/checkins/scan": {
       "post": {
-        "description": "landr-5aih0.10 (c10): a guide scans a participant's QR ticket.\n\nVerifies the ticket token (app.services.ticket_tokens \u2014 a SEPARATE\ntoken family from booking_tokens, see that module's docstring), then\nwrites the participant PRESENT for the operator-local today via the\nSAME atomic RPC the /today board's own status tap uses\n(staff_put_participant_day_state \u2014 app.routers.staff_participant_day_state,\nexactly like public_briefings_checkin._apply_day_state_side_write does\nfor the customer's own self-report path). ``p_set_by`` is this staff\nuser (unlike the customer path, which passes NULL) \u2014 a scan is a staff\naction, has a real ``users.id``, and should show up as such on the\nday-state row's provenance.\n\nEvery failure mode here is an opaque 404 EXCEPT the \"not a trip day\"\ncase, which is a 409 the scanning UI can render distinctly (\"wrong\nday\" vs \"this isn't a ticket\") \u2014 same shape distinction the CONTRACT\ncalls out. A bad/expired/tampered token and a ticket whose participant\nor booking no longer belongs to THIS operator collapse to the same\nopaque 404 \u2014 a stranger scanning garbage, or another operator's ticket,\nlearns nothing about why it failed.",
+        "description": "landr-5aih0.10 (c10): a guide scans a participant's QR ticket.\n\nVerifies the ticket token (app.services.ticket_tokens \u2014 a SEPARATE\ntoken family from booking_tokens, see that module's docstring), then\nwrites the participant PRESENT for the operator-local today via the\nSAME atomic RPC the /today board's own status tap uses\n(staff_put_participant_day_state \u2014 app.routers.staff_participant_day_state,\nexactly like public_briefings_checkin._apply_day_state_side_write does\nfor the customer's own self-report path). ``p_set_by`` is this staff\nuser (unlike the customer path, which passes NULL) \u2014 a scan is a staff\naction, has a real ``users.id``, and should show up as such on the\nday-state row's provenance.\n\nlandr-m6tp4.4: a PASS ticket (a booking line with a validity window) is\naccepted on every day inside ``[valid_from, valid_until]`` -- operator-local\n-- and records one presence row per day through the same RPC, so repeated\nscans on a day stay idempotent. Outside the window the 409 carries\n``{\"error\": \"pass_not_valid_today\", valid_from, valid_until}``.\n\nEvery failure mode here is an opaque 404 EXCEPT the \"not a trip day\"\ncase, which is a 409 the scanning UI can render distinctly (\"wrong\nday\" vs \"this isn't a ticket\") \u2014 same shape distinction the CONTRACT\ncalls out. A bad/expired/tampered token and a ticket whose participant\nor booking no longer belongs to THIS operator collapse to the same\nopaque 404 \u2014 a stranger scanning garbage, or another operator's ticket,\nlearns nothing about why it failed.",
         "operationId": "staff_scan_ticket_checkin",
         "parameters": [
           {
@@ -55583,6 +57224,191 @@
         ]
       }
     },
+    "/api/staff/operators/{operator_id}/pass-tiers/{tier_id}": {
+      "delete": {
+        "description": "Delete an unsold tier; archive (``active=false``) one that has bookings.",
+        "operationId": "staff_delete_pass_tier",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "tier_id",
+            "required": true,
+            "schema": {
+              "title": "Tier Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Staff Delete Pass Tier",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Delete Pass Tier",
+        "tags": [
+          "staff-pass-tiers"
+        ]
+      },
+      "patch": {
+        "operationId": "staff_patch_pass_tier",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "tier_id",
+            "required": true,
+            "schema": {
+              "title": "Tier Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PassTierPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Staff Patch Pass Tier",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Patch Pass Tier",
+        "tags": [
+          "staff-pass-tiers"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/passes/checkins": {
+      "get": {
+        "description": "Pass holders whose ticket was scanned on ``day_date`` (the today board).\n\nA holder is a participant with a PRESENT day-state row for the day on a\nbooking that carries a pass line whose window covers the day.",
+        "operationId": "staff_list_pass_checkins",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "day_date",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "Day Date",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Staff List Pass Checkins",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Pass Checkins",
+        "tags": [
+          "staff-pass-tiers"
+        ]
+      }
+    },
     "/api/staff/operators/{operator_id}/pause": {
       "get": {
         "operationId": "get_pause",
@@ -56137,7 +57963,7 @@
     },
     "/api/staff/operators/{operator_id}/presets": {
       "get": {
-        "description": "Every preset ``POST /apply-preset`` accepts, in the order the wizard\nshows them (solo pilot first, blank last). Static registry data; the\noperator's current choice is ``onboarding_preset_key`` on\n``GET /api/staff/operators/{operator_id}``.",
+        "deprecated": true,
         "operationId": "list_presets_endpoint",
         "parameters": [
           {
@@ -59078,6 +60904,133 @@
         "summary": "Patch Window",
         "tags": [
           "staff-fixed-date-windows"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/products/{product_id}/pass-tiers": {
+      "get": {
+        "operationId": "staff_list_pass_tiers",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "title": "Product Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "title": "Response Staff List Pass Tiers",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Pass Tiers",
+        "tags": [
+          "staff-pass-tiers"
+        ]
+      },
+      "post": {
+        "operationId": "staff_create_pass_tier",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "title": "Product Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PassTierIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Staff Create Pass Tier",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Pass Tier",
+        "tags": [
+          "staff-pass-tiers"
         ]
       }
     },

@@ -62,6 +62,7 @@ import { FixedDateWindowPicker } from '@/components/booking/FixedDateWindowPicke
 import { expandWindowDays } from '@/components/booking/expandWindowDays'
 import { MembershipCheckoutStep } from '@/components/booking/MembershipCheckoutStep'
 import { MembershipReturnPage } from '@/components/booking/MembershipReturnPage'
+import { PassCheckoutStep } from '@/components/booking/PassCheckoutStep'
 import { MultiDayStep } from '@/components/booking/MultiDayStep'
 import { PickupLocationPicker } from '@/components/booking/PickupLocationPicker'
 import PriceSidebar, { type CalculatedTotal } from '@/components/booking/PriceSidebar'
@@ -76,6 +77,8 @@ import {
 } from '@/lib/strings'
 import { FullyBookedNotice } from '@/components/booking/FullyBookedNotice'
 import { ShopComingSoonStub } from '@/components/booking/ShopComingSoonStub'
+import { StayRangePicker } from '@/components/booking/StayRangePicker'
+import { stayGuestLanguages, withStayPartyCap } from '@/components/booking/stayFlow'
 import { SingleDatePicker } from '@/components/booking/SingleDatePicker'
 import {
   getContactPagePrefill,
@@ -126,7 +129,7 @@ import {
   type AlternativeCarry,
 } from './appStepMachine'
 import type { AlternativeSelection } from '@/components/booking/AlternativesPanel'
-import type { RemoteFlow } from './flowPlan'
+import { isBookableKind, isStayKind, type RemoteFlow } from './flowPlan'
 import { BreadcrumbNavContext } from '@/components/booking/breadcrumbNav'
 import {
   clearStoredProgress,
@@ -1023,9 +1026,13 @@ function BookingFlowApp() {
   // product would dead-end on a 422 with nothing the customer could do.
   const offeredLanguagesForProduct = useCallback(
     (product: Product) =>
-      productAcceptsAnyLanguage(product.guide_languages)
-        ? []
-        : normaliseOfferedLanguages(product.guide_languages),
+      // A stay has no guide: its guests get the customer's own language,
+      // auto-filled at the review seam (one offered language skips the step).
+      isStayKind(product.product_kind)
+        ? stayGuestLanguages()
+        : productAcceptsAnyLanguage(product.guide_languages)
+          ? []
+          : normaliseOfferedLanguages(product.guide_languages),
     [],
   )
   // landr-h0opd.3: the language step only runs when there is a real choice —
@@ -1560,7 +1567,9 @@ function BookingFlowApp() {
       })
       return
     }
-    if (product.product_kind === 'service') {
+    // A stay walks the same add-ons probe as a service (breakfast, transfers,
+    // late check-out), priced per its own unit.
+    if (isBookableKind(product.product_kind)) {
       void (async () => {
         let hasAddons: boolean
         try {
@@ -1862,10 +1871,11 @@ function BookingFlowApp() {
       expandedCatalogLoaded,
       selectionNeedsData:
         step.name === 'pick-selection' &&
-        step.product.product_kind === 'service' &&
-        ['time_slot', 'fixed_window', 'days_range', 'single_date'].includes(
-          step.product.service_time_shape ?? '',
-        ),
+        ((step.product.product_kind === 'service' &&
+          ['time_slot', 'fixed_window', 'days_range', 'single_date'].includes(
+            step.product.service_time_shape ?? '',
+          )) ||
+          isStayKind(step.product.product_kind)),
       selectionLoaded,
     })
   useEffect(() => {
@@ -2428,8 +2438,9 @@ function BookingFlowApp() {
           and consecutive-only modes.
         */}
         {step.name === 'pick-selection' &&
-        step.product.product_kind !== 'service' &&
-        step.product.product_kind !== 'subscription' ? (
+        !isBookableKind(step.product.product_kind) &&
+        step.product.product_kind !== 'subscription' &&
+        step.product.product_kind !== 'pass' ? (
           <ShopComingSoonStub product={step.product} onBack={datePickerBack} />
         ) : null}
 
@@ -2441,6 +2452,33 @@ function BookingFlowApp() {
             product={step.product}
             onBack={datePickerBack}
             widgetToken={token!}
+          />
+        ) : null}
+
+        {/* pass checkout (validity tiers, start date, member
+            price) for product_kind='pass'. Books through the normal submit and
+            lands on the same confirmation screen, with the QR tickets. */}
+        {step.name === 'pick-selection' && step.product.product_kind === 'pass' ? (
+          <PassCheckoutStep
+            // A product switch must remount, not reuse the old tier state.
+            key={step.product.product_id}
+            product={step.product}
+            widgetToken={token!}
+            serviceRoles={serviceRoles}
+            operatorTimezone={operatorSettings.timezone}
+            operatorCountry={operatorSettings.country ?? null}
+            previewToken={previewToken ?? undefined}
+            onBack={datePickerBack}
+            onConfirmed={(response, email) => {
+              clearStoredProgress()
+              setStep({
+                name: 'confirmed',
+                response,
+                email,
+                isSharedDouble: false,
+                shareReferenceEnabled: false,
+              })
+            }}
           />
         ) : null}
 
@@ -2635,9 +2673,27 @@ function BookingFlowApp() {
           />
         ) : null}
 
+        {step.name === 'pick-selection' && isStayKind(step.product.product_kind) ? (
+          <StayRangePicker
+            // A product switch must remount, not reuse the old picker's state.
+            key={step.product.product_id}
+            product={step.product}
+            operatorTimezone={operatorSettings.timezone}
+            onLoaded={onSelectionLoaded}
+            onBack={datePickerBack}
+            initialSelectedDays={
+              step.selection?.kind === 'days' ? step.selection.selectedDays : undefined
+            }
+            onLiveDaysChange={setLiveSelectionDays}
+            onConfirm={(nights) =>
+              afterSelection(step.product, { kind: 'days', selectedDays: nights })
+            }
+          />
+        ) : null}
+
         {step.name === 'details' ? (
           <DetailsStep
-            product={step.product}
+            product={withStayPartyCap(step.product)}
             selection={step.selection}
             serviceRoles={serviceRoles}
             // landr-4uyu: operator contact email for the participant-max

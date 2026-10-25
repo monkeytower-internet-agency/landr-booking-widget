@@ -21,7 +21,22 @@ import type { FormResponseEntry } from '@/api/flowTypes'
  * Supabase directly) instead of hand-declared, so drift between the DB enum
  * and this wire type is caught by tsc.
  */
-export type ProductKind = Enums<'product_kind'>
+export type ProductKind = Enums<'product_kind'> | 'stay'
+
+/**
+ * A standalone stay's booking rules (`Product.stay`, present only when
+ * product_kind = 'stay'): min / max nights, the one-off cleaning fee in
+ * cents, check-in / check-out ("HH:MM", operator-local) and how many guests
+ * one unit sleeps. The nightly rate is the product's `price_from`.
+ *
+ * `'stay'` is added to ProductKind by hand until database.gen.ts is
+ * regenerated against a schema that carries the new enum value.
+ */
+export type StayConfig = components['schemas']['StayConfig']
+/** The stay half of an estimate (window, nights, cleaning fee, broken rules). */
+export type StayEstimate = components['schemas']['StayEstimate']
+/** What an add-on's price multiplies by. */
+export type AddonPriceUnit = 'booking' | 'night' | 'stay' | 'guest' | 'guest_night'
 
 /**
  * How a service product offers hotel accommodation alongside the booking
@@ -219,6 +234,8 @@ export interface Product {
    * additional-participants UI.
    */
   max_party_size?: number | null
+  /** Standalone stay rules — present only on a product_kind = 'stay' row. */
+  stay?: StayConfig | null
   /**
    * landr-zy2wm.2: WIDGET-DERIVED, not on the wire. Set by listProducts when
    * the operator has exactly one pickup location: the flow plan then drops
@@ -853,6 +870,12 @@ export interface ProductAddon {
   stock_remaining?: number | null
   /** landr-lmudr.19: the operator's word for one unit ("raft") for 'unit_taken'. */
   stock_unit_label?: string | null
+  /**
+   * What the price multiplies by: 'night' × nights (booked days on an
+   * activity), 'guest' × guests, 'guest_night' × both; 'booking' / 'stay'
+   * (and absent, on an older API) = once per item.
+   */
+  price_unit?: AddonPriceUnit | null
 }
 
 export interface AvailabilitySlot {
@@ -1118,6 +1141,55 @@ export interface ProductLine {
    * `product_availability_id`.
    */
   slot_start_time?: string | null
+  /**
+   * the pass tier bought on a product_kind='pass' line. The API
+   * validates it, computes the validity window from selected_days[0] (the start
+   * date; ignored for a season tier) and prices the line from the tier.
+   */
+  pass_tier_id?: string | null
+}
+
+/** how long a pass tier is valid. */
+export type PassValidityKind = 'day' | 'days' | 'week' | 'season'
+
+/** One sellable tier of a pass product (GET .../pass-tiers). */
+export interface PassTier {
+  id: string
+  label: string
+  validity_kind: PassValidityKind
+  validity_days: number | null
+  season_start: string | null
+  season_end: string | null
+  /** Guest price in cents. */
+  price_cents: number
+  /** True when the tier has a cheaper member price. */
+  has_member_price: boolean
+  /** The member amount; only present for a verified member. */
+  member_price_cents: number | null
+  /** What the caller pays per pass: member price for a verified member, else guest. */
+  unit_price_cents: number
+}
+
+export interface PassTiersResponse {
+  product_id: string
+  currency: string
+  is_member: boolean
+  tiers: PassTier[]
+}
+
+export interface PassMemberProofResponse {
+  member_proof: string
+  expires_in: number
+}
+
+/** A pass QR ticket on the submit response (one per guest). */
+export interface PassTicket {
+  participant_id: string
+  first_name: string
+  png_url: string
+  pass_label: string
+  valid_from: string
+  valid_until: string
 }
 
 /**
@@ -1164,6 +1236,12 @@ export interface SubmitBookingBody {
    * signal, and only after this submit resolves.
    */
   member_perk_otp?: string | null
+  /**
+   * stateless proof from POST .../passes/member-proof that the
+   * booker is a member; selects the member price of a pass tier. Absent or
+   * expired falls back to the guest price, never a 4xx.
+   */
+  pass_member_proof?: string | null
   booking_channel?: string
   products: ProductLine[]
   participants: Participant[]
@@ -1385,6 +1463,8 @@ export interface BookingCalendarEvent {
 
 export interface SubmitBookingResponse {
   booking_id: string
+  /** present when the cart held a pass — one QR ticket per guest. */
+  pass_tickets?: PassTicket[]
   /**
    * Booking lifecycle state, e.g. 'pending'. This is the API's
    * `semantic_state` field — the previous `state` name never existed on
@@ -1826,6 +1906,10 @@ export interface EstimateLineItem {
   payee_label?: string | null
   /** landr-hzovu.5: operator override text replacing the standard caveat. */
   payment_note?: string | null
+  /** An add-on's price unit when it is not once per item; `units` is then nights / guests / both. */
+  price_unit?: Exclude<AddonPriceUnit, 'booking'> | null
+  /** A stay line's one-off cleaning fee (decimal string), inside line_total but not unit_price. */
+  cleaning_fee?: string | null
 }
 
 /**
@@ -2007,6 +2091,12 @@ export interface EstimateResponse {
   surcharges?: SurchargeLine[] | null
   surcharges_total?: string | null
   subtotal_before_surcharges?: string | null
+  /**
+   * Present only when the product is a stay: check-in / check-out, nights,
+   * the cleaning fee and every rule the range breaks (`errors`, the same
+   * codes the submit refuses with). Checkout is blocked while errors exist.
+   */
+  stay?: StayEstimate | null
 }
 
 // ─── Hotel room-request reply loop (landr-em0r / landr-em0r.9) ──────────────

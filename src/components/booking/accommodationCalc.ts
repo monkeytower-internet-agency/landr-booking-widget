@@ -1425,3 +1425,181 @@ export function chipHue(memberIndex: number): number {
   const i = ((memberIndex % len) + len) % len
   return CHIP_HUES[i]!
 }
+
+// ─── Standalone stays ─────────────────────────────────────────────────────────
+//
+// A stay (product_kind 'stay') is an accommodation sold on its own: the guest
+// picks check-in / check-out, a guest count and add-ons. These helpers MIRROR
+// the API's pure stay module (app/services/stay_pricing.py) function for
+// function, in integer cents. Both sides run the same fixtures
+// (contracts/stay_pricing_fixtures.json, a byte-identical copy pinned by
+// SHA-256 in stayPricing.contract.test.ts), so the widget's preview and the
+// server's price cannot drift apart.
+
+/** What an add-on's price multiplies by (products.price_unit). */
+export type PriceUnit = 'booking' | 'night' | 'stay' | 'guest' | 'guest_night'
+
+/** Longest stay one booking may take (the API refuses longer ranges). */
+export const MAX_STAY_NIGHTS = 366
+
+/**
+ * The night list of `[checkIn, checkOut)` — check-in inclusive, check-out
+ * EXCLUSIVE. This is what a stay line submits as `selected_days`. Empty when
+ * the range is empty or reversed.
+ */
+export function nightsBetween(checkInIso: string, checkOutIso: string): string[] {
+  const out: string[] = []
+  let cursor = checkInIso
+  while (cursor < checkOutIso && out.length <= MAX_STAY_NIGHTS) {
+    out.push(cursor)
+    cursor = shiftDays(cursor, 1)
+  }
+  return out
+}
+
+/** `[checkIn, checkOut]` of a night list (min, max + 1 day), or null. */
+export function stayWindowOf(nights: readonly string[]): { checkIn: string; checkOut: string } | null {
+  if (nights.length === 0) return null
+  const sorted = [...new Set(nights)].sort()
+  return { checkIn: sorted[0]!, checkOut: shiftDays(sorted[sorted.length - 1]!, 1) }
+}
+
+/**
+ * How many times an add-on's price is charged: night × nights (on an
+ * activity: × booked days), guest × guests, guest_night × both, stay /
+ * booking (and anything unknown) once. Never below 1.
+ */
+export function addonUnits(
+  priceUnit: string | null | undefined,
+  nights: number,
+  guests: number,
+): number {
+  const n = Math.max(Math.trunc(nights || 0), 1)
+  const g = Math.max(Math.trunc(guests || 0), 1)
+  if (priceUnit === 'night') return n
+  if (priceUnit === 'guest') return g
+  if (priceUnit === 'guest_night') return n * g
+  return 1
+}
+
+export interface StayAddonIn {
+  key: string
+  unit_price_cents: number
+  price_unit?: string | null
+  quantity?: number
+}
+
+export interface StayAddonQuote {
+  key: string
+  price_unit: string
+  units: number
+  quantity: number
+  total_cents: number
+}
+
+export interface StayQuote {
+  nights: number
+  lodging_cents: number
+  cleaning_fee_cents: number
+  addons: StayAddonQuote[]
+  total_cents: number
+}
+
+/**
+ * The stay's money in cents: nights × nightly price (one rate, or one rate
+ * per night), the cleaning fee once (only when there is a night), every
+ * add-on × its unit × its quantity.
+ */
+export function quoteStay(input: {
+  nights: number
+  nightly_price_cents: number | readonly number[]
+  cleaning_fee_cents: number
+  guests: number
+  addons?: readonly StayAddonIn[]
+}): StayQuote {
+  const n = Math.max(Math.trunc(input.nights), 0)
+  let lodging: number
+  if (typeof input.nightly_price_cents === 'number') {
+    lodging = n * Math.trunc(input.nightly_price_cents)
+  } else {
+    if (input.nightly_price_cents.length !== n) {
+      throw new Error(`${input.nightly_price_cents.length} nightly rates for ${n} nights`)
+    }
+    lodging = input.nightly_price_cents.reduce((sum, r) => sum + Math.trunc(r), 0)
+  }
+  const fee = n > 0 ? Math.trunc(input.cleaning_fee_cents) : 0
+  const addons = (input.addons ?? []).map((a) => {
+    const units = addonUnits(a.price_unit, n, input.guests)
+    const quantity = Math.max(Math.trunc(a.quantity ?? 1), 0)
+    return {
+      key: a.key,
+      price_unit: a.price_unit || 'booking',
+      units,
+      quantity,
+      total_cents: Math.trunc(a.unit_price_cents) * units * quantity,
+    }
+  })
+  return {
+    nights: n,
+    lodging_cents: lodging,
+    cleaning_fee_cents: fee,
+    addons,
+    total_cents: lodging + fee + addons.reduce((sum, a) => sum + a.total_cents, 0),
+  }
+}
+
+export type StayViolationCode =
+  | 'invalid_range'
+  | 'not_contiguous'
+  | 'check_in_past'
+  | 'below_min_nights'
+  | 'above_max_nights'
+  | 'too_many_guests'
+  | 'blocked_night'
+  | 'night_unavailable'
+
+export interface StayViolation {
+  code: StayViolationCode
+  date?: string
+}
+
+/**
+ * Every rule a stay range breaks, in the API's order (empty = bookable). The
+ * check-out day is not a night, so a block or a booking on it never matters:
+ * back-to-back check-out / check-in on one day is fine.
+ */
+export function checkStayRange(input: {
+  check_in: string
+  check_out: string
+  min_nights: number
+  max_nights: number | null
+  guests: number
+  capacity: number | null
+  today: string
+  blocked?: readonly string[]
+  unavailable?: readonly string[]
+}): StayViolation[] {
+  const nights = nightsBetween(input.check_in, input.check_out)
+  if (nights.length === 0 || nights.length > MAX_STAY_NIGHTS) {
+    return [{ code: 'invalid_range' }]
+  }
+  const out: StayViolation[] = []
+  if (input.check_in < input.today) out.push({ code: 'check_in_past', date: input.check_in })
+  if (nights.length < Math.max(Math.trunc(input.min_nights || 1), 1)) {
+    out.push({ code: 'below_min_nights' })
+  }
+  if (input.max_nights !== null && nights.length > input.max_nights) {
+    out.push({ code: 'above_max_nights' })
+  }
+  if (input.guests < 1 || (input.capacity !== null && input.guests > input.capacity)) {
+    out.push({ code: 'too_many_guests' })
+  }
+  const nightSet = new Set(nights)
+  for (const d of [...new Set(input.blocked ?? [])].filter((x) => nightSet.has(x)).sort()) {
+    out.push({ code: 'blocked_night', date: d })
+  }
+  for (const d of [...new Set(input.unavailable ?? [])].filter((x) => nightSet.has(x)).sort()) {
+    out.push({ code: 'night_unavailable', date: d })
+  }
+  return out
+}

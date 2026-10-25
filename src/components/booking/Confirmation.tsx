@@ -26,6 +26,7 @@ import {
 import { browserLocale, resolveCustomerStageLabel } from '@/lib/locale'
 import { useStaffMode } from '@/lib/staffMode'
 import { formatDayLabel } from './dateLabel'
+import { PassTickets } from './PassTickets'
 import { PeriodsTable } from './PeriodsTable'
 import { sanitizePostBookingHtml } from './postBookingSanitize'
 import { PriceBreakdown } from './PriceBreakdown'
@@ -1143,6 +1144,9 @@ export function Confirmation({
         ) : null}
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
+        {response.pass_tickets?.length ? (
+          <PassTickets tickets={response.pass_tickets} />
+        ) : null}
         {emailStatusKind === 'failed' ? (
           /*
            * landr-y31z: amber notice when the confirmation email could not

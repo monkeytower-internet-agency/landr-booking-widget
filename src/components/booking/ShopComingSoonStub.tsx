@@ -26,9 +26,13 @@ const KIND_LABEL_KEY: Record<NonNullable<Product['product_kind']>, keyof Bundle>
   service: 'shopKindService',
   hotel_room: 'shopKindHotelRoom',
   subscription: 'shopKindSubscription',
+  pass: 'shopKindPass',
   digital_good: 'shopKindDigitalGood',
   physical_good: 'shopKindPhysicalGood',
   gift_card: 'shopKindGiftCard',
+  // A stay runs the booking funnel (StayRangePicker) and never reaches the
+  // stub; the accommodation noun is the polite fallback if it ever does.
+  stay: 'shopKindHotelRoom',
 }
 
 /**
