@@ -6,6 +6,8 @@ export interface AlternativeRow {
   alternative: ProductAlternative
   /** ISO start date; set on course rows only. */
   startDate?: string
+  /** Course rows only: the window this row stands for. */
+  windowId?: string
 }
 
 export function monthKey(date: Date): string {
@@ -94,6 +96,7 @@ export function courseRowsFor(
         key: `${alternative.product_id}:${w.id}`,
         alternative,
         startDate: w.start_date,
+        windowId: w.id,
       })
     }
   }
@@ -110,6 +113,7 @@ export function anyRowsFor(alternatives: ProductAlternative[]): AlternativeRow[]
           key: `${alternative.product_id}:${w.id}`,
           alternative,
           startDate: w.start_date,
+          windowId: w.id,
         })
       }
     } else if ((alternative.available_dates ?? []).length > 0) {

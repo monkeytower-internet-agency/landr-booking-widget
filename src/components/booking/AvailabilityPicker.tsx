@@ -80,6 +80,12 @@ interface Props {
    */
   initialSlot?: AvailabilitySlot
   /**
+   * Switched here from another product's date step: preselect this day, and
+   * the start time too when the day has a slot at that time.
+   */
+  initialDate?: string
+  initialStartTime?: string
+  /**
    * landr-tkgx8.1: called once the initial fetch settles (data or error), so
    * the boot splash can stay up until this step has something to show.
    */
@@ -125,6 +131,8 @@ export function AvailabilityPicker({
   onConfirm,
   exposeSeatsToCustomer = false,
   initialSlot,
+  initialDate,
+  initialStartTime,
   onLoaded,
   inviteToken,
   seatsNeeded,
@@ -149,12 +157,18 @@ export function AvailabilityPicker({
   useReportLoaded(slots !== null || error !== null, onLoaded)
   // landr (breadcrumb): seed date + slot from the restored selection.
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(() =>
-    initialSlot ? dateFromIso(initialSlot.date) : undefined,
+    initialSlot
+      ? dateFromIso(initialSlot.date)
+      : initialDate
+        ? dateFromIso(initialDate)
+        : undefined,
   )
   // landr-k9pji.1: keyed by slotKey(), not availability_id — a synthesised
   // on-request day has availability_id === null.
-  const [selectedSlotId, setSelectedSlotId] = useState<string | null>(
-    initialSlot ? slotKey(initialSlot) : null,
+  // `undefined` = the customer has not touched the time yet (a carried start
+  // time from a product switch may fill in); `null` = explicitly none.
+  const [pickedSlotId, setSelectedSlotId] = useState<string | null | undefined>(
+    initialSlot ? slotKey(initialSlot) : initialStartTime ? undefined : null,
   )
   const locale = browserLocale()
 
@@ -295,6 +309,16 @@ export function AvailabilityPicker({
     )
     // eslint-disable-next-line react-hooks/exhaustive-deps -- offScheduleSlots closes over product.daily_start_times, today and operatorTimezone
   }, [slots, selectedDate, product.hotel_offering, product.daily_start_times, fixedTimes, canForce, slotDates, today, operatorTimezone])
+
+  // Product switch: keep the start time when this product has that time open
+  // on the carried day; otherwise the customer stays on the day and picks.
+  const carriedSlotId =
+    pickedSlotId === undefined && initialStartTime && selectedDate && isoDate(selectedDate) === initialDate
+      ? slotsForSelectedDate.find(
+          (s) => toHHMM(s.start_time) === toHHMM(initialStartTime) && slotIsPickable(s),
+        )
+      : undefined
+  const selectedSlotId = pickedSlotId ?? (carriedSlotId ? slotKey(carriedSlotId) : null)
 
   // The slot Continue would commit — ONE lookup shared by `ready`, the gate
   // line and onContinue, so the button is never enabled while it would do
