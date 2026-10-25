@@ -43,6 +43,8 @@ const { mocks } = vi.hoisted(() => ({
     getInvitePrefill: vi.fn(),
     // landr-frqgv.3: ?c=<token> contact-page re-book prefill.
     getContactPagePrefill: vi.fn(),
+    // The "Also available" panel on the date step.
+    getProductAlternatives: vi.fn(),
   },
 }))
 
@@ -71,6 +73,7 @@ vi.mock('@/api/client', async (importOriginal) => {
     getProductFlow: mocks.getProductFlow,
     getInvitePrefill: mocks.getInvitePrefill,
     getContactPagePrefill: mocks.getContactPagePrefill,
+    getProductAlternatives: mocks.getProductAlternatives,
   }
 })
 
@@ -210,6 +213,7 @@ describe('App', () => {
     mocks.listProductGroups.mockResolvedValue([])
     mocks.getAvailability.mockResolvedValue([])
     mocks.getFixedDateWindows.mockResolvedValue([])
+    mocks.getProductAlternatives.mockResolvedValue([])
     mocks.listLocations.mockResolvedValue([])
     mocks.listPickupLocationsForOperator.mockResolvedValue([])
     // landr-87n9: safe hotel-flow + estimate defaults so any test that
@@ -957,6 +961,106 @@ describe('App', () => {
         expect(mocks.getAvailability).toHaveBeenCalled()
         expect(screen.getByTestId('availability-picker-submit')).toBeInTheDocument()
       })
+    })
+
+    // Tapping an "Also available" row switches product and keeps the day,
+    // the start time (when the other product has it) and the party; the
+    // reverse link on the other product switches back the same way.
+    it('switches Tandem -> Action -> Tandem via the panel, carrying day and start time', async () => {
+      const day = new Date()
+      day.setDate(day.getDate() + 1)
+      const iso = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`
+      const times: Record<string, string[]> = {
+        'p-tandem': ['09:00:00', '11:00:00'],
+        'p-action': ['11:00:00', '14:00:00'],
+      }
+      mocks.getAvailability.mockImplementation(async (id: string) =>
+        (times[id] ?? []).map((t, i) => ({
+          availability_id: `${id}-${i}`,
+          date: iso,
+          start_time: t,
+          end_time: null,
+          capacity: 4,
+          capacity_reserved: 0,
+          available_seats: 4,
+          status: 'open',
+        })) as AvailabilitySlot[],
+      )
+      const alt = (id: string, name: string) => ({
+        product_id: id,
+        slug: id,
+        name,
+        service_time_shape: 'single_date',
+        price_from: '189.00',
+        currency: 'EUR',
+        available_dates: [iso],
+      })
+      mocks.getProductAlternatives.mockImplementation(async (id: string) =>
+        id === 'p-tandem' ? [alt('p-action', 'Action flight')] : [alt('p-tandem', 'Tandem flight')],
+      )
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          product_id: 'p-tandem',
+          slug: 'p-tandem',
+          service_time_shape: 'single_date',
+          daily_start_times: ['09:00', '11:00'],
+          name: 'Tandem flight',
+        }),
+        makeProduct({
+          product_id: 'p-action',
+          slug: 'p-action',
+          service_time_shape: 'single_date',
+          daily_start_times: ['11:00', '14:00'],
+          name: 'Action flight',
+        }),
+      ])
+      render(<App />)
+      await pickProduct('Tandem flight')
+      const pickIso = async () => {
+        const find = () =>
+          Array.from(document.querySelectorAll<HTMLButtonElement>('button[data-day]')).find(
+            (b) => {
+              const d = new Date(b.dataset.day ?? '')
+              return (
+                d.getFullYear() === day.getFullYear() &&
+                d.getMonth() === day.getMonth() &&
+                d.getDate() === day.getDate()
+              )
+            },
+          )
+        await waitFor(() => expect(find()).toBeDefined())
+        fireEvent.click(find()!)
+      }
+      await pickIso()
+      const times11 = async () =>
+        (await screen.findAllByTestId('start-time-option')).find((b) =>
+          b.textContent?.startsWith('11:00'),
+        )!
+      fireEvent.click(await times11())
+
+      fireEvent.click((await screen.findAllByTestId('alternative-row-p-action'))[0]!)
+      // Now on Action: same day, 11:00 already chosen, so Continue is live.
+      await waitFor(() =>
+        expect(mocks.getAvailability).toHaveBeenCalledWith(
+          'p-action',
+          expect.anything(),
+          expect.anything(),
+          undefined,
+        ),
+      )
+      await waitFor(() => expect(screen.getByTestId('availability-picker-submit')).toBeEnabled())
+
+      // Back via the reverse link: Action offers Tandem with the same day.
+      fireEvent.click((await screen.findAllByTestId('alternative-row-p-tandem'))[0]!)
+      await waitFor(() =>
+        expect(mocks.getAvailability).toHaveBeenLastCalledWith(
+          'p-tandem',
+          expect.anything(),
+          expect.anything(),
+          undefined,
+        ),
+      )
+      await waitFor(() => expect(screen.getByTestId('availability-picker-submit')).toBeEnabled())
     })
 
     // landr-mfgx4: the sidebar prices the picked date + time on the dates

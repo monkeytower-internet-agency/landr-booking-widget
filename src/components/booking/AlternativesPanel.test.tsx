@@ -171,7 +171,9 @@ describe('SingleDatePicker panel', () => {
     expect(screen.getByRole('button', { name: 'Action flight, from €189.00' })).toBeInTheDocument()
     expect(row.querySelector('img')).not.toBeNull()
     fireEvent.click(row)
-    expect(onSelectAlternative).toHaveBeenCalledWith(thermal)
+    expect(onSelectAlternative).toHaveBeenCalledWith(
+      expect.objectContaining({ product: thermal, date: expect.stringMatching(/-21$/) }),
+    )
     // Picking another day drops an alternative that is not open there.
     pickDay(20)
     await waitFor(() =>

@@ -17,7 +17,16 @@ import { tr } from '@/lib/strings'
 import { useVariant } from '@/lib/variant'
 import { cn } from '@/lib/utils'
 
-export type AlternativeSelectHandler = (alternative: ProductAlternative) => void
+/** What a tapped row hands over: the product, plus the date or course window the row stood for. */
+export interface AlternativeSelection {
+  product: ProductAlternative
+  /** ISO day: a course row's start date, or the day picked on the date step. */
+  date?: string
+  /** Course row: the window to land on. */
+  windowId?: string
+}
+
+export type AlternativeSelectHandler = (selection: AlternativeSelection) => void
 
 function rowName(alt: ProductAlternative, locale: string): string {
   return pickLocalized(
@@ -32,11 +41,14 @@ function PanelRows({
   heading,
   onSelect,
   layout,
+  pickedDay,
 }: {
   rows: AlternativeRow[]
   heading: string
   onSelect?: AlternativeSelectHandler
   layout: 'strip' | 'list'
+  /** First day picked on the date step; carried by rows that carry no date of their own. */
+  pickedDay?: string
 }) {
   const { tokens } = useVariant()
   const locale = browserLocale()
@@ -74,7 +86,13 @@ function PanelRows({
                 type="button"
                 aria-label={label}
                 data-testid={`alternative-row-${row.key}`}
-                onClick={() => onSelect?.(alt)}
+                onClick={() =>
+                  onSelect?.({
+                    product: alt,
+                    date: row.startDate ?? pickedDay,
+                    windowId: row.windowId,
+                  })
+                }
                 className={cn(
                   'tap-44 flex w-full items-center gap-3 border border-border bg-surface-raised p-2 text-left transition-colors hover:border-primary/40',
                   layout === 'strip' ? 'min-w-56' : null,
@@ -118,12 +136,14 @@ function PanelBody({
   layout,
   testId,
   className,
+  pickedDay,
 }: {
   groups: { heading: string; rows: AlternativeRow[] }[]
   onSelect?: AlternativeSelectHandler
   layout: 'strip' | 'list'
   testId: string
   className?: string
+  pickedDay?: string
 }) {
   return (
     <section
@@ -140,6 +160,7 @@ function PanelBody({
           heading={g.heading}
           onSelect={onSelect}
           layout={layout}
+          pickedDay={pickedDay}
         />
       ))}
     </section>
@@ -228,6 +249,7 @@ export function AlternativesSection({
       <PanelBody
         groups={groups}
         onSelect={onSelectAlternative}
+        pickedDay={selectedDays[0]}
         layout="strip"
         testId="alternatives-panel-mobile"
         className={slot ? 'md:hidden' : undefined}
@@ -237,6 +259,7 @@ export function AlternativesSection({
             <PanelBody
               groups={groups}
               onSelect={onSelectAlternative}
+              pickedDay={selectedDays[0]}
               layout="list"
               testId="alternatives-panel-desktop"
             />,
