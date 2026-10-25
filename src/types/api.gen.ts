@@ -2043,6 +2043,59 @@ export interface paths {
         patch: operations["set_site_warning_publisher"];
         trace?: never;
     };
+    "/api/landr-staff/templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Landr Staff List Templates */
+        get: operations["landr_staff_list_templates"];
+        put?: never;
+        /** Landr Staff Flag Template */
+        post: operations["landr_staff_flag_template"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/landr-staff/templates/{slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Landr Staff Unflag Template */
+        delete: operations["landr_staff_unflag_template"];
+        options?: never;
+        head?: never;
+        /** Landr Staff Patch Template */
+        patch: operations["landr_staff_patch_template"];
+        trace?: never;
+    };
+    "/api/landr-staff/templates/{slug}/bump-version": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Landr Staff Bump Template Version */
+        post: operations["landr_staff_bump_template_version"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/landr-staff/terms-changes": {
         parameters: {
             query?: never;
@@ -3422,6 +3475,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/public/environment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Public Get Environment
+         * @description landr-m6tp4.1 — which tier this API serves ('development' / 'staging'
+         *     / 'production'). The dashboard reads it once to decide whether staging-
+         *     only tools (the template editor) are shown. Cheap: no DB, no network.
+         */
+        get: operations["public_get_environment"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/public/health": {
         parameters: {
             query?: never;
@@ -4054,8 +4129,9 @@ export interface paths {
          *     user verifies their email (avoids email-enumeration oracle).
          *
          *     Error contract:
-         *       * 422 unknown_preset_key — preset_key is not in PRESET_KEYS (checked
-         *                           first, before Turnstile, so no token is burnt).
+         *       * 422 unknown_preset_key — preset_key is neither a flow key nor a live
+         *                           template slug (checked first, before Turnstile, so
+         *                           no token is burnt).
          *       * 403 captcha_*   — Turnstile failed / unavailable.
          *       * 429             — per-IP or global rate limit exceeded.
          *       * 503             — rate-limiter infra error (fail CLOSED).
@@ -4186,6 +4262,40 @@ export interface paths {
         put?: never;
         /** Run Send */
         post: operations["system_update_notice_run_send"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Public List Templates */
+        get: operations["public_list_templates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/templates/{slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Public Get Template */
+        get: operations["public_get_template"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -5136,8 +5246,28 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Apply Preset Endpoint */
+        /**
+         * Apply Preset Endpoint
+         * @deprecated
+         */
         post: operations["apply_preset_endpoint"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/apply-template": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Staff Apply Operator Template */
+        post: operations["staff_apply_operator_template"];
         delete?: never;
         options?: never;
         head?: never;
@@ -8434,10 +8564,7 @@ export interface paths {
         };
         /**
          * List Presets Endpoint
-         * @description Every preset ``POST /apply-preset`` accepts, in the order the wizard
-         *     shows them (solo pilot first, blank last). Static registry data; the
-         *     operator's current choice is ``onboarding_preset_key`` on
-         *     ``GET /api/staff/operators/{operator_id}``.
+         * @deprecated
          */
         get: operations["list_presets_endpoint"];
         put?: never;
@@ -12134,6 +12261,40 @@ export interface components {
             /** Weekdays */
             weekdays?: number[] | null;
         };
+        /** ApplyTemplateOut */
+        ApplyTemplateOut: {
+            /** Counts */
+            counts: {
+                [key: string]: number;
+            };
+            /**
+             * Flow
+             * @enum {string}
+             */
+            flow: "solo" | "company";
+            /** Images Skipped */
+            images_skipped: {
+                [key: string]: unknown;
+            }[];
+            /** Onboarding Preset Key */
+            onboarding_preset_key: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "applied" | "already_applied";
+            /** Template Slug */
+            template_slug: string;
+            /** Template Version */
+            template_version: number;
+        };
+        /** ApplyTemplateRequest */
+        ApplyTemplateRequest: {
+            /** Product Family */
+            product_family?: ("activity" | "course") | null;
+            /** Slug */
+            slug: string;
+        };
         /** ApprovalMailRequest */
         ApprovalMailRequest: {
             /**
@@ -14109,8 +14270,9 @@ export interface components {
          *     `name` is the new operator's display name. `slug` is the desired public
          *     handle — same grammar as public signup (`app/services/operator_slugs.py`).
          *     `preset_key` (optional) is stored on the new operator only — mirrors
-         *     `SignupRequest.preset_key` (landr-k9pji.2); the onboarding wizard applies
-         *     it, nothing is applied here.
+         *     `SignupRequest.preset_key` (landr-k9pji.2; a flow key or a live template
+         *     slug, landr-m6tp4.1); the onboarding wizard applies it, nothing is
+         *     applied here.
          */
         CreateOperatorRequest: {
             /** Name */
@@ -15244,6 +15406,11 @@ export interface components {
             /** Subject */
             subject?: string | null;
         };
+        /** EnvironmentOut */
+        EnvironmentOut: {
+            /** Environment */
+            environment: string;
+        };
         /** EstimateAddonLineIn */
         EstimateAddonLineIn: {
             /** Product Id */
@@ -15516,6 +15683,13 @@ export interface components {
             id: string;
             /** Moderation Status */
             moderation_status: string;
+        };
+        /** FlagTemplateIn */
+        FlagTemplateIn: {
+            /** Operator Id */
+            operator_id: string;
+            /** Slug */
+            slug: string;
         };
         /**
          * FlowFieldDef
@@ -18338,6 +18512,12 @@ export interface components {
             /** Moscow */
             moscow: string | null;
         };
+        /** PatchTemplateIn */
+        PatchTemplateIn: {
+            pitch?: components["schemas"]["PitchIn"] | null;
+            /** Slug */
+            slug?: string | null;
+        };
         /** PauseIn */
         PauseIn: {
             /** Months */
@@ -18487,6 +18667,30 @@ export interface components {
             subject_id: string;
             /** Subject Type */
             subject_type: string;
+        };
+        /** PitchCompareIn */
+        PitchCompareIn: {
+            /** Label */
+            label: string;
+            /** Pct */
+            pct: number;
+        };
+        /** PitchIn */
+        PitchIn: {
+            de: components["schemas"]["PitchLocaleIn"];
+            en: components["schemas"]["PitchLocaleIn"];
+        };
+        /** PitchLocaleIn */
+        PitchLocaleIn: {
+            /** Audience */
+            audience: string;
+            /** Benefits */
+            benefits: string[];
+            compare?: components["schemas"]["PitchCompareIn"] | null;
+            /** Headline */
+            headline: string;
+            /** Hero Url */
+            hero_url?: string | null;
         };
         /** PlanChangeIn */
         PlanChangeIn: {
@@ -22148,10 +22352,12 @@ export interface components {
          *     Both field names and their marketing-site aliases are accepted (back-compat):
          *       name / operator_name, slug / operator_slug  (landr-oqrz.1)
          *
-         *     `preset_key` (optional, landr-k9pji.2) pre-selects the onboarding preset,
-         *     e.g. `solo_pilot` from the website's solo landing CTA. Must be one of
-         *     `app/services/presets.py` PRESET_KEYS, else 422 `unknown_preset_key`.
-         *     Blank = not sent. Stored on the operator only; the wizard applies it.
+         *     `preset_key` (optional, landr-k9pji.2) pre-selects the onboarding path,
+         *     e.g. `solo_pilot` from the website's solo landing CTA. One of
+         *     `app/services/onboarding_flow.py` FLOW_KEYS or a live operator-template
+         *     slug (landr-m6tp4.1; stored as that template's preset key), else 422
+         *     `unknown_preset_key`. Blank = not sent. Stored on the operator only; the
+         *     wizard applies the template.
          */
         SignupRequest: {
             /** Email */
@@ -22439,6 +22645,32 @@ export interface components {
             products: components["schemas"]["ProductLineIn"][];
             /** Staff Session */
             staff_session: string;
+        };
+        /** StaffTemplateOut */
+        StaffTemplateOut: {
+            /**
+             * Flow
+             * @enum {string}
+             */
+            flow: "solo" | "company";
+            /** Name */
+            name: string | null;
+            /** Onboarding Preset Key */
+            onboarding_preset_key: string | null;
+            /** Operator Id */
+            operator_id: string;
+            /** Pitch */
+            pitch: {
+                [key: string]: components["schemas"]["TemplatePitchLocale"];
+            } | null;
+            /** Product Count */
+            product_count: number;
+            /** Slug */
+            slug: string;
+            /** Uses Pools */
+            uses_pools: boolean;
+            /** Version */
+            version: number;
         };
         /**
          * StaffUnitReleaseIn
@@ -23084,6 +23316,50 @@ export interface components {
              * @description Component single-template keys (bundles only)
              */
             template_keys?: string[];
+        };
+        /** TemplateCompare */
+        TemplateCompare: {
+            /** Label */
+            label: string;
+            /** Pct */
+            pct: number;
+        };
+        /** TemplateOut */
+        TemplateOut: {
+            /**
+             * Flow
+             * @enum {string}
+             */
+            flow: "solo" | "company";
+            /** Onboarding Preset Key */
+            onboarding_preset_key: string | null;
+            /** Pitch */
+            pitch: {
+                [key: string]: components["schemas"]["TemplatePitchLocale"];
+            } | null;
+            /** Product Count */
+            product_count: number;
+            /** Slug */
+            slug: string;
+            /** Uses Pools */
+            uses_pools: boolean;
+            /** Version */
+            version: number;
+        };
+        /** TemplatePitchLocale */
+        TemplatePitchLocale: {
+            /** Audience */
+            audience?: string | null;
+            /**
+             * Benefits
+             * @default []
+             */
+            benefits: string[];
+            compare?: components["schemas"]["TemplateCompare"] | null;
+            /** Headline */
+            headline?: string | null;
+            /** Hero Url */
+            hero_url?: string | null;
         };
         /**
          * TermPair
@@ -27208,6 +27484,154 @@ export interface operations {
             };
         };
     };
+    landr_staff_list_templates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffTemplateOut"][];
+                };
+            };
+        };
+    };
+    landr_staff_flag_template: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FlagTemplateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffTemplateOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    landr_staff_unflag_template: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    landr_staff_patch_template: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PatchTemplateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffTemplateOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    landr_staff_bump_template_version: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffTemplateOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_staff_terms_changes: {
         parameters: {
             query?: never;
@@ -29050,6 +29474,26 @@ export interface operations {
             };
         };
     };
+    public_get_environment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvironmentOut"];
+                };
+            };
+        };
+    };
     health: {
         parameters: {
             query?: never;
@@ -30101,6 +30545,57 @@ export interface operations {
                 };
                 content: {
                     "text/html": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_list_templates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TemplateOut"][];
+                };
+            };
+        };
+    };
+    public_get_template: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TemplateOut"];
                 };
             };
             /** @description Validation Error */
@@ -31504,6 +31999,41 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_apply_operator_template: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApplyTemplateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplyTemplateOut"];
                 };
             };
             /** @description Validation Error */
