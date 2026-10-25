@@ -5390,6 +5390,19 @@
             ],
             "title": "Contract Start"
           },
+          "debit_day_of_month": {
+            "anyOf": [
+              {
+                "maximum": 28.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Debit Day Of Month"
+          },
           "minimum_term_months": {
             "anyOf": [
               {
@@ -5428,6 +5441,19 @@
               }
             ],
             "title": "Pause Fee Monthly"
+          },
+          "pre_notification_days": {
+            "anyOf": [
+              {
+                "maximum": 14.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pre Notification Days"
           },
           "rates": {
             "items": {
