@@ -1982,3 +1982,42 @@ describe('Confirmation change-activity hint', () => {
     })
   })
 })
+
+describe('Confirmation for a registration', () => {
+  it('shows the pending verification panel and no payment note for a EUR 0 booking', () => {
+    render(
+      <Confirmation
+        response={baseResponse({
+          semantic_state: 'confirmed',
+          approval_outcome: 'auto_approved',
+          payment_mode: 'on_site',
+          summary: baseSummary({ grand_total: '0.00' }),
+          verification: {
+            status: 'pending',
+            licence_uploaded: true,
+            insurance_uploaded: true,
+            upload_token: null,
+          },
+        })}
+        onRestart={() => {}}
+      />,
+    )
+    expect(screen.getByTestId('verification-pending')).toBeTruthy()
+    expect(screen.queryByTestId('confirmation-payment-mode-note')).toBeNull()
+  })
+
+  it('still shows the payment note for a booking that owes money', () => {
+    render(
+      <Confirmation
+        response={baseResponse({
+          semantic_state: 'confirmed',
+          approval_outcome: 'auto_approved',
+          payment_mode: 'on_site',
+          summary: baseSummary({ grand_total: '120.00' }),
+        })}
+        onRestart={() => {}}
+      />,
+    )
+    expect(screen.getByTestId('confirmation-payment-mode-note')).toBeTruthy()
+  })
+})

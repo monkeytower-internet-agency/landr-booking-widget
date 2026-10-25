@@ -3199,6 +3199,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/public/bookings/{token}/verification": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Verification */
+        get: operations["public_get_booking_verification"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/bookings/{token}/verification/files/{kind}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Put Verification File */
+        put: operations["public_put_booking_verification_file"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/public/briefings/{token}": {
         parameters: {
             query?: never;
@@ -11763,6 +11797,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/verifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Verifications */
+        get: operations["staff_list_verifications"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/verifications/{verification_id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approve Verification */
+        post: operations["staff_approve_verification"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/verifications/{verification_id}/files": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Verification Files */
+        get: operations["staff_verification_file_urls"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/verifications/{verification_id}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reject Verification */
+        post: operations["staff_reject_verification"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/vouchers": {
         parameters: {
             query?: never;
@@ -18057,6 +18159,8 @@ export interface components {
             category_name_localized?: {
                 [key: string]: string;
             } | null;
+            /** Daily Cap */
+            daily_cap?: number | null;
             /** Daily Start Times */
             daily_start_times?: string[] | null;
             /** Guide Languages */
@@ -18083,6 +18187,11 @@ export interface components {
             /** Product Id */
             product_id: string;
             /**
+             * Requires Verification
+             * @default false
+             */
+            requires_verification: boolean;
+            /**
              * Share Reference Enabled
              * @default false
              */
@@ -18092,6 +18201,10 @@ export interface components {
             stay?: components["schemas"]["StayConfig"] | null;
             /** Thumb Url */
             thumb_url?: string | null;
+            /** Waiver Text Localized */
+            waiver_text_localized?: {
+                [key: string]: string;
+            } | null;
         } & {
             [key: string]: unknown;
         };
@@ -19779,6 +19892,8 @@ export interface components {
             check_out_time?: string | null;
             /** Cleaning Fee Cents */
             cleaning_fee_cents?: number | null;
+            /** Daily Cap */
+            daily_cap?: number | null;
             /** Daily Start Times */
             daily_start_times?: string[] | null;
             /** Daily Start Weekdays */
@@ -19867,6 +19982,11 @@ export interface components {
             product_group_id?: string | null;
             /** Product Kind */
             product_kind?: ("service" | "subscription" | "hotel_room" | "digital_good" | "physical_good" | "gift_card" | "stay" | "pass") | null;
+            /**
+             * Requires Verification
+             * @default false
+             */
+            requires_verification: boolean;
             /** Revenue Flows Through Operator */
             revenue_flows_through_operator?: boolean | null;
             /** Service Time Shape */
@@ -19894,6 +20014,10 @@ export interface components {
              * @default 0
              */
             sort_order: number;
+            /** Waiver Text Localized */
+            waiver_text_localized?: {
+                [key: string]: unknown;
+            } | null;
         };
         /** ProductLineIn */
         ProductLineIn: {
@@ -19947,6 +20071,8 @@ export interface components {
             check_out_time?: string | null;
             /** Cleaning Fee Cents */
             cleaning_fee_cents?: number | null;
+            /** Daily Cap */
+            daily_cap?: number | null;
             /** Daily Start Times */
             daily_start_times?: string[] | null;
             /** Daily Start Weekdays */
@@ -20011,6 +20137,8 @@ export interface components {
             product_group_id?: string | null;
             /** Product Kind */
             product_kind?: ("service" | "subscription" | "hotel_room" | "digital_good" | "physical_good" | "gift_card" | "stay" | "pass") | null;
+            /** Requires Verification */
+            requires_verification?: boolean | null;
             /** Revenue Flows Through Operator */
             revenue_flows_through_operator?: boolean | null;
             /** Service Time Shape */
@@ -20027,6 +20155,10 @@ export interface components {
             slot_capacity?: number | null;
             /** Sort Order */
             sort_order?: number | null;
+            /** Waiver Text Localized */
+            waiver_text_localized?: {
+                [key: string]: unknown;
+            } | null;
         };
         /**
          * ProductPeriodPriceIn
@@ -20411,6 +20543,7 @@ export interface components {
             preview_token?: string | null;
             /** Products */
             products: components["schemas"]["ProductLineIn"][];
+            verification?: components["schemas"]["VerificationIn"] | null;
             /** Via Alternative Of */
             via_alternative_of?: string | null;
             /** Voucher Code */
@@ -20572,11 +20705,6 @@ export interface components {
             request_id: string;
             /** Token Expires At */
             token_expires_at: string;
-        };
-        /** RejectIn */
-        RejectIn: {
-            /** Notes */
-            notes: string;
         };
         /** RelayCommentIn */
         RelayCommentIn: {
@@ -22998,6 +23126,10 @@ export interface components {
             summary?: components["schemas"]["BookingSummary"] | null;
             /** Token */
             token?: string | null;
+            /** Verification */
+            verification?: {
+                [key: string]: unknown;
+            } | null;
         } & {
             [key: string]: unknown;
         };
@@ -23852,6 +23984,18 @@ export interface components {
             type: string;
         };
         /**
+         * VerificationIn
+         * @description The customer's signed waiver on a verified registration.
+         */
+        VerificationIn: {
+            /** Waiver Accepted */
+            waiver_accepted: boolean;
+            /** Waiver Locale */
+            waiver_locale?: string | null;
+            /** Waiver Signature Name */
+            waiver_signature_name: string;
+        };
+        /**
          * VerifyResult
          * @description Result of POST .../integrations/{provider}/{mode}/verify. Never
          *     persisted server-side — the dashboard holds this in local component state
@@ -24274,6 +24418,11 @@ export interface components {
             /** Year */
             year: number;
         };
+        /** RejectIn */
+        app__routers__landr_staff_promotions__RejectIn: {
+            /** Notes */
+            notes: string;
+        };
         /** RuleIn */
         app__routers__staff_commission__RuleIn: {
             /**
@@ -24508,6 +24657,11 @@ export interface components {
             threshold_max?: number | null;
             /** Threshold Min */
             threshold_min?: number | null;
+        };
+        /** RejectIn */
+        app__routers__staff_verifications__RejectIn: {
+            /** Note */
+            note: string;
         };
     };
     responses: never;
@@ -27321,7 +27475,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["RejectIn"];
+                "application/json": components["schemas"]["app__routers__landr_staff_promotions__RejectIn"];
             };
         };
         responses: {
@@ -29083,6 +29237,73 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CustomerDetailsSavedOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_get_booking_verification: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_put_booking_verification_file: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+                kind: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */
@@ -44753,6 +44974,147 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UpgradeRequestOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_list_verifications: {
+        parameters: {
+            query?: {
+                status?: string;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    }[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_approve_verification: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                verification_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_verification_file_urls: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                verification_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_reject_verification: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                verification_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["app__routers__staff_verifications__RejectIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */
