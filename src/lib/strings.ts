@@ -685,6 +685,7 @@ export type Bundle = {
   altDayAria: string
   altDayFullNotice: string
   altDayNotOfferedNotice: string
+  altDayShortNotice: string
   altDayGate: string
   altDayLegend: string
   gridViewLabel: string
@@ -1527,6 +1528,7 @@ const en: Bundle = {
   altDayAria: 'fully booked, other activities available',
   altDayFullNotice: '{product} is fully booked on {date}',
   altDayNotOfferedNotice: '{product} is not offered on {date}',
+  altDayShortNotice: '{product} has too few seats left for your group on {date}',
   altDayGate: 'Pick one of the other activities below',
   altDayLegend: 'another activity is free on this day',
   gridViewLabel: 'Grid view',

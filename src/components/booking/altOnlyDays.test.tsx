@@ -106,7 +106,7 @@ describe('altOnlyDaysFor', () => {
     expect([...days].sort()).toEqual(['2026-05-20', '2026-05-21'])
   })
 
-  it('ignores courses, past days, short days and unloaded data', () => {
+  it('ignores courses, past days and unloaded data', () => {
     const course = alt([], {
       service_time_shape: 'fixed_window',
       windows: [{ id: 'w', start_date: '2026-05-20', end_date: '2026-05-24' } as never],
@@ -115,16 +115,30 @@ describe('altOnlyDaysFor', () => {
     expect(
       altOnlyDaysFor({ ...base, slots, alternatives: [alt(['2026-05-10'])] }).size,
     ).toBe(0)
-    expect(
-      altOnlyDaysFor({
-        ...base,
-        short: new Map([['2026-05-25', 2]]),
-        slots,
-        alternatives: [alt(['2026-05-25'])],
-      }).size,
-    ).toBe(0)
     expect(altOnlyDaysFor({ ...base, slots, alternatives: null }).size).toBe(0)
     expect(altOnlyDaysFor({ ...base, slots: null, alternatives: [alt(['2026-05-20'])] }).size).toBe(0)
+  })
+})
+
+describe('altOnlyDaysFor short days', () => {
+  const base = {
+    fit: new Set(['2026-05-22']),
+    short: new Map([['2026-05-25', 2]]),
+    todayIso: '2026-05-15',
+  }
+  const slots = [slot('2026-05-22', 5), slot('2026-05-25', 2), slot('2026-05-26', 2)]
+
+  it('rescues a day too small for the party when an alternative is free', () => {
+    const days = altOnlyDaysFor({ ...base, slots, alternatives: [alt(['2026-05-25'])] })
+    expect([...days]).toEqual(['2026-05-25'])
+  })
+
+  it('leaves a short day disabled without an alternative, and a lead-time-closed day with seats out', () => {
+    expect(
+      altOnlyDaysFor({ ...base, slots, alternatives: [alt(['2026-05-24'])] }).has('2026-05-25'),
+    ).toBe(false)
+    // 05-26 has seats but is neither fit nor short: closed by lead time.
+    expect(altOnlyDaysFor({ ...base, slots, alternatives: [alt(['2026-05-26'])] }).size).toBe(0)
   })
 })
 
@@ -218,5 +232,33 @@ describe('SingleDatePicker alt-only days', () => {
     await waitFor(() => expect(mocks.getProductAlternatives).toHaveBeenCalledTimes(2))
     expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled()
     expect(screen.getByTestId('alt-only-notice')).toBeInTheDocument()
+  })
+})
+
+describe('SingleDatePicker short day rescue', () => {
+  it('dots a short day, lists alternatives for the party and keeps Continue off', async () => {
+    mocks.getAvailability.mockResolvedValue([slot('2026-05-20', 1), slot('2026-05-22', 5)])
+    mocks.getProductAlternatives.mockResolvedValue([alt(['2026-05-20'])])
+    render(
+      <SingleDatePicker
+        product={{ ...product, max_party_size: 4 }}
+        showPartySizeStepper
+        onBack={() => {}}
+        onConfirm={() => {}}
+      />,
+    )
+    await waitFor(() => dayBtn(22))
+    fireEvent.click(screen.getByTestId('party-size-increase'))
+    await waitFor(() => expect(dayBtn(20).dataset.altOnly).toBe('true'))
+    expect(dayBtn(20)).not.toBeDisabled()
+    fireEvent.click(dayBtn(20))
+    expect(screen.getByTestId('alt-only-notice')).toHaveTextContent(/too few seats/)
+    expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled()
+    expect(mocks.getProductAlternatives).toHaveBeenLastCalledWith(
+      'p-main',
+      expect.anything(),
+      expect.anything(),
+      2,
+    )
   })
 })

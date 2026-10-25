@@ -644,6 +644,7 @@ export const es: Bundle = {
   altDayAria: 'completo, otras actividades disponibles',
   altDayFullNotice: '{product} está completo el {date}',
   altDayNotOfferedNotice: '{product} no se ofrece el {date}',
+  altDayShortNotice: 'A {product} no le quedan plazas suficientes para tu grupo el {date}',
   altDayGate: 'Elige abajo una de las otras actividades',
   altDayLegend: 'otra actividad está libre este día',
   gridViewLabel: 'Vista de cuadrícula',

@@ -249,7 +249,10 @@ export function SingleDatePicker({
     !canForce &&
     !availableSet.has(selectedIso) &&
     !shortSeats.has(selectedIso)
-  const selectedAltOnly = selectedUnbookable
+  // A short day (seats left, fewer than the party) is rescued only once an
+  // alternative is in; until then its own short gate holds Continue.
+  const selectedShortAlt = selectedIso !== null && altOnlyDays.has(selectedIso) && shortSeats.has(selectedIso)
+  const selectedAltOnly = selectedUnbookable || selectedShortAlt
 
   // landr-t869m.5: date → slot lookup so a force-booked pick can name WHICH
   // gate(s) it bypassed. landr-8ht3m.4: a date with no matching slot at all has
@@ -395,6 +398,7 @@ export function SingleDatePicker({
               productName={product.name}
               iso={isoDate(selected)}
               offered={slotsByDate.has(isoDate(selected))}
+              short={selectedShortAlt}
             />
           ) : selected ? (
             // landr-3mo4: selected date confirmed in a tinted (borderless) chip

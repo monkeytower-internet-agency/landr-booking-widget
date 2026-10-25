@@ -648,6 +648,7 @@ export const tr: Bundle = {
   altDayAria: 'dolu, diğer etkinlikler müsait',
   altDayFullNotice: '{product}, {date} tarihinde dolu',
   altDayNotOfferedNotice: '{product}, {date} tarihinde sunulmuyor',
+  altDayShortNotice: '{product}, {date} tarihinde grubunuz için yeterli yer kalmadı',
   altDayGate: 'Aşağıdaki diğer etkinliklerden birini seçin',
   altDayLegend: 'bu gün başka bir etkinlik müsait',
   gridViewLabel: 'Izgara görünümü',
