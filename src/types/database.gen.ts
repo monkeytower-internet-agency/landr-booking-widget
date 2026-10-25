@@ -12790,6 +12790,7 @@ export type Database = {
         | "gift_card"
         | "subscription"
         | "hotel_room"
+        | "pass"
       product_schedule_exception_kind:
         | "closed"
         | "capacity_override"
@@ -13088,6 +13089,7 @@ export const Constants = {
         "gift_card",
         "subscription",
         "hotel_room",
+        "pass",
       ],
       product_schedule_exception_kind: [
         "closed",
