@@ -33463,6 +33463,27 @@
         "title": "ValidationError",
         "type": "object"
       },
+      "VerificationApproveIn": {
+        "description": "The hashes of the two files the organizer reviewed (as returned by the\nqueue / the ``files`` call). Approval is bound to exactly those bytes.",
+        "properties": {
+          "insurance_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Insurance Sha256",
+            "type": "string"
+          },
+          "licence_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Licence Sha256",
+            "type": "string"
+          }
+        },
+        "required": [
+          "licence_sha256",
+          "insurance_sha256"
+        ],
+        "title": "VerificationApproveIn",
+        "type": "object"
+      },
       "VerificationIn": {
         "description": "The customer's signed waiver on a verified registration.",
         "properties": {
@@ -70862,6 +70883,16 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerificationApproveIn"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "content": {
