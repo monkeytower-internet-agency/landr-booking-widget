@@ -9754,7 +9754,7 @@
         "type": "object"
       },
       "EventWindow": {
-        "description": "landr-4uhvi: products.event_* plus the next occurrences (never past).",
+        "description": "products.event_* plus the next occurrences (never past).",
         "properties": {
           "cutoff_hours": {
             "anyOf": [
