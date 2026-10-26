@@ -20760,6 +20760,8 @@ export interface components {
              * @default false
              */
             force_book: boolean;
+            /** Pass Tier Id */
+            pass_tier_id?: string | null;
             /** Product Id */
             product_id: string;
             /** Slot Start Time */
