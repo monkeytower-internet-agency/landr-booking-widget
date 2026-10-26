@@ -22979,6 +22979,8 @@ export interface components {
         };
         /** StaffTemplateOut */
         StaffTemplateOut: {
+            /** Exported At */
+            exported_at?: string | null;
             /** Exported Version */
             exported_version?: number | null;
             /**
