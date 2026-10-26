@@ -3079,7 +3079,8 @@ export interface paths {
          *
          *     Errors: 401 bad/expired token; 404 ``booking_not_found``; 409
          *     ``offer_not_applied`` (no applied offer), ``offer_not_sent`` (never
-         *     sent), ``offer_changed_since_sent`` (edited after the send, or the
+         *     sent), ``offer_expired`` (landr-aowkj: the 30-day offer window lapsed,
+         *     whichever token is presented), ``offer_changed_since_sent`` (edited after the send, or the
          *     booking's days / products changed under it -- landr-wbzjp.4: the link is
          *     stale until the offer is re-sent), ``booking_closed`` (deleted /
          *     cancelled / finalised).
@@ -3720,6 +3721,11 @@ export interface paths {
          *     template, SES → Resend) — never through the tenant-readable outbox. Gated on the operator's
          *     ``offer_account_link`` opt-in (landr-atwy): when off, returns 404 so the
          *     surface stays opaque.
+         *
+         *     landr-0unqx.40: past the opt-in gate the answer is a FIXED ``202 {"ok":
+         *     true}`` — sent, malformed address, recipient over budget, or GoTrue
+         *     failure alike — so the response says nothing about any address. Only the
+         *     caller's own budgets (per IP, per operator) answer 429, fail closed.
          */
         post: operations["request_account_link"];
         delete?: never;
@@ -4220,6 +4226,50 @@ export interface paths {
          *     the endpoint can't be used to enumerate which emails have accounts.
          */
         post: operations["signup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/signup/pilot": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pilot Signup
+         * @description Email + password signup for a pilot from the mobile app (landr-0unqx.63).
+         *
+         *     The app used to call GoTrue ``/auth/v1/signup`` directly. For an email that
+         *     already has an UNCONFIRMED user, GoTrue re-sends that user's confirmation
+         *     and keeps its FIRST password, so whoever signed up first with someone
+         *     else's address could sign in once the real owner confirmed (pre-account
+         *     takeover, same mechanism as landr-1dnvc).
+         *
+         *     Here the identity is checked first:
+         *
+         *     * none -> create it (``generate_link`` type=signup, unconfirmed, no
+         *       session) with the caller's password and send the confirm link
+         *       ourselves (``signup_verify`` system mail; the redirect is GoTrue's site
+         *       URL, as with the old direct call);
+         *     * pending and unheld (:func:`_pilot_identity_is_discardable`) -> deleted,
+         *       then created fresh, so the password the inbox owner confirms is the one
+         *       this caller chose;
+         *     * confirmed, signed in, invited, a web self-signup or a member of an
+         *       operator -> left alone; the owner gets the "you already have an
+         *       account" notice.
+         *
+         *     The answer is the same 201 ``verification_email_sent`` body in every case
+         *     (no email-enumeration oracle). No session is ever returned: the user signs
+         *     in after confirming. 422 bad input, 429 over a cap, 503 limiter down (fail
+         *     closed), 500 create/send failure (the new identity is deleted again).
+         */
+        post: operations["pilot_signup"];
         delete?: never;
         options?: never;
         head?: never;
@@ -18996,6 +19046,23 @@ export interface components {
             /** Subject Type */
             subject_type: string;
         };
+        /**
+         * PilotSignupRequest
+         * @description POST /api/public/signup/pilot body (landr-mobile email signup).
+         *
+         *     Password floor matches the app's form and GoTrue's minimum (6).
+         */
+        PilotSignupRequest: {
+            /** Email */
+            email: string;
+            /**
+             * Locale
+             * @default en
+             */
+            locale: string;
+            /** Password */
+            password: string;
+        };
         /** PitchCompareIn */
         PitchCompareIn: {
             /** Label */
@@ -20719,8 +20786,9 @@ export interface components {
             /**
              * Booking Channel
              * @default public_website
+             * @constant
              */
-            booking_channel: string;
+            booking_channel: "public_website";
             /** Campaign Id */
             campaign_id?: string | null;
             /** Cancellation Deadline */
@@ -30881,6 +30949,41 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["SignupRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    pilot_signup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PilotSignupRequest"];
             };
         };
         responses: {
