@@ -2394,6 +2394,15 @@ export interface paths {
          *          for the happy path; provider lands in ``dns_provider``.
          *
          *     503 'ses_not_configured' when AWS creds are unset — never a 500.
+         *
+         *     landr-rtozr refusals (nothing is created or written on any of them):
+         *       * 422 ``invalid_sending_domain`` — not a bare domain.
+         *       * 409 ``sending_domain_reserved`` — landr.de / a platform sending domain
+         *         or a subdomain of one.
+         *       * 409 ``sending_domain_taken`` — equals, contains or sits under another
+         *         operator's sending domain (exact match also a DB unique index).
+         *       * 409 ``sending_domain_unavailable`` — the SES identity already exists
+         *         and was not created by this operator (never inherited).
          */
         post: operations["setup"];
         delete?: never;
@@ -9442,7 +9451,10 @@ export interface paths {
          *     row is 1 per booking. Any other type: 1 seat per participant. 404
          *     ``product_not_found`` / ``resource_type_not_found``; 422
          *     ``facet_required`` / ``resource_type_inactive``; 409
-         *     ``requirement_exists``.
+         *     ``requirement_exists``. With ``exclusive_use`` (units default 1) or
+         *     ``units_required_per_booking`` the row is created per booking in the one
+         *     request; an exclusive row is never created half-way (it is removed again
+         *     if the counting cannot be applied).
          */
         post: operations["create_product_requirement"];
         delete?: never;
@@ -20398,10 +20410,23 @@ export interface components {
         /**
          * ProductRequirementIn
          * @description Link a resource type to the product (landr-1cib9).
+         *
+         *     landr-m6tp4.15: ``exclusive_use`` / ``units_required_per_booking`` make the
+         *     created row a whole-unit requirement in the same request (a stay's one
+         *     apartment: ``{"exclusive_use": true}`` = 1 whole unit per booking), so a
+         *     client never has to POST then PATCH. Both omitted keeps the default
+         *     counting (1 per participant, or 1 per booking for a staff type).
          */
         ProductRequirementIn: {
+            /**
+             * Exclusive Use
+             * @default false
+             */
+            exclusive_use: boolean;
             /** Resource Type Id */
             resource_type_id: string;
+            /** Units Required Per Booking */
+            units_required_per_booking?: number | null;
         };
         /**
          * ProductRequirementOut

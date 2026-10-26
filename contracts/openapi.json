@@ -23227,11 +23227,29 @@
         "type": "object"
       },
       "ProductRequirementIn": {
-        "description": "Link a resource type to the product (landr-1cib9).",
+        "description": "Link a resource type to the product (landr-1cib9).\n\nlandr-m6tp4.15: ``exclusive_use`` / ``units_required_per_booking`` make the\ncreated row a whole-unit requirement in the same request (a stay's one\napartment: ``{\"exclusive_use\": true}`` = 1 whole unit per booking), so a\nclient never has to POST then PATCH. Both omitted keeps the default\ncounting (1 per participant, or 1 per booking for a staff type).",
         "properties": {
+          "exclusive_use": {
+            "default": false,
+            "title": "Exclusive Use",
+            "type": "boolean"
+          },
           "resource_type_id": {
             "title": "Resource Type Id",
             "type": "string"
+          },
+          "units_required_per_booking": {
+            "anyOf": [
+              {
+                "maximum": 999.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Units Required Per Booking"
           }
         },
         "required": [
@@ -40946,7 +40964,7 @@
     },
     "/api/operator/email-sender/setup": {
       "post": {
-        "description": "Create the SES domain identity, store its DKIM records, and provision DNS.\n\nFlow:\n  1. Create the SES email identity for ``sending_domain`` (EasyDKIM) and get\n     back the 3 DKIM CNAME records.\n  2. Persist the DKIM records on ``operator_email_sender`` (status='pending').\n  3. Provision DNS by detecting the zone's provider (NS lookup):\n     Cloudflare \u2192 push records directly (verified path); autoDNS \u2192 enqueue a\n     Marvin-side job; manual \u2192 return the records for the operator to paste.\n     Store the detected provider + a human note in ``last_error`` is NOT used\n     for the happy path; provider lands in ``dns_provider``.\n\n503 'ses_not_configured' when AWS creds are unset \u2014 never a 500.",
+        "description": "Create the SES domain identity, store its DKIM records, and provision DNS.\n\nFlow:\n  1. Create the SES email identity for ``sending_domain`` (EasyDKIM) and get\n     back the 3 DKIM CNAME records.\n  2. Persist the DKIM records on ``operator_email_sender`` (status='pending').\n  3. Provision DNS by detecting the zone's provider (NS lookup):\n     Cloudflare \u2192 push records directly (verified path); autoDNS \u2192 enqueue a\n     Marvin-side job; manual \u2192 return the records for the operator to paste.\n     Store the detected provider + a human note in ``last_error`` is NOT used\n     for the happy path; provider lands in ``dns_provider``.\n\n503 'ses_not_configured' when AWS creds are unset \u2014 never a 500.\n\nlandr-rtozr refusals (nothing is created or written on any of them):\n  * 422 ``invalid_sending_domain`` \u2014 not a bare domain.\n  * 409 ``sending_domain_reserved`` \u2014 landr.de / a platform sending domain\n    or a subdomain of one.\n  * 409 ``sending_domain_taken`` \u2014 equals, contains or sits under another\n    operator's sending domain (exact match also a DB unique index).\n  * 409 ``sending_domain_unavailable`` \u2014 the SES identity already exists\n    and was not created by this operator (never inherited).",
         "operationId": "setup",
         "requestBody": {
           "content": {
@@ -62275,7 +62293,7 @@
         ]
       },
       "post": {
-        "description": "Blocking requirement on ``resource_type_id``. A staff-only type\n(\"Tandem pilot\") is switched to count seats in the same transaction: the\nCapacity facet, one seat per person, every active person released; its\nrow is 1 per booking. Any other type: 1 seat per participant. 404\n``product_not_found`` / ``resource_type_not_found``; 422\n``facet_required`` / ``resource_type_inactive``; 409\n``requirement_exists``.",
+        "description": "Blocking requirement on ``resource_type_id``. A staff-only type\n(\"Tandem pilot\") is switched to count seats in the same transaction: the\nCapacity facet, one seat per person, every active person released; its\nrow is 1 per booking. Any other type: 1 seat per participant. 404\n``product_not_found`` / ``resource_type_not_found``; 422\n``facet_required`` / ``resource_type_inactive``; 409\n``requirement_exists``. With ``exclusive_use`` (units default 1) or\n``units_required_per_booking`` the row is created per booking in the one\nrequest; an exclusive row is never created half-way (it is removed again\nif the counting cannot be applied).",
         "operationId": "create_product_requirement",
         "parameters": [
           {
