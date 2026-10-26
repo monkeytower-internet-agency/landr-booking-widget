@@ -13460,6 +13460,11 @@ export interface components {
             /** Date Range Start */
             date_range_start?: string | null;
             /**
+             * Force Book
+             * @default false
+             */
+            force_book: boolean;
+            /**
              * Force Slot Time
              * @default false
              */
@@ -20616,6 +20621,11 @@ export interface components {
             date: string;
             /** Fixed Date Window Id */
             fixed_date_window_id?: string | null;
+            /**
+             * Force Book
+             * @default false
+             */
+            force_book: boolean;
             /** Product Id */
             product_id: string;
             /** Slot Start Time */

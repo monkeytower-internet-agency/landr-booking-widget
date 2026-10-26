@@ -2984,6 +2984,11 @@
             ],
             "title": "Date Range Start"
           },
+          "force_book": {
+            "default": false,
+            "title": "Force Book",
+            "type": "boolean"
+          },
           "force_slot_time": {
             "default": false,
             "title": "Force Slot Time",
@@ -23993,6 +23998,11 @@
               }
             ],
             "title": "Fixed Date Window Id"
+          },
+          "force_book": {
+            "default": false,
+            "title": "Force Book",
+            "type": "boolean"
           },
           "product_id": {
             "title": "Product Id",
