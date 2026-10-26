@@ -111,8 +111,9 @@ const es: VerificationBundle = {
   fileTooLarge: 'Este archivo pesa más de 10 MB.',
   fileWrongType: 'Elige una foto (JPG, PNG, WebP, HEIC) o un PDF.',
   waiverHeading: 'Exención de responsabilidad',
-  waiverFallback:
-    'Confirmo que mis documentos son válidos y que participo bajo mi propia responsabilidad.',
+  // Kept in English on purpose: the signature record stores waiver_locale 'en' for es/tr
+  // (waiverLocale() only knows de/en), so the signed text must match that locale.
+  waiverFallback: 'I confirm that my documents are valid and that I take part at my own risk.',
   signatureLabel: 'Escribe tu nombre completo para firmar',
   signaturePlaceholder: 'Nombre completo',
   acceptLabel: 'He leído la exención de responsabilidad y la acepto.',
@@ -145,8 +146,8 @@ const tr: VerificationBundle = {
   fileTooLarge: 'Bu dosya 10 MB’tan büyük.',
   fileWrongType: 'Lütfen bir fotoğraf (JPG, PNG, WebP, HEIC) veya PDF seçin.',
   waiverHeading: 'Sorumluluk feragatnamesi',
-  waiverFallback:
-    'Belgelerimin geçerli olduğunu ve etkinliğe kendi sorumluluğumda katıldığımı onaylıyorum.',
+  // Kept in English on purpose: see the es bundle — waiver_locale is 'en' for tr too.
+  waiverFallback: 'I confirm that my documents are valid and that I take part at my own risk.',
   signatureLabel: 'İmzalamak için adınızı ve soyadınızı yazın',
   signaturePlaceholder: 'Ad Soyad',
   acceptLabel: 'Feragatnameyi okudum ve kabul ediyorum.',
