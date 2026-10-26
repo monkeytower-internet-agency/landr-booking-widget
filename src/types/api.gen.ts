@@ -13123,10 +13123,16 @@ export interface components {
             description?: string | null;
             /** End Date */
             end_date: string;
+            /** End Time */
+            end_time?: string | null;
             /** Location */
             location?: string | null;
             /** Start Date */
             start_date: string;
+            /** Start Time */
+            start_time?: string | null;
+            /** Timezone */
+            timezone?: string | null;
             /** Title */
             title: string;
         };
