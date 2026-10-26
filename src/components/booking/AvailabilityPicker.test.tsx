@@ -147,6 +147,32 @@ describe('AvailabilityPicker with a synthesised on-request slot (landr-k9pji.1)'
     expect(onConfirm).toHaveBeenCalledWith(slots[0])
   })
 
+  it('offers only the days of an event window (Thursday to Sunday) and nothing between events', async () => {
+    // Fri 15 May 2026; the next event is Thu 21 - Sun 24 May.
+    const eventDays = [21, 22, 23, 24].map((d) => new Date(2026, 4, d))
+    mocks.getAvailability.mockResolvedValue(eventDays.map(synthetic))
+
+    render(
+      <AvailabilityPicker
+        product={{
+          ...makeProduct(),
+          event_window: {
+            start_weekday: 4,
+            end_weekday: 7,
+            cutoff_hours: null,
+            horizon_n: 2,
+            occurrences: [{ start_date: '2026-05-21', end_date: '2026-05-24' }],
+          },
+        }}
+        onBack={() => {}}
+        onConfirm={() => {}}
+      />,
+    )
+    await waitFor(() => dayButton(eventDays[0]!))
+    for (const d of eventDays) expect(dayButton(d)).not.toBeDisabled()
+    for (const d of [20, 25, 28]) expect(dayButton(new Date(2026, 4, d))).toBeDisabled()
+  })
+
   it('restores a null-id slot on back-nav re-entry (initialSlot)', async () => {
     const tomorrow = new Date()
     tomorrow.setDate(tomorrow.getDate() + 1)

@@ -76,6 +76,7 @@
       "AccountLinkRequest": {
         "properties": {
           "email": {
+            "maxLength": 320,
             "minLength": 3,
             "title": "Email",
             "type": "string"
@@ -83,6 +84,7 @@
           "locale": {
             "anyOf": [
               {
+                "maxLength": 16,
                 "type": "string"
               },
               {
@@ -4847,6 +4849,16 @@
               }
             ],
             "title": "Duration Minutes"
+          },
+          "event_window": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EventWindow"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "group_name": {
             "anyOf": [
@@ -9719,6 +9731,69 @@
           "currency"
         ],
         "title": "EstimateResponse",
+        "type": "object"
+      },
+      "EventOccurrence": {
+        "properties": {
+          "end_date": {
+            "format": "date",
+            "title": "End Date",
+            "type": "string"
+          },
+          "start_date": {
+            "format": "date",
+            "title": "Start Date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "start_date",
+          "end_date"
+        ],
+        "title": "EventOccurrence",
+        "type": "object"
+      },
+      "EventWindow": {
+        "description": "landr-4uhvi: products.event_* plus the next occurrences (never past).",
+        "properties": {
+          "cutoff_hours": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cutoff Hours"
+          },
+          "end_weekday": {
+            "title": "End Weekday",
+            "type": "integer"
+          },
+          "horizon_n": {
+            "title": "Horizon N",
+            "type": "integer"
+          },
+          "occurrences": {
+            "items": {
+              "$ref": "#/components/schemas/EventOccurrence"
+            },
+            "title": "Occurrences",
+            "type": "array"
+          },
+          "start_weekday": {
+            "title": "Start Weekday",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "start_weekday",
+          "end_weekday",
+          "horizon_n",
+          "occurrences"
+        ],
+        "title": "EventWindow",
         "type": "object"
       },
       "FanOutIn": {
@@ -17025,6 +17100,16 @@
             ],
             "title": "Daily Start Times"
           },
+          "event_window": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EventWindow"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "guide_languages": {
             "anyOf": [
               {
@@ -18827,6 +18912,35 @@
           "created_at"
         ],
         "title": "PhotoResponse",
+        "type": "object"
+      },
+      "PilotSignupRequest": {
+        "description": "POST /api/public/signup/pilot body (landr-mobile email signup).\n\nPassword floor matches the app's form and GoTrue's minimum (6).",
+        "properties": {
+          "email": {
+            "maxLength": 320,
+            "minLength": 3,
+            "title": "Email",
+            "type": "string"
+          },
+          "locale": {
+            "default": "en",
+            "maxLength": 35,
+            "title": "Locale",
+            "type": "string"
+          },
+          "password": {
+            "maxLength": 200,
+            "minLength": 6,
+            "title": "Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ],
+        "title": "PilotSignupRequest",
         "type": "object"
       },
       "PitchCompareIn": {
@@ -22018,6 +22132,52 @@
             ],
             "title": "Duration Minutes"
           },
+          "event_cutoff_hours": {
+            "anyOf": [
+              {
+                "maximum": 720.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Event Cutoff Hours"
+          },
+          "event_end_weekday": {
+            "anyOf": [
+              {
+                "maximum": 7.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Event End Weekday"
+          },
+          "event_horizon_n": {
+            "default": 2,
+            "maximum": 12.0,
+            "minimum": 1.0,
+            "title": "Event Horizon N",
+            "type": "integer"
+          },
+          "event_start_weekday": {
+            "anyOf": [
+              {
+                "maximum": 7.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Event Start Weekday"
+          },
           "guide_languages": {
             "anyOf": [
               {
@@ -22429,6 +22589,7 @@
                 "items": {
                   "type": "string"
                 },
+                "maxItems": 92,
                 "type": "array"
               },
               {
@@ -22713,6 +22874,58 @@
               }
             ],
             "title": "Duration Minutes"
+          },
+          "event_cutoff_hours": {
+            "anyOf": [
+              {
+                "maximum": 720.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Event Cutoff Hours"
+          },
+          "event_end_weekday": {
+            "anyOf": [
+              {
+                "maximum": 7.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Event End Weekday"
+          },
+          "event_horizon_n": {
+            "anyOf": [
+              {
+                "maximum": 12.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Event Horizon N"
+          },
+          "event_start_weekday": {
+            "anyOf": [
+              {
+                "maximum": 7.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Event Start Weekday"
           },
           "guide_languages": {
             "anyOf": [
@@ -24159,6 +24372,7 @@
       "PublicSubmitBookingIn": {
         "properties": {
           "booking_channel": {
+            "const": "public_website",
             "default": "public_website",
             "title": "Booking Channel",
             "type": "string"
@@ -24182,6 +24396,7 @@
             "items": {
               "$ref": "#/components/schemas/CompanionIn"
             },
+            "maxItems": 200,
             "title": "Companions",
             "type": "array"
           },
@@ -24356,6 +24571,7 @@
             "items": {
               "$ref": "#/components/schemas/ParticipantIn"
             },
+            "maxItems": 200,
             "title": "Participants",
             "type": "array"
           },
@@ -24385,6 +24601,7 @@
             "items": {
               "$ref": "#/components/schemas/ProductLineIn"
             },
+            "maxItems": 40,
             "title": "Products",
             "type": "array"
           },
@@ -42287,7 +42504,7 @@
     },
     "/api/public/bookings/{token}/accept-offer": {
       "post": {
-        "description": "The customer accepts the custom offer behind ``token`` (landr-bo0wd.1,\nlandr-xcyh1.2).\n\nRecords ``offer_accepted_at`` (once), then -- landr-kstic -- runs the\ngeneral approval while the booking waits at the general gate\n(``custom_offer_flow.advance_from_general_gate``) with the operator who\nSENT the offer as the approver: the hotel is asked only now (or, with no\nhotel step, the booking reaches ``awaiting_payment`` and the\nconfirmation + payment link go out; the stamp comes first, so the\nconfirmation gate does not hold it). A booking already at\n``awaiting_payment`` with its confirmation held (the hotel confirmed\nbefore this yes) gets it released\n(``custom_offer_flow.release_held_confirmation``).\n\nErrors: 401 bad/expired token; 404 ``booking_not_found``; 409\n``offer_not_applied`` (no applied offer), ``offer_not_sent`` (never\nsent), ``offer_changed_since_sent`` (edited after the send, or the\nbooking's days / products changed under it -- landr-wbzjp.4: the link is\nstale until the offer is re-sent), ``booking_closed`` (deleted /\ncancelled / finalised).",
+        "description": "The customer accepts the custom offer behind ``token`` (landr-bo0wd.1,\nlandr-xcyh1.2).\n\nRecords ``offer_accepted_at`` (once), then -- landr-kstic -- runs the\ngeneral approval while the booking waits at the general gate\n(``custom_offer_flow.advance_from_general_gate``) with the operator who\nSENT the offer as the approver: the hotel is asked only now (or, with no\nhotel step, the booking reaches ``awaiting_payment`` and the\nconfirmation + payment link go out; the stamp comes first, so the\nconfirmation gate does not hold it). A booking already at\n``awaiting_payment`` with its confirmation held (the hotel confirmed\nbefore this yes) gets it released\n(``custom_offer_flow.release_held_confirmation``).\n\nErrors: 401 bad/expired token; 404 ``booking_not_found``; 409\n``offer_not_applied`` (no applied offer), ``offer_not_sent`` (never\nsent), ``offer_expired`` (landr-aowkj: the 30-day offer window lapsed,\nwhichever token is presented), ``offer_changed_since_sent`` (edited after the send, or the\nbooking's days / products changed under it -- landr-wbzjp.4: the link is\nstale until the offer is re-sent), ``booking_closed`` (deleted /\ncancelled / finalised).",
         "operationId": "accept_offer_public",
         "parameters": [
           {
@@ -43660,7 +43877,7 @@
     },
     "/api/public/operators/{token}/account-link": {
       "post": {
-        "description": "landr-16u9: passwordless LANDR account-link for the post-booking\n'Track this booking in the LANDR app' prompt.\n\nMints a magic link via Supabase admin ``generate_link`` (Supabase sends\nNO email) and delivers it as a fixed Landr system email (``account_link``\ntemplate, SES \u2192 Resend) \u2014 never through the tenant-readable outbox. Gated on the operator's\n``offer_account_link`` opt-in (landr-atwy): when off, returns 404 so the\nsurface stays opaque.",
+        "description": "landr-16u9: passwordless LANDR account-link for the post-booking\n'Track this booking in the LANDR app' prompt.\n\nMints a magic link via Supabase admin ``generate_link`` (Supabase sends\nNO email) and delivers it as a fixed Landr system email (``account_link``\ntemplate, SES \u2192 Resend) \u2014 never through the tenant-readable outbox. Gated on the operator's\n``offer_account_link`` opt-in (landr-atwy): when off, returns 404 so the\nsurface stays opaque.\n\nlandr-0unqx.40: past the opt-in gate the answer is a FIXED ``202 {\"ok\":\ntrue}`` \u2014 sent, malformed address, recipient over budget, or GoTrue\nfailure alike \u2014 so the response says nothing about any address. Only the\ncaller's own budgets (per IP, per operator) answer 429, fail closed.",
         "operationId": "request_account_link",
         "parameters": [
           {
@@ -44768,6 +44985,50 @@
           }
         },
         "summary": "Signup",
+        "tags": [
+          "public-signup"
+        ]
+      }
+    },
+    "/api/public/signup/pilot": {
+      "post": {
+        "description": "Email + password signup for a pilot from the mobile app (landr-0unqx.63).\n\nThe app used to call GoTrue ``/auth/v1/signup`` directly. For an email that\nalready has an UNCONFIRMED user, GoTrue re-sends that user's confirmation\nand keeps its FIRST password, so whoever signed up first with someone\nelse's address could sign in once the real owner confirmed (pre-account\ntakeover, same mechanism as landr-1dnvc).\n\nHere the identity is checked first:\n\n* none -> create it (``generate_link`` type=signup, unconfirmed, no\n  session) with the caller's password and send the confirm link\n  ourselves (``signup_verify`` system mail; the redirect is GoTrue's site\n  URL, as with the old direct call);\n* pending and unheld (:func:`_pilot_identity_is_discardable`) -> deleted,\n  then created fresh, so the password the inbox owner confirms is the one\n  this caller chose;\n* confirmed, signed in, invited, a web self-signup or a member of an\n  operator -> left alone; the owner gets the \"you already have an\n  account\" notice.\n\nThe answer is the same 201 ``verification_email_sent`` body in every case\n(no email-enumeration oracle). No session is ever returned: the user signs\nin after confirming. 422 bad input, 429 over a cap, 503 limiter down (fail\nclosed), 500 create/send failure (the new identity is deleted again).",
+        "operationId": "pilot_signup",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PilotSignupRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Pilot Signup",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Pilot Signup",
         "tags": [
           "public-signup"
         ]
