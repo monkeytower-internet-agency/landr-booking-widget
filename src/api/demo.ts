@@ -4,10 +4,12 @@
  * In demo mode `client.ts` hands EVERY request to `demoRequest()` instead of
  * `fetch`. It answers read endpoints from sample data built here and refuses
  * every write, so the widget cannot create a booking, start a payment or send
- * a mail. The one real network call is the read-only template lookup
- * (`GET /api/public/templates/{slug}`) that names the demo and sizes its sample
- * catalogue — templates are hidden from operator lookups, so there is no
- * operator slug to resolve.
+ * a mail. The only real network calls are the two read-only template lookups:
+ * `GET /api/public/templates/{slug}` (names the demo) and
+ * `GET /api/public/templates/{slug}/catalogue` (the template's real groups and
+ * products) — templates are hidden from operator lookups, so there is no
+ * operator slug to resolve. Hand-written sample offers are only the fallback
+ * for when the catalogue request fails.
  */
 import { demoLang, demoSlug } from '@/lib/demo'
 import type {
@@ -18,6 +20,7 @@ import type {
   OperatorSettings,
   Product,
   ServiceRole,
+  ProductGroup,
   ServiceTimeShape,
   SubmitBookingResponse,
 } from './types'
@@ -27,11 +30,27 @@ interface TemplatePitchLocale {
   hero_url?: string | null
 }
 
+/** A product of `GET /api/public/templates/{slug}/catalogue` (slug-keyed, no ids). */
+export type DemoCatalogueProduct = Omit<
+  Product,
+  | 'product_id' | 'product_group_id' | 'fixed_start_date' | 'fixed_end_date'
+  | 'sport_subcategory_codes' | 'location_ids' | 'hotel_location_id'
+> & { price_per_unit: number | string | null }
+
+export type DemoCatalogueGroup = Omit<ProductGroup, 'id' | 'parent_id'> & { parent_slug: string | null }
+
+export interface DemoCatalogue {
+  groups: DemoCatalogueGroup[]
+  products: DemoCatalogueProduct[]
+}
+
 export interface DemoTemplate {
   slug: string
   flow?: 'solo' | 'company'
   product_count?: number
   pitch?: Record<string, TemplatePitchLocale> | null
+  /** The template's real catalogue; absent when the request failed (samples are used). */
+  catalogue?: DemoCatalogue | null
 }
 
 /** Thrown for any write attempted in demo mode. Never reaches the network. */
@@ -50,25 +69,31 @@ function templatesBase(): string {
   return ((import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '').replace(/\/+$/, '')
 }
 
+async function getJson<T>(url: string): Promise<T | null> {
+  try {
+    const res = await fetch(url, { method: 'GET', headers: { Accept: 'application/json' } })
+    return res.ok ? ((await res.json()) as T) : null
+  } catch {
+    return null
+  }
+}
+
 /**
- * The public template (slug, flow, product count, pitch). Cached per slug. A
- * failed lookup degrades to a bare `{ slug }` so the demo still renders its
- * sample catalogue offline.
+ * The public template (slug, flow, product count, pitch) plus its real
+ * catalogue. Cached per slug. A failed lookup degrades to a bare `{ slug }`
+ * (and a failed catalogue to sample offers) so the demo still renders offline.
  */
 export function loadDemoTemplate(slug: string): Promise<DemoTemplate> {
   let p = templateCache.get(slug)
   if (!p) {
+    const base = `${templatesBase()}/api/public/templates/${encodeURIComponent(slug)}`
     p = (async () => {
-      try {
-        const res = await fetch(`${templatesBase()}/api/public/templates/${encodeURIComponent(slug)}`, {
-          method: 'GET',
-          headers: { Accept: 'application/json' },
-        })
-        if (!res.ok) return { slug }
-        return { ...((await res.json()) as DemoTemplate), slug }
-      } catch {
-        return { slug }
-      }
+      const [head, cat] = await Promise.all([
+        getJson<DemoTemplate>(base),
+        getJson<DemoCatalogue>(`${base}/catalogue`),
+      ])
+      const catalogue = cat && Array.isArray(cat.products) && cat.products.length > 0 ? cat : null
+      return { ...(head ?? {}), slug, catalogue }
     })()
     templateCache.set(slug, p)
   }
@@ -150,13 +175,29 @@ function offersFor(template: DemoTemplate): SampleOffer[] {
 }
 
 const productId = (slug: string, key: string): string => `demo-${slug}-${key}`
+const groupId = (slug: string, key: string): string => `demo-${slug}-group-${key}`
 
 function heroOf(template: DemoTemplate): string | null {
   const url = template.pitch?.[demoLang()]?.hero_url ?? template.pitch?.en?.hero_url ?? null
   return url && /^https:\/\//.test(url) ? url : null
 }
 
-export function demoProducts(template: DemoTemplate): Product[] {
+/** Template texts may carry clone placeholders; show neutral wording instead. */
+const PLACEHOLDERS: Record<'en' | 'de', Record<string, string>> = {
+  en: { company: 'your company', city: 'your city', email: 'your email' },
+  de: { company: 'dein Unternehmen', city: 'deine Stadt', email: 'deine E-Mail' },
+}
+
+function fill(text: string | null | undefined, lang: 'en' | 'de'): string {
+  return (text ?? '').replace(/\{(company|city|email)\}/g, (_m, k: string) => PLACEHOLDERS[lang][k])
+}
+
+function fillMap(m: Record<string, string> | null | undefined): Record<string, string> | null {
+  if (!m) return null
+  return Object.fromEntries(Object.entries(m).map(([k, v]) => [k, fill(v, k === 'de' ? 'de' : 'en')]))
+}
+
+const sampleProducts = (template: DemoTemplate): Product[] => {
   const hero = heroOf(template)
   return offersFor(template).map((o, i): Product => ({
     product_id: productId(template.slug, o.key),
@@ -192,11 +233,66 @@ export function demoProducts(template: DemoTemplate): Product[] {
   }))
 }
 
-function findOffer(template: DemoTemplate, id: string): { offer: SampleOffer; product: Product } | null {
-  const products = demoProducts(template)
-  const offers = offersFor(template)
-  const idx = products.findIndex((p) => p.product_id === id)
-  return idx >= 0 ? { offer: offers[idx], product: products[idx] } : null
+/** The template's real offers, given synthetic ids (nothing resolves a booking). */
+const catalogueProducts = (template: DemoTemplate, cat: DemoCatalogue): Product[] => {
+  const hero = heroOf(template)
+  return cat.products.map((c): Product => {
+    const images = (c.images ?? []).filter((im) => im.thumb_url || im.hero_url)
+    const thumb = c.thumb_url ?? images[0]?.thumb_url ?? hero
+    return {
+      ...c,
+      product_id: productId(template.slug, c.slug),
+      name: fill(c.name, 'en'),
+      name_localized: fillMap(c.name_localized),
+      short_description: c.short_description == null ? null : fill(c.short_description, 'en'),
+      short_description_localized: fillMap(c.short_description_localized),
+      description: c.description == null ? null : fill(c.description, 'en'),
+      product_group_id: c.group_slug ? groupId(template.slug, c.group_slug) : null,
+      fixed_start_date: null,
+      fixed_end_date: null,
+      sport_subcategory_codes: [],
+      location_ids: [],
+      needs_pickup: false,
+      hotel_offering: 'none',
+      hotel_location_id: null,
+      guide_languages: c.guide_languages ?? [],
+      is_contiguous: !!c.is_contiguous,
+      sort_order: c.sort_order ?? 0,
+      price_per_unit: c.price_per_unit == null ? null : Number(c.price_per_unit),
+      currency: c.currency ?? 'EUR',
+      is_publicly_listed: true,
+      // Demo slots are generated and always open.
+      bookable: true,
+      thumb_url: thumb ?? null,
+      images: images.length ? images : hero ? [{ thumb_url: hero, hero_url: hero, alt: c.name }] : [],
+    } as Product
+  })
+}
+
+export function demoProducts(template: DemoTemplate): Product[] {
+  return template.catalogue ? catalogueProducts(template, template.catalogue) : sampleProducts(template)
+}
+
+export function demoGroups(template: DemoTemplate): ProductGroup[] {
+  const cat = template.catalogue
+  if (!cat) return []
+  return cat.groups.map((g) => ({
+    ...g,
+    id: groupId(template.slug, g.slug),
+    parent_id: g.parent_slug ? groupId(template.slug, g.parent_slug) : null,
+    name: fill(g.name, 'en'),
+    name_localized: fillMap(g.name_localized),
+    description: g.description == null ? null : fill(g.description, 'en'),
+    description_localized: fillMap(g.description_localized),
+  }))
+}
+
+/** What one participant pays for one unit: the cheapest bookable price, else the base rate. */
+const unitPrice = (p: Product): number => Number(p.price_from ?? p.price_per_unit ?? 0) || 0
+
+function findOffer(template: DemoTemplate, id: string): { product: Product; price: number } | null {
+  const product = demoProducts(template).find((p) => p.product_id === id)
+  return product ? { product, price: unitPrice(product) } : null
 }
 
 // ------------------------------------------------------------- generated data
@@ -280,15 +376,15 @@ export function demoEstimate(
   const lines: EstimateResponse['line_items'] = []
   let total = 0
   if (hit) {
-    const units = hit.offer.shape === 'days_range' ? days : 1
-    const lineTotal = hit.offer.price * units * qty
+    const units = hit.product.service_time_shape === 'days_range' ? days : 1
+    const lineTotal = hit.price * units * qty
     total = lineTotal
     lines.push({
       product_id: id,
-      label: hit.offer.en,
+      label: hit.product.name,
       qty,
       units,
-      unit_price: hit.offer.price.toFixed(2),
+      unit_price: hit.price.toFixed(2),
       line_total: lineTotal.toFixed(2),
       paid_to: 'operator',
     })
@@ -355,7 +451,7 @@ export async function demoRequest<T>(path: string, init?: RequestInit): Promise<
   if (OP.test(pathname)) {
     const rest = pathname.replace(OP, '')
     if (rest === '/products') return demoProducts(template) as T
-    if (rest === '/product-groups') return [] as T
+    if (rest === '/product-groups') return demoGroups(template) as T
     if (rest === '/settings') return demoSettings(template) as T
     if (rest === '/service-roles') return demoRoles() as T
     if (rest === '/locations') return [] as T
@@ -372,7 +468,7 @@ export async function demoRequest<T>(path: string, init?: RequestInit): Promise<
     const hit = findOffer(template, id)
     if (rest === '/availability') {
       const today = iso(new Date())
-      return demoAvailability(id, params.get('from') ?? today, params.get('to') ?? today, hit?.offer.shape ?? null) as T
+      return demoAvailability(id, params.get('from') ?? today, params.get('to') ?? today, hit?.product.service_time_shape ?? null) as T
     }
     if (rest === '/fixed-date-windows') return demoFixedWindows() as T
     if (rest === '/alternatives' || rest === '/addons') return [] as T

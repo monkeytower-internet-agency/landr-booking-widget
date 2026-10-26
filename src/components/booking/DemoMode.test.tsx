@@ -13,9 +13,30 @@ const TEMPLATE = {
   pitch: { en: { headline: 'Fly guests on your own' } },
 }
 
+const CATALOGUE = {
+  template_slug: 'tandem',
+  version: 1,
+  groups: [],
+  products: [
+    {
+      slug: 'alpine-tandem', name: 'Alpine tandem flight', name_localized: { de: 'Alpiner Tandemflug' },
+      short_description: 'Soar over the valley', short_description_localized: null, description: null,
+      product_kind: 'service', service_time_shape: 'single_date', is_contiguous: false,
+      duration_minutes: null, group_slug: null, group_name: null, sort_order: 1,
+      price_per_unit: 140, currency: 'EUR', price_from: '140.00', price_base: '140.00', price_notes: [],
+      images: [], thumb_url: null, guide_languages: null,
+    },
+  ],
+}
+
 beforeEach(() => {
   resetDemoTemplateCache()
-  vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify(TEMPLATE), { status: 200 })))
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (url: string) =>
+      new Response(JSON.stringify(String(url).endsWith('/catalogue') ? CATALOGUE : TEMPLATE), { status: 200 }),
+    ),
+  )
   window.history.replaceState({}, '', '/?demo=tandem')
 })
 
@@ -47,17 +68,18 @@ describe('App in demo mode', () => {
   it('boots without a widget token: Demo label + the template catalogue, never the landing page', async () => {
     render(<App />)
     await waitFor(() => expect(screen.getByTestId('demo-banner')).toBeInTheDocument())
-    expect(await screen.findByText('Tandem flight')).toBeInTheDocument()
+    expect(await screen.findByText('Alpine tandem flight')).toBeInTheDocument()
+    expect(screen.queryByText('Tandem flight')).not.toBeInTheDocument()
     const calls = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls
     for (const [url, init] of calls) {
-      expect(String(url)).toMatch(/\/api\/public\/templates\/tandem$/)
+      expect(String(url)).toMatch(/\/api\/public\/templates\/tandem(\/catalogue)?$/)
       expect((init as RequestInit | undefined)?.method ?? 'GET').toBe('GET')
     }
   })
 
   it('walks the whole flow to the congrats screen and never POSTs', async () => {
     render(<App />)
-    fireEvent.click(await screen.findByText('Tandem flight'))
+    fireEvent.click(await screen.findByText('Alpine tandem flight'))
     fireEvent.click(await screen.findByTestId('product-detail-book-cta'))
     await waitFor(() => {
       const enabled = screen

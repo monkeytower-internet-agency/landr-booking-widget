@@ -4356,6 +4356,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/public/templates/{slug}/catalogue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Public Get Template Catalogue */
+        get: operations["public_get_template_catalogue"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/public/tickets/{token}.png": {
         parameters: {
             query?: never;
@@ -14082,6 +14099,117 @@ export interface components {
              */
             notify_customer: boolean;
         };
+        /** CatalogueGroup */
+        CatalogueGroup: {
+            /**
+             * Bookable Count
+             * @default 0
+             */
+            bookable_count: number;
+            /** Description */
+            description?: string | null;
+            /** Description Localized */
+            description_localized?: {
+                [key: string]: unknown;
+            } | null;
+            /** Image Url */
+            image_url?: string | null;
+            /** Name */
+            name: string;
+            /** Name Localized */
+            name_localized?: {
+                [key: string]: unknown;
+            } | null;
+            /** Parent Slug */
+            parent_slug?: string | null;
+            /**
+             * Product Count
+             * @default 0
+             */
+            product_count: number;
+            /** Slug */
+            slug: string;
+            /**
+             * Sort Order
+             * @default 0
+             */
+            sort_order: number;
+        };
+        /**
+         * CatalogueProduct
+         * @description One offer, keyed by slug. Mirrors the widget's catalogue product minus
+         *     every id (product, group, category, location, hotel).
+         */
+        CatalogueProduct: {
+            /** Category Name */
+            category_name?: string | null;
+            /** Category Name Localized */
+            category_name_localized?: {
+                [key: string]: unknown;
+            } | null;
+            /** Currency */
+            currency?: string | null;
+            /** Daily Start Times */
+            daily_start_times?: string[] | null;
+            /** Description */
+            description?: string | null;
+            /** Duration Minutes */
+            duration_minutes?: number | null;
+            /** Group Name */
+            group_name?: string | null;
+            /** Group Slug */
+            group_slug?: string | null;
+            /** Guide Languages */
+            guide_languages?: string[] | null;
+            /**
+             * Images
+             * @default []
+             */
+            images: components["schemas"]["ProductImage"][];
+            /** Is Contiguous */
+            is_contiguous?: boolean | null;
+            /** Max Party Size */
+            max_party_size?: number | null;
+            /** Name */
+            name: string;
+            /** Name Localized */
+            name_localized?: {
+                [key: string]: unknown;
+            } | null;
+            /** Price Base */
+            price_base?: string | null;
+            /** Price From */
+            price_from?: string | null;
+            /**
+             * Price Notes
+             * @default []
+             */
+            price_notes: {
+                [key: string]: unknown;
+            }[];
+            /** Price Per Unit */
+            price_per_unit?: string | null;
+            /** Product Kind */
+            product_kind: string;
+            /** Service Time Shape */
+            service_time_shape?: string | null;
+            /** Short Description */
+            short_description?: string | null;
+            /** Short Description Localized */
+            short_description_localized?: {
+                [key: string]: unknown;
+            } | null;
+            /** Slug */
+            slug: string;
+            /** Sort Order */
+            sort_order?: number | null;
+            /** Stay */
+            stay?: {
+                [key: string]: unknown;
+            } | null;
+            /** Thumb Url */
+            thumb_url?: string | null;
+        };
         /** ChangeNotification */
         ChangeNotification: {
             /** Channels */
@@ -23481,6 +23609,17 @@ export interface components {
              */
             template_keys?: string[];
         };
+        /** TemplateCatalogueOut */
+        TemplateCatalogueOut: {
+            /** Groups */
+            groups: components["schemas"]["CatalogueGroup"][];
+            /** Products */
+            products: components["schemas"]["CatalogueProduct"][];
+            /** Template Slug */
+            template_slug: string;
+            /** Version */
+            version: number;
+        };
         /** TemplateCompare */
         TemplateCompare: {
             /** Label */
@@ -30882,6 +31021,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TemplateOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_get_template_catalogue: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TemplateCatalogueOut"];
                 };
             };
             /** @description Validation Error */
