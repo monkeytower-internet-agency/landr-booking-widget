@@ -57,6 +57,8 @@ import {
   languageFlag,
   languageName,
 } from './participantLanguages'
+import { withFallbackGuestLanguage } from './stayFlow'
+import { isStayKind } from '@/flowPlan'
 
 export type BookingSelection =
   | {
@@ -1614,6 +1616,29 @@ export function BookingForm({
       // endpoint silently drops force-book / price-override, so routing a staff
       // body there was a no-op of the whole feature. A non-staff body stays on
       // the public path, byte-identically to before.
+      // landr-m6tp4.55: a stay-only cart sends no participant language. An API
+      // that predates that rule (promotion skew) rejects it with a typed
+      // `participant_language_missing` 422; retry exactly once with the
+      // customer's UI language so the booking still goes through.
+      const withStayLanguageFallback = async <
+        B extends { participants: Array<object>; customer_languages?: string[] | null },
+        R,
+      >(
+        send: (b: B) => Promise<R>,
+        b: B,
+      ): Promise<R> => {
+        try {
+          return await send(b)
+        } catch (err) {
+          const missing =
+            err instanceof HttpError &&
+            err.status === 422 &&
+            readLanguageError(err.detail, participants.length)?.code ===
+              'participant_language_missing'
+          if (!missing || !isStayKind(product.product_kind)) throw err
+          return send(withFallbackGuestLanguage(b))
+        }
+      }
       let result: SubmitBookingResponse
       if (isStaffSubmitBody(submitBody)) {
         if (!staff.operatorId) {
@@ -1626,14 +1651,17 @@ export function BookingForm({
           setSubmitting(false)
           return
         }
-        result = await submitStaffBooking(staff.operatorId, submitBody)
+        result = await withStayLanguageFallback(
+          (b) => submitStaffBooking(staff.operatorId!, b),
+          submitBody,
+        )
       } else {
         // landr-7zc5.3: pass preview_token so the API can accept draft
         // products during operator preview. The option is harmlessly
         // ignored when previewToken is undefined (normal customer flow).
-        result = await submitBooking(
+        result = await withStayLanguageFallback(
+          (b) => submitBooking(b, previewToken ? { previewToken } : undefined),
           submitBody,
-          previewToken ? { previewToken } : undefined,
         )
         // The booking exists and waits for the organizer; send the documents.
         if (result.verification) {
