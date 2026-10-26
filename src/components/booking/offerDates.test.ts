@@ -105,4 +105,26 @@ describe('period rows (landr-8f1sh.4)', () => {
       ['departure', null, 0, false],
     ])
   })
+  it('folds a timed stay (arrival + departure with check-in/out times) into one stay row', () => {
+    const times = { nights: 3, check_in_time: '14:00', check_out_time: '10:30' }
+    const rows = periodRowsFromApi([
+      { kind: 'arrival', start_date: '2027-02-01', end_date: '2027-02-01', label: 'Arrival', product_name: null, days: 1, meta: times },
+      { kind: 'activity', start_date: '2027-02-02', end_date: '2027-02-03', label: 'Activity', product_name: 'Tandem', days: 2, meta: {} },
+      { kind: 'departure', start_date: '2027-02-04', end_date: '2027-02-04', label: 'Departure', product_name: null, days: 1, meta: times },
+    ])
+    expect(rows.map((r) => [r.kind, r.name, r.count, r.nights])).toEqual([
+      ['stay', null, 3, true],
+      ['activity', 'Tandem', 2, false],
+    ])
+    expect(rows[0]).toMatchObject({ start: '2027-02-01', end: '2027-02-04' })
+    expect(rows[0]!.stay).toMatchObject({ kind: 'stay', end_date: '2027-02-04' })
+  })
+
+  it('keeps Arrival / Departure for a hotel-room booking without times', () => {
+    const rows = periodRowsFromApi([
+      { kind: 'arrival', start_date: '2027-02-01', end_date: '2027-02-01', label: 'Arrival', product_name: null, days: 1, meta: { nights: 3 } },
+      { kind: 'departure', start_date: '2027-02-04', end_date: '2027-02-04', label: 'Departure', product_name: null, days: 1, meta: { nights: 3 } },
+    ])
+    expect(rows.map((r) => r.kind)).toEqual(['arrival', 'departure'])
+  })
 })

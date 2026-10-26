@@ -54,4 +54,13 @@ describe('stayWindowLabel', () => {
     const noNights = { ...stay, meta: { check_in_time: '15:00', check_out_time: '11:00' } }
     expect(stayWindowLabel(noNights, 'en')).toBe('Check-in 14.09. 15:00 – Check-out 16.09. 11:00 (2 nights)')
   })
+
+  it('drops the trailing nights suffix when the caller has its own length column', () => {
+    expect(stayWindowLabel(stay, 'en', { withNights: false })).toBe(
+      'Check-in 14.09. 14:00 – Check-out 16.09. 10:30',
+    )
+    expect(stayWindowLabel(stay, 'tr', { withNights: false })).toBe(
+      'Giriş 14.09. 14:00 – Çıkış 16.09. 10:30',
+    )
+  })
 })

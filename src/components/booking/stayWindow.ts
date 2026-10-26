@@ -46,7 +46,11 @@ export function foldStayPeriods(periods: BookingPeriod[]): DisplayPeriod[] {
 }
 
 /** "Check-in 14.09. 14:00 – Check-out 16.09. 10:30 (2 nights)". */
-export function stayWindowLabel(period: DisplayPeriod, locale?: string): string {
+export function stayWindowLabel(
+  period: DisplayPeriod,
+  locale?: string,
+  opts: { withNights?: boolean } = {},
+): string {
   const nightsRaw = period.meta?.nights
   const nights =
     typeof nightsRaw === 'number' && nightsRaw > 0
@@ -57,10 +61,12 @@ export function stayWindowLabel(period: DisplayPeriod, locale?: string): string 
             (Date.parse(period.end_date) - Date.parse(period.start_date)) / 86_400_000,
           ) || 1,
         )
-  return fmt(pickBundle(locale).stayWindowTemplate, {
+  const label = fmt(pickBundle(locale).stayWindowTemplate, {
     checkIn: `${ddmm(period.start_date)} ${hhmm(period.meta?.check_in_time)}`.trim(),
     checkOut: `${ddmm(period.end_date)} ${hhmm(period.meta?.check_out_time)}`.trim(),
     nights: String(nights),
     nightWord: nightsWord(nights, locale),
   })
+  // The offer table has its own Length column: drop the trailing "(2 nights)".
+  return opts.withNights === false ? label.replace(/\s*\([^()]*\)\s*$/, '') : label
 }
