@@ -36182,7 +36182,7 @@
     },
     "/api/community/photos/{media_id}/url": {
       "get": {
-        "description": "Return a short-lived signed URL for a private community-media object.\n\nThe community-media bucket is PRIVATE (landr-w6gi.13) \u2014 raw object URLs are\nnot public. Any authenticated community member may read a non-removed asset\n(mirrors the media_assets SELECT RLS policy: moderation_status != 'removed').\n'removed' assets return 410 so a takedown actually hides the bytes.\n\nmedia_id is the media_assets.id.",
+        "description": "Return a short-lived signed URL for a private community-media object.\n\nThe community-media bucket is PRIVATE (landr-w6gi.13) \u2014 raw object URLs are\nnot public. Who may read depends on the asset's subject_type (landr-2ws2z):\n\n  * 'site'  \u2014 community content: any authenticated member.\n  * 'gear', 'personal' or NULL \u2014 the uploader's own PII (gear/insurance/\n    serial shots): only the uploader or Landr staff. Anyone else gets 404,\n    the same answer as a missing id, so ids don't confirm existence.\n\nThis mirrors the media_assets SELECT RLS policy (migration\n*_media_assets_private_subjects_owner_select.sql). 'removed' assets return\n410 so a takedown actually hides the bytes.\n\nmedia_id is the media_assets.id.",
         "operationId": "get_photo_signed_url",
         "parameters": [
           {

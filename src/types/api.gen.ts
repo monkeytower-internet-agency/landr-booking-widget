@@ -363,9 +363,16 @@ export interface paths {
          * @description Return a short-lived signed URL for a private community-media object.
          *
          *     The community-media bucket is PRIVATE (landr-w6gi.13) — raw object URLs are
-         *     not public. Any authenticated community member may read a non-removed asset
-         *     (mirrors the media_assets SELECT RLS policy: moderation_status != 'removed').
-         *     'removed' assets return 410 so a takedown actually hides the bytes.
+         *     not public. Who may read depends on the asset's subject_type (landr-2ws2z):
+         *
+         *       * 'site'  — community content: any authenticated member.
+         *       * 'gear', 'personal' or NULL — the uploader's own PII (gear/insurance/
+         *         serial shots): only the uploader or Landr staff. Anyone else gets 404,
+         *         the same answer as a missing id, so ids don't confirm existence.
+         *
+         *     This mirrors the media_assets SELECT RLS policy (migration
+         *     *_media_assets_private_subjects_owner_select.sql). 'removed' assets return
+         *     410 so a takedown actually hides the bytes.
          *
          *     media_id is the media_assets.id.
          */
