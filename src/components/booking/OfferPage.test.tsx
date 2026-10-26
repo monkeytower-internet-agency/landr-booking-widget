@@ -1607,6 +1607,30 @@ describe('OfferPage — custom offer v2 positions (landr-8f1sh.4)', () => {
     expect(rows[1]).toHaveTextContent('2 days')
   })
 
+  it('folds a timed stay into one check-in -> check-out window row', async () => {
+    const times = { nights: 3, check_in_time: '14:00', check_out_time: '10:30' }
+    mocks.getBookingByToken.mockResolvedValue({
+      ...WITH_OFFER,
+      periods: [
+        { kind: 'arrival', start_date: '2027-02-01', end_date: '2027-02-01', label: 'Arrival', product_name: null, days: 1, meta: times },
+        { kind: 'activity', start_date: '2027-02-02', end_date: '2027-02-03', label: 'Activity', product_name: 'Tandem', days: 2, meta: {} },
+        { kind: 'departure', start_date: '2027-02-04', end_date: '2027-02-04', label: 'Departure', product_name: null, days: 1, meta: times },
+      ],
+    })
+    render(<OfferPage token={TOKEN} />)
+    await waitFor(() => screen.getByTestId('offer-ready'))
+
+    const rows = screen.getAllByTestId('offer-period-row')
+    expect(rows.map((r) => r.getAttribute('data-kind'))).toEqual(['stay', 'activity'])
+    expect(rows[0]).toHaveTextContent('Stay')
+    expect(screen.getAllByTestId('offer-period-dates')[0]).toHaveTextContent(
+      /^Check-in 01\.02\. 14:00 – Check-out 04\.02\. 10:30$/,
+    )
+    expect(rows[0]).toHaveTextContent('3 nights')
+    expect(rows[0]).not.toHaveTextContent('Arrival')
+    expect(rows[0]).not.toHaveTextContent('Departure')
+  })
+
   it('legacy booking without offer_positions keeps today\'s rendering', async () => {
     mocks.getBookingByToken.mockResolvedValue({
       ...WITH_OFFER,

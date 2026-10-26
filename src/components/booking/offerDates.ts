@@ -6,6 +6,9 @@
  * date, so the viewer's timezone can never shift a day.
  */
 
+import type { BookingPeriod } from '@/api/types'
+import { foldStayPeriods, type DisplayPeriod } from './stayWindow'
+
 const ISO_DAY = /^(\d{4})-(\d{2})-(\d{2})/
 
 export interface DayRange {
@@ -151,8 +154,8 @@ export function addDays(iso: string, n: number): string {
 
 /** One row of the offer page's Period / Dates / Length table. */
 export interface OfferPeriodRow {
-  kind: 'arrival' | 'activity' | 'departure'
-  /** Activity: the product name(s). Arrival/departure: null (caller localizes). */
+  kind: 'arrival' | 'activity' | 'departure' | 'stay'
+  /** Activity: the product name(s). Arrival/departure/stay: null (caller localizes). */
   name: string | null
   start: string
   end: string
@@ -160,6 +163,12 @@ export interface OfferPeriodRow {
   count: number
   /** True when `count` counts hotel nights rather than days. */
   nights: boolean
+  /**
+   * `stay` rows only: the folded arrival + departure (check-in -> check-out
+   * with the times), rendered through `stayWindowLabel` like the confirmation
+   * step.
+   */
+  stay?: DisplayPeriod
 }
 
 /**
@@ -237,19 +246,30 @@ export function derivePeriodRows(
  * rows their inclusive days; the departure row no length.
  */
 export function periodRowsFromApi(
-  periods: ReadonlyArray<{
-    kind: 'arrival' | 'activity' | 'departure'
-    start_date: string
-    end_date: string
-    product_name: string | null
-    label: string
-    days: number
-  }>,
+  periods: ReadonlyArray<
+    Omit<BookingPeriod, 'meta'> & { meta?: BookingPeriod['meta'] }
+  >,
 ): OfferPeriodRow[] {
-  const departure = periods.find((p) => p.kind === 'departure')
-  return periods.map((p) => {
+  // A stay's arrival + departure fold into ONE check-in -> check-out row
+  // (the same fold the confirmation step uses); a booking without times keeps
+  // its Arrival / Departure rows.
+  const folded = foldStayPeriods(periods.map((p) => ({ ...p, meta: p.meta ?? {} })))
+  const departure = folded.find((p) => p.kind === 'departure')
+  return folded.map((p): OfferPeriodRow => {
     const start = p.start_date.slice(0, 10)
     const end = p.end_date.slice(0, 10)
+    if (p.kind === 'stay') {
+      const stay = inclusiveDays(start, end)
+      return {
+        kind: 'stay',
+        name: null,
+        start,
+        end,
+        count: stay !== null ? Math.max(0, stay - 1) : 0,
+        nights: true,
+        stay: p,
+      }
+    }
     if (p.kind === 'arrival') {
       const stay = departure ? inclusiveDays(start, departure.start_date) : null
       return { kind: 'arrival', name: null, start, end, count: stay !== null ? stay - 1 : 0, nights: true }
