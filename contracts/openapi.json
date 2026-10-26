@@ -4641,6 +4641,381 @@
         "title": "CancellationNoticesIn",
         "type": "object"
       },
+      "CatalogueGroup": {
+        "properties": {
+          "bookable_count": {
+            "default": 0,
+            "title": "Bookable Count",
+            "type": "integer"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "description_localized": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description Localized"
+          },
+          "image_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Url"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "name_localized": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name Localized"
+          },
+          "parent_slug": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Slug"
+          },
+          "product_count": {
+            "default": 0,
+            "title": "Product Count",
+            "type": "integer"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "sort_order": {
+            "default": 0,
+            "title": "Sort Order",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "slug",
+          "name"
+        ],
+        "title": "CatalogueGroup",
+        "type": "object"
+      },
+      "CatalogueProduct": {
+        "description": "One offer, keyed by slug. Mirrors the widget's catalogue product minus\nevery id (product, group, category, location, hotel).",
+        "properties": {
+          "category_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Name"
+          },
+          "category_name_localized": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Name Localized"
+          },
+          "currency": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Currency"
+          },
+          "daily_start_times": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Daily Start Times"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "duration_minutes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Minutes"
+          },
+          "group_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Group Name"
+          },
+          "group_slug": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Group Slug"
+          },
+          "guide_languages": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Guide Languages"
+          },
+          "images": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ProductImage"
+            },
+            "title": "Images",
+            "type": "array"
+          },
+          "is_contiguous": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Contiguous"
+          },
+          "max_party_size": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Party Size"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "name_localized": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name Localized"
+          },
+          "price_base": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Base"
+          },
+          "price_from": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price From"
+          },
+          "price_notes": {
+            "default": [],
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Price Notes",
+            "type": "array"
+          },
+          "price_per_unit": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Per Unit"
+          },
+          "product_kind": {
+            "title": "Product Kind",
+            "type": "string"
+          },
+          "service_time_shape": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Service Time Shape"
+          },
+          "short_description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Short Description"
+          },
+          "short_description_localized": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Short Description Localized"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "sort_order": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sort Order"
+          },
+          "stay": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stay"
+          },
+          "thumb_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thumb Url"
+          }
+        },
+        "required": [
+          "slug",
+          "name",
+          "product_kind"
+        ],
+        "title": "CatalogueProduct",
+        "type": "object"
+      },
       "ChangeNotification": {
         "properties": {
           "channels": {
@@ -31803,6 +32178,40 @@
         "title": "TemplateCatalogueEntryOut",
         "type": "object"
       },
+      "TemplateCatalogueOut": {
+        "properties": {
+          "groups": {
+            "items": {
+              "$ref": "#/components/schemas/CatalogueGroup"
+            },
+            "title": "Groups",
+            "type": "array"
+          },
+          "products": {
+            "items": {
+              "$ref": "#/components/schemas/CatalogueProduct"
+            },
+            "title": "Products",
+            "type": "array"
+          },
+          "template_slug": {
+            "title": "Template Slug",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "template_slug",
+          "version",
+          "groups",
+          "products"
+        ],
+        "title": "TemplateCatalogueOut",
+        "type": "object"
+      },
       "TemplateCompare": {
         "properties": {
           "label": {
@@ -44428,6 +44837,48 @@
           }
         },
         "summary": "Public Get Template",
+        "tags": [
+          "public-templates"
+        ]
+      }
+    },
+    "/api/public/templates/{slug}/catalogue": {
+      "get": {
+        "operationId": "public_get_template_catalogue",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "title": "Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TemplateCatalogueOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Public Get Template Catalogue",
         "tags": [
           "public-templates"
         ]
