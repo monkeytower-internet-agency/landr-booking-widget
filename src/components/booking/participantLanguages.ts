@@ -191,6 +191,18 @@ const LANGUAGE_NAMES_ES: Record<string, string> = {
   zh: 'Chino',
 }
 
+/** landr-5wwuq.3: Italian fallback table (same codes/order as LANGUAGE_NAMES). */
+const LANGUAGE_NAMES_IT: Record<string, string> = {
+  ar: 'Arabo', bg: 'Bulgaro', bs: 'Bosniaco', ca: 'Catalano', cs: 'Ceco', da: 'Danese',
+  de: 'Tedesco', el: 'Greco', en: 'Inglese', es: 'Spagnolo', et: 'Estone', eu: 'Basco',
+  fi: 'Finlandese', fr: 'Francese', ga: 'Irlandese', gl: 'Galiziano', he: 'Ebraico', hi: 'Hindi',
+  hr: 'Croato', hu: 'Ungherese', id: 'Indonesiano', is: 'Islandese', it: 'Italiano',
+  ja: 'Giapponese', ko: 'Coreano', lt: 'Lituano', lv: 'Lettone', mk: 'Macedone',
+  nl: 'Olandese', no: 'Norvegese', pl: 'Polacco', pt: 'Portoghese', ro: 'Rumeno', ru: 'Russo',
+  sk: 'Slovacco', sl: 'Sloveno', sq: 'Albanese', sr: 'Serbo', sv: 'Svedese', th: 'Thailandese',
+  tr: 'Turco', uk: 'Ucraino', vi: 'Vietnamita', zh: 'Cinese',
+}
+
 /** landr-8r6oc.4: Turkish fallback table (same codes/order as LANGUAGE_NAMES). */
 const LANGUAGE_NAMES_TR: Record<string, string> = {
   ar: 'Arapça',
@@ -243,6 +255,7 @@ const LANGUAGE_NAMES_TR: Record<string, string> = {
 const LANGUAGE_NAMES_BY_UI: Record<string, Record<string, string>> = {
   de: LANGUAGE_NAMES_DE,
   es: LANGUAGE_NAMES_ES,
+  it: LANGUAGE_NAMES_IT,
   tr: LANGUAGE_NAMES_TR,
 }
 

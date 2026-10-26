@@ -1,5 +1,5 @@
 /**
- * Page-scoped de/en/es/tr strings for CancelPage (landr-5aih0.7).
+ * Page-scoped de/en/es/it/tr strings for CancelPage (landr-5aih0.7).
  *
  * Same reasoning as approvalReplyStrings.ts: the customer arrives from a
  * booking email that was sent in de/en/es, so the page speaks the email's
@@ -9,7 +9,7 @@
  * `{name}` placeholders are filled by `fmtCancel`.
  */
 
-export type CancelLocale = 'de' | 'en' | 'es' | 'tr'
+export type CancelLocale = 'de' | 'en' | 'es' | 'it' | 'tr'
 
 export interface CancelBundle {
   loadingTitle: string
@@ -117,6 +117,42 @@ const de: CancelBundle = {
   tryAgain: 'Erneut versuchen',
 }
 
+const it: CancelBundle = {
+  loadingTitle: 'Caricamento della tua prenotazione…',
+  invalidTitle: 'Questo link non è più valido',
+  invalidBody:
+    'Il link di annullamento potrebbe essere scaduto o essere stato sostituito. Contatta l\u2019azienda presso cui hai prenotato.',
+  title: 'Annullare la tua prenotazione?',
+  bookingRef: 'Prenotazione {ref}',
+  freeUntil: 'Annullamento gratuito fino al {deadline}.',
+  refundStripe: 'Riceverai {amount} sul tuo metodo di pagamento originale.',
+  refundManual: '{operator} ti rimborserà {amount} direttamente.',
+  refundNone: 'Non ti è stato addebitato nulla, quindi non c\u2019è nulla da rimborsare.',
+  confirmBody: 'La tua prenotazione verrà annullata subito. Non si può annullare l\u2019operazione.',
+  yes: 'Sì, annulla la prenotazione',
+  busy: 'Annullamento in corso…',
+  no: 'No, mantieni la prenotazione',
+  tooLateTitle: 'Questa prenotazione non può più essere annullata online',
+  tooLateBody:
+    'L\u2019annullamento gratuito era possibile fino al {deadline}. Contatta {operator} per modificare o annullare la tua prenotazione.',
+  tooLateBodyNoDeadline:
+    'Contatta {operator} per modificare o annullare la tua prenotazione.',
+  contactCall: 'Chiama il {phone}',
+  contactEmail: 'Scrivi a {email}',
+  changeActivityHint: 'Vuoi un\u2019altra attività? Contatta {operator} per cambiarla.',
+  changeActivityHintNoOperator: 'Vuoi un\u2019altra attività? Contatta l\u2019organizzatore per cambiarla.',
+  alreadyTitle: 'Questa prenotazione è già annullata',
+  successTitle: 'Prenotazione annullata',
+  successBody:
+    'La tua prenotazione è stata annullata. Ti abbiamo inviato un\u2019e-mail di conferma.',
+  successRefunded: 'Il tuo rimborso è in arrivo sul tuo metodo di pagamento originale.',
+  successManual: '{operator} ti contatterà per il rimborso.',
+  errorTitle: 'Impossibile annullare',
+  errorBody:
+    'Non siamo riusciti ad annullare questa prenotazione. Riprova o contatta {operator}.',
+  tryAgain: 'Riprova',
+}
+
 const es: CancelBundle = {
   loadingTitle: 'Cargando tu reserva…',
   invalidTitle: 'Este enlace ya no es válido',
@@ -189,12 +225,12 @@ const tr: CancelBundle = {
   tryAgain: 'Tekrar dene',
 }
 
-const BUNDLES: Record<CancelLocale, CancelBundle> = { de, en, es, tr }
+const BUNDLES: Record<CancelLocale, CancelBundle> = { de, en, es, it, tr }
 
 /** Map any BCP-47-ish code to a supported page locale; English otherwise. */
 export function normalizeCancelLocale(code: string | null | undefined): CancelLocale {
   const base = (code ?? '').split('-')[0].trim().toLowerCase()
-  return base === 'de' || base === 'es' || base === 'tr' ? base : 'en'
+  return base === 'de' || base === 'es' || base === 'it' || base === 'tr' ? base : 'en'
 }
 
 export function pickCancelBundle(locale: CancelLocale): CancelBundle {

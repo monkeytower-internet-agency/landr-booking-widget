@@ -199,6 +199,8 @@ export interface Product {
   short_description: string | null
   short_description_localized: Record<string, string> | null
   description: string | null
+  /** Per-locale long description; absent on older APIs (landr-5wwuq.2). */
+  description_localized?: Record<string, string> | null
   /**
    * What the operator sells (landr-glx). The booking flow renders a shop-stub
    * for any kind other than 'service'.

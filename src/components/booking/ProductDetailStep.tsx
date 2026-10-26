@@ -93,11 +93,11 @@ export function ProductDetailStep({
   // the gallery and the facts chips. Long description wins when present;
   // the card's short description is the fallback — and both go through the
   // locale pick like every other text on this page.
-  // NOTE: the public products payload carries no description_localized
-  // today (only short_description is localized) — when the translations
-  // editor lands (landr-14s4) and the API adds it, extend this pick.
+  // landr-5wwuq.3: the long description is localized too
+  // (`description_localized`, optional so an older API still works). Chain:
+  // localized long -> English long -> localized short.
   const description =
-    product.description ||
+    pickLocalized(product.description, product.description_localized, locale) ||
     pickLocalized(
       product.short_description,
       product.short_description_localized,
