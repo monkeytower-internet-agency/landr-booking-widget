@@ -725,6 +725,7 @@ export const es: Bundle = {
   youPayNowHeading: 'Pagas ahora',
   atHotelTotalPayAtCheckin: 'Total en el hotel · se paga en el check-in',
   hotelSpanTemplate: 'Hotel: {from} → {to}, {nights} {nightWord}',
+  stayWindowTemplate: 'Check-in {checkIn} – Check-out {checkOut} ({nights} {nightWord})',
   nightSingular: 'noche',
   nightPlural: 'noches',
   updatingEllipsis: 'Actualizando…',

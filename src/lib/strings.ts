@@ -770,6 +770,7 @@ export type Bundle = {
   youPayNowHeading: string
   atHotelTotalPayAtCheckin: string
   hotelSpanTemplate: string
+  stayWindowTemplate: string
   nightSingular: string
   nightPlural: string
   updatingEllipsis: string
@@ -1665,6 +1666,7 @@ const en: Bundle = {
   youPayNowHeading: 'You pay now',
   atHotelTotalPayAtCheckin: 'At-hotel total · pay at check-in',
   hotelSpanTemplate: 'Hotel: {from} → {to}, {nights} {nightWord}',
+  stayWindowTemplate: 'Check-in {checkIn} – Check-out {checkOut} ({nights} {nightWord})',
   nightSingular: 'night',
   nightPlural: 'nights',
   updatingEllipsis: 'Updating…',

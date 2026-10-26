@@ -21,7 +21,9 @@
  * `react-refresh/only-export-components` convention as DayChips.
  */
 import type { BookingPeriod } from '@/api/types'
+import { tr } from '@/lib/strings'
 import { formatDayRange } from './dateLabel'
+import { foldStayPeriods, stayWindowLabel } from './stayWindow'
 
 interface Props {
   /** Already-ordered periods. Empty list renders nothing. */
@@ -32,9 +34,12 @@ interface Props {
 
 export function PeriodsTable({ periods, locale }: Props) {
   if (periods.length === 0) return null
+  // a stay's arrival + departure fold into one check-in ->
+  // check-out window row; every other booking renders verbatim.
+  const rows = foldStayPeriods(periods)
   return (
     <ul data-testid="confirmation-periods" className="space-y-1">
-      {periods.map((period, idx) => (
+      {rows.map((period, idx) => (
         // start_date alone isn't a stable key: a gap can split one
         // activity product into two periods sharing no other field, but
         // never the same start_date — kind+start_date is unique in
@@ -43,9 +48,13 @@ export function PeriodsTable({ periods, locale }: Props) {
           key={`${period.kind}-${period.start_date}-${idx}`}
           className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 text-sm"
         >
-          <span className="font-medium text-foreground">{period.label}</span>
+          <span className="font-medium text-foreground">
+            {period.kind === 'stay' ? tr('stayNightsLabel', locale) : period.label}
+          </span>
           <span className="text-muted-foreground">
-            {formatDayRange(period.start_date, period.end_date, locale)}
+            {period.kind === 'stay'
+              ? stayWindowLabel(period, locale)
+              : formatDayRange(period.start_date, period.end_date, locale)}
           </span>
         </li>
       ))}

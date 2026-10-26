@@ -735,6 +735,7 @@ export const de: Bundle = {
   youPayNowHeading: 'Sie zahlen jetzt',
   atHotelTotalPayAtCheckin: 'Gesamtbetrag im Hotel · Zahlung beim Check-in',
   hotelSpanTemplate: 'Hotel: {from} → {to}, {nights} {nightWord}',
+  stayWindowTemplate: 'Check-in {checkIn} – Check-out {checkOut} ({nights} {nightWord})',
   nightSingular: 'Nacht',
   nightPlural: 'Nächte',
   updatingEllipsis: 'Wird aktualisiert…',
