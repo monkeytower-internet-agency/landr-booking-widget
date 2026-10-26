@@ -54,6 +54,7 @@ import {
   type ParticipantDetails,
 } from './detailsTypes'
 // landr-uwvl: stable per-member identity for the room-assignment maps.
+import { isStayKind } from '@/flowPlan'
 import { withMemberId } from './partyIdentity'
 import { normalizeOwnAccommodation } from './ownAccommodation'
 import { GroupInquiryForm } from './GroupInquiryForm'
@@ -433,9 +434,12 @@ export function DetailsStep({
   // Restored from initialCompanions on Back-restore, else empty.
   // landr-lu41h: no-accommodation products have no room to share — every
   // companion is a guest paying for themselves ('separate_guiding').
-  const noAccommodation = (product.hotel_offering ?? 'none') === 'none'
+  // Stay-kind products are booked by one payer for the whole party: no
+  // self-pay companions section, and participants are worded as guests.
+  const isStay = isStayKind(product.product_kind)
+  const noAccommodation = !isStay && (product.hotel_offering ?? 'none') === 'none'
   const [companions, setCompanions] = useState<CompanionDetails[]>(() =>
-    (initialCompanions ?? []).map((c) =>
+    (isStay ? [] : (initialCompanions ?? [])).map((c) =>
       withMemberId(
         normalizeOwnAccommodation(
           noAccommodation ? { ...c, companion_kind: 'separate_guiding' } : c,
@@ -1606,8 +1610,8 @@ export function DetailsStep({
         <fieldset className="flex flex-col gap-3 border-t pt-4">
           <legend className="text-sm font-medium">
             {joins
-              ? otherParticipantsHeading(totalCount, locale)
-              : participantsTotalHeading(totalCount, locale)}
+              ? otherParticipantsHeading(totalCount, locale, isStay)
+              : participantsTotalHeading(totalCount, locale, isStay)}
           </legend>
           {noAccommodation ? (
             <p className="text-xs text-muted-foreground">
@@ -1650,7 +1654,7 @@ export function DetailsStep({
                   top-stepper −). Removal preserves the OTHER rows' data. */}
               <div className="sm:col-span-2 flex items-center justify-between gap-2">
                 <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  {participantOrdinalLabel(n, locale)}
+                  {participantOrdinalLabel(n, locale, isStay)}
                 </span>
                 {canRemove ? (
                 <Button
@@ -1794,8 +1798,8 @@ export function DetailsStep({
                     beyond the joining booker, or the whole roster when the
                     booker does not take part (never "Maximum of 0 additional"). */}
                 {joins
-                  ? tr('maxAdditionalParticipantsTemplate', locale).replace('{n}', String(maxAdditional))
-                  : maxParticipantsReachedMessage(rowCap, locale)}
+                  ? tr(isStay ? 'stayMaxAdditionalGuestsTemplate' : 'maxAdditionalParticipantsTemplate', locale).replace('{n}', String(maxAdditional))
+                  : maxParticipantsReachedMessage(rowCap, locale, isStay)}
               </p>
               <p className="text-xs text-muted-foreground">
                 {tr('needLargerGroupHint', locale)}
@@ -1862,11 +1866,11 @@ export function DetailsStep({
               type="button"
               variant="ghost"
               className="tap-44 w-full justify-center rounded bg-primary/10 text-foreground shadow-elev-1 hover:bg-primary/20"
-              aria-label={tr('addParticipantAria', locale)}
+              aria-label={tr(isStay ? 'stayAddGuestAria' : 'addParticipantAria', locale)}
               data-testid="add-participant"
               onClick={addParticipant}
             >
-              {tr('addParticipantButton', locale)}
+              {tr(isStay ? 'stayAddGuestButton' : 'addParticipantButton', locale)}
             </Button>
           )}
         </fieldset>
@@ -1878,7 +1882,7 @@ export function DetailsStep({
             participants, price, or the 6-participant cap — regardless of whether
             they do the activity (landr-doam.1: companion_kind).
             landr-rxjo: first and last name are both required for companions. */}
-        {maxOthers > 0 ? (
+        {maxOthers > 0 && !isStay ? (
         <fieldset
           className="flex flex-col gap-3 border-t pt-4"
           data-testid="companions-section"

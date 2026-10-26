@@ -16,6 +16,7 @@ import { demoLang, demoSlug } from '@/lib/demo'
 import type {
   AvailabilitySlot,
   EstimateRequestBody,
+  EventWindow,
   EstimateResponse,
   FixedDateWindow,
   OperatorSettings,
@@ -320,14 +321,25 @@ const iso = (d: Date): string => d.toISOString().slice(0, 10)
 const DAY_MS = 86_400_000
 const DEMO_START_TIMES = ['09:00', '14:00']
 
-/** Every day in [from, to] (clamped to a year) is open — nothing is ever sold out. */
-export function demoAvailability(id: string, from: string, to: string, shape: ServiceTimeShape | null): AvailabilitySlot[] {
+/**
+ * Every day in [from, to] (clamped to a year) is open — nothing is ever sold out —
+ * except, for an event product, the days outside its next occurrences.
+ */
+export function demoAvailability(
+  id: string,
+  from: string,
+  to: string,
+  shape: ServiceTimeShape | null,
+  eventWindow?: EventWindow | null,
+): AvailabilitySlot[] {
   const start = Date.parse(`${from}T00:00:00Z`)
   const end = Math.min(Date.parse(`${to}T00:00:00Z`), start + 366 * DAY_MS)
   const timed = shape === 'time_slot'
   const out: AvailabilitySlot[] = []
   for (let t = start; t <= end; t += DAY_MS) {
     const date = iso(new Date(t))
+    // an event product is open only on its next occurrences.
+    if (eventWindow && !eventWindow.occurrences.some((o) => date >= o.start_date && date <= o.end_date)) continue
     for (const st of timed ? DEMO_START_TIMES : [null]) {
       out.push({
         availability_id: `${id}-${date}-${st ?? 'day'}`,
@@ -563,7 +575,7 @@ export async function demoRequest<T>(path: string, init?: RequestInit): Promise<
     const hit = findOffer(template, id)
     if (rest === '/availability') {
       const today = iso(new Date())
-      return demoAvailability(id, params.get('from') ?? today, params.get('to') ?? today, hit?.product.service_time_shape ?? null) as T
+      return demoAvailability(id, params.get('from') ?? today, params.get('to') ?? today, hit?.product.service_time_shape ?? null, hit?.product.event_window) as T
     }
     if (rest === '/fixed-date-windows') return demoFixedWindows() as T
     if (rest === '/alternatives' || rest === '/addons') return [] as T

@@ -238,6 +238,39 @@ describe('demo mode: stay, pass and verification templates (landr-m6tp4.46)', ()
     expect(nights.every((n) => n.status === 'open' && n.available_seats >= 1)).toBe(true)
   })
 
+  it('offers an event product only on its next occurrences', async () => {
+    catalogue = {
+      template_slug: 'testival', version: 2, groups: [],
+      products: [
+        {
+          ...bare, slug: 'testival-weekend', name: 'Testival weekend', product_kind: 'service',
+          service_time_shape: 'days_range', price_per_unit: 0, price_from: '0.00', price_base: '0.00',
+          event_window: {
+            start_weekday: 4, end_weekday: 7, cutoff_hours: null, horizon_n: 2,
+            occurrences: [
+              { start_date: '2099-03-05', end_date: '2099-03-08' },
+              { start_date: '2099-03-12', end_date: '2099-03-15' },
+            ],
+          },
+        },
+        {
+          ...bare, slug: 'plain-day', name: 'Plain day', product_kind: 'service',
+          service_time_shape: 'single_date', price_per_unit: 5, price_from: '5.00', price_base: '5.00',
+        },
+      ],
+    }
+    window.history.replaceState({}, '', '/?demo=testival')
+    resetDemoTemplateCache()
+    const [weekend, plain] = await listProducts('demo-testival')
+    const days = await getAvailability(weekend.product_id, '2099-03-01', '2099-03-20')
+    expect(days.map((d) => d.date)).toEqual([
+      '2099-03-05', '2099-03-06', '2099-03-07', '2099-03-08',
+      '2099-03-12', '2099-03-13', '2099-03-14', '2099-03-15',
+    ])
+    // a product without a window stays open every day
+    expect(await getAvailability(plain.product_id, '2099-03-01', '2099-03-03')).toHaveLength(3)
+  })
+
   it("answers a pass product's tiers from the template, guest prices first", async () => {
     catalogue = PASS_CATALOGUE
     window.history.replaceState({}, '', '/?demo=site_day_pass')
