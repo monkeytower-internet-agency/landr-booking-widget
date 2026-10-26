@@ -33531,11 +33531,6 @@
       },
       "UploadPhotoRequest": {
         "properties": {
-          "bucket_id": {
-            "default": "community-media",
-            "title": "Bucket Id",
-            "type": "string"
-          },
           "height": {
             "anyOf": [
               {
@@ -33555,6 +33550,7 @@
             "type": "string"
           },
           "object_path": {
+            "description": "'<your auth uid>/<filename>' in the community-media bucket",
             "maxLength": 1024,
             "minLength": 1,
             "title": "Object Path",

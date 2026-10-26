@@ -24166,16 +24166,14 @@ export interface components {
         };
         /** UploadPhotoRequest */
         UploadPhotoRequest: {
-            /**
-             * Bucket Id
-             * @default community-media
-             */
-            bucket_id: string;
             /** Height */
             height?: number | null;
             /** Mime Type */
             mime_type: string;
-            /** Object Path */
+            /**
+             * Object Path
+             * @description '<your auth uid>/<filename>' in the community-media bucket
+             */
             object_path: string;
             /**
              * Subject Id
