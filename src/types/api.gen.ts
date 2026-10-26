@@ -24155,6 +24155,17 @@ export interface components {
             type: string;
         };
         /**
+         * VerificationApproveIn
+         * @description The hashes of the two files the organizer reviewed (as returned by the
+         *     queue / the ``files`` call). Approval is bound to exactly those bytes.
+         */
+        VerificationApproveIn: {
+            /** Insurance Sha256 */
+            insurance_sha256: string;
+            /** Licence Sha256 */
+            licence_sha256: string;
+        };
+        /**
          * VerificationIn
          * @description The customer's signed waiver on a verified registration.
          */
@@ -45267,7 +45278,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VerificationApproveIn"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
