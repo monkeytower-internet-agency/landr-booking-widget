@@ -385,12 +385,18 @@
             "title": "Preset Key",
             "type": "string"
           },
-          "product_family": {
+          "product_kind": {
             "anyOf": [
               {
                 "enum": [
-                  "activity",
-                  "course"
+                  "service",
+                  "subscription",
+                  "hotel_room",
+                  "digital_good",
+                  "physical_good",
+                  "gift_card",
+                  "stay",
+                  "pass"
                 ],
                 "type": "string"
               },
@@ -398,7 +404,7 @@
                 "type": "null"
               }
             ],
-            "title": "Product Family"
+            "title": "Product Kind"
           },
           "slot_capacity": {
             "anyOf": [
@@ -515,12 +521,18 @@
       },
       "ApplyTemplateRequest": {
         "properties": {
-          "product_family": {
+          "product_kind": {
             "anyOf": [
               {
                 "enum": [
-                  "activity",
-                  "course"
+                  "service",
+                  "subscription",
+                  "hotel_room",
+                  "digital_good",
+                  "physical_good",
+                  "gift_card",
+                  "stay",
+                  "pass"
                 ],
                 "type": "string"
               },
@@ -528,7 +540,7 @@
                 "type": "null"
               }
             ],
-            "title": "Product Family"
+            "title": "Product Kind"
           },
           "slug": {
             "maxLength": 26,
@@ -16615,12 +16627,18 @@
             ],
             "title": "Primary Color"
           },
-          "product_family": {
+          "product_kind": {
             "anyOf": [
               {
                 "enum": [
-                  "activity",
-                  "course"
+                  "service",
+                  "subscription",
+                  "hotel_room",
+                  "digital_good",
+                  "physical_good",
+                  "gift_card",
+                  "stay",
+                  "pass"
                 ],
                 "type": "string"
               },
@@ -16628,7 +16646,7 @@
                 "type": "null"
               }
             ],
-            "title": "Product Family"
+            "title": "Product Kind"
           },
           "public_contact_email": {
             "anyOf": [
