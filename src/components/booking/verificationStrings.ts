@@ -1,5 +1,5 @@
 /**
- * Page-scoped de/en strings for the registration-verification screens (the
+ * Page-scoped de/en/es/tr strings for the registration-verification screens (the
  * documents + waiver section of the review step and the pending panel on the
  * confirmation screen). English is the fallback for every other language.
  */
@@ -99,11 +99,87 @@ const de: VerificationBundle = {
   needFilesBody: 'Bitte lade die fehlenden Unterlagen hoch, damit der Veranstalter dich prüfen kann.',
 }
 
-export function verificationStrings(locale?: string): VerificationBundle {
-  return (locale ?? '').toLowerCase().startsWith('de') ? de : en
+const es: VerificationBundle = {
+  heading: 'Tus documentos',
+  intro:
+    'El organizador revisa tu licencia y tu seguro antes de confirmar tu inscripción.',
+  licenceLabel: 'Licencia de piloto',
+  insuranceLabel: 'Comprobante del seguro',
+  fileHint: 'Foto o PDF, hasta 10 MB.',
+  chooseFile: 'Elegir archivo',
+  replaceFile: 'Cambiar archivo',
+  fileTooLarge: 'Este archivo pesa más de 10 MB.',
+  fileWrongType: 'Elige una foto (JPG, PNG, WebP, HEIC) o un PDF.',
+  waiverHeading: 'Exención de responsabilidad',
+  waiverFallback:
+    'Confirmo que mis documentos son válidos y que participo bajo mi propia responsabilidad.',
+  signatureLabel: 'Escribe tu nombre completo para firmar',
+  signaturePlaceholder: 'Nombre completo',
+  acceptLabel: 'He leído la exención de responsabilidad y la acepto.',
+  missingHint:
+    'Añade los dos documentos, escribe tu nombre y acepta la exención de responsabilidad para continuar.',
+  uploadFailed:
+    'Tu inscripción está registrada, pero no se ha podido subir un documento. Inténtalo de nuevo más abajo.',
+  retryUpload: 'Subir',
+  uploading: 'Subiendo…',
+  pendingTitle: 'Te confirmaremos cuando se verifiquen tus documentos',
+  pendingBody:
+    'Tu inscripción está registrada. Recibirás un correo en cuanto el organizador haya revisado tus documentos.',
+  approvedBody: 'Tus documentos se han verificado. Tu inscripción está confirmada.',
+  rejectedTitle: 'No se ha podido confirmar tu inscripción',
+  rejectedNoteLabel: 'Motivo del organizador:',
+  uploadedLabel: 'Recibido',
+  missingLabel: 'Aún falta',
+  needFilesBody: 'Sube los documentos que faltan para que el organizador pueda verificarte.',
 }
 
-/** The waiver language the API stores with the signature. */
+const tr: VerificationBundle = {
+  heading: 'Belgeleriniz',
+  intro:
+    'Organizatör, kaydınızı onaylamadan önce lisansınızı ve sigortanızı kontrol eder.',
+  licenceLabel: 'Pilot lisansı',
+  insuranceLabel: 'Sigorta belgesi',
+  fileHint: 'Fotoğraf veya PDF, en fazla 10 MB.',
+  chooseFile: 'Dosya seç',
+  replaceFile: 'Dosyayı değiştir',
+  fileTooLarge: 'Bu dosya 10 MB’tan büyük.',
+  fileWrongType: 'Lütfen bir fotoğraf (JPG, PNG, WebP, HEIC) veya PDF seçin.',
+  waiverHeading: 'Sorumluluk feragatnamesi',
+  waiverFallback:
+    'Belgelerimin geçerli olduğunu ve etkinliğe kendi sorumluluğumda katıldığımı onaylıyorum.',
+  signatureLabel: 'İmzalamak için adınızı ve soyadınızı yazın',
+  signaturePlaceholder: 'Ad Soyad',
+  acceptLabel: 'Feragatnameyi okudum ve kabul ediyorum.',
+  missingHint:
+    'Devam etmek için iki belgeyi de ekleyin, adınızı yazın ve feragatnameyi kabul edin.',
+  uploadFailed:
+    'Kaydınız alındı, ancak bir belge yüklenemedi. Lütfen aşağıdan tekrar deneyin.',
+  retryUpload: 'Yükle',
+  uploading: 'Yükleniyor…',
+  pendingTitle: 'Belgeleriniz doğrulandığında onaylayacağız',
+  pendingBody:
+    'Kaydınız alındı. Organizatör belgelerinizi kontrol eder etmez bir e-posta alacaksınız.',
+  approvedBody: 'Belgeleriniz doğrulandı. Kaydınız onaylandı.',
+  rejectedTitle: 'Kaydınız onaylanamadı',
+  rejectedNoteLabel: 'Organizatörün gerekçesi:',
+  uploadedLabel: 'Alındı',
+  missingLabel: 'Hâlâ eksik',
+  needFilesBody: 'Organizatörün sizi doğrulayabilmesi için lütfen eksik belgeleri yükleyin.',
+}
+
+export function verificationStrings(locale?: string): VerificationBundle {
+  const base = (locale ?? '').toLowerCase()
+  if (base.startsWith('de')) return de
+  if (base.startsWith('es')) return es
+  if (base.startsWith('tr')) return tr
+  return en
+}
+
+/**
+ * The waiver language the API stores with the signature. The operator only
+ * writes the waiver text in German and English, so es / tr customers sign the
+ * English text.
+ */
 export function waiverLocale(locale?: string): 'de' | 'en' {
   return (locale ?? '').toLowerCase().startsWith('de') ? 'de' : 'en'
 }
