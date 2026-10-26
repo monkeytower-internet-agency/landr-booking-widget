@@ -617,6 +617,8 @@ export const es: Bundle = {
   passGuestsLabel: 'Personas',
   passGuestNameLabel: 'Persona {n}: nombre y apellido',
   passMemberHint: 'Los socios pagan menos por este pase.',
+  passStaffMemberNote: 'El precio de socio se aplica automáticamente si este correo pertenece a un socio activo.',
+  passStaffNoOperator: 'No se pudo determinar el operador de esta reserva. Vuelve a abrir la ventana de reserva e inténtalo de nuevo.',
   passMemberToggle: 'Soy socio',
   passMemberSendCode: 'Enviarme un código',
   passMemberCodeSent: 'Si esta dirección es de un socio, el código va en camino.',
