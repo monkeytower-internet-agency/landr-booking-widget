@@ -4,10 +4,13 @@ import {
   getAvailability,
   getFixedDateWindows,
   getOperatorSettings,
+  getPassTiers,
   initiatePayment,
   initiateSubscriptionCheckout,
   listProductGroups,
   listProducts,
+  requestPassMemberProof,
+  requestSubscriptionPerkOtp,
   submitBooking,
   submitGroupInquiry,
   submitStaffBooking,
@@ -60,15 +63,56 @@ const CATALOGUE = {
   ],
 }
 
+// landr-m6tp4.46: the stay / pass / verified-registration templates.
+const bare = {
+  name_localized: null, short_description: null, short_description_localized: null, description: null,
+  is_contiguous: false, duration_minutes: null, group_slug: null, group_name: null, sort_order: 1,
+  currency: 'EUR', price_notes: [], images: [], thumb_url: null, guide_languages: null,
+  requires_verification: false, daily_cap: null, waiver_text_localized: null, pass_tiers: null,
+}
+const STAY_CATALOGUE = {
+  template_slug: 'apartment', version: 1, groups: [],
+  products: [
+    {
+      ...bare, slug: 'studio', name: 'Studio', product_kind: 'stay', service_time_shape: null,
+      price_per_unit: 85, price_from: '85.00', price_base: '85.00',
+      stay: { min_nights: 2, max_nights: 28, cleaning_fee_cents: 4000, check_in_time: '15:00', check_out_time: '11:00', sleeps: 2 },
+    },
+  ],
+}
+const PASS_CATALOGUE = {
+  template_slug: 'site_day_pass', version: 1, groups: [],
+  products: [
+    {
+      ...bare, slug: 'site-pass', name: 'Flying-site pass', product_kind: 'pass', service_time_shape: null,
+      price_per_unit: 8, price_from: '12.00', price_base: '12.00',
+      pass_tiers: [
+        { label: 'Day', validity_kind: 'day', validity_days: null, season_start: null, season_end: null, price_cents: 1200, member_price_cents: 900 },
+        { label: '3 days', validity_kind: 'days', validity_days: 3, season_start: null, season_end: null, price_cents: 3000, member_price_cents: null },
+        { label: 'Season', validity_kind: 'season', validity_days: null, season_start: '2027-03-01', season_end: '2027-10-31', price_cents: 18000, member_price_cents: 13000 },
+      ],
+    },
+    {
+      ...bare, slug: 'other-pass', name: 'Camper pass', product_kind: 'pass', service_time_shape: null,
+      price_per_unit: 15, price_from: '15.00', price_base: '15.00',
+      pass_tiers: [
+        { label: 'Day', validity_kind: 'day', validity_days: null, season_start: null, season_end: null, price_cents: 1500, member_price_cents: null },
+      ],
+    },
+  ],
+}
+
 let fetchMock: ReturnType<typeof vi.fn>
 let catalogueStatus = 200
+let catalogue: unknown = CATALOGUE
 
 beforeEach(() => {
   resetDemoTemplateCache()
   catalogueStatus = 200
+  catalogue = CATALOGUE
   fetchMock = vi.fn(async (url: string) =>
     String(url).endsWith('/catalogue')
-      ? new Response(JSON.stringify(CATALOGUE), { status: catalogueStatus })
+      ? new Response(JSON.stringify(catalogue), { status: catalogueStatus })
       : new Response(JSON.stringify(TEMPLATE), { status: 200 }),
   )
   vi.stubGlobal('fetch', fetchMock)
@@ -147,6 +191,93 @@ describe('demo mode reads', () => {
     })
     expect(est.grand_total).toBe('260.00')
     expect(est.un_priceable).toBe(false)
+  })
+})
+
+describe('demo mode: stay, pass and verification templates (landr-m6tp4.46)', () => {
+  const stayEstimate = async (nights: string[], guests = 2) => {
+    catalogue = STAY_CATALOGUE
+    window.history.replaceState({}, '', '/?demo=apartment')
+    resetDemoTemplateCache()
+    const [studio] = await listProducts('demo-apartment')
+    return {
+      studio,
+      est: await estimateBookingPrice('demo-apartment', studio.product_id, {
+        selected_days: nights,
+        participants_count: guests,
+        addon_lines: [],
+      }),
+    }
+  }
+  const FUTURE = ['2099-03-01', '2099-03-02', '2099-03-03']
+
+  it('quotes a stay as nights x nightly rate plus the cleaning fee once, with the window', async () => {
+    const { studio, est } = await stayEstimate(FUTURE)
+    expect(studio.stay).toMatchObject({ min_nights: 2, sleeps: 2, cleaning_fee_cents: 4000 })
+    expect(est.line_items).toHaveLength(1)
+    expect(est.line_items[0]).toMatchObject({ qty: 1, units: 3, unit_price: '85.00', cleaning_fee: '40.00', line_total: '295.00' })
+    expect(est.grand_total).toBe('295.00')
+    expect(est.stay).toEqual({
+      check_in: '2099-03-01', check_out: '2099-03-04', nights: 3, cleaning_fee: '40.00', errors: [],
+    })
+  })
+
+  it('reports the stay rules a range breaks, so checkout is blocked as in production', async () => {
+    const short = await stayEstimate(['2099-03-01'])
+    expect(short.est.stay?.errors).toEqual([{ code: 'below_min_nights' }])
+    const crowded = await stayEstimate(FUTURE, 3)
+    expect(crowded.est.stay?.errors).toEqual([{ code: 'too_many_guests' }])
+    const past = await stayEstimate(['2020-03-01', '2020-03-02'])
+    expect(past.est.stay?.errors).toEqual([{ code: 'check_in_past', date: '2020-03-01' }])
+  })
+
+  it('opens every night of a stay for the range picker', async () => {
+    const { studio } = await stayEstimate(FUTURE)
+    const nights = await getAvailability(studio.product_id, '2099-03-01', '2099-03-05')
+    expect(nights.map((n) => n.date)).toEqual(['2099-03-01', '2099-03-02', '2099-03-03', '2099-03-04', '2099-03-05'])
+    expect(nights.every((n) => n.status === 'open' && n.available_seats >= 1)).toBe(true)
+  })
+
+  it("answers a pass product's tiers from the template, guest prices first", async () => {
+    catalogue = PASS_CATALOGUE
+    window.history.replaceState({}, '', '/?demo=site_day_pass')
+    resetDemoTemplateCache()
+    const [site, camper] = await listProducts('demo-site_day_pass')
+    expect(site).not.toHaveProperty('pass_tiers')
+    const res = await getPassTiers('demo-site_day_pass', site.product_id)
+    expect(res).toMatchObject({ product_id: site.product_id, currency: 'EUR', is_member: false })
+    expect(res.tiers.map((t) => [t.label, t.validity_kind, t.unit_price_cents, t.has_member_price, t.member_price_cents])).toEqual([
+      ['Day', 'day', 1200, true, null],
+      ['3 days', 'days', 3000, false, null],
+      ['Season', 'season', 18000, true, null],
+    ])
+    expect(res.tiers[1].validity_days).toBe(3)
+    expect(res.tiers[2]).toMatchObject({ season_start: '2027-03-01', season_end: '2027-10-31' })
+    expect(new Set(res.tiers.map((t) => t.id)).size).toBe(3)
+    expect((await getPassTiers('demo-site_day_pass', camper.product_id)).tiers).toHaveLength(1)
+  })
+
+  it('shows member prices after the pretend member code, without any network call', async () => {
+    catalogue = PASS_CATALOGUE
+    window.history.replaceState({}, '', '/?demo=site_day_pass')
+    resetDemoTemplateCache()
+    const [site] = await listProducts('demo-site_day_pass')
+    await requestSubscriptionPerkOtp('demo-site_day_pass', 'ada@example.com')
+    const proof = await requestPassMemberProof('demo-site_day_pass', 'ada@example.com', '123456')
+    const res = await getPassTiers('demo-site_day_pass', site.product_id, {
+      email: 'ada@example.com', memberProof: proof.member_proof,
+    })
+    expect(res.is_member).toBe(true)
+    expect(res.tiers.map((t) => t.unit_price_cents)).toEqual([900, 3000, 13000])
+    for (const [url, init] of fetchMock.mock.calls) {
+      expect(String(url)).toMatch(/\/api\/public\/templates\/site_day_pass(\/catalogue)?$/)
+      expect((init as RequestInit | undefined)?.method ?? 'GET').toBe('GET')
+    }
+  })
+
+  it('answers no tiers for a product that is not a pass', async () => {
+    const [full] = await listProducts('demo-kayak')
+    expect((await getPassTiers('demo-kayak', full.product_id)).tiers).toEqual([])
   })
 })
 

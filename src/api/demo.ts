@@ -11,6 +11,7 @@
  * operator slug to resolve. Hand-written sample offers are only the fallback
  * for when the catalogue request fails.
  */
+import { checkStayRange, stayWindowOf } from '@/components/booking/accommodationCalc'
 import { demoLang, demoSlug } from '@/lib/demo'
 import type {
   AvailabilitySlot,
@@ -18,6 +19,9 @@ import type {
   EstimateResponse,
   FixedDateWindow,
   OperatorSettings,
+  PassTier,
+  PassTiersResponse,
+  PassValidityKind,
   Product,
   ServiceRole,
   ProductGroup,
@@ -30,12 +34,24 @@ interface TemplatePitchLocale {
   hero_url?: string | null
 }
 
+/** One tier of a pass product in the catalogue (no id: the position stands in for it). */
+export interface DemoCatalogueTier {
+  label: string
+  validity_kind: PassValidityKind
+  validity_days?: number | null
+  season_start?: string | null
+  season_end?: string | null
+  /** Guest price in cents. */
+  price_cents: number
+  member_price_cents?: number | null
+}
+
 /** A product of `GET /api/public/templates/{slug}/catalogue` (slug-keyed, no ids). */
 export type DemoCatalogueProduct = Omit<
   Product,
   | 'product_id' | 'product_group_id' | 'fixed_start_date' | 'fixed_end_date'
   | 'sport_subcategory_codes' | 'location_ids' | 'hotel_location_id'
-> & { price_per_unit: number | string | null }
+> & { price_per_unit: number | string | null; pass_tiers?: DemoCatalogueTier[] | null }
 
 export type DemoCatalogueGroup = Omit<ProductGroup, 'id' | 'parent_id'> & { parent_slug: string | null }
 
@@ -239,8 +255,11 @@ const catalogueProducts = (template: DemoTemplate, cat: DemoCatalogue): Product[
   return cat.products.map((c): Product => {
     const images = (c.images ?? []).filter((im) => im.thumb_url || im.hero_url)
     const thumb = c.thumb_url ?? images[0]?.thumb_url ?? hero
+    // The tiers are served by the pass-tiers read, not carried on the product.
+    const rest: Partial<DemoCatalogueProduct> = { ...c }
+    delete rest.pass_tiers
     return {
-      ...c,
+      ...rest,
       product_id: productId(template.slug, c.slug),
       name: fill(c.name, 'en'),
       name_localized: fillMap(c.name_localized),
@@ -375,7 +394,44 @@ export function demoEstimate(
   const qty = Math.max(1, body.participants_count)
   const lines: EstimateResponse['line_items'] = []
   let total = 0
-  if (hit) {
+  let stay: EstimateResponse['stay'] = null
+  if (hit?.product.product_kind === 'stay') {
+    // A stay sells one unit for the night list: nights x nightly rate, plus the
+    // one-off cleaning fee (landr-m6tp4.2). Same rules as the real estimate.
+    const nights = [...new Set(body.selected_days)].sort()
+    const config = hit.product.stay ?? null
+    const fee = (config?.cleaning_fee_cents ?? 0) / 100
+    const lineTotal = hit.price * nights.length + fee
+    total = lineTotal
+    lines.push({
+      product_id: id,
+      label: hit.product.name,
+      qty: 1,
+      units: nights.length,
+      unit_price: hit.price.toFixed(2),
+      line_total: lineTotal.toFixed(2),
+      paid_to: 'operator',
+      ...(fee > 0 ? { cleaning_fee: fee.toFixed(2) } : {}),
+    })
+    const window = stayWindowOf(nights)
+    stay = {
+      check_in: window?.checkIn ?? null,
+      check_out: window?.checkOut ?? null,
+      nights: nights.length,
+      cleaning_fee: fee.toFixed(2),
+      errors: window
+        ? checkStayRange({
+            check_in: window.checkIn,
+            check_out: window.checkOut,
+            min_nights: config?.min_nights ?? 1,
+            max_nights: config?.max_nights ?? null,
+            guests: body.participants_count,
+            capacity: config?.sleeps ?? null,
+            today: iso(new Date()),
+          })
+        : [{ code: 'invalid_range' }],
+    }
+  } else if (hit) {
     const units = hit.product.service_time_shape === 'days_range' ? days : 1
     const lineTotal = hit.price * units * qty
     total = lineTotal
@@ -399,7 +455,39 @@ export function demoEstimate(
     applied_rules: [],
     warnings: [],
     un_priceable: false,
+    ...(stay ? { stay } : {}),
   }
+}
+
+// ------------------------------------------------------------------- passes
+
+/** The member proof the demo "issues" for any code: it only flips the tier prices. */
+export const DEMO_MEMBER_PROOF = 'demo-member-proof'
+
+/**
+ * The tiers of a pass product (the template's real ones), priced for a guest or
+ * — after the demo's pretend member code — for a member. Tier ids are
+ * synthetic: nothing resolves them, the demo's checkout never reaches the API.
+ */
+export function demoPassTiers(template: DemoTemplate, id: string, isMember: boolean): PassTiersResponse {
+  const hit = findOffer(template, id)
+  const source = template.catalogue?.products.find((c) => c.slug === hit?.product.slug)?.pass_tiers ?? []
+  const tiers = source.map((t, i): PassTier => {
+    const memberCents = t.member_price_cents ?? null
+    return {
+      id: `demo-${template.slug}-${id}-tier-${i}`,
+      label: fill(t.label, 'en'),
+      validity_kind: t.validity_kind,
+      validity_days: t.validity_days ?? null,
+      season_start: t.season_start ?? null,
+      season_end: t.season_end ?? null,
+      price_cents: t.price_cents,
+      has_member_price: memberCents !== null,
+      member_price_cents: isMember ? memberCents : null,
+      unit_price_cents: isMember && memberCents !== null ? memberCents : t.price_cents,
+    }
+  })
+  return { product_id: id, currency: hit?.product.currency ?? 'EUR', is_member: isMember, tiers }
 }
 
 /** What the checkout "submit" resolves with in demo mode. The App swaps in the congrats screen. */
@@ -445,6 +533,12 @@ export async function demoRequest<T>(path: string, init?: RequestInit): Promise<
       return demoEstimate(template, decodeURIComponent(est[1]), body) as T
     }
     if (pathname === '/api/public/bookings') return demoSubmitResponse() as T
+    // Member price of a pass: the emailed code is never sent and any code is
+    // accepted, so the visitor can see the member tiers. Nothing is stored.
+    if (/^\/api\/public\/operators\/[^/]+\/subscription-perk\/otp$/.test(pathname)) return { ok: true } as T
+    if (/^\/api\/public\/operators\/[^/]+\/passes\/member-proof$/.test(pathname)) {
+      return { member_proof: DEMO_MEMBER_PROOF, expires_in: 900 } as T
+    }
   }
   if (method !== 'GET') throw new DemoWriteBlockedError(method, pathname)
 
@@ -458,7 +552,8 @@ export async function demoRequest<T>(path: string, init?: RequestInit): Promise<
     if (/^\/products\/[^/]+\/flow$/.test(rest)) return { modules: null } as T
     const tiers = /^\/products\/([^/]+)\/pass-tiers$/.exec(rest)
     if (tiers) {
-      return { product_id: decodeURIComponent(tiers[1]), currency: 'EUR', is_member: false, tiers: [] } as T
+      const member = params.get('member_proof') === DEMO_MEMBER_PROOF
+      return demoPassTiers(template, decodeURIComponent(tiers[1]), member) as T
     }
   }
   const pm = PRODUCT.exec(pathname)
