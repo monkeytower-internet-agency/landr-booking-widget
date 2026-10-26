@@ -655,6 +655,8 @@ export type Bundle = {
   passGuestsLabel: string
   passGuestNameLabel: string
   passMemberHint: string
+  passStaffMemberNote: string
+  passStaffNoOperator: string
   passMemberToggle: string
   passMemberSendCode: string
   passMemberCodeSent: string
@@ -770,6 +772,7 @@ export type Bundle = {
   youPayNowHeading: string
   atHotelTotalPayAtCheckin: string
   hotelSpanTemplate: string
+  stayWindowTemplate: string
   nightSingular: string
   nightPlural: string
   updatingEllipsis: string
@@ -1557,6 +1560,8 @@ const en: Bundle = {
   passGuestsLabel: 'Guests',
   passGuestNameLabel: 'Guest {n}: first and last name',
   passMemberHint: 'Members pay less on this pass.',
+  passStaffMemberNote: 'The member price applies automatically when this email belongs to an active member.',
+  passStaffNoOperator: 'Could not determine the operator for this staff booking. Reopen the booking modal and try again.',
   passMemberToggle: 'I am a member',
   passMemberSendCode: 'Email me a code',
   passMemberCodeSent: 'If this address belongs to a member, a code is on its way.',
@@ -1665,6 +1670,7 @@ const en: Bundle = {
   youPayNowHeading: 'You pay now',
   atHotelTotalPayAtCheckin: 'At-hotel total · pay at check-in',
   hotelSpanTemplate: 'Hotel: {from} → {to}, {nights} {nightWord}',
+  stayWindowTemplate: 'Check-in {checkIn} – Check-out {checkOut} ({nights} {nightWord})',
   nightSingular: 'night',
   nightPlural: 'nights',
   updatingEllipsis: 'Updating…',

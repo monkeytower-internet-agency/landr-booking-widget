@@ -2,7 +2,12 @@ import { describe, expect, it } from 'vitest'
 import type { Product } from '@/api/types'
 import { isBookableKind, isStayKind, buildFlowPlan } from '@/flowPlan'
 import { addonUnitSuffix, addonUnitsTimesRate } from '@/lib/strings'
-import { stayGuestLanguages, stayPartyCap, withStayPartyCap } from './stayFlow'
+import {
+  stayGuestLanguages,
+  stayPartyCap,
+  withFallbackGuestLanguage,
+  withStayPartyCap,
+} from './stayFlow'
 
 const base = { product_kind: 'stay', max_party_size: null, stay: { sleeps: 4 } } as unknown as Product
 
@@ -17,9 +22,24 @@ describe('stay flow helpers', () => {
     expect(withStayPartyCap(service)).toBe(service)
   })
 
-  it('gives guests the customer language, English when unusable', () => {
-    expect(stayGuestLanguages('de-DE')).toEqual(['de'])
-    expect(stayGuestLanguages('')).toEqual(['en'])
+  it('offers a stay no guide language at all', () => {
+    expect(stayGuestLanguages()).toEqual([])
+  })
+
+  it('fallback copies the customer language onto every participant, English when unusable', () => {
+    const body = { participants: [{ first_name: 'A' }, { first_name: 'B' }] }
+    expect(withFallbackGuestLanguage(body, 'de-DE')).toEqual({
+      participants: [
+        { first_name: 'A', language: 'de' },
+        { first_name: 'B', language: 'de' },
+      ],
+      customer_languages: ['de'],
+    })
+    expect(withFallbackGuestLanguage(body, '').participants[0]).toEqual({
+      first_name: 'A',
+      language: 'en',
+    })
+    expect(body.participants[0]).not.toHaveProperty('language')
   })
 
   it('books services and stays; a stay never has a pickup step', () => {

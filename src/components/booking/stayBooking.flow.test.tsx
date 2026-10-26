@@ -233,8 +233,9 @@ describe('standalone stay booking flow', () => {
     const byId = Object.fromEntries(body.products.map((p) => [p.product_id, p]))
     expect(byId['p-stay']!.selected_days).toEqual(NIGHTS)
     expect(byId['p-breakfast']!.selected_days).toEqual(NIGHTS)
-    // The guest carries the customer's own language (no guide to choose).
-    expect(body.participants[0]!.language).toBe('en')
+    // A stay-only cart has no guide: no participant language is sent.
+    expect(body.participants[0]).not.toHaveProperty('language')
+    expect(body).not.toHaveProperty('customer_languages')
   })
 
   it('a stay error from the estimate blocks Confirm', async () => {

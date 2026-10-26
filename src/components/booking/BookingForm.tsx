@@ -57,6 +57,8 @@ import {
   languageFlag,
   languageName,
 } from './participantLanguages'
+import { withFallbackGuestLanguage } from './stayFlow'
+import { isStayKind } from '@/flowPlan'
 
 export type BookingSelection =
   | {
@@ -115,6 +117,18 @@ import { findFlowField, localizeFieldError } from './formErrorText'
 import { Button } from '@/components/ui/button'
 import { useStaffMode, resolveParentTargetOrigin } from '@/lib/staffMode'
 import { OperatorOverrideBadge } from '@/components/booking/OperatorOverrideBadge'
+import { VerificationFields } from './VerificationFields'
+import { verificationStrings } from './verificationStrings'
+import {
+  dailyCapMessage,
+  EMPTY_VERIFICATION,
+  isDailyCapReached,
+  needsVerification,
+  toWaiver,
+  uploadChosenFiles,
+  verificationReady,
+  type VerificationInput,
+} from './verification'
 import type { CalculatedTotal } from '@/components/booking/PriceSidebar'
 import {
   augmentStaffSubmit,
@@ -930,6 +944,11 @@ export function BookingForm({
   const [windowAmbiguous, setWindowAmbiguous] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const locale = browserLocale()
+  // Registration with organizer verification: documents + signed waiver,
+  // collected here and sent with / right after the booking.
+  const verificationRequired = needsVerification([product])
+  const [verification, setVerification] = useState<VerificationInput>(EMPTY_VERIFICATION)
+  const verificationBlocked = verificationRequired && !verificationReady(verification)
   const timezone = browserTimezone()
 
   // landr-aoak.2 [S3]: staff/operator mode. When inactive, none of the staff
@@ -1570,6 +1589,7 @@ export function BookingForm({
         // reference confirmed before the booker stepped out never links a
         // non-participating booker's booking into someone's group.
         ...(joinRef && bookerJoining ? { join_ref: joinRef } : {}),
+        ...(verificationRequired ? { verification: toWaiver(verification, locale) } : {}),
       }
       // landr-aoak.2 [S3].3/.6: parse the optional operator price-override and
       // route the whole body through the SINGLE staff adapter. With no staff
@@ -1596,6 +1616,29 @@ export function BookingForm({
       // endpoint silently drops force-book / price-override, so routing a staff
       // body there was a no-op of the whole feature. A non-staff body stays on
       // the public path, byte-identically to before.
+      // landr-m6tp4.55: a stay-only cart sends no participant language. An API
+      // that predates that rule (promotion skew) rejects it with a typed
+      // `participant_language_missing` 422; retry exactly once with the
+      // customer's UI language so the booking still goes through.
+      const withStayLanguageFallback = async <
+        B extends { participants: Array<object>; customer_languages?: string[] | null },
+        R,
+      >(
+        send: (b: B) => Promise<R>,
+        b: B,
+      ): Promise<R> => {
+        try {
+          return await send(b)
+        } catch (err) {
+          const missing =
+            err instanceof HttpError &&
+            err.status === 422 &&
+            readLanguageError(err.detail, participants.length)?.code ===
+              'participant_language_missing'
+          if (!missing || !isStayKind(product.product_kind)) throw err
+          return send(withFallbackGuestLanguage(b))
+        }
+      }
       let result: SubmitBookingResponse
       if (isStaffSubmitBody(submitBody)) {
         if (!staff.operatorId) {
@@ -1608,15 +1651,25 @@ export function BookingForm({
           setSubmitting(false)
           return
         }
-        result = await submitStaffBooking(staff.operatorId, submitBody)
+        result = await withStayLanguageFallback(
+          (b) => submitStaffBooking(staff.operatorId!, b),
+          submitBody,
+        )
       } else {
         // landr-7zc5.3: pass preview_token so the API can accept draft
         // products during operator preview. The option is harmlessly
         // ignored when previewToken is undefined (normal customer flow).
-        result = await submitBooking(
+        result = await withStayLanguageFallback(
+          (b) => submitBooking(b, previewToken ? { previewToken } : undefined),
           submitBody,
-          previewToken ? { previewToken } : undefined,
         )
+        // The booking exists and waits for the organizer; send the documents.
+        if (result.verification) {
+          result = {
+            ...result,
+            verification: await uploadChosenFiles(result.verification, verification),
+          }
+        }
       }
       // landr-aoak.2 [S3].5: notify the embedding dashboard parent so it can
       // refetch + open the new booking. Only fires in staff mode (active
@@ -1638,11 +1691,15 @@ export function BookingForm({
       if (err instanceof HttpError) {
         const timedSlot = selection.kind === 'slot' && !!selection.slot.start_time
         setServerError(
-          formatHttpError(err, partyMemberLabels, participants.length, timedSlot, productFlow),
+          isDailyCapReached(err)
+            ? dailyCapMessage(err)
+            : formatHttpError(err, partyMemberLabels, participants.length, timedSlot, productFlow),
         )
         // A stale start time recovers the same way as a full day/slot: the
         // "change" button returns to the picker, which re-fetches availability.
-        setCapacityExceeded(isCapacityExceeded(err) || isSlotStartTimeInvalid(err))
+        setCapacityExceeded(
+          isCapacityExceeded(err) || isSlotStartTimeInvalid(err) || isDailyCapReached(err),
+        )
         setWindowAmbiguous(isFixedDateWindowAmbiguous(err))
         // landr-f987a.4: the 422 names the first short day — say which one.
         const shortDay = isCapacityExceeded(err) ? readShortDay(err) : null
@@ -2072,6 +2129,16 @@ export function BookingForm({
           </div>
         ) : null}
 
+        {verificationRequired ? (
+          <VerificationFields
+            products={[product]}
+            value={verification}
+            onChange={setVerification}
+            locale={locale}
+            disabled={submitting}
+          />
+        ) : null}
+
         {/* landr-n6ii3: same field DetailsStep collects, editable here too —
             last field before Confirm booking. */}
         <CustomerCommentField
@@ -2089,10 +2156,12 @@ export function BookingForm({
             with the fixed price at creation, so disabled while an amount is
             entered). Both are hidden entirely for normal customers. */}
         <ContinueAction
-          ready={!submitting && !unPriceable && !overrideBlocked}
+          ready={!submitting && !unPriceable && !overrideBlocked && !verificationBlocked}
           reason={
             unPriceable
               ? UN_PRICEABLE_MESSAGE
+              : verificationBlocked
+              ? verificationStrings(locale).missingHint
               : overrideAmountInvalid
               ? 'Enter a valid price'
               : overrideReasonMissing

@@ -28,6 +28,8 @@ import type {
   StaffSubmitBody,
   SubmitBookingBody,
   SubmitBookingResponse,
+  VerificationFileKind,
+  VerificationState,
 } from './types'
 import type { ProductFlowResponse } from './flowTypes'
 import type {
@@ -36,6 +38,8 @@ import type {
   DetailsFieldError,
 } from './customerDetailsTypes'
 import { parsePausedBody, setPaused } from './pauseStore'
+import { isDemoMode } from '@/lib/demo'
+import { demoRequest } from './demo'
 import {
   mockAvailability,
   mockEstimate,
@@ -53,7 +57,9 @@ import {
 // Read env flags lazily (per-call) so tests can vi.stubEnv after the
 // module is imported — contract tests in particular need to flip
 // VITE_USE_MOCKS off mid-suite to exercise the real fetch path (landr-piyv).
-const mocksEnabled = (): boolean => import.meta.env.VITE_USE_MOCKS === '1'
+// Demo mode (marketing use-case pages) answers from `./demo` instead — it
+// outranks the dev-mock switch so the demo never depends on build env.
+const mocksEnabled = (): boolean => !isDemoMode() && import.meta.env.VITE_USE_MOCKS === '1'
 const apiBase = (): string =>
   (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/+$/, '')
 
@@ -124,6 +130,9 @@ export class HttpError extends Error {
 }
 
 async function http<T>(path: string, init?: RequestInit): Promise<T> {
+  // Demo mode: no request leaves the browser except the read-only template
+  // lookup inside demoRequest — never a booking, payment or mail endpoint.
+  if (isDemoMode()) return demoRequest<T>(path, init)
   if (!apiBase()) throw new Error('VITE_API_BASE_URL is not configured')
   const res = await fetch(`${apiBase()}${path}`, {
     ...init,
@@ -660,6 +669,39 @@ export async function submitBooking(
     method: 'POST',
     body: JSON.stringify(payload),
   })
+}
+
+/**
+ * Upload one verification file (licence / insurance) for a booking.
+ * Raw-body PUT with the scoped token the submit returned; the API checks the
+ * real file type and the 10 MB limit. Returns the new verification progress.
+ */
+export async function uploadVerificationFile(
+  token: string,
+  kind: VerificationFileKind,
+  file: Blob,
+): Promise<VerificationState> {
+  if (!apiBase()) throw new Error('VITE_API_BASE_URL is not configured')
+  const res = await fetch(
+    `${apiBase()}/api/public/bookings/${encodeURIComponent(token)}/verification/files/${kind}`,
+    {
+      method: 'PUT',
+      headers: { 'Content-Type': file.type || 'application/octet-stream' },
+      body: file,
+    },
+  )
+  if (!res.ok) {
+    const body = await res.text().catch(() => '')
+    throw new HttpError(res.status, res.statusText, body)
+  }
+  return (await res.json()) as VerificationState
+}
+
+/** The verification progress of a booking, by its scoped token. */
+export async function getVerificationState(token: string): Promise<VerificationState> {
+  return http<VerificationState>(
+    `/api/public/bookings/${encodeURIComponent(token)}/verification`,
+  )
 }
 
 /**

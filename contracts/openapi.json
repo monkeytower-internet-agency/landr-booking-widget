@@ -2002,6 +2002,17 @@
             "title": "End Date",
             "type": "string"
           },
+          "end_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Time"
+          },
           "location": {
             "anyOf": [
               {
@@ -2016,6 +2027,28 @@
           "start_date": {
             "title": "Start Date",
             "type": "string"
+          },
+          "start_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Time"
+          },
+          "timezone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timezone"
           },
           "title": {
             "title": "Title",
@@ -2983,6 +3016,11 @@
               }
             ],
             "title": "Date Range Start"
+          },
+          "force_book": {
+            "default": false,
+            "title": "Force Book",
+            "type": "boolean"
           },
           "force_slot_time": {
             "default": false,
@@ -4634,6 +4672,501 @@
           }
         },
         "title": "CancellationNoticesIn",
+        "type": "object"
+      },
+      "CatalogueGroup": {
+        "properties": {
+          "bookable_count": {
+            "default": 0,
+            "title": "Bookable Count",
+            "type": "integer"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "description_localized": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description Localized"
+          },
+          "image_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Url"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "name_localized": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name Localized"
+          },
+          "parent_slug": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Slug"
+          },
+          "product_count": {
+            "default": 0,
+            "title": "Product Count",
+            "type": "integer"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "sort_order": {
+            "default": 0,
+            "title": "Sort Order",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "slug",
+          "name"
+        ],
+        "title": "CatalogueGroup",
+        "type": "object"
+      },
+      "CatalogueProduct": {
+        "description": "One offer, keyed by slug. Mirrors the widget's catalogue product minus\nevery id (product, group, category, location, hotel).",
+        "properties": {
+          "category_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Name"
+          },
+          "category_name_localized": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Name Localized"
+          },
+          "currency": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Currency"
+          },
+          "daily_cap": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Daily Cap"
+          },
+          "daily_start_times": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Daily Start Times"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "duration_minutes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Minutes"
+          },
+          "group_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Group Name"
+          },
+          "group_slug": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Group Slug"
+          },
+          "guide_languages": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Guide Languages"
+          },
+          "images": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ProductImage"
+            },
+            "title": "Images",
+            "type": "array"
+          },
+          "is_contiguous": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Contiguous"
+          },
+          "max_party_size": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Party Size"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "name_localized": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name Localized"
+          },
+          "pass_tiers": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/CatalogueTier"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pass Tiers"
+          },
+          "price_base": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Base"
+          },
+          "price_from": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price From"
+          },
+          "price_notes": {
+            "default": [],
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Price Notes",
+            "type": "array"
+          },
+          "price_per_unit": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Per Unit"
+          },
+          "product_kind": {
+            "title": "Product Kind",
+            "type": "string"
+          },
+          "requires_verification": {
+            "default": false,
+            "title": "Requires Verification",
+            "type": "boolean"
+          },
+          "service_time_shape": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Service Time Shape"
+          },
+          "short_description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Short Description"
+          },
+          "short_description_localized": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Short Description Localized"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "sort_order": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sort Order"
+          },
+          "stay": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stay"
+          },
+          "thumb_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thumb Url"
+          },
+          "waiver_text_localized": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Waiver Text Localized"
+          }
+        },
+        "required": [
+          "slug",
+          "name",
+          "product_kind"
+        ],
+        "title": "CatalogueProduct",
+        "type": "object"
+      },
+      "CatalogueTier": {
+        "description": "One sellable tier of a pass product, without its id. The member amount\nis sample data here (a template has no members), so the demo can show it.",
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "member_price_cents": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Member Price Cents"
+          },
+          "price_cents": {
+            "title": "Price Cents",
+            "type": "integer"
+          },
+          "season_end": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Season End"
+          },
+          "season_start": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Season Start"
+          },
+          "validity_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Validity Days"
+          },
+          "validity_kind": {
+            "enum": [
+              "day",
+              "days",
+              "week",
+              "season"
+            ],
+            "title": "Validity Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "label",
+          "validity_kind",
+          "price_cents"
+        ],
+        "title": "CatalogueTier",
         "type": "object"
       },
       "ChangeNotification": {
@@ -8659,12 +9192,14 @@
             "type": "boolean"
           },
           "body_html": {
+            "maxLength": 1000000,
             "minLength": 1,
             "title": "Body Html",
             "type": "string"
           },
           "body_text": {
             "default": "",
+            "maxLength": 500000,
             "title": "Body Text",
             "type": "string"
           },
@@ -8712,6 +9247,7 @@
           "body_html": {
             "anyOf": [
               {
+                "maxLength": 1000000,
                 "minLength": 1,
                 "type": "string"
               },
@@ -8724,6 +9260,7 @@
           "body_text": {
             "anyOf": [
               {
+                "maxLength": 500000,
                 "type": "string"
               },
               {
@@ -16463,6 +17000,17 @@
             ],
             "title": "Category Name Localized"
           },
+          "daily_cap": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Daily Cap"
+          },
           "daily_start_times": {
             "anyOf": [
               {
@@ -16566,6 +17114,11 @@
             "title": "Product Id",
             "type": "string"
           },
+          "requires_verification": {
+            "default": false,
+            "title": "Requires Verification",
+            "type": "boolean"
+          },
           "share_reference_enabled": {
             "default": false,
             "title": "Share Reference Enabled",
@@ -16595,6 +17148,20 @@
               }
             ],
             "title": "Thumb Url"
+          },
+          "waiver_text_localized": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Waiver Text Localized"
           }
         },
         "required": [
@@ -21347,6 +21914,19 @@
             ],
             "title": "Cleaning Fee Cents"
           },
+          "daily_cap": {
+            "anyOf": [
+              {
+                "maximum": 100000.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Daily Cap"
+          },
           "daily_start_times": {
             "anyOf": [
               {
@@ -21672,6 +22252,11 @@
             ],
             "title": "Product Kind"
           },
+          "requires_verification": {
+            "default": false,
+            "title": "Requires Verification",
+            "type": "boolean"
+          },
           "revenue_flows_through_operator": {
             "anyOf": [
               {
@@ -21748,6 +22333,18 @@
             "default": 0,
             "title": "Sort Order",
             "type": "integer"
+          },
+          "waiver_text_localized": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Waiver Text Localized"
           }
         },
         "required": [
@@ -22012,6 +22609,19 @@
               }
             ],
             "title": "Cleaning Fee Cents"
+          },
+          "daily_cap": {
+            "anyOf": [
+              {
+                "maximum": 100000.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Daily Cap"
           },
           "daily_start_times": {
             "anyOf": [
@@ -22393,6 +23003,17 @@
             ],
             "title": "Product Kind"
           },
+          "requires_verification": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requires Verification"
+          },
           "revenue_flows_through_operator": {
             "anyOf": [
               {
@@ -22481,6 +23102,18 @@
               }
             ],
             "title": "Sort Order"
+          },
+          "waiver_text_localized": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Waiver Text Localized"
           }
         },
         "title": "ProductPatch",
@@ -22598,11 +23231,29 @@
         "type": "object"
       },
       "ProductRequirementIn": {
-        "description": "Link a resource type to the product (landr-1cib9).",
+        "description": "Link a resource type to the product (landr-1cib9).\n\nlandr-m6tp4.15: ``exclusive_use`` / ``units_required_per_booking`` make the\ncreated row a whole-unit requirement in the same request (a stay's one\napartment: ``{\"exclusive_use\": true}`` = 1 whole unit per booking), so a\nclient never has to POST then PATCH. Both omitted keeps the default\ncounting (1 per participant, or 1 per booking for a staff type).",
         "properties": {
+          "exclusive_use": {
+            "default": false,
+            "title": "Exclusive Use",
+            "type": "boolean"
+          },
           "resource_type_id": {
             "title": "Resource Type Id",
             "type": "string"
+          },
+          "units_required_per_booking": {
+            "anyOf": [
+              {
+                "maximum": 999.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Units Required Per Booking"
           }
         },
         "required": [
@@ -23737,6 +24388,16 @@
             "title": "Products",
             "type": "array"
           },
+          "verification": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VerificationIn"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "via_alternative_of": {
             "anyOf": [
               {
@@ -23887,6 +24548,23 @@
               }
             ],
             "title": "Fixed Date Window Id"
+          },
+          "force_book": {
+            "default": false,
+            "title": "Force Book",
+            "type": "boolean"
+          },
+          "pass_tier_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pass Tier Id"
           },
           "product_id": {
             "title": "Product Id",
@@ -24209,21 +24887,6 @@
           "token_expires_at"
         ],
         "title": "ReissueApprovalRequestOut",
-        "type": "object"
-      },
-      "RejectIn": {
-        "properties": {
-          "notes": {
-            "maxLength": 2000,
-            "minLength": 1,
-            "title": "Notes",
-            "type": "string"
-          }
-        },
-        "required": [
-          "notes"
-        ],
-        "title": "RejectIn",
         "type": "object"
       },
       "RelayCommentIn": {
@@ -29918,6 +30581,28 @@
       },
       "StaffTemplateOut": {
         "properties": {
+          "exported_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exported At"
+          },
+          "exported_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exported Version"
+          },
           "flow": {
             "enum": [
               "solo",
@@ -30915,6 +31600,18 @@
               }
             ],
             "title": "Token"
+          },
+          "verification": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verification"
           }
         },
         "required": [
@@ -31677,6 +32374,40 @@
           "enabled"
         ],
         "title": "TemplateCatalogueEntryOut",
+        "type": "object"
+      },
+      "TemplateCatalogueOut": {
+        "properties": {
+          "groups": {
+            "items": {
+              "$ref": "#/components/schemas/CatalogueGroup"
+            },
+            "title": "Groups",
+            "type": "array"
+          },
+          "products": {
+            "items": {
+              "$ref": "#/components/schemas/CatalogueProduct"
+            },
+            "title": "Products",
+            "type": "array"
+          },
+          "template_slug": {
+            "title": "Template Slug",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "template_slug",
+          "version",
+          "groups",
+          "products"
+        ],
+        "title": "TemplateCatalogueOut",
         "type": "object"
       },
       "TemplateCompare": {
@@ -32833,11 +33564,6 @@
       },
       "UploadPhotoRequest": {
         "properties": {
-          "bucket_id": {
-            "default": "community-media",
-            "title": "Bucket Id",
-            "type": "string"
-          },
           "height": {
             "anyOf": [
               {
@@ -32857,6 +33583,7 @@
             "type": "string"
           },
           "object_path": {
+            "description": "'<your auth uid>/<filename>' in the community-media bucket",
             "maxLength": 1024,
             "minLength": 1,
             "title": "Object Path",
@@ -32928,6 +33655,60 @@
           "type"
         ],
         "title": "ValidationError",
+        "type": "object"
+      },
+      "VerificationApproveIn": {
+        "description": "The hashes of the two files the organizer reviewed (as returned by the\nqueue / the ``files`` call). Approval is bound to exactly those bytes.",
+        "properties": {
+          "insurance_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Insurance Sha256",
+            "type": "string"
+          },
+          "licence_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Licence Sha256",
+            "type": "string"
+          }
+        },
+        "required": [
+          "licence_sha256",
+          "insurance_sha256"
+        ],
+        "title": "VerificationApproveIn",
+        "type": "object"
+      },
+      "VerificationIn": {
+        "description": "The customer's signed waiver on a verified registration.",
+        "properties": {
+          "waiver_accepted": {
+            "title": "Waiver Accepted",
+            "type": "boolean"
+          },
+          "waiver_locale": {
+            "anyOf": [
+              {
+                "maxLength": 16,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Waiver Locale"
+          },
+          "waiver_signature_name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Waiver Signature Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "waiver_accepted",
+          "waiver_signature_name"
+        ],
+        "title": "VerificationIn",
         "type": "object"
       },
       "VerifyResult": {
@@ -33672,6 +34453,21 @@
           "booking_count"
         ],
         "title": "YearBreakdown",
+        "type": "object"
+      },
+      "app__routers__landr_staff_promotions__RejectIn": {
+        "properties": {
+          "notes": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Notes",
+            "type": "string"
+          }
+        },
+        "required": [
+          "notes"
+        ],
+        "title": "RejectIn",
         "type": "object"
       },
       "app__routers__staff_commission__RuleIn": {
@@ -34504,6 +35300,21 @@
           }
         },
         "title": "TierPatch",
+        "type": "object"
+      },
+      "app__routers__staff_verifications__RejectIn": {
+        "properties": {
+          "note": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Note",
+            "type": "string"
+          }
+        },
+        "required": [
+          "note"
+        ],
+        "title": "RejectIn",
         "type": "object"
       }
     },
@@ -35371,7 +36182,7 @@
     },
     "/api/community/photos/{media_id}/url": {
       "get": {
-        "description": "Return a short-lived signed URL for a private community-media object.\n\nThe community-media bucket is PRIVATE (landr-w6gi.13) \u2014 raw object URLs are\nnot public. Any authenticated community member may read a non-removed asset\n(mirrors the media_assets SELECT RLS policy: moderation_status != 'removed').\n'removed' assets return 410 so a takedown actually hides the bytes.\n\nmedia_id is the media_assets.id.",
+        "description": "Return a short-lived signed URL for a private community-media object.\n\nThe community-media bucket is PRIVATE (landr-w6gi.13) \u2014 raw object URLs are\nnot public. Who may read depends on the asset's subject_type (landr-2ws2z):\n\n  * 'site'  \u2014 community content: any authenticated member.\n  * 'gear', 'personal' or NULL \u2014 the uploader's own PII (gear/insurance/\n    serial shots): only the uploader or Landr staff. Anyone else gets 404,\n    the same answer as a missing id, so ids don't confirm existence.\n\nThis mirrors the media_assets SELECT RLS policy (migration\n*_media_assets_private_subjects_owner_select.sql). 'removed' assets return\n410 so a takedown actually hides the bytes.\n\nmedia_id is the media_assets.id.",
         "operationId": "get_photo_signed_url",
         "parameters": [
           {
@@ -35857,6 +36668,60 @@
         "summary": "Echo a relayed STAGING ticket's activity to the reporter's PROD identity (matched by email, gated on notify_staging_in_prod) \u2014 service-to-service.",
         "tags": [
           "feedback-relay-internal"
+        ]
+      }
+    },
+    "/api/internal/mail/drain": {
+      "post": {
+        "description": "Run one pass of the tenant and the platform outbound-email drain.",
+        "operationId": "drain_mail",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Mail-Drain-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Mail-Drain-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "integer"
+                  },
+                  "title": "Response Drain Mail",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Drain Mail",
+        "tags": [
+          "mail-drain-internal"
         ]
       }
     },
@@ -38980,7 +39845,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RejectIn"
+                "$ref": "#/components/schemas/app__routers__landr_staff_promotions__RejectIn"
               }
             }
           },
@@ -40103,7 +40968,7 @@
     },
     "/api/operator/email-sender/setup": {
       "post": {
-        "description": "Create the SES domain identity, store its DKIM records, and provision DNS.\n\nFlow:\n  1. Create the SES email identity for ``sending_domain`` (EasyDKIM) and get\n     back the 3 DKIM CNAME records.\n  2. Persist the DKIM records on ``operator_email_sender`` (status='pending').\n  3. Provision DNS by detecting the zone's provider (NS lookup):\n     Cloudflare \u2192 push records directly (verified path); autoDNS \u2192 enqueue a\n     Marvin-side job; manual \u2192 return the records for the operator to paste.\n     Store the detected provider + a human note in ``last_error`` is NOT used\n     for the happy path; provider lands in ``dns_provider``.\n\n503 'ses_not_configured' when AWS creds are unset \u2014 never a 500.",
+        "description": "Create the SES domain identity, store its DKIM records, and provision DNS.\n\nFlow:\n  1. Create the SES email identity for ``sending_domain`` (EasyDKIM) and get\n     back the 3 DKIM CNAME records.\n  2. Persist the DKIM records on ``operator_email_sender`` (status='pending').\n  3. Provision DNS by detecting the zone's provider (NS lookup):\n     Cloudflare \u2192 push records directly (verified path); autoDNS \u2192 enqueue a\n     Marvin-side job; manual \u2192 return the records for the operator to paste.\n     Store the detected provider + a human note in ``last_error`` is NOT used\n     for the happy path; provider lands in ``dns_provider``.\n\n503 'ses_not_configured' when AWS creds are unset \u2014 never a 500.\n\nlandr-rtozr refusals (nothing is created or written on any of them):\n  * 422 ``invalid_sending_domain`` \u2014 not a bare domain.\n  * 409 ``sending_domain_reserved`` \u2014 landr.de / a platform sending domain\n    or a subdomain of one.\n  * 409 ``sending_domain_taken`` \u2014 equals, contains or sits under another\n    operator's sending domain (exact match also a DB unique index).\n  * 409 ``sending_domain_unavailable`` \u2014 the SES identity already exists\n    and was not created by this operator (never inherited).",
         "operationId": "setup",
         "requestBody": {
           "content": {
@@ -41770,6 +42635,103 @@
         "summary": "Put Booking Details",
         "tags": [
           "public-bookings"
+        ]
+      }
+    },
+    "/api/public/bookings/{token}/verification": {
+      "get": {
+        "operationId": "public_get_booking_verification",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Public Get Booking Verification",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Verification",
+        "tags": [
+          "public-booking-verification"
+        ]
+      }
+    },
+    "/api/public/bookings/{token}/verification/files/{kind}": {
+      "put": {
+        "operationId": "public_put_booking_verification_file",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "title": "Kind",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Public Put Booking Verification File",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Verification File",
+        "tags": [
+          "public-booking-verification"
         ]
       }
     },
@@ -44090,6 +45052,48 @@
           }
         },
         "summary": "Public Get Template",
+        "tags": [
+          "public-templates"
+        ]
+      }
+    },
+    "/api/public/templates/{slug}/catalogue": {
+      "get": {
+        "operationId": "public_get_template_catalogue",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "title": "Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TemplateCatalogueOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Public Get Template Catalogue",
         "tags": [
           "public-templates"
         ]
@@ -61293,7 +62297,7 @@
         ]
       },
       "post": {
-        "description": "Blocking requirement on ``resource_type_id``. A staff-only type\n(\"Tandem pilot\") is switched to count seats in the same transaction: the\nCapacity facet, one seat per person, every active person released; its\nrow is 1 per booking. Any other type: 1 seat per participant. 404\n``product_not_found`` / ``resource_type_not_found``; 422\n``facet_required`` / ``resource_type_inactive``; 409\n``requirement_exists``.",
+        "description": "Blocking requirement on ``resource_type_id``. A staff-only type\n(\"Tandem pilot\") is switched to count seats in the same transaction: the\nCapacity facet, one seat per person, every active person released; its\nrow is 1 per booking. Any other type: 1 seat per participant. 404\n``product_not_found`` / ``resource_type_not_found``; 422\n``facet_required`` / ``resource_type_inactive``; 409\n``requirement_exists``. With ``exclusive_use`` (units default 1) or\n``units_required_per_booking`` the row is created per booking in the one\nrequest; an exclusive row is never created half-way (it is removed again\nif the counting cannot be applied).",
         "operationId": "create_product_requirement",
         "parameters": [
           {
@@ -69984,6 +70988,263 @@
         "summary": "Create Upgrade Request",
         "tags": [
           "staff-operator-upgrade-request"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/verifications": {
+      "get": {
+        "operationId": "staff_list_verifications",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "default": "pending",
+              "pattern": "^(pending|approved|rejected)$",
+              "title": "Status",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "title": "Response Staff List Verifications",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Verifications",
+        "tags": [
+          "staff-verifications"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/verifications/{verification_id}/approve": {
+      "post": {
+        "operationId": "staff_approve_verification",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "verification_id",
+            "required": true,
+            "schema": {
+              "title": "Verification Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerificationApproveIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Staff Approve Verification",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Approve Verification",
+        "tags": [
+          "staff-verifications"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/verifications/{verification_id}/files": {
+      "get": {
+        "operationId": "staff_verification_file_urls",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "verification_id",
+            "required": true,
+            "schema": {
+              "title": "Verification Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Staff Verification File Urls",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Verification Files",
+        "tags": [
+          "staff-verifications"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/verifications/{verification_id}/reject": {
+      "post": {
+        "operationId": "staff_reject_verification",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "verification_id",
+            "required": true,
+            "schema": {
+              "title": "Verification Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/app__routers__staff_verifications__RejectIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Staff Reject Verification",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Reject Verification",
+        "tags": [
+          "staff-verifications"
         ]
       }
     },

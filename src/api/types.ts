@@ -469,6 +469,17 @@ export interface Product {
    * API) is treated as false.
    */
   share_reference_enabled?: boolean | null
+  /**
+   * Registration with organizer verification: the customer
+   * uploads a licence + insurance proof and signs a waiver; the booking waits
+   * "pending" until the organizer confirms. Optional for the rolling-deploy
+   * window — absent (an older API) is treated as false.
+   */
+  requires_verification?: boolean | null
+  /** Max seats per day (null / absent = no cap). The calendar already shows a full day via available_seats. */
+  daily_cap?: number | null
+  /** The waiver the customer signs, keyed by language (de / en). */
+  waiver_text_localized?: Record<string, string> | null
 }
 
 /**
@@ -1242,6 +1253,8 @@ export interface SubmitBookingBody {
    * expired falls back to the guest price, never a 4xx.
    */
   pass_member_proof?: string | null
+  /** The signed waiver of a verified registration. */
+  verification?: VerificationWaiver
   booking_channel?: string
   products: ProductLine[]
   participants: Participant[]
@@ -1459,6 +1472,14 @@ export interface BookingCalendarEvent {
   description?: string | null
   /** Location string, typically the operator name or venue. */
   location?: string | null
+  /**
+   * set for a stay only. 'HH:MM' check-in / check-out wall
+   * clock in `timezone` (IANA); `end_date` is then the check-out DAY. The
+   * deep links become timed events; absent -> all-day, as before.
+   */
+  start_time?: string | null
+  end_time?: string | null
+  timezone?: string | null
 }
 
 export interface SubmitBookingResponse {
@@ -1583,7 +1604,32 @@ export interface SubmitBookingResponse {
    * simply omit the link when absent, per the epic D6/D5 contract.
    */
   customer_page_url?: string | null
+  /**
+   * Present only when a booked product requires verification. The
+   * upload_token is a scoped token that opens this verification and nothing else.
+   */
+  verification?: VerificationState | null
 }
+
+/** The customer's signed waiver, sent with the booking. */
+export interface VerificationWaiver {
+  waiver_accepted: boolean
+  waiver_signature_name: string
+  waiver_locale?: string | null
+}
+
+export type VerificationStatus = 'pending' | 'approved' | 'rejected'
+
+/** Verification progress as the customer may see it. */
+export interface VerificationState {
+  status: VerificationStatus
+  licence_uploaded: boolean
+  insurance_uploaded: boolean
+  note?: string | null
+  upload_token?: string | null
+}
+
+export type VerificationFileKind = 'licence' | 'insurance'
 
 /**
  * landr-otml0.1 (API) — GET /api/public/invites/{token}. Strict allowlist on

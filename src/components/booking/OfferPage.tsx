@@ -43,6 +43,7 @@ import { hasSaving } from './offerPositions'
 import { PerformerPaySections } from './PerformerPaySections'
 import { groupPerformerLines } from './priceSidebarHelpers'
 import { savingLabel, savingRows } from './savingRows'
+import { stayWindowLabel } from './stayWindow'
 
 /**
  * Customer offer review + Accept & Pay page (landr-uvfg.4b).
@@ -1230,13 +1231,17 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
                         ? tr('offerPeriodArrival', locale)
                         : row.kind === 'departure'
                           ? tr('offerPeriodDeparture', locale)
-                          : row.name}
+                          : row.kind === 'stay'
+                            ? tr('stayNightsLabel', locale)
+                            : row.name}
                     </th>
                     <td
                       className="px-4 py-3 text-muted-foreground tabular-nums"
                       data-testid="offer-period-dates"
                     >
-                      {formatRanges([row], locale)}
+                      {row.kind === 'stay' && row.stay
+                        ? stayWindowLabel(row.stay, locale, { withNights: false })
+                        : formatRanges([row], locale)}
                     </td>
                     <td
                       className="whitespace-nowrap px-4 py-3 text-muted-foreground tabular-nums"
