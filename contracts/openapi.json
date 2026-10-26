@@ -2002,6 +2002,17 @@
             "title": "End Date",
             "type": "string"
           },
+          "end_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Time"
+          },
           "location": {
             "anyOf": [
               {
@@ -2016,6 +2027,28 @@
           "start_date": {
             "title": "Start Date",
             "type": "string"
+          },
+          "start_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Time"
+          },
+          "timezone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timezone"
           },
           "title": {
             "title": "Title",
