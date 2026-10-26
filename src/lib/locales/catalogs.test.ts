@@ -61,7 +61,7 @@ describe.each(SUPPORTED_UI_LANGUAGES.filter((l) => l !== 'en'))('%s catalog', (l
 })
 
 describe('locale-agnostic helper phrases (landr-8r6oc.4)', () => {
-  it.each(['en', 'de', 'es', 'tr'])('%s: helpers fill their placeholders and never leak braces', (lang) => {
+  it.each(['en', 'de', 'es', 'it', 'tr'])('%s: helpers fill their placeholders and never leak braces', (lang) => {
     const t: Bundle = pickBundle(lang)
     const outputs = [
       daysSelectedLabel(1, lang),
@@ -105,6 +105,12 @@ describe('locale-agnostic helper phrases (landr-8r6oc.4)', () => {
     expect(multiDayGate(0, 'tr')).toMatch(/tarih|gün/i)
     expect(languageStepGate([], 'es')).toMatch(/idioma/i)
     expect(languageStepGate([], 'tr')).toMatch(/dil/i)
+  })
+
+  it('Italian helper copy is in the right language', () => {
+    expect(multiDayGate(0, 'it')).toMatch(/data/i)
+    expect(languageStepGate([], 'it')).toMatch(/lingua/i)
+    expect(nightsWord(2, 'it')).toBe('notti')
   })
 
   it('fmt leaves unknown placeholders untouched', () => {

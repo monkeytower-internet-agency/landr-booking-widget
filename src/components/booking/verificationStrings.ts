@@ -99,6 +99,41 @@ const de: VerificationBundle = {
   needFilesBody: 'Bitte lade die fehlenden Unterlagen hoch, damit der Veranstalter dich prüfen kann.',
 }
 
+const it: VerificationBundle = {
+  heading: 'I tuoi documenti',
+  intro:
+    'L\u2019organizzatore controlla la tua licenza e la tua assicurazione prima di confermare la tua iscrizione.',
+  licenceLabel: 'Licenza di pilota',
+  insuranceLabel: 'Prova dell\u2019assicurazione',
+  fileHint: 'Foto o PDF, fino a 10 MB.',
+  chooseFile: 'Scegli file',
+  replaceFile: 'Sostituisci file',
+  fileTooLarge: 'Questo file supera i 10 MB.',
+  fileWrongType: 'Scegli una foto (JPG, PNG, WebP, HEIC) o un PDF.',
+  waiverHeading: 'Liberatoria di responsabilità',
+  // Kept in English on purpose: the signature record stores waiver_locale 'en' for es/it/tr
+  // (waiverLocale() only knows de/en), so the signed text must match that locale.
+  waiverFallback: 'I confirm that my documents are valid and that I take part at my own risk.',
+  signatureLabel: 'Scrivi il tuo nome completo per firmare',
+  signaturePlaceholder: 'Nome completo',
+  acceptLabel: 'Ho letto la liberatoria di responsabilità e la accetto.',
+  missingHint:
+    'Aggiungi entrambi i documenti, scrivi il tuo nome e accetta la liberatoria di responsabilità per continuare.',
+  uploadFailed:
+    'La tua iscrizione è registrata, ma non è stato possibile caricare un documento. Riprova qui sotto.',
+  retryUpload: 'Carica',
+  uploading: 'Caricamento in corso…',
+  pendingTitle: 'Ti confermeremo quando i tuoi documenti saranno verificati',
+  pendingBody:
+    'La tua iscrizione è registrata. Riceverai un\u2019e-mail non appena l\u2019organizzatore avrà controllato i tuoi documenti.',
+  approvedBody: 'I tuoi documenti sono stati verificati. La tua iscrizione è confermata.',
+  rejectedTitle: 'Non è stato possibile confermare la tua iscrizione',
+  rejectedNoteLabel: 'Motivo dell\u2019organizzatore:',
+  uploadedLabel: 'Ricevuto',
+  missingLabel: 'Manca ancora',
+  needFilesBody: 'Carica i documenti mancanti così l\u2019organizzatore può verificarti.',
+}
+
 const es: VerificationBundle = {
   heading: 'Tus documentos',
   intro:
@@ -172,13 +207,14 @@ export function verificationStrings(locale?: string): VerificationBundle {
   const base = (locale ?? '').toLowerCase()
   if (base.startsWith('de')) return de
   if (base.startsWith('es')) return es
+  if (base.startsWith('it')) return it
   if (base.startsWith('tr')) return tr
   return en
 }
 
 /**
  * The waiver language the API stores with the signature. The operator only
- * writes the waiver text in German and English, so es / tr customers sign the
+ * writes the waiver text in German and English, so es / it / tr customers sign the
  * English text.
  */
 export function waiverLocale(locale?: string): 'de' | 'en' {

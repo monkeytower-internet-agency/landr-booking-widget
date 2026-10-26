@@ -57,7 +57,8 @@ describe('strings (pickBundle/tr locale resolution, landr-5aih0.9)', () => {
     expect(resolveUiLanguage('tr_TR')).toBe('tr')
     expect(resolveUiLanguage('fr')).toBe('en')
     expect(resolveUiLanguage(undefined)).toBe('en')
-    expect([...SUPPORTED_UI_LANGUAGES].sort()).toEqual(['de', 'en', 'es', 'tr'])
+    expect(resolveUiLanguage('it-IT')).toBe('it')
+    expect([...SUPPORTED_UI_LANGUAGES].sort()).toEqual(['de', 'en', 'es', 'it', 'tr'])
   })
 
   it('tr resolves per the same locale rule as pickBundle', () => {
