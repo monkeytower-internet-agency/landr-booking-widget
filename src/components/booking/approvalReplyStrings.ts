@@ -17,9 +17,9 @@
  *   3. 'en' fallback.
  */
 
-export type ReplyLocale = 'de' | 'en' | 'es' | 'tr'
+export type ReplyLocale = 'de' | 'en' | 'es' | 'it' | 'tr'
 
-export const REPLY_LOCALES: ReplyLocale[] = ['de', 'en', 'es', 'tr']
+export const REPLY_LOCALES: ReplyLocale[] = ['de', 'en', 'es', 'it', 'tr']
 
 export interface ApprovalReplyBundle {
   loadingTitle: string
@@ -192,6 +192,65 @@ const de: ApprovalReplyBundle = {
   languageSwitcherLabel: 'Sprache',
 }
 
+const it: ApprovalReplyBundle = {
+  loadingTitle: 'Caricamento…',
+  errorTitle: 'Qualcosa è andato storto',
+  errorBody:
+    'Non è stato possibile caricare questa richiesta. Il link potrebbe non essere valido oppure c\u2019è un problema temporaneo. Riprovi o risponda all\u2019e-mail originale.',
+  tryAgain: 'Riprova',
+
+  pageTitle: 'Richiesta di camere',
+  requestRefLabel: 'Riferimento',
+  checkInLabel: 'Check-in',
+  checkOutLabel: 'Check-out',
+  nightsLabel: 'Notti',
+  guestsLabel: 'Ospiti',
+  roomsLabel: 'Camere',
+  hotelLabel: 'Hotel',
+
+  optionConfirmedTitle: 'Sì, camere confermate',
+  optionDeclinedTitle: 'No, non possiamo accettare questa prenotazione',
+  optionChangesTitle: 'Sì, ma con modifiche',
+
+  commentLabel: 'Commento',
+  commentPlaceholderChanges: 'Indichi cosa va modificato (obbligatorio)…',
+  commentPlaceholderDefault: 'Aggiunga un commento (facoltativo)…',
+  commentRequiredHint:
+    'Descriva le modifiche: questo campo è obbligatorio.',
+  reasonChipFullyBooked: 'Al completo',
+  reasonChipDatesNotPossible: 'Date non possibili',
+  reasonChipGroupTooLarge: 'Gruppo troppo grande',
+  reasonChipOther: 'Altro',
+
+  nameLabel: 'Il suo nome (facoltativo)',
+  namePlaceholder: 'Chi risponde?',
+
+  confirmButton: 'Conferma',
+  confirmButtonBusy: 'Conferma in corso…',
+  changeAnswerButton: 'Cambia la mia risposta',
+
+  answeredTitle: 'La sua risposta è stata registrata',
+  answeredBody: 'Ha risposto a {operator} "{decision}" il {date}.',
+
+  expiredTitle: 'Questo link è scaduto',
+  expiredBody: 'Risponda all\u2019e-mail o chiami il {phone}.',
+  supersededTitle: 'Questo link non è più valido',
+  supersededBody:
+    '{operator} ha inviato una richiesta aggiornata: usi l\u2019e-mail più recente oppure chiami il {phone}.',
+  closedConfirmedTitle: 'Già confermata',
+  closedConfirmedBody:
+    'Grazie: questa prenotazione è già confermata con {operator}. Non serve altro.',
+  closedCancelledTitle: 'Prenotazione annullata',
+  closedCancelledBody: 'Questa prenotazione è stata annullata: non servono camere.',
+
+  successTitle: 'Grazie',
+  successBody: 'Abbiamo registrato la sua risposta e avvisato {operator}.',
+  successAlreadyRecorded:
+    'Avevamo già registrato questa risposta: non è cambiato nulla.',
+
+  languageSwitcherLabel: 'Lingua',
+}
+
 const es: ApprovalReplyBundle = {
   loadingTitle: 'Cargando…',
   errorTitle: 'Algo salió mal',
@@ -308,12 +367,12 @@ const tr: ApprovalReplyBundle = {
   languageSwitcherLabel: 'Dil',
 }
 
-const BUNDLES: Record<ReplyLocale, ApprovalReplyBundle> = { en, de, es, tr }
+const BUNDLES: Record<ReplyLocale, ApprovalReplyBundle> = { en, de, es, it, tr }
 
 /** Normalise an arbitrary locale string ('de-AT', 'ES', …) to a supported bundle key. */
 export function normalizeReplyLocale(locale: string | null | undefined): ReplyLocale {
   const base = (locale ?? '').trim().toLowerCase().split(/[-_]/)[0]
-  if (base === 'de' || base === 'en' || base === 'es' || base === 'tr') return base
+  if (base === 'de' || base === 'en' || base === 'es' || base === 'it' || base === 'tr') return base
   return 'en'
 }
 
@@ -351,6 +410,15 @@ const PARTNER_OVERRIDES: Record<ReplyLocale, Partial<ApprovalReplyBundle>> = {
     hotelLabel: 'Colaborador',
     optionConfirmedTitle: 'Sí, confirmado',
     closedCancelledBody: 'Esta reserva fue cancelada — no se necesita nada más.',
+  },
+  it: {
+    pageTitle: 'Richiesta di prenotazione',
+    checkInLabel: 'Dal',
+    checkOutLabel: 'Al',
+    guestsLabel: 'Persone',
+    hotelLabel: 'Partner',
+    optionConfirmedTitle: 'Sì, confermato',
+    closedCancelledBody: 'Questa prenotazione è stata annullata: non serve altro.',
   },
   tr: {
     pageTitle: 'Rezervasyon talebi',

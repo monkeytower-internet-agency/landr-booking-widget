@@ -10,7 +10,7 @@ import {
   type DayButton,
 } from "react-day-picker"
 
-import { de as dayPickerDe, es as dayPickerEs, tr as dayPickerTr } from "react-day-picker/locale"
+import { de as dayPickerDe, es as dayPickerEs, it as dayPickerIt, tr as dayPickerTr } from "react-day-picker/locale"
 
 import { cn } from "@/lib/utils"
 import { browserLocale } from "@/lib/locale"
@@ -26,6 +26,7 @@ import { Button, buttonVariants } from "@/components/ui/button"
 const DAY_PICKER_LOCALES: Record<string, React.ComponentProps<typeof DayPicker>["locale"]> = {
   de: dayPickerDe,
   es: dayPickerEs,
+  it: dayPickerIt,
   tr: dayPickerTr,
 }
 

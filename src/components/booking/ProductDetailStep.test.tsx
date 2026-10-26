@@ -388,6 +388,63 @@ describe('ProductDetailStep description fallback', () => {
   })
 })
 
+describe('ProductDetailStep localized long description (landr-5wwuq.3)', () => {
+  const withLocale = (lang: string) =>
+    vi.spyOn(navigator, 'language', 'get').mockReturnValue(lang)
+  afterEach(() => vi.restoreAllMocks())
+
+  it('shows description_localized for the browser locale', () => {
+    withLocale('de-DE')
+    renderStep(
+      makeProduct({
+        description: 'English long copy.',
+        description_localized: { en: 'English long copy.', de: 'Deutscher Langtext.' },
+      }),
+    )
+    expect(screen.getByTestId('product-detail-description')).toHaveTextContent(
+      'Deutscher Langtext.',
+    )
+  })
+
+  it('shows the Italian long description for an it browser', () => {
+    withLocale('it-IT')
+    renderStep(
+      makeProduct({
+        description: 'English long copy.',
+        description_localized: { it: 'Testo lungo italiano.' },
+      }),
+    )
+    expect(screen.getByTestId('product-detail-description')).toHaveTextContent(
+      'Testo lungo italiano.',
+    )
+  })
+
+  it('falls back to the English description when the locale is missing', () => {
+    withLocale('tr-TR')
+    renderStep(
+      makeProduct({
+        description: 'English long copy.',
+        description_localized: { de: 'Deutscher Langtext.' },
+      }),
+    )
+    expect(screen.getByTestId('product-detail-description')).toHaveTextContent(
+      'English long copy.',
+    )
+  })
+
+  it('works against an older API without description_localized (falls to localized short)', () => {
+    withLocale('de-DE')
+    renderStep(
+      makeProduct({
+        description: null,
+        short_description: 'Short.',
+        short_description_localized: { de: 'Kurz.' },
+      }),
+    )
+    expect(screen.getByTestId('product-detail-description')).toHaveTextContent('Kurz.')
+  })
+})
+
 describe('ProductDetailStep — next action + zen (landr-80ubl.2)', () => {
   it('exactly one NextAction is active: the desktop Book CTA (mobile bar is a plain duplicate)', () => {
     renderStep(makeProduct())
