@@ -14155,6 +14155,8 @@ export interface components {
             } | null;
             /** Currency */
             currency?: string | null;
+            /** Daily Cap */
+            daily_cap?: number | null;
             /** Daily Start Times */
             daily_start_times?: string[] | null;
             /** Description */
@@ -14182,6 +14184,8 @@ export interface components {
             name_localized?: {
                 [key: string]: unknown;
             } | null;
+            /** Pass Tiers */
+            pass_tiers?: components["schemas"]["CatalogueTier"][] | null;
             /** Price Base */
             price_base?: string | null;
             /** Price From */
@@ -14197,6 +14201,11 @@ export interface components {
             price_per_unit?: string | null;
             /** Product Kind */
             product_kind: string;
+            /**
+             * Requires Verification
+             * @default false
+             */
+            requires_verification: boolean;
             /** Service Time Shape */
             service_time_shape?: string | null;
             /** Short Description */
@@ -14215,6 +14224,34 @@ export interface components {
             } | null;
             /** Thumb Url */
             thumb_url?: string | null;
+            /** Waiver Text Localized */
+            waiver_text_localized?: {
+                [key: string]: string;
+            } | null;
+        };
+        /**
+         * CatalogueTier
+         * @description One sellable tier of a pass product, without its id. The member amount
+         *     is sample data here (a template has no members), so the demo can show it.
+         */
+        CatalogueTier: {
+            /** Label */
+            label: string;
+            /** Member Price Cents */
+            member_price_cents?: number | null;
+            /** Price Cents */
+            price_cents: number;
+            /** Season End */
+            season_end?: string | null;
+            /** Season Start */
+            season_start?: string | null;
+            /** Validity Days */
+            validity_days?: number | null;
+            /**
+             * Validity Kind
+             * @enum {string}
+             */
+            validity_kind: "day" | "days" | "week" | "season";
         };
         /** ChangeNotification */
         ChangeNotification: {

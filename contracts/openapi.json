@@ -4801,6 +4801,17 @@
             ],
             "title": "Currency"
           },
+          "daily_cap": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Daily Cap"
+          },
           "daily_start_times": {
             "anyOf": [
               {
@@ -4919,6 +4930,20 @@
             ],
             "title": "Name Localized"
           },
+          "pass_tiers": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/CatalogueTier"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pass Tiers"
+          },
           "price_base": {
             "anyOf": [
               {
@@ -4967,6 +4992,11 @@
           "product_kind": {
             "title": "Product Kind",
             "type": "string"
+          },
+          "requires_verification": {
+            "default": false,
+            "title": "Requires Verification",
+            "type": "boolean"
           },
           "service_time_shape": {
             "anyOf": [
@@ -5039,6 +5069,20 @@
               }
             ],
             "title": "Thumb Url"
+          },
+          "waiver_text_localized": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Waiver Text Localized"
           }
         },
         "required": [
@@ -5047,6 +5091,82 @@
           "product_kind"
         ],
         "title": "CatalogueProduct",
+        "type": "object"
+      },
+      "CatalogueTier": {
+        "description": "One sellable tier of a pass product, without its id. The member amount\nis sample data here (a template has no members), so the demo can show it.",
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "member_price_cents": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Member Price Cents"
+          },
+          "price_cents": {
+            "title": "Price Cents",
+            "type": "integer"
+          },
+          "season_end": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Season End"
+          },
+          "season_start": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Season Start"
+          },
+          "validity_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Validity Days"
+          },
+          "validity_kind": {
+            "enum": [
+              "day",
+              "days",
+              "week",
+              "season"
+            ],
+            "title": "Validity Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "label",
+          "validity_kind",
+          "price_cents"
+        ],
+        "title": "CatalogueTier",
         "type": "object"
       },
       "ChangeNotification": {
