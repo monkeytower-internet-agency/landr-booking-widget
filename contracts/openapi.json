@@ -24412,6 +24412,18 @@
             "title": "Force Book",
             "type": "boolean"
           },
+          "pass_tier_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pass Tier Id"
+          },
           "product_id": {
             "title": "Product Id",
             "type": "string"

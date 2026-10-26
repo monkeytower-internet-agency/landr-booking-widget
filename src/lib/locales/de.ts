@@ -625,6 +625,8 @@ export const de: Bundle = {
   passGuestsLabel: 'Personen',
   passGuestNameLabel: 'Person {n}: Vor- und Nachname',
   passMemberHint: 'Mitglieder zahlen für diesen Pass weniger.',
+  passStaffMemberNote: 'Der Mitgliedspreis gilt automatisch, wenn diese E-Mail-Adresse zu einem aktiven Mitglied gehört.',
+  passStaffNoOperator: 'Der Betrieb für diese Buchung konnte nicht ermittelt werden. Öffnen Sie das Buchungsfenster erneut und versuchen Sie es noch einmal.',
   passMemberToggle: 'Ich bin Mitglied',
   passMemberSendCode: 'Code per E-Mail senden',
   passMemberCodeSent: 'Gehört diese Adresse zu einem Mitglied, ist ein Code unterwegs.',

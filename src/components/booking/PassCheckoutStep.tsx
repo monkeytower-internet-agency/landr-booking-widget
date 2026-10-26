@@ -6,6 +6,7 @@ import {
   requestPassMemberProof,
   requestSubscriptionPerkOtp,
   submitBooking,
+  submitStaffBooking,
 } from '@/api/client'
 import type {
   PassTier,
@@ -28,10 +29,12 @@ import { Label } from '@/components/ui/label'
 import { countryOptions } from '@/lib/countries'
 import { browserLocale } from '@/lib/locale'
 import { operatorWallClock } from '@/lib/operatorClock'
+import { resolveParentTargetOrigin, useStaffMode } from '@/lib/staffMode'
 import { fmt, tr } from '@/lib/strings'
 import { formatDayLabel } from './dateLabel'
 import { formatMoney } from './priceSidebarHelpers'
 import { StepBackButton } from './StepBackButton'
+import { augmentStaffSubmit, isStaffSubmitBody } from './staffSubmitAdapter'
 import { VerificationFields } from './VerificationFields'
 import {
   dailyCapMessage,
@@ -120,6 +123,7 @@ export function PassCheckoutStep({
   onConfirmed,
 }: Props) {
   const locale = browserLocale()
+  const staff = useStaffMode()
   const todayIso = useMemo(() => operatorWallClock(operatorTimezone).iso, [operatorTimezone])
 
   const [data, setData] = useState<PassTiersResponse | null>(null)
@@ -174,7 +178,10 @@ export function PassCheckoutStep({
   const isSeason = tier?.validity_kind === 'season'
   const currency = data?.currency ?? 'EUR'
   const isMember = data?.is_member === true
-  const anyMemberPrice = data?.tiers.some((t) => t.has_member_price) ?? false
+  // Staff mode has no email code: the server grants the member price when the
+  // typed email holds an active membership, so the proof block never shows.
+  const anyMemberPrice = !staff.active && (data?.tiers.some((t) => t.has_member_price) ?? false)
+  const staffMemberNote = staff.active && (data?.tiers.some((t) => t.has_member_price) ?? false)
 
   const setGuestCount = (n: number) => {
     const next = Math.max(1, Math.min(MAX_GUESTS, n))
@@ -189,7 +196,9 @@ export function PassCheckoutStep({
     return startDate
   }, [tier, isSeason, startDate])
 
-  const startInPast = !isSeason && startDate < todayIso
+  // Staff may backfill a pass whose start already passed (the API allows it for
+  // the staff paths); only the public checkout rejects a past start.
+  const startInPast = !staff.active && !isSeason && startDate < todayIso
   const emailOk = email.trim().includes('@')
   const detailsComplete =
     firstName.trim() !== '' &&
@@ -289,7 +298,26 @@ export function PassCheckoutStep({
       ...(verificationRequired ? { verification: toWaiver(verification, locale) } : {}),
     }
     try {
-      let result = await submitBooking(body, previewToken ? { previewToken } : undefined)
+      // Staff mode: the same body goes to the operator-scoped staff endpoint
+      // (signed staff_session, no widget_token, no member proof — the server
+      // prices from the tier and checks the typed email's membership).
+      const submitBody = augmentStaffSubmit(body, { session: staff, forced: false })
+      let result: SubmitBookingResponse
+      if (isStaffSubmitBody(submitBody)) {
+        if (!staff.operatorId) {
+          setError(tr('passStaffNoOperator', locale))
+          return
+        }
+        result = await submitStaffBooking(staff.operatorId, submitBody)
+        if (typeof window !== 'undefined' && window.parent !== window) {
+          window.parent.postMessage(
+            { type: 'landr:booking-created', booking_id: result.booking_id },
+            resolveParentTargetOrigin(),
+          )
+        }
+      } else {
+        result = await submitBooking(submitBody, previewToken ? { previewToken } : undefined)
+      }
       if (result.verification) {
         result = {
           ...result,
@@ -392,7 +420,7 @@ export function PassCheckoutStep({
                 <Input
                   id="pass-start"
                   type="date"
-                  min={todayIso}
+                  min={staff.active ? undefined : todayIso}
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
                   aria-invalid={startInPast}
@@ -512,6 +540,11 @@ export function PassCheckoutStep({
                   </>
                 )}
               </div>
+            ) : null}
+            {staffMemberNote ? (
+              <p className="text-xs text-muted-foreground" data-testid="pass-staff-member-note">
+                {tr('passStaffMemberNote', locale)}
+              </p>
             ) : null}
             {isMember ? (
               <p className="text-sm font-medium text-primary" data-testid="pass-member-applied">
