@@ -302,4 +302,86 @@ describe('BookingForm — per-participant language (landr-r6e5x.4)', () => {
       screen.queryByText(/Assign every participant to a language/i),
     ).not.toBeInTheDocument()
   })
+
+  // landr-m6tp4.55: a stay-only cart has no guide, so no participant language
+  // is sent; an API that predates the relaxed rule gets one retry carrying the
+  // customer's UI language. A service cart is untouched either way.
+  describe('stay-only cart (landr-m6tp4.55)', () => {
+    const stayProduct = (): Product => ({
+      ...makeServiceProduct(),
+      product_id: 'stay-main',
+      product_kind: 'stay',
+    })
+    const sentBody = (call: number) => {
+      const [, init] = fetchSpy.mock.calls[call] as [string, RequestInit]
+      return JSON.parse(String(init.body)) as {
+        participants: Array<Record<string, unknown>>
+        customer_languages?: string[]
+      }
+    }
+
+    it('sends no participant language and no derived customer_languages', async () => {
+      renderForm({ product: stayProduct(), participantLanguages: {}, companions: [] })
+      await confirm()
+
+      await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(1))
+      const body = sentBody(0)
+      for (const p of body.participants) expect(p).not.toHaveProperty('language')
+      expect(body).not.toHaveProperty('customer_languages')
+    })
+
+    it('retries once with the UI language when an older API answers participant_language_missing', async () => {
+      fetchSpy
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({
+              detail: {
+                error: 'participant_language_missing',
+                missing: [{ role: 'participant', index: 1 }],
+                message: 'Every participant must be assigned a spoken language.',
+              },
+            }),
+            { status: 422, headers: { 'Content-Type': 'application/json' } },
+          ),
+        )
+        .mockResolvedValueOnce(okResponse())
+      const onConfirmed = vi.fn()
+      renderForm({
+        product: stayProduct(),
+        participantLanguages: {},
+        companions: [],
+        onConfirmed,
+      })
+      await confirm()
+
+      await waitFor(() => expect(onConfirmed).toHaveBeenCalledTimes(1))
+      expect(fetchSpy).toHaveBeenCalledTimes(2)
+      for (const p of sentBody(0).participants) expect(p).not.toHaveProperty('language')
+      for (const p of sentBody(1).participants) {
+        expect(p.language).toMatch(/^[a-z]{2}$/)
+      }
+    })
+
+    it('does not retry a service cart on participant_language_missing', async () => {
+      fetchSpy.mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            detail: {
+              error: 'participant_language_missing',
+              missing: [{ role: 'participant', index: 1 }],
+              message: 'x',
+            },
+          }),
+          { status: 422, headers: { 'Content-Type': 'application/json' } },
+        ),
+      )
+      renderForm({ participantLanguages: {} })
+      await confirm()
+
+      await waitFor(() =>
+        expect(screen.getByText(/Assign every participant to a language/i)).toBeInTheDocument(),
+      )
+      expect(fetchSpy).toHaveBeenCalledTimes(1)
+    })
+  })
 })

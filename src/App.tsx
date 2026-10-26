@@ -1031,8 +1031,8 @@ function BookingFlowApp() {
   // product would dead-end on a 422 with nothing the customer could do.
   const offeredLanguagesForProduct = useCallback(
     (product: Product) =>
-      // A stay has no guide: its guests get the customer's own language,
-      // auto-filled at the review seam (one offered language skips the step).
+      // A stay has no guide: nothing to brief in a language, so no language
+      // is offered, assigned or sent (stay-only carts, landr-m6tp4.55).
       isStayKind(product.product_kind)
         ? stayGuestLanguages()
         : productAcceptsAnyLanguage(product.guide_languages)
@@ -1057,7 +1057,8 @@ function BookingFlowApp() {
   // (participants[].language / derived customer_languages).
   const draftLanguagesForProduct = useCallback(
     (product: Product): BookingDraft['participantLanguages'] =>
-      productAcceptsAnyLanguage(product.guide_languages)
+      productAcceptsAnyLanguage(product.guide_languages) ||
+      isStayKind(product.product_kind)
         ? {}
         : bookingDraft.participantLanguages,
     [bookingDraft.participantLanguages],

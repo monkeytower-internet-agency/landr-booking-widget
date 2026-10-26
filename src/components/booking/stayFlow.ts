@@ -30,12 +30,29 @@ export function withStayPartyCap(product: Product): Product {
 }
 
 /**
- * A stay has no guide, so there is no language to choose: its guests carry
- * the customer's own UI language (one offered language skips the step and is
- * auto-filled at review). Falls back to English for anything that is not a
- * plain two-letter code.
+ * A stay has no guide, so there is no language to assign: a stay-only cart
+ * carries NO participant language (the API requires one only when the cart
+ * has a service line). Kept as a function so every call site reads one answer.
  */
-export function stayGuestLanguages(locale: string = browserLocale()): string[] {
+export function stayGuestLanguages(): string[] {
+  return []
+}
+
+/**
+ * Promotion-skew fallback. An API that predates the "no participant language
+ * on a stay-only cart" rule answers a stay submit with a typed
+ * `participant_language_missing` 422. Only then is the customer's own UI
+ * language copied onto every participant and the retry sent once; against a
+ * current API the first submit succeeds and this never runs.
+ */
+export function withFallbackGuestLanguage<
+  B extends { participants: Array<object>; customer_languages?: string[] | null },
+>(body: B, locale: string = browserLocale()): B {
   const base = (locale || '').trim().toLowerCase().slice(0, 2)
-  return [/^[a-z]{2}$/.test(base) ? base : 'en']
+  const language = /^[a-z]{2}$/.test(base) ? base : 'en'
+  return {
+    ...body,
+    participants: body.participants.map((p) => ({ ...p, language })),
+    customer_languages: [language],
+  } as B
 }
