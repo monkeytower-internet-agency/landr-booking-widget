@@ -480,6 +480,21 @@ export interface Product {
   daily_cap?: number | null
   /** The waiver the customer signs, keyed by language (de / en). */
   waiver_text_localized?: Record<string, string> | null
+  /**
+   * A recurring weekly event window (e.g. Thursday to Sunday) and its next
+   * occurrences, rolled forward by the server. The calendar already offers only
+   * those days (they are the only open ones); this is for labels and the demo.
+   * Absent / null = no window. ISO weekdays 1..7.
+   */
+  event_window?: EventWindow | null
+}
+
+export interface EventWindow {
+  start_weekday: number
+  end_weekday: number
+  cutoff_hours: number | null
+  horizon_n: number
+  occurrences: { start_date: string; end_date: string }[]
 }
 
 /**
