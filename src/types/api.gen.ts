@@ -22806,6 +22806,8 @@ export interface components {
         };
         /** StaffTemplateOut */
         StaffTemplateOut: {
+            /** Exported Version */
+            exported_version?: number | null;
             /**
              * Flow
              * @enum {string}

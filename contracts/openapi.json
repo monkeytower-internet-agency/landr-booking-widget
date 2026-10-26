@@ -30019,6 +30019,17 @@
       },
       "StaffTemplateOut": {
         "properties": {
+          "exported_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exported Version"
+          },
           "flow": {
             "enum": [
               "solo",
