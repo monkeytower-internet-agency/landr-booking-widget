@@ -9192,12 +9192,14 @@
             "type": "boolean"
           },
           "body_html": {
+            "maxLength": 1000000,
             "minLength": 1,
             "title": "Body Html",
             "type": "string"
           },
           "body_text": {
             "default": "",
+            "maxLength": 500000,
             "title": "Body Text",
             "type": "string"
           },
@@ -9245,6 +9247,7 @@
           "body_html": {
             "anyOf": [
               {
+                "maxLength": 1000000,
                 "minLength": 1,
                 "type": "string"
               },
@@ -9257,6 +9260,7 @@
           "body_text": {
             "anyOf": [
               {
+                "maxLength": 500000,
                 "type": "string"
               },
               {
