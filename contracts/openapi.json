@@ -30559,6 +30559,17 @@
       },
       "StaffTemplateOut": {
         "properties": {
+          "exported_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exported At"
+          },
           "exported_version": {
             "anyOf": [
               {
