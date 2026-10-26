@@ -367,6 +367,14 @@ export type Bundle = {
   noBreakfastLabel: string
   withBreakfastLabel: string
   withoutBreakfastLabel: string
+  // Stay-kind (apartment / private room) wording: one payer, guests not participants.
+  stayOtherGuestsTotalTemplate: string
+  stayGuestsTotalTemplate: string
+  stayAddGuestAria: string
+  stayAddGuestButton: string
+  stayMaxAdditionalGuestsTemplate: string
+  stayMaxGuestsReachedOne: string
+  stayMaxGuestsReachedTemplate: string
   otherParticipantsTotalTemplate: string
   addAnyoneElseUpToTemplate: string
   participantOrdinalTemplate: string
@@ -1284,6 +1292,13 @@ const en: Bundle = {
   noBreakfastLabel: 'no breakfast',
   withBreakfastLabel: 'with breakfast',
   withoutBreakfastLabel: 'without breakfast',
+  stayOtherGuestsTotalTemplate: 'Other guests ({n} total)',
+  stayGuestsTotalTemplate: 'Guests ({n} total)',
+  stayAddGuestAria: 'Add guest',
+  stayAddGuestButton: '+ Add guest',
+  stayMaxAdditionalGuestsTemplate: 'Maximum of {n} additional guests reached',
+  stayMaxGuestsReachedOne: 'Maximum of 1 guest reached',
+  stayMaxGuestsReachedTemplate: 'Maximum of {n} guests reached',
   otherParticipantsTotalTemplate: 'Other participants ({n} total)',
   addAnyoneElseUpToTemplate: 'Add anyone else taking part. You can add up to {n} more.',
   participantOrdinalTemplate: 'Participant {n}',
@@ -2602,21 +2617,21 @@ export function nextStepSendGroupLabel(inviteCount: number, locale?: string): st
 }
 
 /** DetailsStep: "Other participants ({n} total)". */
-export function otherParticipantsHeading(n: number, locale?: string): string {
-  return tr('otherParticipantsTotalTemplate', locale).replace('{n}', String(n))
+export function otherParticipantsHeading(n: number, locale?: string, stay = false): string {
+  return tr(stay ? 'stayOtherGuestsTotalTemplate' : 'otherParticipantsTotalTemplate', locale).replace('{n}', String(n))
 }
 
 /** landr-jiagg.2 DetailsStep max notice when the booker does not take part:
  *  "Maximum of {n} participants reached" ("1 participant" singular). */
-export function maxParticipantsReachedMessage(n: number, locale?: string): string {
+export function maxParticipantsReachedMessage(n: number, locale?: string, stay = false): string {
   return n === 1
-    ? tr('maxParticipantsReachedOne', locale)
-    : tr('maxParticipantsReachedTemplate', locale).replace('{n}', String(n))
+    ? tr(stay ? 'stayMaxGuestsReachedOne' : 'maxParticipantsReachedOne', locale)
+    : tr(stay ? 'stayMaxGuestsReachedTemplate' : 'maxParticipantsReachedTemplate', locale).replace('{n}', String(n))
 }
 
 /** landr-jiagg.2 DetailsStep (booker not taking part): "Participants ({n} total)". */
-export function participantsTotalHeading(n: number, locale?: string): string {
-  return tr('participantsTotalTemplate', locale).replace('{n}', String(n))
+export function participantsTotalHeading(n: number, locale?: string, stay = false): string {
+  return tr(stay ? 'stayGuestsTotalTemplate' : 'participantsTotalTemplate', locale).replace('{n}', String(n))
 }
 
 /** Product switch note: "{name} takes up to {n} people, so the group was reduced to {n}." */
@@ -2632,8 +2647,8 @@ export function addAnyoneElseUpTo(n: number, locale?: string): string {
 }
 
 /** DetailsStep per-row heading: "Participant {n}". */
-export function participantOrdinalLabel(n: number, locale?: string): string {
-  return tr('participantOrdinalTemplate', locale).replace('{n}', String(n))
+export function participantOrdinalLabel(n: number, locale?: string, stay = false): string {
+  return tr(stay ? 'companionOrdinalTemplate' : 'participantOrdinalTemplate', locale).replace('{n}', String(n))
 }
 
 /** DetailsStep per-row companion fallback name: "Guest {n}". */
