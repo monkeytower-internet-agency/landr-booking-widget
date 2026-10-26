@@ -1472,6 +1472,14 @@ export interface BookingCalendarEvent {
   description?: string | null
   /** Location string, typically the operator name or venue. */
   location?: string | null
+  /**
+   * set for a stay only. 'HH:MM' check-in / check-out wall
+   * clock in `timezone` (IANA); `end_date` is then the check-out DAY. The
+   * deep links become timed events; absent -> all-day, as before.
+   */
+  start_time?: string | null
+  end_time?: string | null
+  timezone?: string | null
 }
 
 export interface SubmitBookingResponse {

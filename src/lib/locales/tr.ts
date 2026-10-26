@@ -729,6 +729,7 @@ export const tr: Bundle = {
   youPayNowHeading: 'Şimdi ödeyeceğiniz tutar',
   atHotelTotalPayAtCheckin: 'Otelde toplam · girişte ödenir',
   hotelSpanTemplate: 'Otel: {from} → {to}, {nights} {nightWord}',
+  stayWindowTemplate: 'Giriş {checkIn} – Çıkış {checkOut} ({nights} {nightWord})',
   nightSingular: 'gece',
   nightPlural: 'gece',
   updatingEllipsis: 'Güncelleniyor…',

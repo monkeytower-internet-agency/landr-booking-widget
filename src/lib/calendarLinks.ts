@@ -42,6 +42,14 @@ export interface CalendarEvent {
   description?: string | null
   /** Optional location string, e.g. the operator name or venue. */
   location?: string | null
+  /**
+   * a stay's check-in / check-out wall clock ('HH:MM'). When
+   * BOTH are set the event is TIMED, `end_date` is then the check-out DAY
+   * (not the last all-day), and `timezone` (IANA) pins the zone.
+   */
+  start_time?: string | null
+  end_time?: string | null
+  timezone?: string | null
 }
 
 // ---------------------------------------------------------------------------
@@ -77,6 +85,56 @@ function addDays(d: Date, n: number): Date {
   return new Date(d.getTime() + n * 86_400_000)
 }
 
+const HHMM = /^(\d{2}):(\d{2})/
+
+/** The timed (stay) window as compact local parts, or null for all-day. */
+function timedWindow(
+  event: CalendarEvent,
+): { start: string; end: string; startIso: string; endIso: string } | null {
+  const s = HHMM.exec(event.start_time ?? '')
+  const e = HHMM.exec(event.end_time ?? '')
+  if (!s || !e) return null
+  const startDay = parseDate(event.start_date)
+  const endDay = parseDate(event.end_date)
+  return {
+    start: `${toCompact(startDay)}T${s[1]}${s[2]}00`,
+    end: `${toCompact(endDay)}T${e[1]}${e[2]}00`,
+    startIso: `${toISO(startDay)}T${s[1]}:${s[2]}:00`,
+    endIso: `${toISO(endDay)}T${e[1]}:${e[2]}:00`,
+  }
+}
+
+function validZone(name: string | null | undefined): string | null {
+  if (!name) return null
+  try {
+    new Intl.DateTimeFormat('en', { timeZone: name })
+    return name
+  } catch {
+    return null
+  }
+}
+
+/**
+ * "+02:00" — the UTC offset of `zone` at the given local wall-clock moment
+ * ('YYYY-MM-DDTHH:MM:SS'), or '' when it cannot be resolved. Check-in/out
+ * hours are far from DST switches, so the offset at the wall-clock-as-UTC
+ * instant is the right one.
+ */
+function zoneOffset(zone: string, localIso: string): string {
+  try {
+    const parts = new Intl.DateTimeFormat('en', {
+      timeZone: zone,
+      timeZoneName: 'longOffset',
+    }).formatToParts(new Date(`${localIso}Z`))
+    const raw = parts.find((p) => p.type === 'timeZoneName')?.value ?? ''
+    if (raw === 'GMT') return '+00:00'
+    const m = /^GMT([+-]\d{2}:\d{2})$/.exec(raw)
+    return m ? m[1] : ''
+  } catch {
+    return ''
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Exported URL builders
 // ---------------------------------------------------------------------------
@@ -98,12 +156,17 @@ export function buildGoogleCalendarUrl(event: CalendarEvent): string {
   const end = parseDate(event.end_date)
   // Google's all-day end date is exclusive → add 1 day.
   const endExclusive = addDays(end, 1)
+  const timed = timedWindow(event)
 
   const params = new URLSearchParams({
     action: 'TEMPLATE',
     text: event.title,
-    dates: `${toCompact(start)}/${toCompact(endExclusive)}`,
+    dates: timed
+      ? `${timed.start}/${timed.end}`
+      : `${toCompact(start)}/${toCompact(endExclusive)}`,
   })
+  const zone = timed ? validZone(event.timezone) : null
+  if (zone) params.set('ctz', zone)
   if (event.description) params.set('details', event.description)
   if (event.location) params.set('location', event.location)
 
@@ -136,6 +199,13 @@ export function buildOutlookUrl(event: CalendarEvent): string {
     startdt: toISO(start),
     enddt: toISO(end),
   })
+  const timed = timedWindow(event)
+  if (timed) {
+    // timed stay window, local date-times + the zone's offset.
+    const zone = validZone(event.timezone)
+    params.set('startdt', timed.startIso + (zone ? zoneOffset(zone, timed.startIso) : ''))
+    params.set('enddt', timed.endIso + (zone ? zoneOffset(zone, timed.endIso) : ''))
+  }
   if (event.description) params.set('body', event.description)
   if (event.location) params.set('location', event.location)
 

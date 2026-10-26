@@ -128,3 +128,46 @@ describe('buildOutlookUrl', () => {
     expect(url).toContain('enddt=2026-06-15')
   })
 })
+
+// a stay is a TIMED check-in -> check-out event.
+const STAY: CalendarEvent = {
+  title: 'Hütte am See — Para42',
+  start_date: '2026-09-14',
+  end_date: '2026-09-16', // the check-out DAY
+  start_time: '14:00',
+  end_time: '10:30',
+  timezone: 'Europe/Berlin',
+  location: 'Para42',
+}
+
+describe('stay (timed) calendar links', () => {
+  it('Google: timed dates + ctz', () => {
+    const q = qs(buildGoogleCalendarUrl(STAY))
+    expect(q.get('dates')).toBe('20260914T140000/20260916T103000')
+    expect(q.get('ctz')).toBe('Europe/Berlin')
+  })
+
+  it('Outlook: local date-times with the zone offset (CEST in September)', () => {
+    const q = qs(buildOutlookUrl(STAY))
+    expect(q.get('startdt')).toBe('2026-09-14T14:00:00+02:00')
+    expect(q.get('enddt')).toBe('2026-09-16T10:30:00+02:00')
+  })
+
+  it('Outlook: winter offset (CET) differs from summer', () => {
+    const q = qs(buildOutlookUrl({ ...STAY, start_date: '2026-12-10', end_date: '2026-12-12' }))
+    expect(q.get('startdt')).toBe('2026-12-10T14:00:00+01:00')
+  })
+
+  it('an unknown timezone degrades to bare local times, no ctz', () => {
+    const event = { ...STAY, timezone: 'Mars/Olympus' }
+    expect(qs(buildGoogleCalendarUrl(event)).has('ctz')).toBe(false)
+    expect(qs(buildOutlookUrl(event)).get('startdt')).toBe('2026-09-14T14:00:00')
+  })
+
+  it('an event without times stays all-day, byte-identical', () => {
+    expect(qs(buildGoogleCalendarUrl(MULTI_DAY)).get('dates')).toBe('20260701/20260708')
+    expect(qs(buildGoogleCalendarUrl(MULTI_DAY)).has('ctz')).toBe(false)
+    expect(qs(buildOutlookUrl(MULTI_DAY)).get('startdt')).toBe('2026-07-01')
+    expect(qs(buildOutlookUrl(MULTI_DAY)).get('enddt')).toBe('2026-07-07')
+  })
+})

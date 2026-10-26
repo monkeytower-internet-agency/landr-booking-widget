@@ -567,6 +567,29 @@ describe('Confirmation — landr-nva1a.4 success-screen summary', () => {
     expect(rows[3]).toHaveTextContent('Departure')
   })
 
+  // a stay's arrival + departure read as ONE window line.
+  it('renders a stay as one check-in -> check-out window row', () => {
+    const times = { nights: 2, check_in_time: '14:00', check_out_time: '10:30' }
+    const [arrival, , departure] = consecutivePeriods()
+    const response = baseResponse({
+      summary: baseSummary({
+        periods: [
+          { ...arrival, meta: times },
+          { ...departure, start_date: '2026-06-16', end_date: '2026-06-16', meta: times },
+        ],
+      }),
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    const rows = screen.getByTestId('confirmation-periods').querySelectorAll('li')
+    expect(rows).toHaveLength(1)
+    expect(rows[0]).toHaveTextContent(
+      'Check-in 14.06. 14:00 – Check-out 16.06. 10:30 (2 nights)',
+    )
+    expect(rows[0]).not.toHaveTextContent('Arrival')
+    expect(rows[0]).not.toHaveTextContent('Departure')
+  })
+
   it('folds the hotel stay window into the periods table, not a separate line', () => {
     const response = baseResponse({
       summary: baseSummary({
