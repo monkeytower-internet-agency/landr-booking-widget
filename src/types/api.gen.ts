@@ -12460,8 +12460,8 @@ export interface components {
         ApplyPresetRequest: {
             /** Preset Key */
             preset_key: string;
-            /** Product Family */
-            product_family?: ("activity" | "course") | null;
+            /** Product Kind */
+            product_kind?: ("service" | "subscription" | "hotel_room" | "digital_good" | "physical_good" | "gift_card" | "stay" | "pass") | null;
             /** Slot Capacity */
             slot_capacity?: number | null;
             /** Start Times */
@@ -12498,8 +12498,8 @@ export interface components {
         };
         /** ApplyTemplateRequest */
         ApplyTemplateRequest: {
-            /** Product Family */
-            product_family?: ("activity" | "course") | null;
+            /** Product Kind */
+            product_kind?: ("service" | "subscription" | "hotel_room" | "digital_good" | "physical_good" | "gift_card" | "stay" | "pass") | null;
             /** Slug */
             slug: string;
         };
@@ -18362,8 +18362,8 @@ export interface components {
             postal_code?: string | null;
             /** Primary Color */
             primary_color?: string | null;
-            /** Product Family */
-            product_family?: ("activity" | "course") | null;
+            /** Product Kind */
+            product_kind?: ("service" | "subscription" | "hotel_room" | "digital_good" | "physical_good" | "gift_card" | "stay" | "pass") | null;
             /** Public Contact Email */
             public_contact_email?: string | null;
             /** Region */
