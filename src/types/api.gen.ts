@@ -18458,6 +18458,10 @@ export interface components {
             daily_cap?: number | null;
             /** Daily Start Times */
             daily_start_times?: string[] | null;
+            /** Description Localized */
+            description_localized?: {
+                [key: string]: string;
+            } | null;
             event_window?: components["schemas"]["EventWindow"] | null;
             /** Guide Languages */
             guide_languages?: string[] | null;

@@ -17118,6 +17118,20 @@
             ],
             "title": "Daily Start Times"
           },
+          "description_localized": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description Localized"
+          },
           "event_window": {
             "anyOf": [
               {
