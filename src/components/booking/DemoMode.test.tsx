@@ -149,3 +149,16 @@ describe('App in demo mode', () => {
     }
   })
 })
+
+describe('DemoBanner controls', () => {
+  it('offers a language select and a theme toggle', async () => {
+    const { DemoBanner } = await import('./DemoMode')
+    const { render, screen, fireEvent } = await import('@testing-library/react')
+    render(<DemoBanner />)
+    expect(screen.getByTestId('demo-lang')).toBeTruthy()
+    fireEvent.click(screen.getByTestId('demo-theme'))
+    expect(document.documentElement.classList.contains('dark')).toBe(true)
+    fireEvent.click(screen.getByTestId('demo-theme'))
+    expect(document.documentElement.classList.contains('dark')).toBe(false)
+  })
+})
