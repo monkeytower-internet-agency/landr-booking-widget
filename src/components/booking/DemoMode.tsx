@@ -67,6 +67,7 @@ export function DemoCongrats({
           <Confirmation
             response={response}
             onRestart={onRestart}
+            hideRestart
             operatorName={operatorName ?? null}
           />
         </div>

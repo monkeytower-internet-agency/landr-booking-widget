@@ -140,6 +140,9 @@ describe('App in demo mode', () => {
     expect(await screen.findByTestId('demo-overview')).toHaveTextContent(/Alpine tandem flight/)
     expect(screen.getByTestId('demo-overview')).toHaveTextContent('Ada')
     expect(screen.getByTestId('demo-congrats')).toHaveTextContent(/only a demo/i)
+    // one restart only: Confirmation's own 'make another booking' is hidden in demo
+    expect(screen.getByTestId('demo-congrats-restart')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /make another booking/i })).toBeNull()
     expect(screen.queryByTestId('demo-congrats-cta')).toHaveAttribute('href', expect.stringContaining('template=tandem'))
     for (const [, init] of (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls) {
       expect((init as RequestInit | undefined)?.method ?? 'GET').toBe('GET')
