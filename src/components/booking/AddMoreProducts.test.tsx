@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { Product } from '@/api/types'
-import { getAvailability, listProducts, submitBooking } from '@/api/client'
+import { getAvailability, getProductFlow, listProducts, submitBooking } from '@/api/client'
 import { BookingForm, type BookingSelection } from './BookingForm'
 import type { ExtraLine } from './crossSell'
 import type { BookerDetails } from './detailsTypes'
@@ -16,6 +16,7 @@ vi.mock('@/api/client', async (importOriginal) => {
     getAvailability: vi.fn(),
     listProducts: vi.fn(),
     getFixedDateWindows: vi.fn(),
+    getProductFlow: vi.fn(),
   }
 })
 
@@ -90,6 +91,45 @@ describe('Add more to this booking (review step)', () => {
     vi.mocked(getAvailability).mockReset()
     vi.mocked(listProducts).mockReset()
     vi.mocked(listProducts).mockResolvedValue([MAIN, CAMPING])
+    vi.mocked(getProductFlow).mockReset()
+    vi.mocked(getProductFlow).mockResolvedValue({ modules: null })
+  })
+
+  it('leaves out products whose required modules cannot run on the review step', async () => {
+    const guided = product('guided', { name: 'Guided tour', guide_languages: ['de'] })
+    const formed = product('formed', { name: 'Course' })
+    const pickup = product('pickup', { name: 'Shuttle tour', needs_pickup: true })
+    const verified = product('verified', { name: 'Test event', requires_verification: true })
+    vi.mocked(listProducts).mockResolvedValue([MAIN, CAMPING, guided, formed, pickup, verified])
+    vi.mocked(getProductFlow).mockImplementation(async (_t, id) =>
+      id === 'formed'
+        ? {
+            modules: [
+              {
+                kind: 'custom_form',
+                position: 1,
+                form: { key: 'medical', version: 1, name: 'Medical', name_localized: null, fields: [] },
+              },
+            ],
+          }
+        : { modules: null },
+    )
+    vi.mocked(getAvailability).mockResolvedValue([])
+    render(<Harness />)
+
+    await screen.findByTestId('add-more-candidate-camping')
+    // The main flow assigned no language, answered no form, set no pickup.
+    expect(screen.queryByTestId('add-more-candidate-guided')).toBeNull()
+    expect(screen.queryByTestId('add-more-candidate-formed')).toBeNull()
+    expect(screen.queryByTestId('add-more-candidate-pickup')).toBeNull()
+
+    // Verification renders inline: adding the product asks for it right here.
+    const add = await screen.findByTestId('add-more-candidate-verified')
+    await act(async () => {
+      fireEvent.click(add)
+    })
+    await screen.findByTestId('add-more-line-verified')
+    expect(screen.getByRole('button', { name: /Confirm booking/i })).toBeDisabled()
   })
 
   it('adds a product with the main dates and submits both lines in one booking', async () => {

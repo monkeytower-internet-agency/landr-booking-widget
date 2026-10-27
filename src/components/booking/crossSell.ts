@@ -21,6 +21,7 @@ import type {
   Product,
   ProductLine,
 } from '@/api/types'
+import type { ProductFlowResponse } from '@/api/flowTypes'
 import { isBookable } from './bookability'
 import { isBookableKind, isStayKind } from '@/flowPlan'
 import { hasFixedStartTimes, toHHMM } from './slotKey'
@@ -81,6 +82,63 @@ export function crossSellCandidates(
       isBookableKind(p.product_kind) &&
       (isStayKind(p.product_kind) || p.service_time_shape !== null),
   )
+}
+
+/**
+ * What the customer already gave on the main flow, which an added product's
+ * own required modules can reuse.
+ */
+export interface CrossSellContext {
+  /** Guide language per participant (index 0..participantCount-1), if assigned. */
+  participantLanguages: Readonly<Record<number, string>>
+  participantCount: number
+  /** Form keys the main flow already answered. */
+  answeredFormKeys: readonly string[]
+  /** A pickup point (or a booked hotel acting as one) is already set. */
+  hasPickup: boolean
+}
+
+/** Why an added product cannot be offered: a required module of its own the review step cannot run. */
+export type CrossSellExclusion = 'form' | 'language' | 'pickup'
+
+/**
+ * Each added product runs its REQUIRED flow modules on the review step:
+ *  - verification (documents + waiver) is rendered inline, once for the
+ *    whole booking, so it never excludes a product;
+ *  - a guide-language restriction is satisfied only when every participant's
+ *    assigned language is one this product offers (the submit checks the
+ *    intersection over every service line);
+ *  - a custom form is satisfied only when the main flow answered the same form;
+ *  - a pickup is satisfied only when the main flow already set one.
+ * Anything else cannot be rendered inline, so the product is left out of the
+ * list rather than letting the submit fail.
+ */
+export function crossSellExclusion(
+  product: Product,
+  flow: ProductFlowResponse | null,
+  ctx: CrossSellContext,
+): CrossSellExclusion | null {
+  const answered = new Set(ctx.answeredFormKeys)
+  const unanswered = (flow?.modules ?? []).some(
+    (m) => m.kind === 'custom_form' && m.form != null && !answered.has(m.form.key),
+  )
+  if (unanswered) return 'form'
+  const offered = product.guide_languages ?? []
+  if (product.product_kind === 'service' && offered.length > 0) {
+    for (let i = 0; i < Math.max(1, ctx.participantCount); i++) {
+      const lang = ctx.participantLanguages[i]
+      if (!lang || !offered.includes(lang)) return 'language'
+    }
+  }
+  if (
+    product.needs_pickup &&
+    !product.auto_pickup_location_id &&
+    !isStayKind(product.product_kind) &&
+    !ctx.hasPickup
+  ) {
+    return 'pickup'
+  }
+  return null
 }
 
 /** A new added line, its dates inherited from the main line's days. */

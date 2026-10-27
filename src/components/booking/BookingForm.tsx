@@ -957,9 +957,7 @@ export function BookingForm({
   const locale = browserLocale()
   // Registration with organizer verification: documents + signed waiver,
   // collected here and sent with / right after the booking.
-  const verificationRequired = needsVerification([product])
   const [verification, setVerification] = useState<VerificationInput>(EMPTY_VERIFICATION)
-  const verificationBlocked = verificationRequired && !verificationReady(verification)
   const timezone = browserTimezone()
 
   // landr-aoak.2 [S3]: staff/operator mode. When inactive, none of the staff
@@ -970,6 +968,11 @@ export function BookingForm({
   const setExtraLines = staff.active ? undefined : onExtraLinesChange
   const crossSellLines = setExtraLines ? extraLines : []
   const extrasBlocked = extraLinesBlocking(crossSellLines)
+  // An added product's verification runs inline here too: one set of
+  // documents and one signed waiver covers every line that asks for it.
+  const verificationProducts = [product, ...crossSellLines.map((l) => l.product)]
+  const verificationRequired = needsVerification(verificationProducts)
+  const verificationBlocked = verificationRequired && !verificationReady(verification)
   const canOverridePrice =
     staff.active && staff.powers.includes('price_override')
   // Operator price-override inputs (amount + reason). Empty strings ⇒ no
@@ -2153,7 +2156,7 @@ export function BookingForm({
 
         {verificationRequired ? (
           <VerificationFields
-            products={[product]}
+            products={verificationProducts}
             value={verification}
             onChange={setVerification}
             locale={locale}
@@ -2178,6 +2181,12 @@ export function BookingForm({
             lines={crossSellLines}
             onLinesChange={setExtraLines}
             locale={locale}
+            context={{
+              participantLanguages,
+              participantCount: participants.length,
+              answeredFormKeys: (formResponses ?? []).map((f) => f.form_key),
+              hasPickup: pickupLocationId != null || (accommodationRooms ?? []).length > 0,
+            }}
           />
         ) : null}
 
