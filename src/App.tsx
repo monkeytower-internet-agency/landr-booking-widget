@@ -2169,7 +2169,7 @@ function BookingFlowApp() {
             <button
               type="button"
               className="shrink-0 text-amber-800/70 hover:text-amber-900"
-              aria-label="Dismiss"
+              aria-label={tr('dismissLabel', browserLocale())}
               onClick={() => setInviteNotice(null)}
               data-testid="invite-notice-dismiss"
             >

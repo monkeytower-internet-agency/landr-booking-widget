@@ -8,7 +8,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import type { BookingSelection } from '@/components/booking/BookingForm'
 import type { Product, ServiceRole } from '@/api/types'
 import { requestSubscriptionPerkOtp } from '@/api/client'
-import { browserLocale } from '@/lib/locale'
+import { browserLocale, pickLocalized } from '@/lib/locale'
 import { formatDayLabel } from '@/components/booking/dateLabel'
 import {
   addAnyoneElseUpTo,
@@ -2375,7 +2375,7 @@ function RoleSelect({
     >
       {serviceRoles.map((role) => (
         <option key={role.id} value={role.code}>
-          {role.label}
+          {pickLocalized(role.label, role.label_localized, browserLocale())}
         </option>
       ))}
     </select>

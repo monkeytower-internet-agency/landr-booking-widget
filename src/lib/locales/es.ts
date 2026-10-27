@@ -16,6 +16,8 @@ export const es: Bundle = {
   continueCue: 'continuar',
   continueLabel: 'Continuar',
   customerCommentAdd: 'una nota para nosotros',
+  dismissLabel: 'Cerrar',
+  sharedDoubleRefPlaceholder: 'p. ej. A1B2C3D4',
   languageStepWhy:
     'Cuéntanos quién habla qué idioma para que el guía pueda dar las ' +
     'indicaciones a todos en un idioma que entiendan.',

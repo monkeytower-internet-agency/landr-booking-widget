@@ -18,8 +18,9 @@ import {
   putBookingDetails,
   cancelBooking,
 } from './client'
-import { DemoWriteBlockedError, resetDemoTemplateCache } from './demo'
-import { demoSignupUrl, demoSlug } from '@/lib/demo'
+import { DemoWriteBlockedError, demoProducts, demoSettings, resetDemoTemplateCache } from './demo'
+import { DEMO_LANGS, demoCopy, demoLang, demoSignupUrl, demoSlug } from '@/lib/demo'
+import { browserLocale } from '@/lib/locale'
 import type { SubmitBookingBody } from './types'
 
 const TEMPLATE = {
@@ -138,6 +139,68 @@ describe('demo slug', () => {
   it('signup link carries the template slug', () => {
     expect(demoSignupUrl('kayak', 'de')).toBe('https://www.landr.de/de/signup/?template=kayak')
     expect(demoSignupUrl('kayak', 'en')).toBe('https://www.landr.de/signup/?template=kayak')
+    for (const l of ['es', 'it', 'tr'] as const) {
+      expect(demoSignupUrl('kayak', l)).toBe(`https://www.landr.de/${l}/signup/?template=kayak`)
+    }
+  })
+
+  it('demoLang supports en/de/es/it/tr and falls back to en (fr, junk)', () => {
+    const at = (q: string) => {
+      window.history.replaceState({}, '', `/?demo=kayak${q}`)
+      return demoLang()
+    }
+    expect(at('')).toBe('en')
+    expect(at('&lang=de')).toBe('de')
+    expect(at('&lang=es')).toBe('es')
+    expect(at('&lang=IT')).toBe('it')
+    expect(at('&lang=tr-TR')).toBe('tr')
+    expect(at('&lang=fr')).toBe('en')
+    expect(at('&lang=xx')).toBe('en')
+  })
+
+  it('every language has a non-empty, distinct-from-English demoCopy for every key', () => {
+    const en = demoCopy('en')
+    for (const l of DEMO_LANGS) {
+      const c = demoCopy(l)
+      expect(Object.keys(c).sort()).toEqual(Object.keys(en).sort())
+      for (const v of Object.values(c)) expect(v.trim().length).toBeGreaterThan(0)
+      if (l !== 'en') {
+        expect(c.banner).not.toBe(en.banner)
+        expect(c.congratsTitle).not.toBe(en.congratsTitle)
+        expect(c.congratsBody).not.toBe(en.congratsBody)
+        expect(c.cta).not.toBe(en.cta)
+        expect(c.again).not.toBe(en.again)
+      }
+    }
+  })
+
+  it('browserLocale follows ?lang= in demo mode, ignoring the browser', () => {
+    window.history.replaceState({}, '', '/?demo=kayak&lang=es')
+    expect(browserLocale()).toBe('es')
+    window.history.replaceState({}, '', '/?demo=kayak&lang=fr')
+    expect(browserLocale()).toBe('en')
+  })
+
+  it('settings headline picks pitch[lang] then falls back to en', () => {
+    const tpl = {
+      slug: 'kayak',
+      pitch: { en: { headline: 'EN head' }, es: { headline: 'ES head' }, it: { headline: '' } },
+    }
+    window.history.replaceState({}, '', '/?demo=kayak&lang=es')
+    expect(demoSettings(tpl).name).toBe('ES head')
+    expect(demoSettings(tpl).default_locale).toBe('es')
+    window.history.replaceState({}, '', '/?demo=kayak&lang=it')
+    expect(demoSettings(tpl).name).toBe('EN head')
+    window.history.replaceState({}, '', '/?demo=kayak&lang=tr')
+    expect(demoSettings(tpl).name).toBe('EN head')
+  })
+
+  it('sample offers and roles are localized', () => {
+    const p = demoProducts({ slug: 'kayak' })
+    for (const l of ['de', 'es', 'it', 'tr']) {
+      expect(p[0].name_localized?.[l]).toBeTruthy()
+      expect(p[0].name_localized?.[l]).not.toBe(p[0].name)
+    }
   })
 })
 

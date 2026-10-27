@@ -1,4 +1,5 @@
 import type { CustomerStageLabel } from '@/api/types'
+import { demoLang, isDemoMode } from '@/lib/demo'
 
 export function pickLocalized(
   fallback: string | null | undefined,
@@ -81,6 +82,8 @@ export function overrideBookingLocale(locale: string | null | undefined): void {
 }
 
 export function browserLocale(): string {
+  // Demo embeds render in the `?lang=` the marketing page asked for, never the visitor's browser locale.
+  if (isDemoMode()) return demoLang()
   if (bookingLocaleOverride) return bookingLocaleOverride
   const raw = rawBrowserLocale()
   if (!customerLocaleWhitelist) return raw
