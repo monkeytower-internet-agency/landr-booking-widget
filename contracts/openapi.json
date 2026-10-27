@@ -30871,6 +30871,18 @@
             ],
             "title": "Notes"
           },
+          "override_reason": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Override Reason"
+          },
           "reject_reason_code": {
             "anyOf": [
               {
