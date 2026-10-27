@@ -50,6 +50,8 @@ interface Props {
   partySize: number
   lines: ExtraLine[]
   onLinesChange: Dispatch<SetStateAction<ExtraLine[]>>
+  /** Operator curation: offer only these products (empty/absent = all eligible). */
+  allowedProductIds?: string[]
   locale: string
   /** What the main flow already captured (languages, forms, pickup). */
   context: CrossSellContext
@@ -87,6 +89,7 @@ export function AddMoreProducts({
   partySize,
   lines,
   onLinesChange,
+  allowedProductIds,
   locale,
   context,
   modules,
@@ -198,8 +201,12 @@ export function AddMoreProducts({
   // A product shares no guide language with the booking: not offered
   // (crossSellExclusion); one whose flow is still loading waits. Its own
   // language / form / pickup modules render inline on its line.
+  const allowed = allowedProductIds && allowedProductIds.length > 0 ? new Set(allowedProductIds) : null
   const candidates = crossSellCandidates(catalogue, taken).filter(
-    (p) => p.product_id in flows && crossSellExclusion(p, context, lines) === null,
+    (p) =>
+      (!allowed || allowed.has(p.product_id)) &&
+      p.product_id in flows &&
+      crossSellExclusion(p, context, lines) === null,
   )
   const needsByLine = lineNeeds(lines, context)
   const languageOffer = bookingLanguageOffer(context.mainLanguages, lines)

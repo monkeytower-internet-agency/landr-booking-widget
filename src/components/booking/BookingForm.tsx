@@ -434,6 +434,8 @@ interface Props {
    */
   inlineAnswers?: InlineAnswers
   onInlineAnswersChange?: (answers: InlineAnswers) => void
+  /** Operator curation: only these products may be offered (empty/absent = all eligible). */
+  crossSellProductIds?: string[]
   onBack: () => void
   onConfirmed: (response: SubmitBookingResponse, email: string) => void
 }
@@ -970,6 +972,7 @@ export function BookingForm({
   onExtraLinesChange,
   inlineAnswers,
   onInlineAnswersChange,
+  crossSellProductIds,
   onConfirmed,
 }: Props) {
   // landr-jiagg.2: the shared double covers the BOOKER'S own bed, so it only
@@ -2262,6 +2265,7 @@ export function BookingForm({
             partySize={seatsNeeded(participants.length, companions, product.invite_hold_hours)}
             lines={crossSellLines}
             onLinesChange={setExtraLines}
+            allowedProductIds={crossSellProductIds}
             locale={locale}
             context={crossSellContext}
             modules={{
