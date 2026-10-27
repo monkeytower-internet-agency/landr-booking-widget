@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   estimateBookingPrice,
+  getProductAddons,
+  getProductAlternatives,
   getAvailability,
   getFixedDateWindows,
   getOperatorSettings,
@@ -18,8 +20,8 @@ import {
   putBookingDetails,
   cancelBooking,
 } from './client'
-import { DemoWriteBlockedError, demoProducts, demoSettings, resetDemoTemplateCache } from './demo'
-import { DEMO_LANGS, demoCopy, demoLang, demoSignupUrl, demoSlug } from '@/lib/demo'
+import { DemoWriteBlockedError, demoAdjustments, demoProducts, demoSettings, resetDemoTemplateCache } from './demo'
+import { DEMO_LANGS, demoCompanion, demoCopy, demoCustomer, demoLang, demoSignupUrl, demoSlug } from '@/lib/demo'
 import { browserLocale } from '@/lib/locale'
 import type { SubmitBookingBody } from './types'
 
@@ -379,6 +381,143 @@ describe('demo mode: stay, pass and verification templates (landr-m6tp4.46)', ()
   it('answers no tiers for a product that is not a pass', async () => {
     const [full] = await listProducts('demo-kayak')
     expect((await getPassTiers('demo-kayak', full.product_id)).tiers).toEqual([])
+  })
+})
+
+// ac47r.2: a tandem catalogue shaped like landr-api's (daily_start_times / weekdays,
+// pricing rules, add-ons, alternatives).
+const TANDEM_CATALOGUE = {
+  template_slug: 'tandem', version: 1, groups: [],
+  products: [
+    {
+      ...bare, slug: 'tandem-flight', name: 'Tandem flight', name_localized: { de: 'Tandemflug' },
+      product_kind: 'service', service_time_shape: 'single_date',
+      price_per_unit: 120, price_from: '110.00', price_base: '120.00',
+      daily_start_times: ['09:00', '11:00', '15:00'], daily_start_weekdays: null,
+      pricing: {
+        currency: 'EUR',
+        rules: [
+          { rule_kind: 'slot_time_adjustment', sort_order: 10, conditions: {}, tiers: [],
+            params: { time_from: '09:00', time_to: '09:00', adjustment: -10, name: 'Early bird' } },
+          { rule_kind: 'weekday_adjustment', sort_order: 20, conditions: {}, tiers: [],
+            params: { weekdays: [6, 7], adjustment: 20, name: 'Weekend' } },
+          { rule_kind: 'slot_time_adjustment', sort_order: 30, conditions: {}, tiers: [],
+            params: { weekdays: [5], time_from: '15:00', time_to: '23:59', adjustment: 20, name: 'Weekend' } },
+        ],
+      },
+      addons: [
+        { slug: 'photo-video', name: 'Photo and video', name_localized: { de: 'Foto und Video' },
+          paid_to: 'performer', price_unit: 'booking', addon_quantity_rule: 'one_per_booking',
+          price_per_unit: 35, currency: 'EUR', is_required: false, min_qty: 0, max_qty: 1, sort_order: 1 },
+        { slug: 'transfer', name: 'Hotel transfer', paid_to: 'operator', price_unit: 'guest',
+          addon_quantity_rule: 'any', price_per_unit: '10.00', currency: 'EUR', sort_order: 2 },
+      ],
+      alternatives: [{ slug: 'tandem-xl', sort_order: 1 }, { slug: 'ghost', sort_order: 2 }],
+    },
+    {
+      ...bare, slug: 'tandem-xl', name: 'Tandem XL', product_kind: 'service', service_time_shape: 'single_date',
+      price_per_unit: 160, price_from: '160.00', price_base: '160.00',
+      daily_start_times: ['10:00'], daily_start_weekdays: [6, 7], pricing: null, addons: [], alternatives: [],
+    },
+  ],
+}
+
+describe('demo mode: slots, price rules, add-ons and alternatives (ac47r.2)', () => {
+  beforeEach(() => {
+    catalogue = TANDEM_CATALOGUE
+    window.history.replaceState({}, '', '/?demo=tandem')
+    resetDemoTemplateCache()
+  })
+  const body = (day: string, start: string | null, qty = 1, addon_lines: { product_id: string; qty: number }[] = []) => ({
+    selected_days: [day], participants_count: qty, addon_lines, ...(start ? { slot_start_time: start } : {}),
+  })
+
+  it('offers the template start times, on its weekdays only', async () => {
+    const [flight, xl] = await listProducts('demo-tandem')
+    const slots = await getAvailability(flight.product_id, '2027-03-01', '2027-03-02')
+    expect(slots.map((s) => s.start_time)).toEqual(['09:00:00', '11:00:00', '15:00:00', '09:00:00', '11:00:00', '15:00:00'])
+    // 2027-03-05 Fri .. 03-08 Mon: XL runs on Sat/Sun only.
+    const weekend = await getAvailability(xl.product_id, '2027-03-05', '2027-03-08')
+    expect([...new Set(weekend.map((s) => s.date))]).toEqual(['2027-03-06', '2027-03-07'])
+    expect(weekend.every((s) => s.start_time === '10:00:00')).toBe(true)
+  })
+
+  it('evaluates the real rules: early bird, weekend, Friday from 15:00', async () => {
+    const [flight] = await listProducts('demo-tandem')
+    const quote = async (day: string, start: string) =>
+      (await estimateBookingPrice('demo-tandem', flight.product_id, body(day, start))).grand_total
+    // 2027-03-03 is a Wednesday, 03-05 Friday, 03-06 Saturday.
+    expect(await quote('2027-03-03', '09:00')).toBe('110.00')
+    expect(await quote('2027-03-03', '11:00')).toBe('120.00')
+    expect(await quote('2027-03-05', '11:00')).toBe('120.00')
+    expect(await quote('2027-03-05', '15:00')).toBe('140.00')
+    expect(await quote('2027-03-06', '11:00')).toBe('140.00')
+    expect(await quote('2027-03-06', '09:00')).toBe('130.00')
+    const est = await estimateBookingPrice('demo-tandem', flight.product_id, body('2027-03-06', '09:00', 2))
+    expect(est.grand_total).toBe('260.00')
+    expect(est.surcharges?.map((x) => [x.label, x.amount])).toEqual([['Weekend', '40.00']])
+    expect(est.savings?.map((x) => [x.label, x.amount])).toEqual([['Early bird', '20.00']])
+    expect(est.amount_due).toBe('260.00')
+  })
+
+  it('reads the slot from the picked demo slot id; the sole fixed time is used otherwise', async () => {
+    const [flight] = await listProducts('demo-tandem')
+    const slots = await getAvailability(flight.product_id, '2027-03-03', '2027-03-03')
+    const early = await estimateBookingPrice('demo-tandem', flight.product_id, {
+      selected_days: ['2027-03-03'], participants_count: 1, addon_lines: [],
+      product_availability_id: slots[0]!.availability_id!,
+    })
+    expect(early.grand_total).toBe('110.00')
+    // several fixed times and none picked: slot rules match nothing (as the API).
+    const none = await estimateBookingPrice('demo-tandem', flight.product_id, body('2027-03-03', null))
+    expect(none.grand_total).toBe('120.00')
+  })
+
+  it('applies percent rules and midnight-wrapping windows like the engine', () => {
+    const rules = [
+      { rule_kind: 'slot_time_adjustment', params: { time_from: '22:00', time_to: '02:00', adjustment: 10, adjustment_type: 'percent' } },
+    ]
+    expect(demoAdjustments(rules, ['2027-03-03'], '23:30', 'single_date', 200).map((a) => a.amount)).toEqual([20])
+    expect(demoAdjustments(rules, ['2027-03-03'], '01:00', 'single_date', 200)).toHaveLength(1)
+    expect(demoAdjustments(rules, ['2027-03-03'], '12:00', 'single_date', 200)).toEqual([])
+    expect(demoAdjustments(rules, ['2027-03-03'], null, 'single_date', 200)).toEqual([])
+  })
+
+  it('serves add-ons from the catalogue and prices them by payee and unit', async () => {
+    const [flight] = await listProducts('demo-tandem')
+    const addons = await getProductAddons(flight.product_id)
+    expect(addons.map((a) => [a.name, a.price_per_unit, a.max_qty])).toEqual([
+      ['Photo and video', 35, 1], ['Hotel transfer', 10, null],
+    ])
+    expect(addons[0]).toMatchObject({ name_localized: { de: 'Foto und Video' }, addon_quantity_rule: 'one_per_booking' })
+    const est = await estimateBookingPrice('demo-tandem', flight.product_id, body('2027-03-03', '11:00', 2, [
+      { product_id: addons[0]!.addon_product_id, qty: 1 }, { product_id: addons[1]!.addon_product_id, qty: 1 },
+    ]))
+    // 2 x 120 + photo 35 (pilot keeps it) + transfer 10 per guest x 2.
+    expect(est.operator_total).toBe('260.00')
+    expect(est.performer_total).toBe('35.00')
+    expect(est.grand_total).toBe('295.00')
+    expect(est.line_items.map((l) => l.paid_to)).toEqual(['operator', 'performer', 'operator'])
+  })
+
+  it('serves alternatives from the catalogue, skipping unknown slugs', async () => {
+    const [flight] = await listProducts('demo-tandem')
+    const alts = await getProductAlternatives(flight.product_id, '2027-03-05', '2027-03-08')
+    expect(alts).toHaveLength(1)
+    expect(alts[0]).toMatchObject({ slug: 'tandem-xl', name: 'Tandem XL', price_from: '160.00' })
+    expect(alts[0]!.available_dates).toEqual(['2027-03-06', '2027-03-07'])
+  })
+
+  it('has a sample customer in every demo language', () => {
+    for (const lang of DEMO_LANGS) {
+      const c = demoCustomer(lang)
+      expect(c.email).toContain('@')
+      expect(c.phone).toMatch(/^\+\d{8,}$/)
+      expect(c.country).toBe('DE')
+      expect(demoCompanion(0, lang).first_name).not.toBe(c.first_name)
+    }
+    expect(demoCustomer('de').first_name).toBe('Lena')
+    expect(demoCustomer('en').first_name).toBe('Alex')
   })
 })
 

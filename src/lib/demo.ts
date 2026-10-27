@@ -117,3 +117,56 @@ const COPY: Record<DemoLang, DemoCopy> = {
 }
 
 export const demoCopy = (lang: DemoLang = demoLang()): DemoCopy => COPY[lang]
+
+/** Sample customer the demo's details step starts with, so a viewer just clicks Continue. */
+export interface DemoCustomer {
+  first_name: string
+  last_name: string
+  email: string
+  phone: string
+  address_line1: string
+  postal_code: string
+  city: string
+  country: string
+}
+
+const DEMO_CUSTOMERS: Record<DemoLang, DemoCustomer> = {
+  en: {
+    first_name: 'Alex', last_name: 'Morgan', email: 'alex.morgan@example.com', phone: '+4915112345678',
+    address_line1: '12 Sample Street', postal_code: '80331', city: 'Munich', country: 'DE',
+  },
+  de: {
+    first_name: 'Lena', last_name: 'Schneider', email: 'lena.schneider@example.com', phone: '+4915112345678',
+    address_line1: 'Musterstraße 12', postal_code: '80331', city: 'München', country: 'DE',
+  },
+  es: {
+    first_name: 'Lucía', last_name: 'García', email: 'lucia.garcia@example.com', phone: '+4915112345678',
+    address_line1: 'Musterstraße 12', postal_code: '80331', city: 'München', country: 'DE',
+  },
+  it: {
+    first_name: 'Giulia', last_name: 'Rossi', email: 'giulia.rossi@example.com', phone: '+4915112345678',
+    address_line1: 'Musterstraße 12', postal_code: '80331', city: 'München', country: 'DE',
+  },
+  tr: {
+    first_name: 'Elif', last_name: 'Yılmaz', email: 'elif.yilmaz@example.com', phone: '+4915112345678',
+    address_line1: 'Musterstraße 12', postal_code: '80331', city: 'München', country: 'DE',
+  },
+}
+
+/** Fellow travellers for a party larger than one (first names only differ). */
+const DEMO_COMPANIONS: Record<DemoLang, [string, string][]> = {
+  en: [['Sam', 'Morgan'], ['Robin', 'Morgan'], ['Jamie', 'Morgan'], ['Kim', 'Morgan']],
+  de: [['Jonas', 'Schneider'], ['Mia', 'Schneider'], ['Paul', 'Schneider'], ['Emma', 'Schneider']],
+  es: [['Pablo', 'García'], ['Marta', 'García'], ['Diego', 'García'], ['Sara', 'García']],
+  it: [['Marco', 'Rossi'], ['Sofia', 'Rossi'], ['Luca', 'Rossi'], ['Elena', 'Rossi']],
+  tr: [['Can', 'Yılmaz'], ['Zeynep', 'Yılmaz'], ['Emre', 'Yılmaz'], ['Deniz', 'Yılmaz']],
+}
+
+export const demoCustomer = (lang: DemoLang = demoLang()): DemoCustomer => DEMO_CUSTOMERS[lang]
+
+/** Sample name of the n-th (0-based) extra traveller. */
+export function demoCompanion(n: number, lang: DemoLang = demoLang()): { first_name: string; last_name: string } {
+  const list = DEMO_COMPANIONS[lang]
+  const [first_name, last_name] = list[n % list.length]!
+  return { first_name, last_name }
+}
