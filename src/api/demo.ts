@@ -456,6 +456,8 @@ export function demoGroups(template: DemoTemplate): ProductGroup[] {
   if (!cat) return []
   return cat.groups.map((g) => ({
     ...g,
+    // Groups carry no cover photo in templates: borrow the art of their first product.
+    image_url: g.image_url ?? demoArt(template.slug, cat.products.find((c) => c.group_slug === g.slug)?.slug ?? '', g.name)[0]?.hero_url ?? null,
     id: groupId(template.slug, g.slug),
     parent_id: g.parent_slug ? groupId(template.slug, g.parent_slug) : null,
     name: fill(g.name, 'en'),
