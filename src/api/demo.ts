@@ -451,6 +451,27 @@ export function demoProducts(template: DemoTemplate): Product[] {
   return template.catalogue ? catalogueProducts(template, template.catalogue) : sampleProducts(template)
 }
 
+/**
+ * `?group=<slug>` scopes the list to that category and its sub-categories,
+ * as the live endpoint does; no group means the whole catalogue.
+ */
+export function demoProductsInGroup(template: DemoTemplate, group: string | null): Product[] {
+  const all = demoProducts(template)
+  if (!group) return all
+  const groups = template.catalogue?.groups ?? []
+  const slugs = new Set([group])
+  for (let grew = true; grew; ) {
+    grew = false
+    for (const g of groups) {
+      if (g.parent_slug && slugs.has(g.parent_slug) && !slugs.has(g.slug)) {
+        slugs.add(g.slug)
+        grew = true
+      }
+    }
+  }
+  return all.filter((p) => p.group_slug != null && slugs.has(p.group_slug))
+}
+
 export function demoGroups(template: DemoTemplate): ProductGroup[] {
   const cat = template.catalogue
   if (!cat) return []
@@ -1036,7 +1057,7 @@ export async function demoRequest<T>(path: string, init?: RequestInit): Promise<
 
   if (OP.test(pathname)) {
     const rest = pathname.replace(OP, '')
-    if (rest === '/products') return demoProducts(template) as T
+    if (rest === '/products') return demoProductsInGroup(template, params.get('group')) as T
     if (rest === '/product-groups') return demoGroups(template) as T
     if (rest === '/settings') return demoSettings(template) as T
     if (rest === '/service-roles') return demoRoles() as T
