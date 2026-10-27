@@ -35,24 +35,40 @@ export function demoSlug(): string | null {
 
 export const isDemoMode = (): boolean => demoSlug() !== null
 
-/** Locale the demo renders in (`?lang=`); English unless German is asked for. */
-export function demoLang(): 'en' | 'de' {
+export type DemoLang = 'en' | 'de' | 'es' | 'it' | 'tr'
+
+export const DEMO_LANGS: readonly DemoLang[] = ['en', 'de', 'es', 'it', 'tr']
+
+/** Locale the demo renders in (`?lang=`); English for anything the widget has no catalog for (e.g. fr). */
+export function demoLang(): DemoLang {
   if (typeof window === 'undefined') return 'en'
-  const v = new URLSearchParams(window.location.search).get('lang')?.toLowerCase() ?? ''
-  return v.startsWith('de') ? 'de' : 'en'
+  const v = (new URLSearchParams(window.location.search).get('lang') ?? '')
+    .trim()
+    .toLowerCase()
+    .split(/[-_]/)[0]
+  return (DEMO_LANGS as readonly string[]).includes(v) ? (v as DemoLang) : 'en'
 }
 
 /** Synthetic operator token: the real flow is keyed on it, nothing resolves it. */
 export const demoToken = (slug: string): string => `demo-${slug}`
 
 /** Where the congrats screen sends visitors: signup with the template preselected. */
-export function demoSignupUrl(slug: string, lang: 'en' | 'de' = demoLang()): string {
-  // English is the site's unprefixed default locale.
-  const base = lang === 'de' ? 'https://www.landr.de/de/signup/' : 'https://www.landr.de/signup/'
-  return `${base}?template=${encodeURIComponent(slug)}`
+export function demoSignupUrl(slug: string, lang: DemoLang = demoLang()): string {
+  // English is the site's unprefixed default locale; the others are /xx/ prefixed.
+  const prefix = lang === 'en' ? '' : `${lang}/`
+  return `https://www.landr.de/${prefix}signup/?template=${encodeURIComponent(slug)}`
 }
 
-const COPY = {
+interface DemoCopy {
+  badge: string
+  banner: string
+  congratsTitle: string
+  congratsBody: string
+  cta: string
+  again: string
+}
+
+const COPY: Record<DemoLang, DemoCopy> = {
   en: {
     badge: 'Demo',
     banner: 'Demo — sample data. Nothing you do here is booked or charged.',
@@ -71,6 +87,33 @@ const COPY = {
     cta: 'Meine eigene Buchungsseite einrichten',
     again: 'Demo noch einmal ausprobieren',
   },
-} as const
+  es: {
+    badge: 'Demo',
+    banner: 'Demo con datos de ejemplo. Aquí no se reserva ni se cobra nada.',
+    congratsTitle: '¡Enhorabuena! Así verían la reserva tus clientes',
+    congratsBody:
+      'Tus clientes eligen una oferta y una fecha e introducen sus datos exactamente así. No se ha hecho ninguna reserva real y no se ha enviado nada.',
+    cta: 'Crear mi propia página de reservas',
+    again: 'Probar la demo otra vez',
+  },
+  it: {
+    badge: 'Demo',
+    banner: 'Demo con dati di esempio. Qui non viene prenotato né addebitato nulla.',
+    congratsTitle: 'Complimenti! Ecco cosa vedrebbero i tuoi clienti',
+    congratsBody:
+      'I tuoi clienti scelgono un’offerta e una data e inseriscono i loro dati esattamente così. Non è stata fatta nessuna prenotazione reale e non è stato inviato nulla.',
+    cta: 'Crea la mia pagina di prenotazione',
+    again: 'Riprova la demo',
+  },
+  tr: {
+    badge: 'Demo',
+    banner: 'Örnek verilerle demo. Burada hiçbir şey rezerve edilmez veya ücretlendirilmez.',
+    congratsTitle: 'Tebrikler! Müşterilerin rezervasyonu böyle görür',
+    congratsBody:
+      'Müşterilerin bir teklif ve tarih seçip bilgilerini tam olarak böyle girer. Gerçek bir rezervasyon yapılmadı ve hiçbir şey gönderilmedi.',
+    cta: 'Kendi rezervasyon sayfamı oluştur',
+    again: 'Demoyu tekrar dene',
+  },
+}
 
-export const demoCopy = (lang: 'en' | 'de' = demoLang()) => COPY[lang]
+export const demoCopy = (lang: DemoLang = demoLang()): DemoCopy => COPY[lang]

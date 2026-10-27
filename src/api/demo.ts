@@ -12,7 +12,8 @@
  * for when the catalogue request fails.
  */
 import { checkStayRange, stayWindowOf } from '@/components/booking/accommodationCalc'
-import { demoLang, demoSlug } from '@/lib/demo'
+import { DEMO_LANGS, demoLang, demoSlug, type DemoLang } from '@/lib/demo'
+import { pickLocalized } from '@/lib/locale'
 import type {
   AvailabilitySlot,
   EstimateRequestBody,
@@ -123,57 +124,103 @@ export function resetDemoTemplateCache(): void {
 
 // ---------------------------------------------------------------- catalogue
 
+type L = Record<DemoLang, string>
+
 interface SampleOffer {
   key: string
-  en: string
-  de: string
-  descEn: string
-  descDe: string
+  name: L
+  desc: L
   shape: ServiceTimeShape
   price: number
   durationMinutes?: number
 }
 
+const TANDEM: L = { en: 'Tandem flight', de: 'Tandemflug', es: 'Vuelo en tándem', it: 'Volo in tandem', tr: 'Tandem uçuş' }
+const FULL_DAY: L = { en: 'Full-day tour', de: 'Ganztagestour', es: 'Excursión de día completo', it: 'Tour di una giornata', tr: 'Tam gün tur' }
+const HALF_DAY: L = { en: 'Half-day tour', de: 'Halbtagestour', es: 'Excursión de medio día', it: 'Tour di mezza giornata', tr: 'Yarım gün tur' }
+
 const SAMPLE_OFFERS: Record<string, SampleOffer[]> = {
   tandem: [
     {
-      key: 'tandem-flight', en: 'Tandem flight', de: 'Tandemflug', shape: 'single_date', price: 120,
-      descEn: 'A tandem paragliding flight. Pick a day, your pilot confirms the details.',
-      descDe: 'Ein Tandem-Gleitschirmflug. Wähle einen Tag, dein Pilot stimmt die Details mit dir ab.',
+      key: 'tandem-flight', name: TANDEM, shape: 'single_date', price: 120,
+      desc: {
+        en: 'A tandem paragliding flight. Pick a day, your pilot confirms the details.',
+        de: 'Ein Tandem-Gleitschirmflug. Wähle einen Tag, dein Pilot stimmt die Details mit dir ab.',
+        es: 'Un vuelo en parapente en tándem. Elige un día y tu piloto confirmará los detalles.',
+        it: 'Un volo in parapendio in tandem. Scegli un giorno, il tuo pilota conferma i dettagli.',
+        tr: 'Bir tandem yamaç paraşütü uçuşu. Bir gün seç, pilotun ayrıntıları onaylar.',
+      },
     },
   ],
   tandem_company: [
     {
-      key: 'tandem-flight', en: 'Tandem flight', de: 'Tandemflug', shape: 'single_date', price: 120,
-      descEn: 'A tandem paragliding flight with one of our pilots.',
-      descDe: 'Ein Tandem-Gleitschirmflug mit einem unserer Piloten.',
+      key: 'tandem-flight', name: TANDEM, shape: 'single_date', price: 120,
+      desc: {
+        en: 'A tandem paragliding flight with one of our pilots.',
+        de: 'Ein Tandem-Gleitschirmflug mit einem unserer Piloten.',
+        es: 'Un vuelo en parapente en tándem con uno de nuestros pilotos.',
+        it: 'Un volo in parapendio in tandem con uno dei nostri piloti.',
+        tr: 'Pilotlarımızdan biriyle tandem yamaç paraşütü uçuşu.',
+      },
     },
   ],
   course: [
     {
-      key: 'course', en: 'Course', de: 'Kurs', shape: 'fixed_window', price: 390,
-      descEn: 'A course on fixed dates. Pick a date and book your place.',
-      descDe: 'Ein Kurs an festen Terminen. Wähle einen Termin und buche deinen Platz.',
+      key: 'course', shape: 'fixed_window', price: 390,
+      name: { en: 'Course', de: 'Kurs', es: 'Curso', it: 'Corso', tr: 'Kurs' },
+      desc: {
+        en: 'A course on fixed dates. Pick a date and book your place.',
+        de: 'Ein Kurs an festen Terminen. Wähle einen Termin und buche deinen Platz.',
+        es: 'Un curso con fechas fijas. Elige una fecha y reserva tu plaza.',
+        it: 'Un corso con date fisse. Scegli una data e prenota il tuo posto.',
+        tr: 'Sabit tarihli bir kurs. Bir tarih seç ve yerini ayırt.',
+      },
     },
   ],
   kayak: [
     {
-      key: 'full-day-tour', en: 'Full-day tour', de: 'Ganztagestour', shape: 'days_range', price: 79,
-      descEn: 'A guided full-day paddling tour.', descDe: 'Eine geführte Paddeltour über den ganzen Tag.',
+      key: 'full-day-tour', name: FULL_DAY, shape: 'days_range', price: 79,
+      desc: {
+        en: 'A guided full-day paddling tour.',
+        de: 'Eine geführte Paddeltour über den ganzen Tag.',
+        es: 'Una excursión guiada de remo de día completo.',
+        it: 'Un tour guidato in kayak di una giornata intera.',
+        tr: 'Rehberli, tam gün süren bir kürek turu.',
+      },
     },
     {
-      key: 'half-day-tour', en: 'Half-day tour', de: 'Halbtagestour', shape: 'single_date', price: 49,
-      descEn: 'A guided half-day tour.', descDe: 'Eine geführte Halbtagestour.',
+      key: 'half-day-tour', name: HALF_DAY, shape: 'single_date', price: 49,
+      desc: {
+        en: 'A guided half-day tour.',
+        de: 'Eine geführte Halbtagestour.',
+        es: 'Una excursión guiada de medio día.',
+        it: 'Un tour guidato di mezza giornata.',
+        tr: 'Rehberli, yarım gün süren bir tur.',
+      },
     },
     {
-      key: 'rental', en: 'Rental', de: 'Verleih', shape: 'time_slot', price: 25, durationMinutes: 120,
-      descEn: 'Rent a kayak for two hours.', descDe: 'Leihe ein Kajak für zwei Stunden.',
+      key: 'rental', shape: 'time_slot', price: 25, durationMinutes: 120,
+      name: { en: 'Rental', de: 'Verleih', es: 'Alquiler', it: 'Noleggio', tr: 'Kiralama' },
+      desc: {
+        en: 'Rent a kayak for two hours.',
+        de: 'Leihe ein Kajak für zwei Stunden.',
+        es: 'Alquila un kayak durante dos horas.',
+        it: 'Noleggia un kayak per due ore.',
+        tr: 'İki saatliğine bir kano kirala.',
+      },
     },
   ],
   driving_school: [
     {
-      key: 'driving-lesson', en: 'Driving lesson', de: 'Fahrstunde', shape: 'time_slot', price: 65, durationMinutes: 60,
-      descEn: 'A 60 minute driving lesson.', descDe: 'Eine Fahrstunde à 60 Minuten.',
+      key: 'driving-lesson', shape: 'time_slot', price: 65, durationMinutes: 60,
+      name: { en: 'Driving lesson', de: 'Fahrstunde', es: 'Clase de conducción', it: 'Lezione di guida', tr: 'Direksiyon dersi' },
+      desc: {
+        en: 'A 60 minute driving lesson.',
+        de: 'Eine Fahrstunde à 60 Minuten.',
+        es: 'Una clase de conducción de 60 minutos.',
+        it: 'Una lezione di guida di 60 minuti.',
+        tr: '60 dakikalık bir direksiyon dersi.',
+      },
     },
   ],
 }
@@ -185,8 +232,18 @@ function offersFor(template: DemoTemplate): SampleOffer[] {
   if (known) return known
   const n = Math.min(MAX_GENERIC_OFFERS, Math.max(1, template.product_count ?? 1))
   return Array.from({ length: n }, (_, i) => ({
-    key: `offer-${i + 1}`, en: `Sample offer ${i + 1}`, de: `Beispielangebot ${i + 1}`,
-    descEn: 'A sample offer from this template.', descDe: 'Ein Beispielangebot aus dieser Vorlage.',
+    key: `offer-${i + 1}`,
+    name: {
+      en: `Sample offer ${i + 1}`, de: `Beispielangebot ${i + 1}`, es: `Oferta de ejemplo ${i + 1}`,
+      it: `Offerta di esempio ${i + 1}`, tr: `Örnek teklif ${i + 1}`,
+    },
+    desc: {
+      en: 'A sample offer from this template.',
+      de: 'Ein Beispielangebot aus dieser Vorlage.',
+      es: 'Una oferta de ejemplo de esta plantilla.',
+      it: 'Un’offerta di esempio da questo modello.',
+      tr: 'Bu şablondan örnek bir teklif.',
+    },
     shape: 'single_date' as const, price: 50 + i * 20,
   }))
 }
@@ -195,23 +252,31 @@ const productId = (slug: string, key: string): string => `demo-${slug}-${key}`
 const groupId = (slug: string, key: string): string => `demo-${slug}-group-${key}`
 
 function heroOf(template: DemoTemplate): string | null {
-  const url = template.pitch?.[demoLang()]?.hero_url ?? template.pitch?.en?.hero_url ?? null
+  const url = template.pitch?.[demoLang()]?.hero_url || template.pitch?.en?.hero_url || null
   return url && /^https:\/\//.test(url) ? url : null
 }
 
 /** Template texts may carry clone placeholders; show neutral wording instead. */
-const PLACEHOLDERS: Record<'en' | 'de', Record<string, string>> = {
+const PLACEHOLDERS: Record<DemoLang, Record<string, string>> = {
   en: { company: 'your company', city: 'your city', email: 'your email' },
   de: { company: 'dein Unternehmen', city: 'deine Stadt', email: 'deine E-Mail' },
+  es: { company: 'tu empresa', city: 'tu ciudad', email: 'tu correo electrónico' },
+  it: { company: 'la tua azienda', city: 'la tua città', email: 'la tua e-mail' },
+  tr: { company: 'şirketin', city: 'şehrin', email: 'e-posta adresin' },
 }
 
-function fill(text: string | null | undefined, lang: 'en' | 'de'): string {
+function fill(text: string | null | undefined, lang: DemoLang): string {
   return (text ?? '').replace(/\{(company|city|email)\}/g, (_m, k: string) => PLACEHOLDERS[lang][k])
+}
+
+function langOfKey(k: string): DemoLang {
+  const base = k.toLowerCase().split(/[-_]/)[0]
+  return (DEMO_LANGS as readonly string[]).includes(base) ? (base as DemoLang) : 'en'
 }
 
 function fillMap(m: Record<string, string> | null | undefined): Record<string, string> | null {
   if (!m) return null
-  return Object.fromEntries(Object.entries(m).map(([k, v]) => [k, fill(v, k === 'de' ? 'de' : 'en')]))
+  return Object.fromEntries(Object.entries(m).map(([k, v]) => [k, fill(v, langOfKey(k))]))
 }
 
 const sampleProducts = (template: DemoTemplate): Product[] => {
@@ -219,10 +284,10 @@ const sampleProducts = (template: DemoTemplate): Product[] => {
   return offersFor(template).map((o, i): Product => ({
     product_id: productId(template.slug, o.key),
     slug: o.key,
-    name: o.en,
-    name_localized: { en: o.en, de: o.de },
-    short_description: o.descEn,
-    short_description_localized: { en: o.descEn, de: o.descDe },
+    name: o.name.en,
+    name_localized: { ...o.name },
+    short_description: o.desc.en,
+    short_description_localized: { ...o.desc },
     description: null,
     guide_languages: [],
     product_kind: 'service',
@@ -245,7 +310,7 @@ const sampleProducts = (template: DemoTemplate): Product[] => {
     is_publicly_listed: true,
     bookable: true,
     thumb_url: hero,
-    images: hero ? [{ thumb_url: hero, hero_url: hero, alt: o.en }] : [],
+    images: hero ? [{ thumb_url: hero, hero_url: hero, alt: o.name.en }] : [],
     price_from: o.price.toFixed(2),
   }))
 }
@@ -369,7 +434,8 @@ export function demoFixedWindows(): FixedDateWindow[] {
 
 export function demoSettings(template: DemoTemplate): OperatorSettings {
   const lang = demoLang()
-  const headline = template.pitch?.[lang]?.headline ?? template.pitch?.en?.headline ?? null
+  const headline =
+    template.pitch?.[lang]?.headline || template.pitch?.en?.headline || null
   return {
     slug: `demo-${template.slug}`,
     expose_seats_to_customer: false,
@@ -392,8 +458,15 @@ export function demoSettings(template: DemoTemplate): OperatorSettings {
   } as OperatorSettings
 }
 
+const PARTICIPANT_LABEL: L = {
+  en: 'Participant', de: 'Teilnehmer', es: 'Participante', it: 'Partecipante', tr: 'Katılımcı',
+}
+
 const demoRoles = (): ServiceRole[] => [
-  { id: 'demo-role-participant', code: 'participant', label: 'Participant', label_localized: null, sort_order: 0 },
+  {
+    id: 'demo-role-participant', code: 'participant', label: PARTICIPANT_LABEL.en,
+    label_localized: { ...PARTICIPANT_LABEL }, sort_order: 0,
+  },
 ]
 
 export function demoEstimate(
@@ -417,7 +490,7 @@ export function demoEstimate(
     total = lineTotal
     lines.push({
       product_id: id,
-      label: hit.product.name,
+      label: pickLocalized(hit.product.name, hit.product.name_localized, demoLang()),
       qty: 1,
       units: nights.length,
       unit_price: hit.price.toFixed(2),
@@ -449,7 +522,7 @@ export function demoEstimate(
     total = lineTotal
     lines.push({
       product_id: id,
-      label: hit.product.name,
+      label: pickLocalized(hit.product.name, hit.product.name_localized, demoLang()),
       qty,
       units,
       unit_price: hit.price.toFixed(2),

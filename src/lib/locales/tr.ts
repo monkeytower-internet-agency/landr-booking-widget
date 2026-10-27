@@ -19,6 +19,8 @@ export const tr: Bundle = {
   continueCue: 'devam edin',
   continueLabel: 'Devam',
   customerCommentAdd: 'bize bir not',
+  dismissLabel: 'Kapat',
+  sharedDoubleRefPlaceholder: 'örn. A1B2C3D4',
   languageStepWhy:
     'Kimin hangi dili konuştuğunu bize bildirin; böylece rehber herkese ' +
     'anlayacakları bir dilde bilgi versin.',

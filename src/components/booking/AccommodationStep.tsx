@@ -2023,7 +2023,7 @@ export function AccommodationStep({
               maxLength={8}
               value={refInput}
               onChange={(e) => changeRefInput(e.target.value)}
-              placeholder="e.g. A1B2C3D4"
+              placeholder={tr('sharedDoubleRefPlaceholder', locale)}
               className="w-full max-w-[12rem] rounded-md border border-input bg-surface-page px-3 py-2 font-mono text-sm uppercase tracking-wider shadow-well focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               data-testid="shared-double-reference-input"
             />

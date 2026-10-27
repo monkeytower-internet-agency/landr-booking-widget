@@ -35,6 +35,10 @@ export type Bundle = {
   continueLabel: string
   /** landr-80ubl.1: OptionalReveal's link text for CustomerCommentField. */
   customerCommentAdd: string
+  /** aria-label of the dismiss (x) button on the invite notice banner. */
+  dismissLabel: string
+  /** Placeholder of the shared-double reference-code input. */
+  sharedDoubleRefPlaceholder: string
   /** landr-80ubl.1: LanguageStep's explanation copy (behind HelpDisclosure). */
   languageStepWhy: string
   languageStepHowTo: string
@@ -960,6 +964,8 @@ const en: Bundle = {
   continueCue: 'continue',
   continueLabel: 'Continue',
   customerCommentAdd: 'a note for us',
+  dismissLabel: 'Dismiss',
+  sharedDoubleRefPlaceholder: 'e.g. A1B2C3D4',
   languageStepWhy:
     'Tell us who speaks what, so the guide briefs everyone in a language ' +
     'they understand.',
