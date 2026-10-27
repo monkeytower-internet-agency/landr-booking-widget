@@ -17256,6 +17256,33 @@
             ],
             "title": "Widget Category Columns"
           },
+          "widget_cross_sell_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Widget Cross Sell Enabled"
+          },
+          "widget_cross_sell_product_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                "maxItems": 200,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Widget Cross Sell Product Ids"
+          },
           "widget_description": {
             "anyOf": [
               {
@@ -17989,6 +18016,18 @@
               }
             ],
             "title": "Widget Category Columns"
+          },
+          "widget_cross_sell_enabled": {
+            "default": true,
+            "title": "Widget Cross Sell Enabled",
+            "type": "boolean"
+          },
+          "widget_cross_sell_product_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Widget Cross Sell Product Ids",
+            "type": "array"
           },
           "widget_description": {
             "anyOf": [

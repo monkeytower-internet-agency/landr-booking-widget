@@ -18559,6 +18559,10 @@ export interface components {
             widget_catalog_layout?: string | null;
             /** Widget Category Columns */
             widget_category_columns?: number | null;
+            /** Widget Cross Sell Enabled */
+            widget_cross_sell_enabled?: boolean | null;
+            /** Widget Cross Sell Product Ids */
+            widget_cross_sell_product_ids?: string[] | null;
             /** Widget Description */
             widget_description?: string | null;
             /** Widget Description First Page Only */
@@ -18799,6 +18803,13 @@ export interface components {
             widget_catalog_layout?: string | null;
             /** Widget Category Columns */
             widget_category_columns?: number | null;
+            /**
+             * Widget Cross Sell Enabled
+             * @default true
+             */
+            widget_cross_sell_enabled: boolean;
+            /** Widget Cross Sell Product Ids */
+            widget_cross_sell_product_ids?: string[];
             /** Widget Description */
             widget_description?: string | null;
             /**
