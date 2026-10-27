@@ -1,22 +1,78 @@
-import { PartyPopper } from "lucide-react";
+import { useState } from "react";
+import { Moon, PartyPopper, Sun } from "lucide-react";
 import { Confirmation } from "@/components/booking/Confirmation";
 import type { SubmitBookingResponse } from "@/api/types";
 import { Button } from "@/components/ui/button";
-import { demoCopy, demoLang, demoSignupUrl } from "@/lib/demo";
+import { DEMO_LANGS, demoCopy, demoLang, demoSignupUrl } from "@/lib/demo";
+
+const DEMO_LANG_LABEL: Record<string, string> = {
+  en: "English",
+  de: "Deutsch",
+  es: "Español",
+  it: "Italiano",
+  tr: "Türkçe",
+};
+
+/** Language + light/dark switch, right-aligned under the banner. */
+function DemoControls() {
+  const copy = demoCopy();
+  const [dark, setDark] = useState(() =>
+    document.documentElement.classList.contains("dark"),
+  );
+  const toggleTheme = () => {
+    const next = !dark;
+    document.documentElement.classList.toggle("dark", next);
+    setDark(next);
+  };
+  const changeLang = (lang: string) => {
+    const url = new URL(window.location.href);
+    url.searchParams.set("lang", lang);
+    window.location.assign(url.toString());
+  };
+  return (
+    <div className="flex items-center justify-end gap-2" data-testid="demo-controls">
+      <select
+        aria-label={copy.language}
+        className="border-border bg-card text-foreground h-9 rounded-md border px-2 text-sm"
+        data-testid="demo-lang"
+        value={demoLang()}
+        onChange={(e) => changeLang(e.target.value)}
+      >
+        {DEMO_LANGS.map((l) => (
+          <option key={l} value={l}>
+            {DEMO_LANG_LABEL[l]}
+          </option>
+        ))}
+      </select>
+      <Button
+        variant="outline"
+        size="icon"
+        aria-label={dark ? copy.lightMode : copy.darkMode}
+        data-testid="demo-theme"
+        onClick={toggleTheme}
+      >
+        {dark ? <Sun className="size-4" /> : <Moon className="size-4" />}
+      </Button>
+    </div>
+  );
+}
 
 /** Persistent "Demo" label shown above every step of a demo embed. */
 export function DemoBanner() {
   const copy = demoCopy();
   return (
-    <div
-      className="flex items-center gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800"
-      data-testid="demo-banner"
-      role="status"
-    >
-      <span className="rounded bg-amber-200 px-1.5 py-0.5 text-xs font-bold uppercase tracking-wide">
-        {copy.badge}
-      </span>
-      <span>{copy.banner}</span>
+    <div className="flex flex-col gap-2">
+      <div
+        className="flex items-center gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800"
+        data-testid="demo-banner"
+        role="status"
+      >
+        <span className="rounded bg-amber-200 px-1.5 py-0.5 text-xs font-bold uppercase tracking-wide">
+          {copy.badge}
+        </span>
+        <span>{copy.banner}</span>
+      </div>
+      <DemoControls />
     </div>
   );
 }

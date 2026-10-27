@@ -320,7 +320,7 @@ def shot(svg, i):
 
 K = lambda kind, *props: (kind, props)
 KINDS = {
-    "apartment": {"studio": K("studio"), "family-apartment": K("family"), "rooftop-loft": K("loft")},
+    "apartment": {"studio": K("studio"), "family-apartment": K("family"), "rooftop-loft": K("loft"), "bike-rental": K("citybike")},
     "bike": {"half-day-rental": K("bike"), "day-rental": K("bike", "far"), "ebike-rental": K("ebike"), "guided-city-tour": K("citybike"), "trail-day-tour": K("trail")},
     "course": {"course": K("class"), "weekend-workshop": K("craft"), "taster-session": K("taster")},
     "driving_school": {"trial-lesson": K("car", "L"), "intensive-week": K("car", "calendar"), "driving-lesson": K("car", "light"), "double-lesson": K("car", "two"), "special-drive": K("car", "night"), "test-drive": K("car", "clip", "cones"), "theory-class": K("theory")},
