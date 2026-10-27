@@ -46,6 +46,7 @@ const CATALOGUE = {
   ],
   products: [
     {
+      description_localized: { en: 'Write to {email}', de: 'Schreib an {email}', es: 'Escribe a {email}', tr: 'Şuraya yaz: {email}' },
       slug: 'sunset-tour', name: 'Sunset tour with {company}', name_localized: { de: 'Sonnenuntergangstour' },
       short_description: 'Paddle at dusk', short_description_localized: { de: 'Paddeln in der Dämmerung' },
       description: null, product_kind: 'service', service_time_shape: 'days_range', is_contiguous: true,
@@ -209,6 +210,10 @@ describe('demo mode reads', () => {
     const products = await listProducts('demo-kayak')
     expect(products.map((p) => p.name)).toEqual(['Sunset tour with your company', 'Lagoon rental'])
     expect(products[0].name_localized?.de).toBe('Sonnenuntergangstour')
+    // the long text keeps every language and fills the clone placeholders per language
+    expect(products[0].description_localized).toEqual({
+      en: 'Write to your email', de: 'Schreib an deine E-Mail', es: 'Escribe a tu correo electrónico', tr: 'Şuraya yaz: e-posta adresin',
+    })
     expect(products[0].thumb_url).toBe('https://img.example/t.jpg')
     expect(products[0].product_id).toBe('demo-kayak-sunset-tour')
     expect(products[0].product_group_id).toBe('demo-kayak-group-tours')
