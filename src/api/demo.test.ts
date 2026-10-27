@@ -407,3 +407,17 @@ describe('demo mode never writes', () => {
     }
   })
 })
+
+describe('demoArt', () => {
+  it('gives known template products three comic images', async () => {
+    const { demoArt } = await import('./demo')
+    const imgs = demoArt('kayak', 'half-day-tour', 'Half-day tour')
+    expect(imgs).toHaveLength(3)
+    expect(imgs[0].hero_url).toMatch(/demo\/kayak\/half-day-tour-1\.svg$/)
+  })
+
+  it('gives unknown products none', async () => {
+    const { demoArt } = await import('./demo')
+    expect(demoArt('kayak', 'nope', 'x')).toEqual([])
+  })
+})

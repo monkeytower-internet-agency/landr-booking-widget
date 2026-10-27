@@ -256,6 +256,35 @@ function heroOf(template: DemoTemplate): string | null {
   return url && /^https:\/\//.test(url) ? url : null
 }
 
+/**
+ * Comic sample art for the template catalogue (`public/demo/<template>/<product>-<n>.svg`,
+ * made by `scripts/gen-demo-art.py`). Templates carry no photos of their own, so the demo
+ * supplies them; a product the script has no art for simply gets none.
+ */
+const DEMO_ART_COUNT = 3
+const DEMO_ART_PRODUCTS: Record<string, string[]> = {
+  apartment: ['studio', 'family-apartment', 'rooftop-loft'],
+  bike: ['half-day-rental', 'day-rental', 'ebike-rental', 'guided-city-tour', 'trail-day-tour'],
+  course: ['course', 'weekend-workshop', 'taster-session'],
+  driving_school: ['trial-lesson', 'intensive-week', 'driving-lesson', 'double-lesson', 'special-drive', 'test-drive', 'theory-class'],
+  flight_school: ['beginner-course', 'ground-handling-day', 'refresher-day', 'thermal-clinic', 'safety-training', 'tandem-intro'],
+  kayak: ['half-day-tour', 'full-day-tour', 'sunset-paddle', 'paddling-basics', 'rental'],
+  retreat: ['retreat-programme', 'day-workshop', 'private-session', 'private-room', 'twin-room'],
+  site_day_pass: ['site-pass', 'shuttle-pass', 'camper-pass', 'site-briefing'],
+  tandem: ['tandem-flight', 'thermal-tandem', 'sunset-tandem'],
+  tandem_company: ['tandem-flight', 'thermal-tandem', 'sunset-tandem', 'group-tandem-day'],
+  testival: ['testival-day', 'testival-weekend', 'exhibitor-registration'],
+}
+
+export function demoArt(templateSlug: string, productSlug: string, name: string): NonNullable<Product['images']> {
+  if (!DEMO_ART_PRODUCTS[templateSlug]?.includes(productSlug)) return []
+  const base = `${import.meta.env.BASE_URL}demo/${templateSlug}/${productSlug}`
+  return Array.from({ length: DEMO_ART_COUNT }, (_, i) => {
+    const url = `${base}-${i + 1}.svg`
+    return { thumb_url: url, hero_url: url, alt: name }
+  })
+}
+
 /** Template texts may carry clone placeholders; show neutral wording instead. */
 const PLACEHOLDERS: Record<DemoLang, Record<string, string>> = {
   en: { company: 'your company', city: 'your city', email: 'your email' },
@@ -319,7 +348,8 @@ const sampleProducts = (template: DemoTemplate): Product[] => {
 const catalogueProducts = (template: DemoTemplate, cat: DemoCatalogue): Product[] => {
   const hero = heroOf(template)
   return cat.products.map((c): Product => {
-    const images = (c.images ?? []).filter((im) => im.thumb_url || im.hero_url)
+    const own = (c.images ?? []).filter((im) => im.thumb_url || im.hero_url)
+    const images = own.length ? own : demoArt(template.slug, c.slug, fill(c.name, 'en'))
     const thumb = c.thumb_url ?? images[0]?.thumb_url ?? hero
     // The tiers are served by the pass-tiers read, not carried on the product.
     const rest: Partial<DemoCatalogueProduct> = { ...c }
