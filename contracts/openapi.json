@@ -4688,6 +4688,220 @@
         "title": "CancellationNoticesIn",
         "type": "object"
       },
+      "CatalogueAddon": {
+        "description": "One add-on linked to a product, keyed by the add-on's slug\n(landr-ac47r.1). ``paid_to`` is who keeps the money: ``performer`` = the\nperson delivering it (the tandem pilot's video package, 100 % theirs),\n``operator`` = the operator's invoice, ``hotel`` = paid at check-in.",
+        "properties": {
+          "addon_quantity_max": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Addon Quantity Max"
+          },
+          "addon_quantity_rule": {
+            "anyOf": [
+              {
+                "enum": [
+                  "one_per_booking",
+                  "one_per_participant",
+                  "any"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Addon Quantity Rule"
+          },
+          "currency": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Currency"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "description_localized": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description Localized"
+          },
+          "is_required": {
+            "default": false,
+            "title": "Is Required",
+            "type": "boolean"
+          },
+          "max_qty": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Qty"
+          },
+          "min_qty": {
+            "default": 0,
+            "title": "Min Qty",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "name_localized": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name Localized"
+          },
+          "paid_to": {
+            "enum": [
+              "operator",
+              "hotel",
+              "performer"
+            ],
+            "title": "Paid To",
+            "type": "string"
+          },
+          "price_per_unit": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Per Unit"
+          },
+          "price_unit": {
+            "anyOf": [
+              {
+                "enum": [
+                  "booking",
+                  "night",
+                  "stay",
+                  "guest",
+                  "guest_night"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Unit"
+          },
+          "pricing": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CataloguePricing"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "product_kind": {
+            "title": "Product Kind",
+            "type": "string"
+          },
+          "short_description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Short Description"
+          },
+          "short_description_localized": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Short Description Localized"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "sort_order": {
+            "default": 0,
+            "title": "Sort Order",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "slug",
+          "name",
+          "product_kind",
+          "paid_to"
+        ],
+        "title": "CatalogueAddon",
+        "type": "object"
+      },
+      "CatalogueAlternative": {
+        "description": "A linked alternative: the slug of another product in this catalogue.",
+        "properties": {
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "sort_order": {
+            "default": 0,
+            "title": "Sort Order",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "slug"
+        ],
+        "title": "CatalogueAlternative",
+        "type": "object"
+      },
       "CatalogueGroup": {
         "properties": {
           "bookable_count": {
@@ -4778,9 +4992,51 @@
         "title": "CatalogueGroup",
         "type": "object"
       },
+      "CataloguePricing": {
+        "description": "A product's price list: currency + active rules in sort order.",
+        "properties": {
+          "currency": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Currency"
+          },
+          "rules": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/CatalogueRule"
+            },
+            "title": "Rules",
+            "type": "array"
+          }
+        },
+        "title": "CataloguePricing",
+        "type": "object"
+      },
       "CatalogueProduct": {
         "description": "One offer, keyed by slug. Mirrors the widget's catalogue product minus\nevery id (product, group, category, location, hotel).",
         "properties": {
+          "addons": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/CatalogueAddon"
+            },
+            "title": "Addons",
+            "type": "array"
+          },
+          "alternatives": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/CatalogueAlternative"
+            },
+            "title": "Alternatives",
+            "type": "array"
+          },
           "category_name": {
             "anyOf": [
               {
@@ -4839,6 +5095,20 @@
               }
             ],
             "title": "Daily Start Times"
+          },
+          "daily_start_weekdays": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Daily Start Weekdays"
           },
           "description": {
             "anyOf": [
@@ -5013,6 +5283,16 @@
             ],
             "title": "Price Per Unit"
           },
+          "pricing": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CataloguePricing"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "product_kind": {
             "title": "Product Kind",
             "type": "string"
@@ -5115,6 +5395,98 @@
           "product_kind"
         ],
         "title": "CatalogueProduct",
+        "type": "object"
+      },
+      "CatalogueRule": {
+        "description": "One active pricing rule, as the engine evaluates it (landr-ac47r.1).\n``params`` follows ``app/services/pricing_params_contract.json`` for its\n``rule_kind``; ``conditions`` keys: min_participants, valid_from,\nvalid_until (booking-time).",
+        "properties": {
+          "conditions": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conditions"
+          },
+          "params": {
+            "additionalProperties": true,
+            "default": {},
+            "title": "Params",
+            "type": "object"
+          },
+          "rule_kind": {
+            "title": "Rule Kind",
+            "type": "string"
+          },
+          "sort_order": {
+            "title": "Sort Order",
+            "type": "integer"
+          },
+          "tiers": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/CatalogueRuleTier"
+            },
+            "title": "Tiers",
+            "type": "array"
+          }
+        },
+        "required": [
+          "rule_kind",
+          "sort_order"
+        ],
+        "title": "CatalogueRule",
+        "type": "object"
+      },
+      "CatalogueRuleTier": {
+        "description": "One tier of a tiered pricing rule (``pricing_tiers`` minus ids).",
+        "properties": {
+          "amount_per_unit": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount Per Unit"
+          },
+          "amount_total": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount Total"
+          },
+          "threshold_max": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Threshold Max"
+          },
+          "threshold_min": {
+            "title": "Threshold Min",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "threshold_min"
+        ],
+        "title": "CatalogueRuleTier",
         "type": "object"
       },
       "CatalogueTier": {
