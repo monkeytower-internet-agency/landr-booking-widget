@@ -12487,6 +12487,13 @@ export interface components {
             /** Onboarding Preset Key */
             onboarding_preset_key: string | null;
             /**
+             * Plan Gated
+             * @default {}
+             */
+            plan_gated: {
+                [key: string]: string[];
+            };
+            /**
              * Status
              * @enum {string}
              */
@@ -14332,6 +14339,10 @@ export interface components {
             daily_start_weekdays?: number[] | null;
             /** Description */
             description?: string | null;
+            /** Description Localized */
+            description_localized?: {
+                [key: string]: unknown;
+            } | null;
             /** Duration Minutes */
             duration_minutes?: number | null;
             event_window?: components["schemas"]["EventWindow"] | null;
