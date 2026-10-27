@@ -8,14 +8,17 @@
  * and blocks Confirm until the customer edits or removes it.
  */
 import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react'
-import { getAvailability, getFixedDateWindows, listProducts } from '@/api/client'
+import { getAvailability, getFixedDateWindows, getProductFlow, listProducts } from '@/api/client'
+import type { ProductFlowResponse } from '@/api/flowTypes'
 import type { AvailabilitySlot, FixedDateWindow, Product } from '@/api/types'
 import { Button } from '@/components/ui/button'
 import { pickLocalized } from '@/lib/locale'
 import { fmt, tr } from '@/lib/strings'
 import {
   crossSellCandidates,
+  crossSellExclusion,
   inheritLine,
+  type CrossSellContext,
   lineIssue,
   preferredWindow,
   seatsForLine,
@@ -39,6 +42,8 @@ interface Props {
   lines: ExtraLine[]
   onLinesChange: Dispatch<SetStateAction<ExtraLine[]>>
   locale: string
+  /** What the main flow already captured (languages, forms, pickup). */
+  context: CrossSellContext
 }
 
 function slotFree(s: AvailabilitySlot, need: number): boolean {
@@ -55,11 +60,15 @@ export function AddMoreProducts({
   lines,
   onLinesChange,
   locale,
+  context,
 }: Props) {
   const [catalogue, setCatalogue] = useState<Product[]>([])
+  // Each candidate's own flow (custom forms); undefined while loading.
+  const [flows, setFlows] = useState<Record<string, ProductFlowResponse | null>>({})
   const [slotsByKey, setSlotsByKey] = useState<Record<string, AvailabilitySlot[]>>({})
   const [windowsByKey, setWindowsByKey] = useState<Record<string, FixedDateWindow[]>>({})
   const inflight = useRef(new Set<string>())
+  const flowsRef = useRef<Record<string, null>>({})
 
   useEffect(() => {
     let live = true
@@ -74,6 +83,20 @@ export function AddMoreProducts({
       live = false
     }
   }, [operatorToken, previewToken])
+
+  // Only products that could be offered need their flow (never the cart's own).
+  const flowIds = crossSellCandidates(catalogue, cartProductIds)
+    .map((p) => p.product_id)
+    .join(',')
+  useEffect(() => {
+    for (const id of flowIds ? flowIds.split(',') : []) {
+      if (id in flowsRef.current) continue
+      flowsRef.current[id] = null
+      getProductFlow(operatorToken, id)
+        .then((flow) => setFlows((m) => ({ ...m, [id]: flow })))
+        .catch(() => setFlows((m) => ({ ...m, [id]: null })))
+    }
+  }, [flowIds, operatorToken])
 
   // Availability for every line marked `checking` (set by the add / edit
   // handlers below). One request per line state; a stale answer is dropped.
@@ -140,7 +163,13 @@ export function AddMoreProducts({
   }, [lines, partySize, mainDays, inviteToken, onLinesChange])
 
   const taken = [...cartProductIds, ...lines.map((l) => l.product.product_id)]
-  const candidates = crossSellCandidates(catalogue, taken)
+  // A product whose required modules cannot run here is not offered at all
+  // (crossSellExclusion); one whose flow is still loading waits.
+  const candidates = crossSellCandidates(catalogue, taken).filter(
+    (p) =>
+      p.product_id in flows &&
+      crossSellExclusion(p, flows[p.product_id] ?? null, context) === null,
+  )
   if (candidates.length === 0 && lines.length === 0) return null
 
   const update = (key: string, patch: Partial<ExtraLine>) =>

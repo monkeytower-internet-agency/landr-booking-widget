@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { AvailabilitySlot, EstimateResponse, FixedDateWindow, Product } from '@/api/types'
 import {
   crossSellCandidates,
+  crossSellExclusion,
   extraEstimateRequests,
   extraLinesBlocking,
   extraProductLines,
@@ -205,5 +206,56 @@ describe('mergeEstimates', () => {
     expect(merged.subtotal_before_savings).toBe('100.00')
     expect(merged.savings_total).toBe('10.00')
     expect(merged.amount_due).toBe('90.00')
+  })
+})
+
+describe('crossSellExclusion', () => {
+  const ctx = {
+    participantLanguages: { 0: 'de', 1: 'en' },
+    participantCount: 2,
+    answeredFormKeys: ['waiver'],
+    hasPickup: false,
+  }
+  const form = (key: string) => ({
+    modules: [
+      { kind: 'custom_form', position: 1, form: { key, version: 1, name: key, name_localized: null, fields: [] } },
+    ],
+  })
+
+  it('offers a product with no own required modules', () => {
+    expect(crossSellExclusion(product('a'), null, ctx)).toBeNull()
+  })
+
+  it('needs every participant assigned a language the product offers', () => {
+    expect(crossSellExclusion(product('a', { guide_languages: ['de', 'en'] }), null, ctx)).toBeNull()
+    expect(crossSellExclusion(product('a', { guide_languages: ['de'] }), null, ctx)).toBe('language')
+    expect(
+      crossSellExclusion(product('a', { guide_languages: ['de'] }), null, {
+        ...ctx,
+        participantLanguages: {},
+      }),
+    ).toBe('language')
+    // A stay has no guide.
+    expect(
+      crossSellExclusion(
+        product('a', { product_kind: 'stay', service_time_shape: null, guide_languages: ['fr'] }),
+        null,
+        ctx,
+      ),
+    ).toBeNull()
+  })
+
+  it('needs every custom form already answered by the main flow', () => {
+    expect(crossSellExclusion(product('a'), form('waiver'), ctx)).toBeNull()
+    expect(crossSellExclusion(product('a'), form('medical'), ctx)).toBe('form')
+  })
+
+  it('needs a pickup unless one is set or auto-selected', () => {
+    const p = product('a', { needs_pickup: true })
+    expect(crossSellExclusion(p, null, ctx)).toBe('pickup')
+    expect(crossSellExclusion(p, null, { ...ctx, hasPickup: true })).toBeNull()
+    expect(
+      crossSellExclusion(product('a', { needs_pickup: true, auto_pickup_location_id: 'loc' }), null, ctx),
+    ).toBeNull()
   })
 })
