@@ -13,6 +13,7 @@
  */
 import { checkStayRange, stayWindowOf } from '@/components/booking/accommodationCalc'
 import { DEMO_LANGS, demoLang, demoSlug, type DemoLang } from '@/lib/demo'
+import { formatDayRange } from '@/components/booking/dateLabel'
 import { pickLocalized } from '@/lib/locale'
 import type {
   AddonPriceUnit,
@@ -34,6 +35,8 @@ import type {
   ServiceRole,
   ProductGroup,
   ServiceTimeShape,
+  BookingSummary,
+  SubmitBookingBody,
   SubmitBookingResponse,
 } from './types'
 
@@ -895,8 +898,63 @@ export function demoPassTiers(template: DemoTemplate, id: string, isMember: bool
 /** What the checkout "submit" resolves with in demo mode. The App swaps in the congrats screen. */
 export const DEMO_BOOKING_ID = 'demo-booking'
 
-export function demoSubmitResponse(): SubmitBookingResponse {
-  return { booking_id: DEMO_BOOKING_ID, semantic_state: 'demo', stage_code: 'demo' } as SubmitBookingResponse
+/**
+ * The submit answer: a full sample booking summary built from what the viewer
+ * "booked", priced by the same local estimate the sidebar used. Nothing is stored.
+ */
+export function demoSubmitResponse(template?: DemoTemplate, body?: SubmitBookingBody): SubmitBookingResponse {
+  const base = { booking_id: DEMO_BOOKING_ID, semantic_state: 'demo', stage_code: 'demo' }
+  const main = body?.products?.[0]
+  const hit = template && main ? findOffer(template, main.product_id) : null
+  if (!template || !body || !main || !hit) return base as SubmitBookingResponse
+  const lang = demoLang()
+  const days = [...new Set(main.selected_days ?? [])].sort()
+  const count = Math.max(1, body.participants?.length ?? 1)
+  const addonLines = (body.products ?? [])
+    .slice(1)
+    .filter((l) => findAddon(template, l.product_id))
+    .map((l) => ({ product_id: l.product_id, qty: l.quantity ?? 1 }))
+  const est = demoEstimate(template, main.product_id, {
+    selected_days: days,
+    participants_count: count,
+    addon_lines: addonLines,
+    product_availability_id: main.product_availability_id ?? undefined,
+    slot_start_time: main.slot_start_time ?? undefined,
+  })
+  const label = pickLocalized(hit.product.name, hit.product.name_localized, lang)
+  const slot = hhmm(main.slot_start_time) ?? /-\d{4}-\d{2}-\d{2}-(\d{2}:\d{2})$/.exec(main.product_availability_id ?? '')?.[1] ?? null
+  const dateLabel = formatDayRange(days[0] ?? '', days[days.length - 1] ?? '', lang)
+  const summary: BookingSummary = {
+    booking_id: DEMO_BOOKING_ID,
+    booking_reference: 'DEMO-0001',
+    operator_name: '',
+    product_label: label,
+    products: [{ product_id: main.product_id, label, qty: main.quantity ?? 1, selected_days: days }],
+    dates: { days, start: days[0] ?? null, end: days[days.length - 1] ?? null, label: slot ? `${dateLabel}, ${slot}` : dateLabel },
+    participant_count: count,
+    participants: (body.participants ?? []).map((p, i) => ({
+      name: [p.first_name, p.last_name].filter(Boolean).join(' '),
+      is_guiding: i === 0 ? true : undefined,
+    })),
+    pickup_location: null,
+    pickup_locations: [],
+    hotel: null,
+    line_items: est.line_items,
+    operator_total: est.operator_total,
+    hotel_total: est.hotel_total,
+    performer_total: est.performer_total,
+    grand_total: est.grand_total,
+    currency: est.currency,
+    savings: est.savings ?? [],
+    savings_total: est.savings_total ?? '0.00',
+    subtotal_before_savings: est.subtotal_before_savings ?? est.operator_total,
+    amount_due: est.amount_due ?? est.operator_total,
+    multi_day_savings: null,
+    surcharges: est.surcharges ?? null,
+    surcharges_total: est.surcharges_total ?? null,
+    subtotal_before_surcharges: est.subtotal_before_surcharges ?? null,
+  }
+  return { ...base, approval_outcome: 'auto_approved', payment_mode: 'on_site', summary } as SubmitBookingResponse
 }
 
 // ------------------------------------------------------------------- router
@@ -934,7 +992,7 @@ export async function demoRequest<T>(path: string, init?: RequestInit): Promise<
       const body = JSON.parse(String(init?.body ?? '{}')) as EstimateRequestBody
       return demoEstimate(template, decodeURIComponent(est[1]), body) as T
     }
-    if (pathname === '/api/public/bookings') return demoSubmitResponse() as T
+    if (pathname === '/api/public/bookings') return demoSubmitResponse(template, JSON.parse(String(init?.body ?? '{}')) as SubmitBookingBody) as T
     // Member price of a pass: the emailed code is never sent and any code is
     // accepted, so the visitor can see the member tiers. Nothing is stored.
     if (/^\/api\/public\/operators\/[^/]+\/subscription-perk\/otp$/.test(pathname)) return { ok: true } as T

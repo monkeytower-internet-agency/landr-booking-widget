@@ -64,6 +64,7 @@ interface DemoCopy {
   banner: string
   congratsTitle: string
   congratsBody: string
+  congratsOverview: string
   cta: string
   again: string
 }
@@ -74,7 +75,8 @@ const COPY: Record<DemoLang, DemoCopy> = {
     banner: 'Demo — sample data. Nothing you do here is booked or charged.',
     congratsTitle: 'Congrats — this is what your customers would see',
     congratsBody:
-      'Your customers pick an offer, a date and enter their details exactly like this. No real booking was made and nothing was sent.',
+      'This is only a demo with sample data: nothing was booked, paid or sent. Below is the booking overview your customers would see, exactly like this.',
+    congratsOverview: 'Sample booking overview',
     cta: 'Set up my own booking page',
     again: 'Try the demo again',
   },
@@ -83,7 +85,8 @@ const COPY: Record<DemoLang, DemoCopy> = {
     banner: 'Demo mit Beispieldaten. Hier wird nichts gebucht oder abgerechnet.',
     congratsTitle: 'Glückwunsch — so sehen deine Kunden die Buchung',
     congratsBody:
-      'Deine Kunden wählen Angebot und Termin und geben ihre Daten genau so ein. Es wurde nichts gebucht und nichts versendet.',
+      'Das ist nur eine Demo mit Beispieldaten: Es wurde nichts gebucht, bezahlt oder versendet. Unten siehst du die Buchungsübersicht, die deine Kunden genau so erhalten.',
+    congratsOverview: 'Beispiel-Buchungsübersicht',
     cta: 'Meine eigene Buchungsseite einrichten',
     again: 'Demo noch einmal ausprobieren',
   },
@@ -92,7 +95,8 @@ const COPY: Record<DemoLang, DemoCopy> = {
     banner: 'Demo con datos de ejemplo. Aquí no se reserva ni se cobra nada.',
     congratsTitle: '¡Enhorabuena! Así verían la reserva tus clientes',
     congratsBody:
-      'Tus clientes eligen una oferta y una fecha e introducen sus datos exactamente así. No se ha hecho ninguna reserva real y no se ha enviado nada.',
+      'Esto es solo una demo con datos de ejemplo: no se ha reservado, cobrado ni enviado nada. Abajo ves el resumen de reserva que verían tus clientes, exactamente así.',
+    congratsOverview: 'Resumen de reserva de ejemplo',
     cta: 'Crear mi propia página de reservas',
     again: 'Probar la demo otra vez',
   },
@@ -101,7 +105,8 @@ const COPY: Record<DemoLang, DemoCopy> = {
     banner: 'Demo con dati di esempio. Qui non viene prenotato né addebitato nulla.',
     congratsTitle: 'Complimenti! Ecco cosa vedrebbero i tuoi clienti',
     congratsBody:
-      'I tuoi clienti scelgono un’offerta e una data e inseriscono i loro dati esattamente così. Non è stata fatta nessuna prenotazione reale e non è stato inviato nulla.',
+      'Questa è solo una demo con dati di esempio: non è stato prenotato, pagato o inviato nulla. Qui sotto vedi il riepilogo della prenotazione che vedrebbero i tuoi clienti, esattamente così.',
+    congratsOverview: 'Riepilogo di prenotazione di esempio',
     cta: 'Crea la mia pagina di prenotazione',
     again: 'Riprova la demo',
   },
@@ -110,7 +115,8 @@ const COPY: Record<DemoLang, DemoCopy> = {
     banner: 'Örnek verilerle demo. Burada hiçbir şey rezerve edilmez veya ücretlendirilmez.',
     congratsTitle: 'Tebrikler! Müşterilerin rezervasyonu böyle görür',
     congratsBody:
-      'Müşterilerin bir teklif ve tarih seçip bilgilerini tam olarak böyle girer. Gerçek bir rezervasyon yapılmadı ve hiçbir şey gönderilmedi.',
+      'Bu yalnızca örnek verilerle hazırlanmış bir demodur: hiçbir şey rezerve edilmedi, ödenmedi veya gönderilmedi. Aşağıda müşterilerinin göreceği rezervasyon özetini tam olarak böyle görürsün.',
+    congratsOverview: 'Örnek rezervasyon özeti',
     cta: 'Kendi rezervasyon sayfamı oluştur',
     again: 'Demoyu tekrar dene',
   },

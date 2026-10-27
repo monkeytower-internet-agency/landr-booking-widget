@@ -500,6 +500,32 @@ describe('demo mode: slots, price rules, add-ons and alternatives (ac47r.2)', ()
     expect(est.line_items.map((l) => l.paid_to)).toEqual(['operator', 'performer', 'operator'])
   })
 
+  it('answers the submit with a full sample booking summary: slot, add-ons, rules, total, customer', async () => {
+    const [flight] = await listProducts('demo-tandem')
+    const addons = await getProductAddons(flight.product_id)
+    const res = await submitBooking({
+      widget_token: 'x', customer_first_name: 'Alex', customer_last_name: 'Morgan', customer_email: 'a@example.com',
+      cancellation_deadline: '2027-03-01',
+      products: [
+        { product_id: flight.product_id, quantity: 2, selected_days: ['2027-03-06'], slot_start_time: '09:00' },
+        { product_id: addons[0]!.addon_product_id, quantity: 1 },
+      ],
+      participants: [
+        { first_name: 'Alex', last_name: 'Morgan', service_role_code: 'participant' },
+        { first_name: 'Sam', last_name: 'Morgan', service_role_code: 'participant' },
+      ],
+    } as unknown as SubmitBookingBody)
+    const sum = res.summary!
+    expect(res.booking_id).toBe('demo-booking')
+    expect(sum.product_label).toBe('Tandem flight')
+    expect(sum.dates.label).toContain('09:00')
+    expect(sum.participants.map((p) => p.name)).toEqual(['Alex Morgan', 'Sam Morgan'])
+    expect(sum.line_items.map((l) => l.paid_to)).toEqual(['operator', 'performer'])
+    expect(sum.surcharges?.map((x) => x.label)).toEqual(['Weekend'])
+    expect(sum.savings.map((x) => x.label)).toEqual(['Early bird'])
+    expect(sum.grand_total).toBe('295.00')
+  })
+
   it('serves alternatives from the catalogue, skipping unknown slugs', async () => {
     const [flight] = await listProducts('demo-tandem')
     const alts = await getProductAlternatives(flight.product_id, '2027-03-05', '2027-03-08')

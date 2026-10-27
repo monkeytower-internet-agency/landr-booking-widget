@@ -136,6 +136,10 @@ describe('App in demo mode', () => {
     }
     fireEvent.click(await screen.findByRole('button', { name: /confirm booking/i }))
     expect(await screen.findByTestId('demo-congrats')).toBeInTheDocument()
+    // the real confirmation, with the sample booking overview, under the demo-only text
+    expect(await screen.findByTestId('demo-overview')).toHaveTextContent(/Alpine tandem flight/)
+    expect(screen.getByTestId('demo-overview')).toHaveTextContent('Ada')
+    expect(screen.getByTestId('demo-congrats')).toHaveTextContent(/only a demo/i)
     expect(screen.queryByTestId('demo-congrats-cta')).toHaveAttribute('href', expect.stringContaining('template=tandem'))
     for (const [, init] of (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls) {
       expect((init as RequestInit | undefined)?.method ?? 'GET').toBe('GET')
