@@ -26,11 +26,14 @@ import {
 import { browserLocale, resolveCustomerStageLabel } from '@/lib/locale'
 import { useStaffMode } from '@/lib/staffMode'
 import { formatDayLabel } from './dateLabel'
+import { PassTickets } from './PassTickets'
+import { VerificationStatusPanel } from './VerificationStatusPanel'
 import { PeriodsTable } from './PeriodsTable'
 import { sanitizePostBookingHtml } from './postBookingSanitize'
 import { PriceBreakdown } from './PriceBreakdown'
 import { savingRows } from './savingRows'
-import { formatMoney, splitLineItems } from './priceSidebarHelpers'
+import { PerformerPaySections } from './PerformerPaySections'
+import { formatMoney, groupPerformerLines, splitLineItems } from './priceSidebarHelpers'
 import {
   bookedRefLabel,
   bookedTogetherMemberLabel,
@@ -42,6 +45,7 @@ import {
   ownAccommodationNoRoomLabel,
   sendBookingLinkToLabel,
   tr,
+  fmt,
   holdHeldLabel,
   holdNotHeldLabel,
   holdRequestedLabel,
@@ -51,6 +55,14 @@ import { formatHoldDeadline } from '@/lib/seatHold'
 interface Props {
   response: SubmitBookingResponse
   onRestart: () => void
+  /** Hide the "make another booking" link (demo mode has its own restart CTA). */
+  hideRestart?: boolean
+  /**
+   * The operator's display name (OperatorSettings.name), used in the
+   * "contact <operator> to change your activity" hint. Optional: absent or
+   * blank falls back to the generic "the operator" wording.
+   */
+  operatorName?: string | null
   /**
    * landr-otml0.4: true when the booker chose the shared-double
    * accommodation mode (AccommodationStep) for THIS booking. Threaded
@@ -846,7 +858,8 @@ function SavingsCongratsCard({
  */
 function ConfirmationPriceBreakdown({ summary }: { summary: BookingSummary }) {
   const locale = browserLocale()
-  const { operator, hotel } = splitLineItems(summary.line_items)
+  const { operator, hotel, performer } = splitLineItems(summary.line_items)
+  const performerGroups = groupPerformerLines(performer)
   // landr-1l6hl.5: line items stay list-priced; a special price / offer
   // discount (or a legacy override) is explained as a row, never left as an
   // unexplained gap between the lines and the amount due.
@@ -875,6 +888,8 @@ function ConfirmationPriceBreakdown({ summary }: { summary: BookingSummary }) {
       <PriceBreakdown
         subtotalBeforeSavings={explained?.subtotal ?? summary.subtotal_before_savings}
         savings={explained?.rows ?? summary.savings}
+        surcharges={summary.surcharges}
+        subtotalBeforeSurcharges={summary.subtotal_before_surcharges}
         amountDue={summary.amount_due}
         currency={summary.currency}
         totalLabel={tr('amountDueLabel', locale)}
@@ -903,6 +918,13 @@ function ConfirmationPriceBreakdown({ summary }: { summary: BookingSummary }) {
             </span>
           </div>
         </div>
+      ) : null}
+      {performerGroups.length > 0 ? (
+        <PerformerPaySections
+          groups={performerGroups}
+          currency={summary.currency}
+          testIdPrefix="confirmation"
+        />
       ) : null}
     </div>
   )
@@ -973,8 +995,10 @@ function PostBookingSection({
 export function Confirmation({
   response,
   onRestart,
+  hideRestart = false,
   isSharedDouble,
   shareReferenceEnabled = false,
+  operatorName = null,
 }: Props) {
   const locale = browserLocale()
   /**
@@ -1013,6 +1037,8 @@ export function Confirmation({
   // section below built from it (steps 3/4/5/7) is skipped wholesale in
   // that case, rendering exactly today's content (graceful degrade).
   const summary = response.summary ?? null
+  const changeHintOperator =
+    operatorName?.trim() || summary?.operator_name?.trim() || null
   const showCongrats =
     summary !== null && !staff.active && !summary.price_overridden &&
     summary.multi_day_savings !== null
@@ -1038,6 +1064,10 @@ export function Confirmation({
   // either succeeded or has its own notice), so the hint would be redundant.
   const showSharedDoubleHint =
     Boolean(isSharedDouble) && !response.group && !response.join_error
+
+  // A EUR 0 booking has nothing to pay: no payment note ("pay on site",
+  // "payment link on its way") applies to it.
+  const isFreeBooking = summary !== null && Number(summary.grand_total) === 0
 
   return (
     <Card>
@@ -1122,6 +1152,12 @@ export function Confirmation({
         ) : null}
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
+        {response.pass_tickets?.length ? (
+          <PassTickets tickets={response.pass_tickets} />
+        ) : null}
+        {response.verification && !staff.active ? (
+          <VerificationStatusPanel initial={response.verification} locale={locale} />
+        ) : null}
         {emailStatusKind === 'failed' ? (
           /*
            * landr-y31z: amber notice when the confirmation email could not
@@ -1180,7 +1216,7 @@ export function Confirmation({
           // outright — no "awaiting" language, no raw semantic_state.
           <p className="text-sm">
             {tr('bookingConfirmedInboxNote', locale)}
-            {paymentModeNote(response, locale) ? (
+            {!isFreeBooking && paymentModeNote(response, locale) ? (
               <span data-testid="confirmation-payment-mode-note">
                 {' '}
                 {paymentModeNote(response, locale)}
@@ -1274,6 +1310,19 @@ export function Confirmation({
           <SharedDoubleHint customerPageUrl={response.customer_page_url} />
         ) : null}
 
+        {/* Customers cannot swap the booked activity themselves — only the
+            operator can. Customer-facing only (staff bookings omit it). */}
+        {!staff.active ? (
+          <p
+            className="text-sm text-muted-foreground"
+            data-testid="confirmation-change-activity-hint"
+          >
+            {changeHintOperator
+              ? fmt(tr('changeActivityHint', locale), { operator: changeHintOperator })
+              : tr('changeActivityHintNoOperator', locale)}
+          </p>
+        ) : null}
+
         {/*
           landr-3vr5 + landr-acew: "Add to calendar" group.
 
@@ -1342,11 +1391,13 @@ export function Confirmation({
         {/* landr-nva1a.4 step 8: "Make another booking" demoted to a small
             link-style affordance at the very bottom — it used to be an
             outline button competing with the calendar/CTA group above it. */}
-        <div>
-          <Button type="button" variant="link" size="sm" onClick={onRestart}>
-            {tr('makeAnotherBookingLink', locale)}
-          </Button>
-        </div>
+        {hideRestart ? null : (
+          <div>
+            <Button type="button" variant="link" size="sm" onClick={onRestart}>
+              {tr('makeAnotherBookingLink', locale)}
+            </Button>
+          </div>
+        )}
       </CardContent>
     </Card>
   )

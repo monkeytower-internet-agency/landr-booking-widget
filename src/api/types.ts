@@ -21,7 +21,22 @@ import type { FormResponseEntry } from '@/api/flowTypes'
  * Supabase directly) instead of hand-declared, so drift between the DB enum
  * and this wire type is caught by tsc.
  */
-export type ProductKind = Enums<'product_kind'>
+export type ProductKind = Enums<'product_kind'> | 'stay'
+
+/**
+ * A standalone stay's booking rules (`Product.stay`, present only when
+ * product_kind = 'stay'): min / max nights, the one-off cleaning fee in
+ * cents, check-in / check-out ("HH:MM", operator-local) and how many guests
+ * one unit sleeps. The nightly rate is the product's `price_from`.
+ *
+ * `'stay'` is added to ProductKind by hand until database.gen.ts is
+ * regenerated against a schema that carries the new enum value.
+ */
+export type StayConfig = components['schemas']['StayConfig']
+/** The stay half of an estimate (window, nights, cleaning fee, broken rules). */
+export type StayEstimate = components['schemas']['StayEstimate']
+/** What an add-on's price multiplies by. */
+export type AddonPriceUnit = 'booking' | 'night' | 'stay' | 'guest' | 'guest_night'
 
 /**
  * How a service product offers hotel accommodation alongside the booking
@@ -46,6 +61,35 @@ export type ServiceTimeShape =
   | 'days_range'
   | 'fixed_window'
   | 'time_slot'
+
+/** One bookable fixed-window course of an alternative product. */
+export interface AlternativeWindow {
+  id: string
+  start_date: string
+  end_date: string
+  available_seats: number
+  label?: string | null
+}
+
+/**
+ * One linked alternative of a product, from
+ * `GET /api/public/products/{id}/alternatives`. Day-shaped alternatives carry
+ * `available_dates` (ISO days with enough seats for the requested party);
+ * `fixed_window` ones carry `windows`. The other field is null.
+ */
+export interface ProductAlternative {
+  product_id: string
+  slug: string
+  name: string
+  name_localized?: Record<string, unknown> | null
+  service_time_shape: ServiceTimeShape
+  thumb_url?: string | null
+  /** Decimal string, e.g. "89.00". */
+  price_from?: string | null
+  currency?: string | null
+  available_dates?: string[] | null
+  windows?: AlternativeWindow[] | null
+}
 
 export interface FixedDateWindow {
   id: string
@@ -155,6 +199,8 @@ export interface Product {
   short_description: string | null
   short_description_localized: Record<string, string> | null
   description: string | null
+  /** Per-locale long description; absent on older APIs (landr-5wwuq.2). */
+  description_localized?: Record<string, string> | null
   /**
    * What the operator sells (landr-glx). The booking flow renders a shop-stub
    * for any kind other than 'service'.
@@ -190,6 +236,8 @@ export interface Product {
    * additional-participants UI.
    */
   max_party_size?: number | null
+  /** Standalone stay rules — present only on a product_kind = 'stay' row. */
+  stay?: StayConfig | null
   /**
    * landr-zy2wm.2: WIDGET-DERIVED, not on the wire. Set by listProducts when
    * the operator has exactly one pickup location: the flow plan then drops
@@ -305,6 +353,19 @@ export interface Product {
    */
   price_from?: string | null
   /**
+   * landr-bwm91.3: the BASE rate (price_from before discounts counted) —
+   * the first item of the product page's price notes. Optional: absent on
+   * an older API, where the base item is simply omitted.
+   */
+  price_base?: string | null
+  /**
+   * landr-bwm91.4: the visible price adjustments of the default price list
+   * (surcharges first, then discounts; hidden surcharges never appear).
+   * Optional/empty = nothing to show. Labels are rendered client-side from
+   * the structured fields so they follow the customer's locale.
+   */
+  price_notes?: components['schemas']['PriceNote'][]
+  /**
    * landr-4a5j: the soonest upcoming product_fixed_date_windows row for
    * this product (start_date >= today, still bookable — active, not
    * soft-deleted, not full), as ISO date strings ("YYYY-MM-DD"). Both
@@ -410,6 +471,32 @@ export interface Product {
    * API) is treated as false.
    */
   share_reference_enabled?: boolean | null
+  /**
+   * Registration with organizer verification: the customer
+   * uploads a licence + insurance proof and signs a waiver; the booking waits
+   * "pending" until the organizer confirms. Optional for the rolling-deploy
+   * window — absent (an older API) is treated as false.
+   */
+  requires_verification?: boolean | null
+  /** Max seats per day (null / absent = no cap). The calendar already shows a full day via available_seats. */
+  daily_cap?: number | null
+  /** The waiver the customer signs, keyed by language (de / en). */
+  waiver_text_localized?: Record<string, string> | null
+  /**
+   * A recurring weekly event window (e.g. Thursday to Sunday) and its next
+   * occurrences, rolled forward by the server. The calendar already offers only
+   * those days (they are the only open ones); this is for labels and the demo.
+   * Absent / null = no window. ISO weekdays 1..7.
+   */
+  event_window?: EventWindow | null
+}
+
+export interface EventWindow {
+  start_weekday: number
+  end_weekday: number
+  cutoff_hours: number | null
+  horizon_n: number
+  occurrences: { start_date: string; end_date: string }[]
 }
 
 /**
@@ -485,6 +572,12 @@ export interface OperatorSettings {
    */
   country?: string | null
   /**
+   * landr-8ht3m.9: operator's IANA timezone (e.g. 'Europe/Berlin'). Start
+   * times are authored in it, so "today"/"now" for the time picker are read
+   * there. Optional: absent = fall back to the browser clock.
+   */
+  timezone?: string | null
+  /**
    * landr-ens5 — the operator's 3-colour brand theme (brand/accent/
    * background, + optional dark overrides). When present it supersedes
    * primary_color and drives --background / --foreground / --brand /
@@ -530,6 +623,16 @@ export interface OperatorSettings {
    * the logo" so an older API deploy renders byte-identically to today.
    */
   widget_show_logo?: boolean
+  /**
+   * Operator setting: offer "Add more to this booking" on the last step.
+   * Optional for rolling deploy: absent/undefined means on (today's behaviour).
+   */
+  widget_cross_sell_enabled?: boolean
+  /**
+   * Product ids the cross-sell may offer; empty or absent = every eligible
+   * product.
+   */
+  widget_cross_sell_product_ids?: string[]
   /**
    * landr-atwy — per-operator opt-in for the post-booking "Track this
    * booking in the LANDR app" account-link prompt. Default false: the
@@ -741,6 +844,11 @@ export type Hotel = Location
  * booking_products line item — the existing public_submit_booking RPC
  * already iterates products[] so no API change is needed for submit.
  */
+export type AddonQuantityRule =
+  | 'one_per_booking'
+  | 'one_per_participant'
+  | 'any'
+
 export interface ProductAddon {
   product_addon_id: string
   addon_product_id: string
@@ -753,8 +861,9 @@ export interface ProductAddon {
   sort_order: number
   /**
    * Display per-unit price (per night for hotel_room kind, per slot/line
-   * for service kind). NULL when the add-on's scheme uses tiers/fixed_total
-   * without a per_day_base rule — widget falls back to "Included on request".
+   * for service kind): the add-on's standard price, resolved from any rule
+   * kind (per_day_base / fixed_total / per_participant_tier). NULL only when
+   * the add-on has no priced scheme — widget then shows "Price on request".
    */
   price_per_unit: number | null
   currency: string | null
@@ -767,6 +876,17 @@ export interface ProductAddon {
    * special-case the slug/name (e.g. 'breakfast') instead of this field.
    */
   product_kind: ProductKind
+  /**
+   * How many of this add-on one booking may take, set once on the add-on
+   * product: 'one_per_booking' (1), 'one_per_participant' (the guiding
+   * participants) or 'any' (unlimited, or `addon_quantity_max`). Absent /
+   * null reads as 'any'. Room-tied add-ons ('hotel_room') ignore it — their
+   * quantity follows the room's occupancy. `max_qty` above stays an extra,
+   * tighter cap.
+   */
+  addon_quantity_rule?: AddonQuantityRule | null
+  /** Optional cap under 'any'; null/absent = unlimited. */
+  addon_quantity_max?: number | null
   /**
    * landr-lmudr.10: stock verdict, present when the add-ons were fetched
    * WITH the booking's days + party size (getProductAddons' `stock`). false
@@ -788,6 +908,12 @@ export interface ProductAddon {
   stock_remaining?: number | null
   /** landr-lmudr.19: the operator's word for one unit ("raft") for 'unit_taken'. */
   stock_unit_label?: string | null
+  /**
+   * What the price multiplies by: 'night' × nights (booked days on an
+   * activity), 'guest' × guests, 'guest_night' × both; 'booking' / 'stay'
+   * (and absent, on an older API) = once per item.
+   */
+  price_unit?: AddonPriceUnit | null
 }
 
 export interface AvailabilitySlot {
@@ -1053,6 +1179,55 @@ export interface ProductLine {
    * `product_availability_id`.
    */
   slot_start_time?: string | null
+  /**
+   * the pass tier bought on a product_kind='pass' line. The API
+   * validates it, computes the validity window from selected_days[0] (the start
+   * date; ignored for a season tier) and prices the line from the tier.
+   */
+  pass_tier_id?: string | null
+}
+
+/** how long a pass tier is valid. */
+export type PassValidityKind = 'day' | 'days' | 'week' | 'season'
+
+/** One sellable tier of a pass product (GET .../pass-tiers). */
+export interface PassTier {
+  id: string
+  label: string
+  validity_kind: PassValidityKind
+  validity_days: number | null
+  season_start: string | null
+  season_end: string | null
+  /** Guest price in cents. */
+  price_cents: number
+  /** True when the tier has a cheaper member price. */
+  has_member_price: boolean
+  /** The member amount; only present for a verified member. */
+  member_price_cents: number | null
+  /** What the caller pays per pass: member price for a verified member, else guest. */
+  unit_price_cents: number
+}
+
+export interface PassTiersResponse {
+  product_id: string
+  currency: string
+  is_member: boolean
+  tiers: PassTier[]
+}
+
+export interface PassMemberProofResponse {
+  member_proof: string
+  expires_in: number
+}
+
+/** A pass QR ticket on the submit response (one per guest). */
+export interface PassTicket {
+  participant_id: string
+  first_name: string
+  png_url: string
+  pass_label: string
+  valid_from: string
+  valid_until: string
 }
 
 /**
@@ -1087,6 +1262,8 @@ export interface SubmitBookingBody {
   cancellation_deadline: string
   voucher_code?: string | null
   campaign_id?: string | null
+  /** Product the guest switched away from via the alternatives panel (hint; API validates). */
+  via_alternative_of?: string | null
   /**
    * landr-fn4i / landr-5krc: one-time subscription-perk code the customer
    * typed into the optional inline field DetailsStep shows after
@@ -1097,6 +1274,14 @@ export interface SubmitBookingBody {
    * signal, and only after this submit resolves.
    */
   member_perk_otp?: string | null
+  /**
+   * stateless proof from POST .../passes/member-proof that the
+   * booker is a member; selects the member price of a pass tier. Absent or
+   * expired falls back to the guest price, never a 4xx.
+   */
+  pass_member_proof?: string | null
+  /** The signed waiver of a verified registration. */
+  verification?: VerificationWaiver
   booking_channel?: string
   products: ProductLine[]
   participants: Participant[]
@@ -1314,10 +1499,20 @@ export interface BookingCalendarEvent {
   description?: string | null
   /** Location string, typically the operator name or venue. */
   location?: string | null
+  /**
+   * set for a stay only. 'HH:MM' check-in / check-out wall
+   * clock in `timezone` (IANA); `end_date` is then the check-out DAY. The
+   * deep links become timed events; absent -> all-day, as before.
+   */
+  start_time?: string | null
+  end_time?: string | null
+  timezone?: string | null
 }
 
 export interface SubmitBookingResponse {
   booking_id: string
+  /** present when the cart held a pass — one QR ticket per guest. */
+  pass_tickets?: PassTicket[]
   /**
    * Booking lifecycle state, e.g. 'pending'. This is the API's
    * `semantic_state` field — the previous `state` name never existed on
@@ -1436,7 +1631,32 @@ export interface SubmitBookingResponse {
    * simply omit the link when absent, per the epic D6/D5 contract.
    */
   customer_page_url?: string | null
+  /**
+   * Present only when a booked product requires verification. The
+   * upload_token is a scoped token that opens this verification and nothing else.
+   */
+  verification?: VerificationState | null
 }
+
+/** The customer's signed waiver, sent with the booking. */
+export interface VerificationWaiver {
+  waiver_accepted: boolean
+  waiver_signature_name: string
+  waiver_locale?: string | null
+}
+
+export type VerificationStatus = 'pending' | 'approved' | 'rejected'
+
+/** Verification progress as the customer may see it. */
+export interface VerificationState {
+  status: VerificationStatus
+  licence_uploaded: boolean
+  insurance_uploaded: boolean
+  note?: string | null
+  upload_token?: string | null
+}
+
+export type VerificationFileKind = 'licence' | 'insurance'
 
 /**
  * landr-otml0.1 (API) — GET /api/public/invites/{token}. Strict allowlist on
@@ -1685,6 +1905,8 @@ export interface BookingSummary {
   line_items: EstimateLineItem[]
   operator_total: string
   hotel_total: string
+  /** landr-hzovu.5: absent on an older API. */
+  performer_total?: string
   grand_total: string
   currency: string
   savings: SavingLine[]
@@ -1692,6 +1914,10 @@ export interface BookingSummary {
   subtotal_before_savings: string
   amount_due: string
   multi_day_savings: MultiDaySavings | null
+  /** landr-fcoh2: see EstimateResponse.surcharges. Absent on an older API. */
+  surcharges?: SurchargeLine[] | null
+  surcharges_total?: string | null
+  subtotal_before_surcharges?: string | null
   /**
    * True when an operator price override replaced the engine price:
    * `amount_due` is then the override and `savings` is empty — the
@@ -1723,7 +1949,8 @@ export interface BookingSummary {
  * POST /api/public/operators/{slug}/products/{id}/estimate (landr-xbqh).
  * `paid_to` mirrors revenue_flows_through_operator: 'operator' means the
  * customer pays the operator at checkout; 'hotel' means the customer
- * settles directly with the hotel on arrival.
+ * settles directly with the hotel on arrival; 'performer' (landr-hzovu.5)
+ * means the customer pays the pilot / guide on the day.
  *
  * landr-y3oj.3 codegen note: NOT sourced from the generated
  * `components['schemas']['EstimateLineItem']` (src/types/api.gen.ts). The
@@ -1743,7 +1970,19 @@ export interface EstimateLineItem {
   unit_price: string
   /** Total gross for the line (qty × unit pricing) as a decimal string. */
   line_total: string
-  paid_to: 'operator' | 'hotel'
+  paid_to: 'operator' | 'hotel' | 'performer'
+  /**
+   * landr-hzovu.5: performer lines only — the bare noun for who the customer
+   * pays on the day ("Tandem pilot"; the API falls back to "guide"). Absent
+   * on an older API and on operator/hotel lines.
+   */
+  payee_label?: string | null
+  /** landr-hzovu.5: operator override text replacing the standard caveat. */
+  payment_note?: string | null
+  /** An add-on's price unit when it is not once per item; `units` is then nights / guests / both. */
+  price_unit?: Exclude<AddonPriceUnit, 'booking'> | null
+  /** A stay line's one-off cleaning fee (decimal string), inside line_total but not unit_price. */
+  cleaning_fee?: string | null
 }
 
 /**
@@ -1792,7 +2031,18 @@ export interface EstimateRequestBody {
    * widget builds omit it and the API falls back to 'en'.
    */
   locale?: string
+  /**
+   * landr-k9pji.25: the picked slot of the main product, so a start-time
+   * price (early-morning discount, sunset surcharge) is quoted exactly as
+   * submit charges it. Same meaning as the submit line's fields; omitted
+   * when nothing is picked (older APIs ignore them).
+   */
+  product_availability_id?: string
+  slot_start_time?: string
 }
+
+/** landr-k9pji.25: the slot half of an estimate request (see EstimateRequestBody). */
+export type EstimateSlotFields = Pick<EstimateRequestBody, 'product_availability_id' | 'slot_start_time'>
 
 /**
  * One "− <label>  <amount>" row of a customer-facing price breakdown
@@ -1818,6 +2068,21 @@ export interface SavingLine {
     | 'price_override'
   label: string
   amount: string
+  /** landr-soewf: the operator's explanation of a named weekday / start-time price, in the request locale. */
+  description?: string | null
+}
+
+/**
+ * landr-fcoh2: one "+ <label>  <amount>" row — a price-raising slot / weekday /
+ * time-of-day step (weekend surcharge, sundowner). `label` is localized
+ * server-side; `amount` is a positive decimal string.
+ */
+export interface SurchargeLine {
+  kind: 'surcharge'
+  label: string
+  amount: string
+  /** landr-soewf: the operator's explanation of a named weekday / start-time price, in the request locale. */
+  description?: string | null
 }
 
 /**
@@ -1849,6 +2114,8 @@ export interface EstimateResponse {
   operator_total: string
   /** Decimal string. Sum of line_items where paid_to='hotel'. */
   hotel_total: string
+  /** landr-hzovu.5: Decimal string. Sum of line_items where paid_to='performer'. Absent on an older API. */
+  performer_total?: string
   /** Decimal string. operator_total + hotel_total. */
   grand_total: string
   currency: string
@@ -1890,6 +2157,19 @@ export interface EstimateResponse {
   subtotal_before_savings?: string | null
   amount_due?: string | null
   multi_day_savings?: MultiDaySavings | null
+  /**
+   * landr-fcoh2: itemised surcharges; `subtotal_before_surcharges` +
+   * `surcharges_total` === `subtotal_before_savings`. Absent on an older API.
+   */
+  surcharges?: SurchargeLine[] | null
+  surcharges_total?: string | null
+  subtotal_before_surcharges?: string | null
+  /**
+   * Present only when the product is a stay: check-in / check-out, nights,
+   * the cleaning fee and every rule the range breaks (`errors`, the same
+   * codes the submit refuses with). Checkout is blocked while errors exist.
+   */
+  stay?: StayEstimate | null
 }
 
 // ─── Hotel room-request reply loop (landr-em0r / landr-em0r.9) ──────────────

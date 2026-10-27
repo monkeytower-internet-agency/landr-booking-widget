@@ -23,6 +23,8 @@
  * so every helper here degrades on malformed input rather than raising.
  */
 
+import { pickBundle, resolveUiLanguage } from '@/lib/strings'
+
 /** Party-member index → assigned ISO 639-1 language code. */
 export type ParticipantLanguageMap = Record<number, string>
 
@@ -141,14 +143,145 @@ const LANGUAGE_NAMES_DE: Record<string, string> = {
   zh: 'Chinesisch',
 }
 
-// landr-5aih0.17: one shared Intl.DisplayNames('de', …) instance — cheap to
-// construct but no reason to rebuild it on every languageName() call in a
-// list. `undefined` when the runtime predates Intl.DisplayNames (falls back
-// to LANGUAGE_NAMES_DE below).
-const GERMAN_LANGUAGE_DISPLAY_NAMES: Intl.DisplayNames | undefined =
-  typeof Intl !== 'undefined' && typeof Intl.DisplayNames === 'function'
-    ? new Intl.DisplayNames(['de'], { type: 'language' })
-    : undefined
+/** landr-8r6oc.4: Spanish fallback table (same codes/order as LANGUAGE_NAMES). Capitalised like the German and Turkish names so headings read the same everywhere. */
+const LANGUAGE_NAMES_ES: Record<string, string> = {
+  ar: 'Árabe',
+  bg: 'Búlgaro',
+  bs: 'Bosnio',
+  ca: 'Catalán',
+  cs: 'Checo',
+  da: 'Danés',
+  de: 'Alemán',
+  el: 'Griego',
+  en: 'Inglés',
+  es: 'Español',
+  et: 'Estonio',
+  eu: 'Euskera',
+  fi: 'Finés',
+  fr: 'Francés',
+  ga: 'Irlandés',
+  gl: 'Gallego',
+  he: 'Hebreo',
+  hi: 'Hindi',
+  hr: 'Croata',
+  hu: 'Húngaro',
+  id: 'Indonesio',
+  is: 'Islandés',
+  it: 'Italiano',
+  ja: 'Japonés',
+  ko: 'Coreano',
+  lt: 'Lituano',
+  lv: 'Letón',
+  mk: 'Macedonio',
+  nl: 'Neerlandés',
+  no: 'Noruego',
+  pl: 'Polaco',
+  pt: 'Portugués',
+  ro: 'Rumano',
+  ru: 'Ruso',
+  sk: 'Eslovaco',
+  sl: 'Esloveno',
+  sq: 'Albanés',
+  sr: 'Serbio',
+  sv: 'Sueco',
+  th: 'Tailandés',
+  tr: 'Turco',
+  uk: 'Ucraniano',
+  vi: 'Vietnamita',
+  zh: 'Chino',
+}
+
+/** landr-5wwuq.3: Italian fallback table (same codes/order as LANGUAGE_NAMES). */
+const LANGUAGE_NAMES_IT: Record<string, string> = {
+  ar: 'Arabo', bg: 'Bulgaro', bs: 'Bosniaco', ca: 'Catalano', cs: 'Ceco', da: 'Danese',
+  de: 'Tedesco', el: 'Greco', en: 'Inglese', es: 'Spagnolo', et: 'Estone', eu: 'Basco',
+  fi: 'Finlandese', fr: 'Francese', ga: 'Irlandese', gl: 'Galiziano', he: 'Ebraico', hi: 'Hindi',
+  hr: 'Croato', hu: 'Ungherese', id: 'Indonesiano', is: 'Islandese', it: 'Italiano',
+  ja: 'Giapponese', ko: 'Coreano', lt: 'Lituano', lv: 'Lettone', mk: 'Macedone',
+  nl: 'Olandese', no: 'Norvegese', pl: 'Polacco', pt: 'Portoghese', ro: 'Rumeno', ru: 'Russo',
+  sk: 'Slovacco', sl: 'Sloveno', sq: 'Albanese', sr: 'Serbo', sv: 'Svedese', th: 'Thailandese',
+  tr: 'Turco', uk: 'Ucraino', vi: 'Vietnamita', zh: 'Cinese',
+}
+
+/** landr-8r6oc.4: Turkish fallback table (same codes/order as LANGUAGE_NAMES). */
+const LANGUAGE_NAMES_TR: Record<string, string> = {
+  ar: 'Arapça',
+  bg: 'Bulgarca',
+  bs: 'Boşnakça',
+  ca: 'Katalanca',
+  cs: 'Çekçe',
+  da: 'Danca',
+  de: 'Almanca',
+  el: 'Yunanca',
+  en: 'İngilizce',
+  es: 'İspanyolca',
+  et: 'Estonca',
+  eu: 'Baskça',
+  fi: 'Fince',
+  fr: 'Fransızca',
+  ga: 'İrlandaca',
+  gl: 'Galiçyaca',
+  he: 'İbranice',
+  hi: 'Hintçe',
+  hr: 'Hırvatça',
+  hu: 'Macarca',
+  id: 'Endonezce',
+  is: 'İzlandaca',
+  it: 'İtalyanca',
+  ja: 'Japonca',
+  ko: 'Korece',
+  lt: 'Litvanca',
+  lv: 'Letonca',
+  mk: 'Makedonca',
+  nl: 'Felemenkçe',
+  no: 'Norveççe',
+  pl: 'Lehçe',
+  pt: 'Portekizce',
+  ro: 'Romence',
+  ru: 'Rusça',
+  sk: 'Slovakça',
+  sl: 'Slovence',
+  sq: 'Arnavutça',
+  sr: 'Sırpça',
+  sv: 'İsveççe',
+  th: 'Tayca',
+  tr: 'Türkçe',
+  uk: 'Ukraynaca',
+  vi: 'Vietnamca',
+  zh: 'Çince',
+}
+
+/** Fallback tables for the `Intl.DisplayNames` path, by UI language (English uses LANGUAGE_NAMES). */
+const LANGUAGE_NAMES_BY_UI: Record<string, Record<string, string>> = {
+  de: LANGUAGE_NAMES_DE,
+  es: LANGUAGE_NAMES_ES,
+  it: LANGUAGE_NAMES_IT,
+  tr: LANGUAGE_NAMES_TR,
+}
+
+// landr-5aih0.17 / landr-8r6oc.4: one shared Intl.DisplayNames instance per UI
+// language — cheap to construct but no reason to rebuild it on every
+// languageName() call in a list. Missing when the runtime predates
+// Intl.DisplayNames (falls back to the tables above).
+const DISPLAY_NAMES_BY_UI: Record<string, Intl.DisplayNames | undefined> = {}
+function displayNamesFor(ui: string): Intl.DisplayNames | undefined {
+  if (!(ui in DISPLAY_NAMES_BY_UI)) {
+    try {
+      DISPLAY_NAMES_BY_UI[ui] =
+        typeof Intl !== 'undefined' && typeof Intl.DisplayNames === 'function'
+          ? new Intl.DisplayNames([ui], { type: 'language' })
+          : undefined
+    } catch {
+      DISPLAY_NAMES_BY_UI[ui] = undefined
+    }
+  }
+  return DISPLAY_NAMES_BY_UI[ui]
+}
+
+/** CLDR spells Spanish language names lower-case ("alemán"); the widget shows them as headings and chips, so capitalise like German/Turkish. */
+function capitalizeFirst(text: string, locale: string): string {
+  return text.charAt(0).toLocaleUpperCase(locale) + text.slice(1)
+}
 
 /**
  * ISO 639-1 → a representative flag emoji. A language is not a country, so
@@ -208,19 +341,19 @@ const NEUTRAL_FLAG = '🌐'
  * pre-existing call site (including languageBoardDrop.ts's dnd-kit
  * screen-reader announcer sentences, which stay English by decision) is
  * unchanged unless it explicitly opts in to the customer's resolved locale.
- * The German branch prefers `Intl.DisplayNames('de', {type:'language'})`
- * (broad CLDR coverage — every ISO 639-1 code this widget could ever see,
- * not just the 35 in the fallback table) and only falls back to
- * LANGUAGE_NAMES_DE when the runtime lacks Intl.DisplayNames or it returns
+ * Non-English UI languages (de, es, tr) prefer `Intl.DisplayNames(ui,
+ * {type:'language'})` (broad CLDR coverage — every ISO 639-1 code this widget
+ * could ever see, not just the 44 in the fallback tables) and only fall back
+ * to the per-language table when the runtime lacks Intl.DisplayNames or it returns
  * the bare code unchanged (its own "I don't know this one" signal).
  */
 export function languageName(code: string, locale?: string): string {
   const key = String(code ?? '').toLowerCase()
-  const base = (locale ?? '').trim().toLowerCase().split(/[-_]/)[0]
-  if (base === 'de') {
-    const fromIntl = GERMAN_LANGUAGE_DISPLAY_NAMES?.of(key)
-    if (fromIntl && fromIntl.toLowerCase() !== key) return fromIntl
-    return LANGUAGE_NAMES_DE[key] ?? key.toUpperCase()
+  const ui = resolveUiLanguage(locale)
+  if (ui !== 'en') {
+    const fromIntl = displayNamesFor(ui)?.of(key)
+    if (fromIntl && fromIntl.toLowerCase() !== key) return capitalizeFirst(fromIntl, ui)
+    return LANGUAGE_NAMES_BY_UI[ui]?.[key] ?? key.toUpperCase()
   }
   return LANGUAGE_NAMES[key] ?? key.toUpperCase()
 }
@@ -306,15 +439,15 @@ export function productDisplayLanguages(raw: unknown): string[] {
 /**
  * landr-pv2r1 (E4) — natural-language list: "English", "English and
  * German", "English, Spanish and German" ("Englisch", "Englisch und
- * Deutsch", "Englisch, Spanisch und Deutsch" for German). Used for the
+ * Deutsch", "Englisch, Spanisch und Deutsch" for German; "y" for Spanish,
+ * "ve" for Turkish). Used for the
  * languages chip/fact labels. `locale` defaults to English, same as
  * `languageName` above.
  */
 export function joinLanguageNames(codes: readonly string[], locale?: string): string {
   const names = codes.map((code) => languageName(code, locale))
   if (names.length <= 1) return names.join('')
-  const base = (locale ?? '').trim().toLowerCase().split(/[-_]/)[0]
-  const and = base === 'de' ? 'und' : 'and'
+  const and = pickBundle(locale).listAndWord
   return `${names.slice(0, -1).join(', ')} ${and} ${names[names.length - 1]}`
 }
 

@@ -60,16 +60,47 @@ export function clampAddonQty(
   addon: ProductAddon,
   qty: number,
   occupancyCap?: number,
+  participantCount?: number,
 ): number {
   const floor = 0
   const maxQtyCeiling = addon.max_qty ?? Number.POSITIVE_INFINITY
   // landr-lmudr.32: never more than the stock left on the chosen days.
   const stockCeiling = addonStockCeiling(addon)
-  const ceiling =
-    occupancyCap !== undefined
-      ? Math.min(maxQtyCeiling, occupancyCap, stockCeiling)
-      : Math.min(maxQtyCeiling, stockCeiling)
+  // landr-hzovu.2: the add-on's own "how many per booking" rule.
+  const ruleCeiling = addonRuleCeiling(addon, participantCount)
+  const ceiling = Math.min(
+    maxQtyCeiling,
+    stockCeiling,
+    ruleCeiling,
+    occupancyCap ?? Number.POSITIVE_INFINITY,
+  )
   return Math.min(ceiling, Math.max(floor, qty))
+}
+
+/**
+ * landr-hzovu.2: the most of this add-on its quantity rule allows —
+ * one_per_booking -> 1, one_per_participant -> the guiding participants
+ * (at least 1; unbounded while the count is unknown, the API still
+ * enforces it), any -> addon_quantity_max or unbounded. Room-tied add-ons
+ * (hotel_room) are bounded by room occupancy instead, never by the rule.
+ */
+export function addonRuleCeiling(
+  addon: Partial<
+    Pick<ProductAddon, 'product_kind' | 'addon_quantity_rule' | 'addon_quantity_max'>
+  >,
+  participantCount?: number,
+): number {
+  if (addon.product_kind === 'hotel_room') return Number.POSITIVE_INFINITY
+  switch (addon.addon_quantity_rule) {
+    case 'one_per_booking':
+      return 1
+    case 'one_per_participant':
+      return participantCount === undefined
+        ? Number.POSITIVE_INFINITY
+        : Math.max(1, participantCount)
+    default:
+      return addon.addon_quantity_max ?? Number.POSITIVE_INFINITY
+  }
 }
 
 /**
@@ -169,10 +200,14 @@ export function addonUnavailableMessage(
  */
 export function withoutSoldOut(
   selection: Record<string, number>,
-  addons: readonly Pick<
+  addons: readonly (Pick<
     ProductAddon,
     'addon_product_id' | 'available' | 'stock_remaining'
-  >[],
+  > &
+    Partial<
+      Pick<ProductAddon, 'product_kind' | 'addon_quantity_rule' | 'addon_quantity_max'>
+    >)[],
+  participantCount?: number,
 ): Record<string, number> {
   let next: Record<string, number> | null = null
   for (const a of addons) {
@@ -183,8 +218,12 @@ export function withoutSoldOut(
       delete next[id]
       continue
     }
-    // landr-lmudr.32: a restored pick above the stock left is trimmed to it.
-    const ceiling = addonStockCeiling(a)
+    // landr-lmudr.32: a restored pick above the stock left is trimmed to it;
+    // landr-hzovu.2: likewise above what the add-on's quantity rule allows.
+    const ceiling = Math.min(
+      addonStockCeiling(a),
+      addonRuleCeiling(a, participantCount),
+    )
     if (selection[id] > ceiling) {
       next ??= { ...selection }
       if (ceiling > 0) next[id] = ceiling

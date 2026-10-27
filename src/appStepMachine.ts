@@ -25,10 +25,13 @@ import type {
   CompanionDetails,
   ParticipantDetails,
 } from '@/components/booking/detailsTypes'
+import { hasFixedStartTimes } from '@/components/booking/slotKey'
+import { maxPartySize, seatsNeeded } from '@/lib/seatHold'
 import type { Product, ProductGroup, SubmitBookingResponse } from '@/api/types'
 import type { FormResponseEntry, ProductFlowResponse } from '@/api/flowTypes'
 import {
   buildFlowPlan,
+  isBookableKind,
   planHasParticipantsFirst,
   productHasHotelOffering,
   type FlowModule,
@@ -200,7 +203,17 @@ export type Step =
   // back affordance). The date pickers re-seed from it so the customer sees and
   // can edit their prior choice instead of starting from scratch. Undefined on
   // the initial forward visit (no prior selection to restore).
-  | { name: 'pick-selection'; product: Product; selection?: BookingSelection }
+  | {
+      name: 'pick-selection'
+      product: Product
+      selection?: BookingSelection
+      /**
+       * Set when the customer arrived by tapping an "Also available" row on
+       * another product's date step: the day (and start time) to preselect on a
+       * picker that cannot be seeded from a `selection`.
+       */
+      carry?: AlternativeCarry
+    }
   // landr-7jgo: a single-product deep link (?product=<slug>) that resolved to
   // a SOLD-OUT product. The product is always rendered (informational "Fully
   // booked" state), but with NO date picker and NO Select CTA — there is
@@ -231,6 +244,11 @@ export type Step =
       participants?: ParticipantDetails[]
       // landr-87n9.3: non-guiding companions carry over on Back-restore.
       companions?: CompanionDetails[]
+      /**
+       * A day/start time carried over from an "Also available" switch while
+       * participants run first: handed on to the dates step that follows.
+       */
+      carry?: AlternativeCarry
     }
   // landr-yf0n: optional initialHotelLocationId / accommodationRooms /
   // addons / includeHotel let AccommodationStep re-seed its internal
@@ -1217,7 +1235,9 @@ export function sidebarInputsForStep(
     case 'fully-booked':
       return null
     case 'pick-selection':
-      if (step.product.product_kind !== 'service') return null
+      // A stay prices like a service: the sidebar shows nights × rate once
+      // the range is picked (the live days are the night list).
+      if (!isBookableKind(step.product.product_kind)) return null
       return {
         product: step.product,
         selectedDays: [],
@@ -1571,6 +1591,7 @@ export function detailsFromDraft(
   // no dates are committed yet.
   selection: BookingSelection | undefined,
   draft: BookingDraft | undefined,
+  carry?: AlternativeCarry,
 ): Extract<Step, { name: 'details' }> {
   return {
     name: 'details',
@@ -1579,6 +1600,7 @@ export function detailsFromDraft(
     booker: draft?.booker,
     participants: draft?.participants,
     companions: draft?.companions,
+    ...(carry ? { carry } : {}),
   }
 }
 
@@ -1741,4 +1763,115 @@ export function buildBreadcrumb(
         : (BREADCRUMB_LABELS[s.name] ?? s.name)
     return { name: s.name, label, current, target: current ? null : s }
   })
+}
+
+/** Day and start time carried onto a time-slot picker when switching product. */
+export interface AlternativeCarry {
+  date?: string
+  startTime?: string
+}
+
+export interface AlternativeSwitchArgs {
+  target: Product
+  /** Days picked on the product being left (empty when none yet). */
+  days: string[]
+  /** A course row's window, when the tapped row was one. */
+  windowId?: string
+  /** Start time picked on the product being left, if it was a time-slot one. */
+  startTime?: string | null
+}
+
+/**
+ * Tapping an "Also available" row: the date step of the other product with the
+ * customer's day(s) preselected, never skipping ahead; the target's own flow
+ * plan then decides the steps after Dates exactly as for a direct booking.
+ *
+ *  - fixed_window: lands on the tapped course window.
+ *  - time_slot / fixed start times: the first day plus the start time; the
+ *    picker keeps the time only if that slot exists there.
+ *  - single_date: the first day.  days_range: every day carried.
+ */
+export function stepForAlternativeSwitch(args: AlternativeSwitchArgs): Step {
+  const { target, days, windowId, startTime } = args
+  const first = days[0]
+  if (target.service_time_shape === 'fixed_window') {
+    return {
+      name: 'pick-selection',
+      product: target,
+      selection:
+        windowId !== undefined
+          ? { kind: 'days', selectedDays: first ? [first] : [], fixedDateWindowId: windowId }
+          : undefined,
+    }
+  }
+  if (
+    target.service_time_shape === 'time_slot' ||
+    (hasFixedStartTimes(target) && target.service_time_shape === 'single_date')
+  ) {
+    return {
+      name: 'pick-selection',
+      product: target,
+      carry: first ? { date: first, ...(startTime ? { startTime } : {}) } : undefined,
+    }
+  }
+  if (days.length === 0) return { name: 'pick-selection', product: target }
+  return {
+    name: 'pick-selection',
+    product: target,
+    selection: {
+      kind: 'days',
+      selectedDays: target.service_time_shape === 'single_date' ? [days[0] as string] : days,
+    },
+  }
+}
+
+/**
+ * The party cap of the product being switched to, when the carried group
+ * exceeds it (the number to clamp to), else null.
+ */
+export function partyClampForSwitch(
+  draft: BookingDraft,
+  target: Pick<Product, 'max_party_size' | 'invite_hold_hours'>,
+): number | null {
+  const cap = maxPartySize(target.max_party_size)
+  const seats = seatsNeeded(
+    draft.participants?.length ?? 0,
+    draft.companions,
+    target.invite_hold_hours,
+  )
+  return Math.max(draft.partySize ?? 0, seats) > cap ? cap : null
+}
+
+/**
+ * The draft that rides along a product switch: who is booking, how many, and
+ * the comment. Everything that belongs to the product being left (add-ons,
+ * rooms, pickup, custom-form answers, language assignment) is dropped. A group
+ * larger than the target's max_party_size is cut to it (party size, roster and
+ * invitees) so the calendar and the server never see an impossible group.
+ */
+export function draftForProductSwitch(
+  draft: BookingDraft,
+  target?: Pick<Product, 'max_party_size' | 'invite_hold_hours'>,
+): BookingDraft {
+  const kept: BookingDraft = {}
+  if (draft.partySize !== undefined) kept.partySize = draft.partySize
+  if (draft.booker) kept.booker = draft.booker
+  if (draft.participants) kept.participants = draft.participants
+  if (draft.companions) kept.companions = draft.companions
+  if (draft.customerComment !== undefined) kept.customerComment = draft.customerComment
+  const cap = target ? partyClampForSwitch(draft, target) : null
+  if (cap !== null) {
+    if (kept.partySize !== undefined) kept.partySize = Math.min(kept.partySize, cap)
+    if (kept.participants) kept.participants = kept.participants.slice(0, cap)
+    if (kept.companions) {
+      const room = Math.max(0, cap - (kept.participants?.length ?? 0))
+      let invitees = 0
+      kept.companions = kept.companions.filter((c) => {
+        if (c.companion_kind !== 'separate_guiding') return true
+        invitees += 1
+        return invitees <= room
+      })
+    }
+  }
+  return kept
 }

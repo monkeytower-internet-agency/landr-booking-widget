@@ -1,3 +1,7 @@
+import {
+  AlternativesSection,
+  type AlternativeSelectHandler,
+} from '@/components/booking/AlternativesPanel'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CalendarDay, type Modifiers } from 'react-day-picker'
 import type { AvailabilitySlot, HotelOffering } from '@/api/types'
@@ -15,12 +19,14 @@ import {
   type ForceReason,
 } from '@/lib/strings'
 import { browserLocale } from '@/lib/locale'
+import { confirmOverride } from '@/lib/confirmOverride'
 import { useStaffMode } from '@/lib/staffMode'
 import { OperatorOverrideBadge } from '@/components/booking/OperatorOverrideBadge'
 import { dateFromIso, isoDate } from '@/components/booking/dateUtils'
 import { computeDayDiff } from '@/components/booking/daySetDiff'
 import {
   availabilityWindow,
+  startOfToday,
   useNothingBeforeNotice,
   useStartMonth,
 } from '@/components/booking/calendarStart'
@@ -105,6 +111,22 @@ interface MultiDayPickerProps {
    * force). Absent / 1 → today's `available_seats > 0` rule.
    */
   seatsNeeded?: number
+  /**
+   * landr-8ht3m.12: the operator's IANA timezone. "Today" (fetch window,
+   * first-bookable-day search) is the operator's day, not the browser's.
+   * Absent -> browser clock.
+   */
+  operatorTimezone?: string | null
+  /**
+   * Product whose linked alternatives the "Also available" panel lists under
+   * the calendar. Absent -> no panel (the picker used outside a booking).
+   */
+  alternativesProductId?: string
+  /**
+   * Tapping a row of that panel. A wiring point: the product switch hooks in
+   * here; without a handler a tap does nothing.
+   */
+  onSelectAlternative?: AlternativeSelectHandler
 }
 
 
@@ -157,6 +179,9 @@ export function MultiDayPicker({
   originalValueLabel,
   initialDroppedCount,
   seatsNeeded,
+  operatorTimezone,
+  alternativesProductId,
+  onSelectAlternative,
 }: MultiDayPickerProps) {
   const staff = useStaffMode()
   const locale = browserLocale()
@@ -217,8 +242,9 @@ export function MultiDayPicker({
     value.map(isoDate),
     availableSet,
     defaultMonth,
+    operatorTimezone,
   )
-  const nothingBefore = useNothingBeforeNotice(availableSet)
+  const nothingBefore = useNothingBeforeNotice(availableSet, undefined, operatorTimezone)
 
   // landr-53vao: the picker's own container width (not the viewport — the
   // widget runs in host iframes) picks the layout: two months side by side
@@ -228,9 +254,9 @@ export function MultiDayPicker({
   // Last month the horizon reaches; the next arrow disables there and the
   // peek never reaches past it.
   const horizonMonth = useMemo(() => {
-    const end = dateFromIso(availabilityWindow().toIso)
+    const end = dateFromIso(availabilityWindow(startOfToday(operatorTimezone)).toIso)
     return new Date(end.getFullYear(), end.getMonth(), 1)
-  }, [])
+  }, [operatorTimezone])
   const peekMonth = useMemo(
     () => new Date(month.getFullYear(), month.getMonth() + 1, 1),
     [month],
@@ -269,12 +295,13 @@ export function MultiDayPicker({
       // landr-rmcsu.5: a day short for the group is a capacity force too.
       const reasons = slot
         ? forceReasonsFor(slot.available_seats >= need, slot, hotelOffering)
-        : (['capacity'] as ForceReason[])
+        : // landr-8ht3m.4: no availability row at all → outside the schedule.
+          (['off_schedule'] as ForceReason[])
       reasons.forEach((r) => present.add(r))
     }
-    return (['capacity', 'lead_time', 'accommodation_lead_time'] as ForceReason[]).filter(
-      (r) => present.has(r),
-    )
+    return (
+      ['capacity', 'lead_time', 'accommodation_lead_time', 'off_schedule'] as ForceReason[]
+    ).filter((r) => present.has(r))
   }, [forcedDays, slotsByDate, hotelOffering, need])
 
   const applyClick = useCallback(
@@ -302,11 +329,7 @@ export function MultiDayPicker({
           }
           return
         }
-        if (
-          !window.confirm(
-            'Force-book this full / blocked day on behalf of the customer?',
-          )
-        ) {
+        if (!confirmOverride()) {
           return
         }
         const forcedNext = new Set(valueSet)
@@ -717,6 +740,15 @@ export function MultiDayPicker({
       <HelpDisclosure>
         <p data-testid="multi-day-help">{text}</p>
       </HelpDisclosure>
+      {alternativesProductId ? (
+        <AlternativesSection
+          productId={alternativesProductId}
+          party={need}
+          selectedDays={value.map(isoDate).sort()}
+          month={month}
+          onSelectAlternative={onSelectAlternative}
+        />
+      ) : null}
     </div>
   )
 }

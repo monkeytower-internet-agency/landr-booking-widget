@@ -8,7 +8,7 @@
  * treatment (aurora overlay vs summit/alpine heading-below).
  */
 import { fireEvent, render, screen, within } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import type { Product } from '@/api/types'
 import { VariantProvider } from '@/lib/variant.tsx'
@@ -278,6 +278,84 @@ describe('ProductDetailStep', () => {
 // description) showed no copy at all on the detail page — the page rendered
 // product.description exclusively. Long wins when present; short is the
 // fallback; localized variants are picked like everywhere else.
+describe('ProductDetailStep price notes (landr-bwm91.4)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  const notes: Partial<Product> = {
+    price_from: '140.00',
+    price_base: '150.00',
+    price_notes: [
+      { kind: 'surcharge', label: 'Weekends', amount: '20', amount_type: 'flat', per_participant: true, weekdays: [6, 7] },
+      { kind: 'discount', label: '09:00 start', amount: '-10', amount_type: 'flat', per_participant: true, time_from: '09:00', time_to: '09:00' },
+    ],
+  }
+
+  it('lists base, surcharges and discounts under the price', () => {
+    renderStep(makeProduct(notes))
+    const el = screen.getByTestId('product-detail-price-notes')
+    expect(el.textContent).toBe('Base price €150 · Weekends +€20 · 09:00 start \u2212€10')
+    expect(screen.getByTestId('product-detail-price').textContent).toBe('from €140.00')
+  })
+
+  it('renders the "from" headline in German for a German browser (landr-bwm91.7)', () => {
+    vi.spyOn(navigator, 'language', 'get').mockReturnValue('de-DE')
+    renderStep(makeProduct(notes))
+    expect(screen.getByTestId('product-detail-price').textContent).toBe(
+      'ab 140,00\u00a0€',
+    )
+    expect(screen.getByTestId('product-detail-price-notes').textContent).toMatch(
+      /^Grundpreis /,
+    )
+  })
+
+  it('shows a named note with its description behind a chevron, also as hover text', () => {
+    renderStep(
+      makeProduct({
+        ...notes,
+        price_notes: [
+          {
+            kind: 'surcharge', label: 'Weekends', amount: '20', amount_type: 'flat', per_participant: true,
+            weekdays: [6, 7], name: 'Weekend surcharge',
+            description: 'Our pilots earn a little bit more during the weekend.',
+          },
+        ],
+      }),
+    )
+    const el = screen.getByTestId('product-detail-price-notes')
+    expect(el.textContent).toBe('Base price €150 · Weekend surcharge +€20')
+    const note = screen.getByTestId('product-detail-price-note')
+    expect(note).toHaveAttribute('title', 'Our pilots earn a little bit more during the weekend.')
+    expect(screen.queryByTestId('product-detail-price-note-description')).toBeNull()
+    const toggle = screen.getByRole('button', { name: 'Show details about Weekend surcharge' })
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    fireEvent.click(toggle)
+    expect(screen.getByTestId('product-detail-price-note-description')).toHaveTextContent(
+      'Our pilots earn a little bit more during the weekend.',
+    )
+    expect(screen.getByRole('button', { name: 'Hide details about Weekend surcharge' })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    )
+  })
+
+  it('has no chevron for a note without a description', () => {
+    renderStep(makeProduct(notes))
+    expect(screen.queryByRole('button', { name: /details about/i })).toBeNull()
+  })
+
+  it('renders nothing when there are no notes or the field is absent', () => {
+    renderStep(makeProduct({ price_base: '150.00', price_notes: [] }))
+    expect(screen.queryByTestId('product-detail-price-notes')).toBeNull()
+  })
+
+  it('tolerates an API that predates the field', () => {
+    renderStep(makeProduct())
+    expect(screen.queryByTestId('product-detail-price-notes')).toBeNull()
+  })
+})
+
 describe('ProductDetailStep description fallback', () => {
   it('falls back to short_description when description is null', () => {
     renderStep(
@@ -307,6 +385,63 @@ describe('ProductDetailStep description fallback', () => {
     expect(
       screen.queryByTestId('product-detail-description'),
     ).not.toBeInTheDocument()
+  })
+})
+
+describe('ProductDetailStep localized long description (landr-5wwuq.3)', () => {
+  const withLocale = (lang: string) =>
+    vi.spyOn(navigator, 'language', 'get').mockReturnValue(lang)
+  afterEach(() => vi.restoreAllMocks())
+
+  it('shows description_localized for the browser locale', () => {
+    withLocale('de-DE')
+    renderStep(
+      makeProduct({
+        description: 'English long copy.',
+        description_localized: { en: 'English long copy.', de: 'Deutscher Langtext.' },
+      }),
+    )
+    expect(screen.getByTestId('product-detail-description')).toHaveTextContent(
+      'Deutscher Langtext.',
+    )
+  })
+
+  it('shows the Italian long description for an it browser', () => {
+    withLocale('it-IT')
+    renderStep(
+      makeProduct({
+        description: 'English long copy.',
+        description_localized: { it: 'Testo lungo italiano.' },
+      }),
+    )
+    expect(screen.getByTestId('product-detail-description')).toHaveTextContent(
+      'Testo lungo italiano.',
+    )
+  })
+
+  it('falls back to the English description when the locale is missing', () => {
+    withLocale('tr-TR')
+    renderStep(
+      makeProduct({
+        description: 'English long copy.',
+        description_localized: { de: 'Deutscher Langtext.' },
+      }),
+    )
+    expect(screen.getByTestId('product-detail-description')).toHaveTextContent(
+      'English long copy.',
+    )
+  })
+
+  it('works against an older API without description_localized (falls to localized short)', () => {
+    withLocale('de-DE')
+    renderStep(
+      makeProduct({
+        description: null,
+        short_description: 'Short.',
+        short_description_localized: { de: 'Kurz.' },
+      }),
+    )
+    expect(screen.getByTestId('product-detail-description')).toHaveTextContent('Kurz.')
   })
 })
 

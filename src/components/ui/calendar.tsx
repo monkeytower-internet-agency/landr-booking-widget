@@ -10,9 +10,32 @@ import {
   type DayButton,
 } from "react-day-picker"
 
+import { de as dayPickerDe, es as dayPickerEs, it as dayPickerIt, tr as dayPickerTr } from "react-day-picker/locale"
+
 import { cn } from "@/lib/utils"
-import { CalendarDayHintContext } from "@/components/ui/calendarDayHints"
+import { browserLocale } from "@/lib/locale"
+import { resolveUiLanguage, tr } from "@/lib/strings"
+import { CalendarDayHintContext, CalendarPartyContext } from "@/components/ui/calendarDayHints"
 import { Button, buttonVariants } from "@/components/ui/button"
+
+// landr-8r6oc.4: month/weekday names follow the customer's resolved locale.
+// English is react-day-picker's built-in default, so only the other widget
+// languages need a catalog; a language without an entry falls back to English.
+// react-day-picker's locale objects also carry the translated aria labels
+// (Go to next month, day buttons, dropdowns), which DayPicker reads by itself.
+const DAY_PICKER_LOCALES: Record<string, React.ComponentProps<typeof DayPicker>["locale"]> = {
+  de: dayPickerDe,
+  es: dayPickerEs,
+  it: dayPickerIt,
+  tr: dayPickerTr,
+}
+
+// react-day-picker appends ", <selected word>" to a selected day's label
+// (in the customer's language); the diff view swaps that for its own state word.
+function stripSelectedSuffix(label: string, selectedWord: string): string {
+  const suffix = `, ${selectedWord}`
+  return label.endsWith(suffix) ? label.slice(0, -suffix.length) : label
+}
 
 function Calendar({
   className,
@@ -32,6 +55,7 @@ function Calendar({
   buttonVariant?: React.ComponentProps<typeof Button>["variant"]
 }) {
   const defaultClassNames = getDefaultClassNames()
+  const customerLocale = browserLocale()
   // landr-53vao: several months side by side get a wider root and a row
   // layout driven by the month count (not a viewport breakpoint — the widget
   // lives inside host iframes); a single month keeps the 22rem column.
@@ -41,6 +65,7 @@ function Calendar({
     <DayPicker
       showOutsideDays={showOutsideDays}
       weekStartsOn={weekStartsOn}
+      locale={DAY_PICKER_LOCALES[resolveUiLanguage(customerLocale)]}
       className={cn(
         // landr-3mo4: day cells are 44px on mobile (WCAG 2.5.5 touch target),
         // tightening to the original 36px from sm upward where pointer input
@@ -53,7 +78,7 @@ function Calendar({
       captionLayout={captionLayout}
       formatters={{
         formatMonthDropdown: (date) =>
-          date.toLocaleString("default", { month: "short" }),
+          date.toLocaleString(customerLocale, { month: "short" }),
         ...formatters,
       }}
       classNames={{
@@ -223,7 +248,16 @@ function CalendarDayButton({
   // needs (MultiDayPicker / SingleDatePicker feed it). Struck through in
   // amber; the hint context adds "n seats left" to the label + tooltip.
   const short = modifiers.short === true
+  // Staff override pickers: a day customers cannot book (blocked weekday, full,
+  // outside the schedule) that the operator may still force-book.
+  const override = modifiers.override === true
+  // The product itself is full that day but another activity is free: the day
+  // stays clickable, marked by a small dot (never a fill colour).
+  const altOnly = modifiers.altOnly === true
+  // The product has no slot at all that day (not merely full): wording only.
+  const notOffered = modifiers.notOffered === true
   const hintFor = React.useContext(CalendarDayHintContext)
+  const party = React.useContext(CalendarPartyContext)
   const hint = hintFor?.(day.date)
 
   const isSelectedSingle =
@@ -241,15 +275,17 @@ function CalendarDayButton({
   const isPlainSelected = isSelectedSingle && !diffAdded && !diffRemoved
 
   const { children, "aria-label": ariaLabelProp, ...restProps } = props
+  // landr-8r6oc.18: the diff-state words follow the customer's language.
+  const customerLocale = browserLocale()
 
   let content: React.ReactNode = children
   let ariaLabel: string | undefined = ariaLabelProp
   if (diffAdded || diffRemoved) {
     const base =
       typeof ariaLabelProp === "string"
-        ? ariaLabelProp.replace(/, selected$/, "")
+        ? stripSelectedSuffix(ariaLabelProp, tr("calendarDaySelected", customerLocale))
         : undefined
-    ariaLabel = diffAdded ? `${base}, added` : `${base}, removed`
+    ariaLabel = `${base}, ${tr(diffAdded ? "calendarDayAdded" : "calendarDayRemoved", customerLocale)}`
     content = (
       <>
         <span
@@ -259,6 +295,33 @@ function CalendarDayButton({
           {diffAdded ? "+" : "−"}
         </span>
         {children}
+      </>
+    )
+  }
+
+  if (altOnly) {
+    const base =
+      typeof ariaLabelProp === "string"
+        ? stripSelectedSuffix(ariaLabelProp, tr("calendarDaySelected", customerLocale))
+        : ""
+    const altWord =
+      short && party !== null
+        ? tr("altDayShortAria", customerLocale).replace("{n}", String(party))
+        : tr(notOffered ? "altDayNotOfferedAria" : "altDayAria", customerLocale)
+    ariaLabel = `${base}: ${altWord}${
+      modifiers.selected ? `, ${tr("calendarDaySelected", customerLocale)}` : ""
+    }`
+    content = (
+      <>
+        {content}
+        <span
+          aria-hidden="true"
+          data-testid="alt-only-dot"
+          className={cn(
+            "absolute bottom-1 left-1/2 size-1 -translate-x-1/2 rounded-full bg-primary",
+            modifiers.selected && "bg-primary-foreground",
+          )}
+        />
       </>
     )
   }
@@ -279,6 +342,8 @@ function CalendarDayButton({
       data-range-middle={modifiers.range_middle}
       data-diff={diffAdded ? "added" : diffRemoved ? "removed" : undefined}
       data-short={short || undefined}
+      data-override={override || undefined}
+      data-alt-only={altOnly || undefined}
       aria-label={ariaLabel}
       title={hint}
       className={cn(
@@ -301,6 +366,9 @@ function CalendarDayButton({
         short &&
           !modifiers.selected &&
           "text-amber-700 decoration-amber-600 dark:text-amber-400 dark:decoration-amber-400",
+        override &&
+          !modifiers.selected &&
+          "text-muted-foreground underline decoration-dotted underline-offset-4",
         defaultClassNames.day,
         className
       )}

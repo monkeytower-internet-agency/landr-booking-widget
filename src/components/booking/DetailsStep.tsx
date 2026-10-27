@@ -3,12 +3,13 @@ import type { AnimationEvent } from 'react'
 import { Copy } from 'lucide-react'
 import { guessCountry } from '@/lib/guessCountry'
 import { countryOptions } from '@/lib/countries'
+import { demoCompanion, demoCustomer, isDemoMode } from '@/lib/demo'
 import { useStaffMode } from '@/lib/staffMode'
 import { Checkbox } from '@/components/ui/checkbox'
 import type { BookingSelection } from '@/components/booking/BookingForm'
 import type { Product, ServiceRole } from '@/api/types'
 import { requestSubscriptionPerkOtp } from '@/api/client'
-import { browserLocale } from '@/lib/locale'
+import { browserLocale, pickLocalized } from '@/lib/locale'
 import { formatDayLabel } from '@/components/booking/dateLabel'
 import {
   addAnyoneElseUpTo,
@@ -54,6 +55,7 @@ import {
   type ParticipantDetails,
 } from './detailsTypes'
 // landr-uwvl: stable per-member identity for the room-assignment maps.
+import { isStayKind } from '@/flowPlan'
 import { withMemberId } from './partyIdentity'
 import { normalizeOwnAccommodation } from './ownAccommodation'
 import { GroupInquiryForm } from './GroupInquiryForm'
@@ -275,6 +277,26 @@ interface Props {
  * Generic copy per landr-genericity-northstar — "participants" not
  * "pilots"/"divers".
  */
+/** Demo mode: the sample customer the details step starts with (nothing is booked). */
+function demoBooker(): BookerDetails {
+  const c = demoCustomer()
+  const base = emptyBooker()
+  return {
+    ...base,
+    first_name: c.first_name,
+    last_name: c.last_name,
+    email: c.email,
+    phone: c.phone,
+    billing: {
+      ...base.billing,
+      address_line1: c.address_line1,
+      postal_code: c.postal_code,
+      city: c.city,
+      country: c.country,
+    },
+  }
+}
+
 /**
  * Short selection summary for the card description. After landr-2wyi the
  * persistent PriceSidebar carries the full day-by-day breakdown (chips
@@ -343,7 +365,7 @@ export function DetailsStep({
   const defaultRoleCode = serviceRoles[0]?.code ?? ''
   const showRoleDropdown = serviceRoles.length > 1
   const [booker, setBooker] = useState<BookerDetails>(
-    () => (initialBooker ? withBilling(initialBooker) : emptyBooker()),
+    () => (initialBooker ? withBilling(initialBooker) : isDemoMode() ? demoBooker() : emptyBooker()),
   )
   // landr-jiagg.2: "I'm booking for someone else and won't take part". The
   // invite flow never offers it (the invitee takes the seat themselves), and a
@@ -421,6 +443,10 @@ export function DetailsStep({
       othersCapFor(joinsOnMount) - (initialCompanions?.length ?? 0),
     )
     while (rows.length < want) rows.push(emptyParticipant(defaultRoleCode))
+    // Demo: sample names for the extra travellers, so nobody has to type anything.
+    if (isDemoMode() && !initialParticipants?.length) {
+      rows = rows.map((r, i) => ({ ...r, ...demoCompanion(i) }))
+    }
     // landr-jiagg.2: a booker who is not joining always has "Participant 1".
     if (!joinsOnMount && rows.length === 0) rows.push(emptyParticipant(defaultRoleCode))
     return rows
@@ -433,9 +459,12 @@ export function DetailsStep({
   // Restored from initialCompanions on Back-restore, else empty.
   // landr-lu41h: no-accommodation products have no room to share — every
   // companion is a guest paying for themselves ('separate_guiding').
-  const noAccommodation = (product.hotel_offering ?? 'none') === 'none'
+  // Stay-kind products are booked by one payer for the whole party: no
+  // self-pay companions section, and participants are worded as guests.
+  const isStay = isStayKind(product.product_kind)
+  const noAccommodation = !isStay && (product.hotel_offering ?? 'none') === 'none'
   const [companions, setCompanions] = useState<CompanionDetails[]>(() =>
-    (initialCompanions ?? []).map((c) =>
+    (isStay ? [] : (initialCompanions ?? [])).map((c) =>
       withMemberId(
         normalizeOwnAccommodation(
           noAccommodation ? { ...c, companion_kind: 'separate_guiding' } : c,
@@ -1606,8 +1635,8 @@ export function DetailsStep({
         <fieldset className="flex flex-col gap-3 border-t pt-4">
           <legend className="text-sm font-medium">
             {joins
-              ? otherParticipantsHeading(totalCount, locale)
-              : participantsTotalHeading(totalCount, locale)}
+              ? otherParticipantsHeading(totalCount, locale, isStay)
+              : participantsTotalHeading(totalCount, locale, isStay)}
           </legend>
           {noAccommodation ? (
             <p className="text-xs text-muted-foreground">
@@ -1650,7 +1679,7 @@ export function DetailsStep({
                   top-stepper −). Removal preserves the OTHER rows' data. */}
               <div className="sm:col-span-2 flex items-center justify-between gap-2">
                 <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  {participantOrdinalLabel(n, locale)}
+                  {participantOrdinalLabel(n, locale, isStay)}
                 </span>
                 {canRemove ? (
                 <Button
@@ -1794,8 +1823,8 @@ export function DetailsStep({
                     beyond the joining booker, or the whole roster when the
                     booker does not take part (never "Maximum of 0 additional"). */}
                 {joins
-                  ? tr('maxAdditionalParticipantsTemplate', locale).replace('{n}', String(maxAdditional))
-                  : maxParticipantsReachedMessage(rowCap, locale)}
+                  ? tr(isStay ? 'stayMaxAdditionalGuestsTemplate' : 'maxAdditionalParticipantsTemplate', locale).replace('{n}', String(maxAdditional))
+                  : maxParticipantsReachedMessage(rowCap, locale, isStay)}
               </p>
               <p className="text-xs text-muted-foreground">
                 {tr('needLargerGroupHint', locale)}
@@ -1862,11 +1891,11 @@ export function DetailsStep({
               type="button"
               variant="ghost"
               className="tap-44 w-full justify-center rounded bg-primary/10 text-foreground shadow-elev-1 hover:bg-primary/20"
-              aria-label={tr('addParticipantAria', locale)}
+              aria-label={tr(isStay ? 'stayAddGuestAria' : 'addParticipantAria', locale)}
               data-testid="add-participant"
               onClick={addParticipant}
             >
-              {tr('addParticipantButton', locale)}
+              {tr(isStay ? 'stayAddGuestButton' : 'addParticipantButton', locale)}
             </Button>
           )}
         </fieldset>
@@ -1878,7 +1907,7 @@ export function DetailsStep({
             participants, price, or the 6-participant cap — regardless of whether
             they do the activity (landr-doam.1: companion_kind).
             landr-rxjo: first and last name are both required for companions. */}
-        {maxOthers > 0 ? (
+        {maxOthers > 0 && !isStay ? (
         <fieldset
           className="flex flex-col gap-3 border-t pt-4"
           data-testid="companions-section"
@@ -2371,7 +2400,7 @@ function RoleSelect({
     >
       {serviceRoles.map((role) => (
         <option key={role.id} value={role.code}>
-          {role.label}
+          {pickLocalized(role.label, role.label_localized, browserLocale())}
         </option>
       ))}
     </select>

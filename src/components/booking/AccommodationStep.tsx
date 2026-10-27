@@ -966,7 +966,7 @@ export function AccommodationStep({
         // since sold out, and never clobber a value the customer (or the
         // restore above) already set.
         setServiceAddonSelection((prev) => {
-          const next = { ...withoutSoldOut(prev, list) }
+          const next = { ...withoutSoldOut(prev, list, participantCount) }
           for (const a of list) {
             if (isAddonSoldOut(a)) continue
             if (next[a.addon_product_id] !== undefined) continue
@@ -2023,7 +2023,7 @@ export function AccommodationStep({
               maxLength={8}
               value={refInput}
               onChange={(e) => changeRefInput(e.target.value)}
-              placeholder="e.g. A1B2C3D4"
+              placeholder={tr('sharedDoubleRefPlaceholder', locale)}
               className="w-full max-w-[12rem] rounded-md border border-input bg-surface-page px-3 py-2 font-mono text-sm uppercase tracking-wider shadow-well focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               data-testid="shared-double-reference-input"
             />
@@ -2431,6 +2431,7 @@ export function AccommodationStep({
                 )
               }}
               expectedQty={1}
+              participantCount={participantCount}
             />
           </fieldset>
         ) : null}

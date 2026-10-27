@@ -7,6 +7,8 @@ import {
   isGermanLocale,
   pickBundle,
   plural,
+  resolveUiLanguage,
+  SUPPORTED_UI_LANGUAGES,
   seatFitCountLabel,
   seatFitNoneMessage,
   seatsShortDaysMessage,
@@ -31,8 +33,32 @@ describe('strings (pickBundle/tr locale resolution, landr-5aih0.9)', () => {
     expect(pickBundle(undefined)).toBe(en)
     expect(pickBundle('')).toBe(en)
     expect(pickBundle('fr-FR')).toBe(en)
-    expect(pickBundle('es')).toBe(en)
+    expect(pickBundle('pt-BR')).toBe(en)
+    expect(pickBundle('constructor')).toBe(en)
     expect(en.multiDayPickerHelp).toMatch(/^Tap days to add or remove/)
+  })
+
+  it('pickBundle returns the Spanish and Turkish bundles (landr-8r6oc.4), case- and region-insensitively', () => {
+    const es = pickBundle('es')
+    expect(pickBundle('es-ES')).toBe(es)
+    expect(pickBundle('ES-es')).toBe(es)
+    expect(pickBundle('es_419')).toBe(es)
+    const trBundle = pickBundle('tr')
+    expect(pickBundle('tr-TR')).toBe(trBundle)
+    expect(pickBundle('TR')).toBe(trBundle)
+    expect(es).not.toBe(pickBundle('en'))
+    expect(trBundle).not.toBe(es)
+    expect(trBundle).not.toBe(pickBundle('de'))
+  })
+
+  it('resolveUiLanguage names the bundle language and SUPPORTED_UI_LANGUAGES lists them', () => {
+    expect(resolveUiLanguage('de-AT')).toBe('de')
+    expect(resolveUiLanguage('es-ES')).toBe('es')
+    expect(resolveUiLanguage('tr_TR')).toBe('tr')
+    expect(resolveUiLanguage('fr')).toBe('en')
+    expect(resolveUiLanguage(undefined)).toBe('en')
+    expect(resolveUiLanguage('it-IT')).toBe('it')
+    expect([...SUPPORTED_UI_LANGUAGES].sort()).toEqual(['de', 'en', 'es', 'it', 'tr'])
   })
 
   it('tr resolves per the same locale rule as pickBundle', () => {
@@ -47,6 +73,7 @@ describe('strings (pickBundle/tr locale resolution, landr-5aih0.9)', () => {
     expect(isGermanLocale('de')).toBe(true)
     expect(isGermanLocale('en')).toBe(false)
     expect(isGermanLocale(undefined)).toBe(false)
+    expect(isGermanLocale('es')).toBe(false)
   })
 })
 
@@ -55,6 +82,8 @@ describe('poweredByLandr (landr-xtkae.10)', () => {
     expect(tr('poweredByLandr', 'en')).toBe('Powered by LANDR')
     expect(tr('poweredByLandr', 'de-DE')).toBe('Bereitgestellt von LANDR')
     expect(tr('poweredByLandr')).toBe('Powered by LANDR')
+    expect(tr('poweredByLandr', 'es-ES')).toMatch(/LANDR/)
+    expect(tr('poweredByLandr', 'tr-TR')).toMatch(/LANDR/)
   })
 })
 
@@ -186,5 +215,19 @@ describe('seat-fit copy (landr-rmcsu.5)', () => {
     expect(seatFitNoneMessage(4, 'Oktober 2026 – März 2027', 'de')).toBe(
       'Im Zeitraum Oktober 2026 – März 2027 gibt es keinen Tag mit Platz für 4 Personen.',
     )
+  })
+})
+
+describe('time-confirmed-by-operator copy (EN + DE)', () => {
+  it('replaces "Any time" with copy that says the operator confirms the time', () => {
+    expect(tr('timeConfirmedByOperator', 'en')).toBe('Time confirmed by the operator')
+    expect(tr('timeConfirmedHelper', 'en')).toBe(
+      'The operator will confirm the exact time and details after you book.',
+    )
+    expect(tr('timeConfirmedByOperator', 'de')).toBe('Uhrzeit bestätigt der Anbieter')
+    expect(tr('timeConfirmedHelper', 'de')).toBe(
+      'Der Anbieter bestätigt Uhrzeit und Details nach deiner Buchung.',
+    )
+    expect(tr('timeConfirmedByOperator', 'en')).not.toMatch(/any time/i)
   })
 })

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { getAvailability } from '@/api/client'
 import type { AvailabilitySlot, Product } from '@/api/types'
 import { Calendar } from '@/components/ui/calendar'
-import { CalendarDayHintContext } from '@/components/ui/calendarDayHints'
+import { CalendarDayHintContext, CalendarPartyContext } from '@/components/ui/calendarDayHints'
 import { forceReasonsFor } from '@/components/booking/bookability'
 import {
   availableDaysForLabel,
@@ -35,11 +35,23 @@ import {
   useNothingBeforeNotice,
   useStartMonth,
 } from '@/components/booking/calendarStart'
+import { confirmOverride } from '@/lib/confirmOverride'
 import { useStaffMode } from '@/lib/staffMode'
 import { OperatorOverrideBadge } from '@/components/booking/OperatorOverrideBadge'
 import { NextAction } from '@/components/booking/NextAction'
 import { ContinueAction } from '@/components/booking/ContinueAction'
 import { useReportLoaded } from '@/lib/bootSplash'
+import {
+  AlternativesSection,
+  type AlternativeSelectHandler,
+} from '@/components/booking/AlternativesPanel'
+import { AltOnlyLegend, AltOnlyNotice } from '@/components/booking/AltOnlyParts'
+import {
+  monthHasAltOnly,
+  notOfferedDatesFor,
+  useAltOnly,
+  useDateStepAlternatives,
+} from '@/components/booking/altOnlyDays'
 
 interface Props {
   product: Product
@@ -86,7 +98,17 @@ interface Props {
   showPartySizeStepper?: boolean
   onPartySizeChange?: (partySize: number) => void
   operatorToken?: string
+  /**
+   * landr-8ht3m.12: the operator's IANA timezone. "Today" (past-day disabling,
+   * fetch window) is the operator's day, not the browser's. Absent -> browser.
+   */
+  operatorTimezone?: string | null
   contactEmail?: string | null
+  /**
+   * Tapping a row of the "Also available" panel. A wiring point: the product
+   * switch hooks in here; without a handler a tap does nothing.
+   */
+  onSelectAlternative?: AlternativeSelectHandler
 }
 
 // Stable empty reference while availability loads (see MultiDayStep's
@@ -112,7 +134,9 @@ export function SingleDatePicker({
   showPartySizeStepper = false,
   onPartySizeChange,
   operatorToken,
+  operatorTimezone,
   contactEmail,
+  onSelectAlternative,
 }: Props) {
   const staff = useStaffMode()
   const locale = browserLocale()
@@ -130,9 +154,9 @@ export function SingleDatePicker({
   )
 
   const { fromIso, toIso, today } = useMemo(() => {
-    const from = startOfToday()
+    const from = startOfToday(operatorTimezone)
     return { ...availabilityWindow(from), today: from }
-  }, [])
+  }, [operatorTimezone])
 
   useEffect(() => {
     let cancelled = false
@@ -196,18 +220,53 @@ export function SingleDatePicker({
   const [month, setMonth] = useStartMonth(
     selected ? [isoDate(selected)] : [],
     availableSet,
+    undefined,
+    operatorTimezone,
   )
-  const nothingBefore = useNothingBeforeNotice(availableSet)
+  const nothingBefore = useNothingBeforeNotice(availableSet, undefined, operatorTimezone)
+
+  // A full / unscheduled day where another activity is free stays clickable
+  // (dot + notice + alternatives panel). Customers only: staff force-book wins.
+  const selectedIso = selected ? isoDate(selected) : null
+  const alternatives = useDateStepAlternatives(
+    product.product_id,
+    month,
+    selectedIso ? [selectedIso] : [],
+    need,
+    operatorTimezone,
+  )
+  const { days: altOnlyDays, dates: altOnlyDates } = useAltOnly({
+    slots: canForce ? null : slots,
+    fit: availableSet,
+    short: shortSeats,
+    alternatives,
+    todayIso: isoDate(today),
+  })
+  // Not bookable for a customer, whether or not the alternatives have loaded
+  // (they go null while a month or a new party size is fetched): the pick
+  // must never turn Continue on for such a day.
+  const selectedUnbookable =
+    selectedIso !== null &&
+    slots !== null &&
+    !canForce &&
+    !availableSet.has(selectedIso) &&
+    !shortSeats.has(selectedIso)
+  // A short day (seats left, fewer than the party) is rescued only once an
+  // alternative is in; until then its own short gate holds Continue.
+  const selectedShortAlt = selectedIso !== null && altOnlyDays.has(selectedIso) && shortSeats.has(selectedIso)
+  const selectedAltOnly = selectedUnbookable || selectedShortAlt
 
   // landr-t869m.5: date → slot lookup so a force-booked pick can name WHICH
-  // gate(s) it bypassed. A date with no matching slot at all (outside the
-  // fetched horizon, or the endpoint never returned a row) has no evidence
-  // either way — fails open to ['capacity'], preserving this override's
-  // pre-existing (capacity-flavoured) copy rather than inventing a lead-time
-  // claim from missing data.
+  // gate(s) it bypassed. landr-8ht3m.4: a date with no matching slot at all has
+  // no availability on the schedule — it is OUTSIDE the schedule
+  // ('off_schedule'), which the operator confirms once and the API records.
   const slotsByDate = useMemo(() => {
     return new Map((slots ?? []).map((slot) => [slot.date, slot]))
   }, [slots])
+  const notOfferedDates = useMemo(
+    () => notOfferedDatesFor(altOnlyDays, slotsByDate, shortSeats),
+    [altOnlyDays, slotsByDate, shortSeats],
+  )
 
   // landr-t869m.7: DERIVED from `selected`/`slots`/`availableSet`/`canForce`
   // rather than tracked as its own useState — that used to be the bug.
@@ -234,7 +293,8 @@ export function SingleDatePicker({
     // landr-rmcsu.5: a day short for the group is a capacity force too.
     return slot
       ? forceReasonsFor(slot.available_seats >= need, slot, product.hotel_offering)
-      : (['capacity'] as ForceReason[])
+      : // landr-8ht3m.4: no availability row at all → outside the schedule.
+        (['off_schedule'] as ForceReason[])
   }, [selected, canForce, slots, availableSet, slotsByDate, product.hotel_offering, need])
 
   // landr-rmcsu.5: a restored pick (Back / Change dates) that no longer
@@ -253,11 +313,7 @@ export function SingleDatePicker({
   const handleSelect = useCallback((date: Date | undefined) => {
     const d = date ?? null
     if (d && canForce && !availableSet.has(isoDate(d))) {
-      if (
-        !window.confirm(
-          'Force-book this full / blocked day on behalf of the customer?',
-        )
-      ) {
+      if (!confirmOverride()) {
         return
       }
       setSelected(d)
@@ -265,7 +321,8 @@ export function SingleDatePicker({
       return
     }
     setSelected(d)
-    onLiveDaysChange?.(d ? [isoDate(d)] : [])
+    // An alt-only day is not bookable here: the price sidebar must not price it.
+    onLiveDaysChange?.(d && availableSet.has(isoDate(d)) ? [isoDate(d)] : [])
   }, [availableSet, canForce, onLiveDaysChange])
 
   if (error) {
@@ -313,6 +370,7 @@ export function SingleDatePicker({
             takes over. */}
         <NextAction active={selected === null} cue={tr('singleDatePickerCue', locale)}>
           <CalendarDayHintContext.Provider value={dayHint}>
+          <CalendarPartyContext.Provider value={need}>
             <Calendar
               mode="single"
               selected={selected ?? undefined}
@@ -322,14 +380,19 @@ export function SingleDatePicker({
               // remain disabled for everyone. Normal customers keep today's exact
               // behaviour (both predicates apply).
               disabled={(date) =>
-                date < today || (!canForce && !availableSet.has(isoDate(date)))
+                date < today ||
+                (!canForce &&
+                  !availableSet.has(isoDate(date)) &&
+                  !altOnlyDays.has(isoDate(date)))
               }
               month={month}
               onMonthChange={setMonth}
-              modifiers={{ short: shortDates }}
+              modifiers={{ short: shortDates, altOnly: altOnlyDates, notOffered: notOfferedDates }}
             />
+          </CalendarPartyContext.Provider>
           </CalendarDayHintContext.Provider>
           {shortSeats.size > 0 ? <ShortDayLegend /> : null}
+          {monthHasAltOnly(altOnlyDays, month) ? <AltOnlyLegend /> : null}
           {nothingBefore ? (
             <p
               className="text-xs text-muted-foreground"
@@ -338,7 +401,14 @@ export function SingleDatePicker({
               {nothingBefore}
             </p>
           ) : null}
-          {selected ? (
+          {selected && selectedAltOnly ? (
+            <AltOnlyNotice
+              productName={product.name}
+              iso={isoDate(selected)}
+              offered={slotsByDate.has(isoDate(selected))}
+              short={selectedShortAlt}
+            />
+          ) : selected ? (
             // landr-3mo4: selected date confirmed in a tinted (borderless) chip
             // so the choice reads as committed, not as muted helper text.
             <div className="flex flex-wrap items-center gap-2">
@@ -352,10 +422,21 @@ export function SingleDatePicker({
             </div>
           ) : null}
         </NextAction>
+        <AlternativesSection
+          productId={product.product_id}
+          party={need}
+          selectedDays={selected ? [isoDate(selected)] : []}
+          month={month}
+          alternatives={alternatives}
+          operatorTimezone={operatorTimezone}
+          onSelectAlternative={onSelectAlternative}
+        />
         <ContinueAction
-          ready={selected !== null && selectedShort === null}
+          ready={selected !== null && selectedShort === null && !selectedAltOnly}
           reason={
-            selectedShort
+            selectedAltOnly
+              ? tr('altDayGate', locale)
+              : selectedShort
               ? seatsShortMessage(
                   formatDayLabel(selectedShort.date, locale),
                   selectedShort.left,

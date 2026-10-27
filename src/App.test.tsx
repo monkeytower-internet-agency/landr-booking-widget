@@ -1,6 +1,6 @@
 import { fillBillingFields } from '@/test/fillBilling'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 
 import type { AvailabilitySlot, FixedDateWindow, Product } from '@/api/types'
 import { HttpError } from '@/api/client'
@@ -43,6 +43,8 @@ const { mocks } = vi.hoisted(() => ({
     getInvitePrefill: vi.fn(),
     // landr-frqgv.3: ?c=<token> contact-page re-book prefill.
     getContactPagePrefill: vi.fn(),
+    // The "Also available" panel on the date step.
+    getProductAlternatives: vi.fn(),
   },
 }))
 
@@ -71,6 +73,7 @@ vi.mock('@/api/client', async (importOriginal) => {
     getProductFlow: mocks.getProductFlow,
     getInvitePrefill: mocks.getInvitePrefill,
     getContactPagePrefill: mocks.getContactPagePrefill,
+    getProductAlternatives: mocks.getProductAlternatives,
   }
 })
 
@@ -210,6 +213,7 @@ describe('App', () => {
     mocks.listProductGroups.mockResolvedValue([])
     mocks.getAvailability.mockResolvedValue([])
     mocks.getFixedDateWindows.mockResolvedValue([])
+    mocks.getProductAlternatives.mockResolvedValue([])
     mocks.listLocations.mockResolvedValue([])
     mocks.listPickupLocationsForOperator.mockResolvedValue([])
     // landr-87n9: safe hotel-flow + estimate defaults so any test that
@@ -290,6 +294,20 @@ describe('App', () => {
         expect.any(Object),
       )
     })
+  })
+
+  // landr-8r6oc.26: the operator's customer_languages decide the UI language
+  // once settings resolve; the catalog for it must be in before the settings render.
+  it('renders the operator language (tr) after the settings settle', async () => {
+    mocks.getOperatorSettings.mockResolvedValue({
+      slug: 'para42',
+      expose_seats_to_customer: false,
+      customer_languages: ['tr'],
+    })
+    mocks.listProducts.mockResolvedValue([makeProduct()])
+    render(<App />)
+    expect(await screen.findByRole('radiogroup', { name: 'Katalog düzeni' })).toBeInTheDocument()
+    expect(screen.queryByRole('radiogroup', { name: 'Catalogue layout' })).not.toBeInTheDocument()
   })
 
   // landr-yp8x — operator branding (logo + primary colour) surfaced by
@@ -943,6 +961,381 @@ describe('App', () => {
         expect(mocks.getAvailability).toHaveBeenCalled()
         expect(screen.getByTestId('availability-picker-submit')).toBeInTheDocument()
       })
+    })
+
+    // Tapping an "Also available" row switches product and keeps the day,
+    // the start time (when the other product has it) and the party; the
+    // reverse link on the other product switches back the same way.
+    it('switches Tandem -> Action -> Tandem via the panel, carrying day and start time', async () => {
+      const day = new Date()
+      day.setDate(day.getDate() + 1)
+      const iso = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`
+      const times: Record<string, string[]> = {
+        'p-tandem': ['09:00:00', '11:00:00'],
+        'p-action': ['11:00:00', '14:00:00'],
+      }
+      mocks.getAvailability.mockImplementation(async (id: string) =>
+        (times[id] ?? []).map((t, i) => ({
+          availability_id: `${id}-${i}`,
+          date: iso,
+          start_time: t,
+          end_time: null,
+          capacity: 4,
+          capacity_reserved: 0,
+          available_seats: 4,
+          status: 'open',
+        })) as AvailabilitySlot[],
+      )
+      const alt = (id: string, name: string) => ({
+        product_id: id,
+        slug: id,
+        name,
+        service_time_shape: 'single_date',
+        price_from: '189.00',
+        currency: 'EUR',
+        available_dates: [iso],
+      })
+      mocks.getProductAlternatives.mockImplementation(async (id: string) =>
+        id === 'p-tandem' ? [alt('p-action', 'Action flight')] : [alt('p-tandem', 'Tandem flight')],
+      )
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          product_id: 'p-tandem',
+          slug: 'p-tandem',
+          service_time_shape: 'single_date',
+          daily_start_times: ['09:00', '11:00'],
+          name: 'Tandem flight',
+        }),
+        makeProduct({
+          product_id: 'p-action',
+          slug: 'p-action',
+          service_time_shape: 'single_date',
+          daily_start_times: ['11:00', '14:00'],
+          name: 'Action flight',
+        }),
+      ])
+      render(<App />)
+      await pickProduct('Tandem flight')
+      const pickIso = async () => {
+        const find = () =>
+          Array.from(document.querySelectorAll<HTMLButtonElement>('button[data-day]')).find(
+            (b) => {
+              const d = new Date(b.dataset.day ?? '')
+              return (
+                d.getFullYear() === day.getFullYear() &&
+                d.getMonth() === day.getMonth() &&
+                d.getDate() === day.getDate()
+              )
+            },
+          )
+        await waitFor(() => expect(find()).toBeDefined())
+        fireEvent.click(find()!)
+      }
+      await pickIso()
+      const times11 = async () =>
+        (await screen.findAllByTestId('start-time-option')).find((b) =>
+          b.textContent?.startsWith('11:00'),
+        )!
+      fireEvent.click(await times11())
+
+      fireEvent.click((await screen.findAllByTestId('alternative-row-p-action'))[0]!)
+      // Now on Action: same day, 11:00 already chosen, so Continue is live.
+      await waitFor(() =>
+        expect(mocks.getAvailability).toHaveBeenCalledWith(
+          'p-action',
+          expect.anything(),
+          expect.anything(),
+          undefined,
+        ),
+      )
+      await waitFor(() => expect(screen.getByTestId('availability-picker-submit')).toBeEnabled())
+
+      // Back via the reverse link: Action offers Tandem with the same day.
+      fireEvent.click((await screen.findAllByTestId('alternative-row-p-tandem'))[0]!)
+      await waitFor(() =>
+        expect(mocks.getAvailability).toHaveBeenLastCalledWith(
+          'p-tandem',
+          expect.anything(),
+          expect.anything(),
+          undefined,
+        ),
+      )
+      await waitFor(() => expect(screen.getByTestId('availability-picker-submit')).toBeEnabled())
+    })
+
+    // Shared setup for the switch edge cases below: a roomy Tandem (cap 8)
+    // and a small Action (cap 2), both single_date, both offered to each other.
+    function switchSetup(opts: { actionFlow?: unknown } = {}) {
+      const day = new Date()
+      day.setDate(day.getDate() + 1)
+      const iso = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`
+      mocks.getAvailability.mockImplementation(async (id: string) => [
+        {
+          availability_id: `${id}-0`,
+          date: iso,
+          start_time: null,
+          end_time: null,
+          capacity: 10,
+          capacity_reserved: 0,
+          available_seats: 10,
+          status: 'open',
+        } as AvailabilitySlot,
+      ])
+      const alt = (id: string, name: string) => ({
+        product_id: id,
+        slug: id,
+        name,
+        service_time_shape: 'single_date',
+        price_from: '189.00',
+        currency: 'EUR',
+        available_dates: [iso],
+      })
+      mocks.getProductAlternatives.mockImplementation(async (id: string) =>
+        id === 'p-tandem' ? [alt('p-action', 'Action flight')] : [alt('p-tandem', 'Tandem flight')],
+      )
+      const products = [
+        makeProduct({
+          product_id: 'p-tandem',
+          slug: 'p-tandem',
+          service_time_shape: 'single_date',
+          max_party_size: 8,
+          name: 'Tandem flight',
+        }),
+        makeProduct({
+          product_id: 'p-action',
+          slug: 'p-action',
+          service_time_shape: 'single_date',
+          max_party_size: 2,
+          name: 'Action flight',
+        }),
+      ]
+      mocks.listProducts.mockResolvedValue(products)
+      mocks.getProductFlow.mockImplementation(async (_token: string, id: string) =>
+        id === 'p-action' && opts.actionFlow ? opts.actionFlow : { modules: null },
+      )
+      const pickDay = async () => {
+        const find = () =>
+          Array.from(document.querySelectorAll<HTMLButtonElement>('button[data-day]')).find(
+            (b) => {
+              const d = new Date(b.dataset.day ?? '')
+              return (
+                d.getFullYear() === day.getFullYear() &&
+                d.getMonth() === day.getMonth() &&
+                d.getDate() === day.getDate()
+              )
+            },
+          )
+        await waitFor(() => expect(find()).toBeDefined())
+        fireEvent.click(find()!)
+      }
+      return { iso, pickDay }
+    }
+
+    it('switch clamps a carried party to the target cap and says so', async () => {
+      const { pickDay } = switchSetup()
+      render(<App />)
+      await pickProduct('Tandem flight')
+      await pickDay()
+      for (let i = 0; i < 3; i++) {
+        fireEvent.click(await screen.findByTestId('party-size-increase'))
+      }
+      expect(screen.getByTestId('party-size-value')).toHaveTextContent('4')
+
+      fireEvent.click((await screen.findAllByTestId('alternative-row-p-action'))[0]!)
+      const note = await screen.findByTestId('party-clamp-note')
+      expect(note).toHaveTextContent(/Action flight takes up to 2 people/)
+      expect(screen.getByTestId('party-size-value')).toHaveTextContent('2')
+    })
+
+    // The dates-step "How many of you?" stepper must reach the live estimate,
+    // else the sidebar keeps pricing a party of 1 (scheduled add-on price bug).
+    it('time-slot picker: party stepper feeds participants_count into the live estimate', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] })
+      vi.setSystemTime(new Date('2026-05-15T08:00:00Z'))
+      onTestFinished(() => {
+        vi.useRealTimers()
+      })
+      const tomorrow = new Date(2026, 4, 16)
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          product_kind: 'service',
+          service_time_shape: 'single_date',
+          daily_start_times: ['09:00', '11:00'],
+          max_party_size: 4,
+          name: 'City bike',
+        }),
+      ])
+      mocks.getAvailability.mockResolvedValue([
+        {
+          availability_id: null,
+          date: '2026-05-16',
+          start_time: '11:00:00',
+          end_time: null,
+          capacity: 4,
+          capacity_reserved: 0,
+          available_seats: 4,
+          status: 'open',
+        } as AvailabilitySlot,
+      ])
+      render(<App />)
+      await pickProduct('City bike')
+      await waitFor(
+        () => {
+          if (screen.queryAllByTestId('start-time-option').length === 0) {
+            const btn = Array.from(
+              document.querySelectorAll<HTMLButtonElement>('button[data-day]'),
+            ).find((b) => {
+              const d = new Date(b.dataset.day!)
+              return d.getDate() === tomorrow.getDate() && d.getMonth() === tomorrow.getMonth()
+            })
+            expect(btn).toBeDefined()
+            fireEvent.click(btn!)
+          }
+          expect(screen.getAllByTestId('start-time-option').length).toBeGreaterThan(0)
+        },
+        { timeout: 4000 },
+      )
+      fireEvent.click(screen.getByTestId('start-time-option'))
+      fireEvent.click(await screen.findByTestId('party-size-increase'))
+      expect(screen.getByTestId('party-size-value')).toHaveTextContent('2')
+      await waitFor(
+        () =>
+          expect(mocks.estimateBookingPrice).toHaveBeenLastCalledWith(
+            expect.anything(),
+            expect.anything(),
+            expect.objectContaining({ participants_count: 2 }),
+          ),
+        { timeout: 4000 },
+      )
+    })
+
+    it('a switch whose fetch resolves after Continue was pressed is ignored', async () => {
+      const { pickDay } = switchSetup()
+      render(<App />)
+      await pickProduct('Tandem flight')
+      await pickDay()
+      const row = (await screen.findAllByTestId('alternative-row-p-action'))[0]!
+      let release: (v: Product[]) => void = () => {}
+      const products = (await mocks.listProducts('t')) as Product[]
+      mocks.listProducts.mockImplementationOnce(
+        () => new Promise<Product[]>((resolve) => (release = resolve)),
+      )
+      fireEvent.click(row)
+      fireEvent.click(await screen.findByTestId('single-date-picker-submit'))
+      await waitFor(() =>
+        expect(screen.getByText(/your contact details/i)).toBeInTheDocument(),
+      )
+      release(products)
+      await new Promise((r) => setTimeout(r, 20))
+      expect(screen.getByText(/your contact details/i)).toBeInTheDocument()
+      expect(screen.queryByTestId('party-clamp-note')).not.toBeInTheDocument()
+      expect(mocks.getAvailability).not.toHaveBeenCalledWith(
+        'p-action',
+        expect.anything(),
+        expect.anything(),
+        undefined,
+      )
+    })
+
+    it('switching into a participants-first product keeps the day through the participants step', async () => {
+      const { pickDay } = switchSetup({
+        actionFlow: {
+          modules: [
+            { kind: 'participants', position: 1 },
+            { kind: 'selection', position: 2 },
+          ],
+        },
+      })
+      render(<App />)
+      await pickProduct('Tandem flight')
+      await pickDay()
+      fireEvent.click((await screen.findAllByTestId('alternative-row-p-action'))[0]!)
+
+      // Participants come first, with no second Dates step in between.
+      await waitFor(() =>
+        expect(screen.getByText(/your contact details/i)).toBeInTheDocument(),
+      )
+      const setInput = (name: string, value: string) =>
+        fireEvent.change(
+          document.querySelector<HTMLInputElement>(`input[name="${name}"]`)!,
+          { target: { value } },
+        )
+      setInput('booker_first_name', 'Ada')
+      setInput('booker_last_name', 'Lovelace')
+      setInput('booker_email', 'ada@example.com')
+      setInput('booker_phone', '+34 600000000')
+      fillBillingFields()
+      fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+
+      // Dates, with the carried day already chosen.
+      await waitFor(() => expect(screen.getByTestId('single-date-selected')).toBeInTheDocument())
+      expect(screen.getByTestId('single-date-picker-submit')).toBeEnabled()
+    })
+
+    // landr-mfgx4: the sidebar prices the picked date + time on the dates
+    // step itself, not only after Continue.
+    it('single_date + daily_start_times → sidebar prices the live pick before Continue', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] })
+      vi.setSystemTime(new Date('2026-05-15T08:00:00Z'))
+      onTestFinished(() => {
+        vi.useRealTimers()
+      })
+      const tomorrow = new Date(2026, 4, 16)
+      const iso = '2026-05-16'
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          product_kind: 'service',
+          service_time_shape: 'single_date',
+          daily_start_times: ['09:00', '11:00'],
+          name: 'Tandem Timed',
+        }),
+      ])
+      mocks.getAvailability.mockResolvedValue([
+        {
+          availability_id: null,
+          date: iso,
+          start_time: '11:00:00',
+          end_time: null,
+          capacity: 2,
+          capacity_reserved: 0,
+          available_seats: 2,
+          status: 'open',
+        } as AvailabilitySlot,
+      ])
+      render(<App />)
+      await pickProduct('Tandem Timed')
+      const dayButton = () =>
+        Array.from(document.querySelectorAll<HTMLButtonElement>('button[data-day]')).find(
+          (b) => {
+            const d = new Date(b.dataset.day!)
+            return d.getDate() === tomorrow.getDate() && d.getMonth() === tomorrow.getMonth()
+          },
+        )
+      // The step transition can remount the picker right after a click, so
+      // pick the day again until its times are on screen.
+      await waitFor(
+        () => {
+          if (screen.queryAllByTestId('start-time-option').length === 0) {
+            const btn = dayButton()
+            expect(btn).toBeDefined()
+            expect(btn).not.toBeDisabled()
+            fireEvent.click(btn!)
+          }
+          expect(screen.getAllByTestId('start-time-option').length).toBeGreaterThan(0)
+        },
+        { timeout: 4000 },
+      )
+      fireEvent.click(screen.getByTestId('start-time-option'))
+      await waitFor(
+        () =>
+          expect(mocks.estimateBookingPrice).toHaveBeenCalledWith(
+            expect.anything(),
+            expect.anything(),
+            expect.objectContaining({ slot_start_time: '11:00' }),
+          ),
+        { timeout: 4000 },
+      )
+      expect(screen.getByTestId('availability-picker-submit')).toBeInTheDocument()
     })
 
     it('product_kind=digital_good → ShopComingSoonStub', async () => {

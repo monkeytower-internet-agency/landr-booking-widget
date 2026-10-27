@@ -2171,6 +2171,55 @@ describe('DetailsStep — companion_contact_required navigate-back focus (MINOR 
   })
 })
 
+describe('DetailsStep stay products: one payer, guests wording', () => {
+  const renderStay = (extra: Record<string, unknown> = {}, locale?: string) => {
+    if (locale) vi.spyOn(navigator, 'language', 'get').mockReturnValue(locale)
+    return render(
+      <DetailsStep
+        product={makeProduct({ product_kind: 'stay', hotel_offering: 'none', max_party_size: 4, ...extra })}
+        selection={DAYS_SELECTION}
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    )
+  }
+
+  afterEach(() => vi.restoreAllMocks())
+
+  it('hides the self-pay companions section', () => {
+    renderStay()
+    expect(screen.queryByTestId('companions-section')).not.toBeInTheDocument()
+    expect(screen.queryByText('Guests paying for themselves')).not.toBeInTheDocument()
+  })
+
+  it('words participants as guests', () => {
+    renderStay()
+    expect(screen.getByTestId('add-participant')).toHaveTextContent('+ Add guest')
+    expect(screen.getByTestId('add-participant')).not.toHaveTextContent(/participant/i)
+    fireEvent.click(screen.getByTestId('add-participant'))
+    expect(screen.getByText(/guests \(\d+ total\)/i)).toBeInTheDocument()
+    expect(screen.queryByText('Participant 1')).not.toBeInTheDocument()
+  })
+
+  it('uses German guest wording', () => {
+    renderStay({}, 'de-DE')
+    expect(screen.getByTestId('add-participant')).toHaveTextContent('+ Gast hinzufügen')
+  })
+
+  it('keeps participant wording for non-stay products', () => {
+    render(
+      <DetailsStep
+        product={makeProduct({ hotel_offering: 'none', max_party_size: 4 })}
+        selection={DAYS_SELECTION}
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    )
+    expect(screen.getByTestId('add-participant')).toHaveTextContent('+ Add participant')
+    expect(screen.getByTestId('companions-section')).toBeInTheDocument()
+  })
+})
+
 describe('DetailsStep no-accommodation products (landr-lu41h)', () => {
   const renderNone = (onConfirm = vi.fn()) =>
     render(

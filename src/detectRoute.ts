@@ -62,6 +62,19 @@ export function invitePathToken(pathname: string): string | null {
   return m ? decodeURIComponent(m[1]) : null
 }
 
+const SHORT_PATH_RE = /^\/s\/([^/]+)\/?$/
+
+/** The short-link code of a `/s/{code}` URL, or null for any other path. */
+export function shortLinkCode(pathname: string): string | null {
+  const m = SHORT_PATH_RE.exec(pathname)
+  if (!m) return null
+  try {
+    return decodeURIComponent(m[1])
+  } catch {
+    return null
+  }
+}
+
 export function detectRoute(pathname: string):
   | { kind: 'cancel'; token: string }
   | { kind: 'offer'; token: string }

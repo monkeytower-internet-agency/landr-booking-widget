@@ -21,6 +21,7 @@
  * the hero — so this component hides its own <h2> for aurora to avoid a
  * duplicate title).
  */
+import { Fragment } from 'react'
 import ReactMarkdown from 'react-markdown'
 import type { Product } from '@/api/types'
 import { Button } from '@/components/ui/button'
@@ -32,6 +33,8 @@ import { FullyBookedNotice } from '@/components/booking/FullyBookedNotice'
 import { ProductGallery } from '@/components/booking/detail/ProductGallery'
 import { ProductFacts } from '@/components/booking/detail/ProductFacts'
 import { formatPriceFrom } from '@/components/booking/detail/priceFromLabel'
+import { priceNoteItems } from '@/components/booking/detail/priceNotes'
+import { DescribedLabel } from '@/components/booking/DescribedLabel'
 import { tr } from '@/lib/strings'
 import { NextAction } from '@/components/booking/NextAction'
 
@@ -80,7 +83,9 @@ export function ProductDetailStep({
   const locale = browserLocale()
   const name = pickLocalized(product.name, product.name_localized, locale)
   const bookable = isBookable(product)
-  const priceLabel = formatPriceFrom(product.price_from, product.currency)
+  const priceLabel = formatPriceFrom(product.price_from, product.currency, locale)
+  // landr-bwm91.4: base + visible adjustments; [] (nothing rendered) when none.
+  const priceNotes = priceNoteItems(product, locale)
   const images = product.images ?? []
   // landr-u4fl follow-up (user report): the detail page rendered ONLY the
   // long `description`, so products carrying just a `short_description`
@@ -88,11 +93,11 @@ export function ProductDetailStep({
   // the gallery and the facts chips. Long description wins when present;
   // the card's short description is the fallback — and both go through the
   // locale pick like every other text on this page.
-  // NOTE: the public products payload carries no description_localized
-  // today (only short_description is localized) — when the translations
-  // editor lands (landr-14s4) and the API adds it, extend this pick.
+  // landr-5wwuq.3: the long description is localized too
+  // (`description_localized`, optional so an older API still works). Chain:
+  // localized long -> English long -> localized short.
   const description =
-    product.description ||
+    pickLocalized(product.description, product.description_localized, locale) ||
     pickLocalized(
       product.short_description,
       product.short_description_localized,
@@ -153,6 +158,27 @@ export function ProductDetailStep({
         <div className={PROSE_CLASSES} data-testid="product-detail-description">
           <ReactMarkdown>{description}</ReactMarkdown>
         </div>
+      ) : null}
+
+      {/* landr-bwm91.4: price notes sit right above the price + CTA so the
+          "from" price is explained on desktop and mobile alike. */}
+      {priceNotes.length > 0 ? (
+        <p
+          className="text-sm text-muted-foreground"
+          data-testid="product-detail-price-notes"
+        >
+          {priceNotes.map((note, idx) => (
+            <Fragment key={`${note.text}-${idx}`}>
+              {idx > 0 ? ' \u00b7 ' : null}
+              <DescribedLabel
+                text={note.text}
+                name={note.label}
+                description={note.description}
+                testId="product-detail-price-note"
+              />
+            </Fragment>
+          ))}
+        </p>
       ) : null}
 
       {/* landr-80ubl.2: one-next-action rule — arriving here always has

@@ -22,6 +22,7 @@ const { mocks } = vi.hoisted(() => ({
 }))
 
 vi.mock('@/api/client', () => ({
+  getProductAlternatives: vi.fn().mockResolvedValue([]),
   getAvailability: mocks.getAvailability,
 }))
 
@@ -129,9 +130,12 @@ describe('AvailabilityPicker with a synthesised on-request slot (landr-k9pji.1)'
     expect(dayButton(dayAfter)).not.toBeDisabled()
 
     fireEvent.click(dayButton(tomorrow))
-    // One whole-day slot: no start_time -> "Any time".
-    const timeButtons = screen.getAllByRole('button', { name: /Any time/ })
+    // One whole-day slot: no start_time -> "Time confirmed by the operator".
+    const timeButtons = screen.getAllByRole('button', { name: /Time confirmed by the operator/ })
     expect(timeButtons).toHaveLength(1)
+    expect(screen.getByTestId('time-confirmed-helper')).toHaveTextContent(
+      'The operator will confirm the exact time and details after you book.',
+    )
     const cont = screen.getByTestId('availability-picker-submit')
     expect(cont).toBeDisabled()
 
@@ -141,6 +145,32 @@ describe('AvailabilityPicker with a synthesised on-request slot (landr-k9pji.1)'
 
     expect(onConfirm).toHaveBeenCalledTimes(1)
     expect(onConfirm).toHaveBeenCalledWith(slots[0])
+  })
+
+  it('offers only the days of an event window (Thursday to Sunday) and nothing between events', async () => {
+    // Fri 15 May 2026; the next event is Thu 21 - Sun 24 May.
+    const eventDays = [21, 22, 23, 24].map((d) => new Date(2026, 4, d))
+    mocks.getAvailability.mockResolvedValue(eventDays.map(synthetic))
+
+    render(
+      <AvailabilityPicker
+        product={{
+          ...makeProduct(),
+          event_window: {
+            start_weekday: 4,
+            end_weekday: 7,
+            cutoff_hours: null,
+            horizon_n: 2,
+            occurrences: [{ start_date: '2026-05-21', end_date: '2026-05-24' }],
+          },
+        }}
+        onBack={() => {}}
+        onConfirm={() => {}}
+      />,
+    )
+    await waitFor(() => dayButton(eventDays[0]!))
+    for (const d of eventDays) expect(dayButton(d)).not.toBeDisabled()
+    for (const d of [20, 25, 28]) expect(dayButton(new Date(2026, 4, d))).toBeDisabled()
   })
 
   it('restores a null-id slot on back-nav re-entry (initialSlot)', async () => {
@@ -159,7 +189,7 @@ describe('AvailabilityPicker with a synthesised on-request slot (landr-k9pji.1)'
       />,
     )
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: /Any time/ })).toBeInTheDocument(),
+      expect(screen.getByRole('button', { name: /Time confirmed by the operator/ })).toBeInTheDocument(),
     )
     const cont = screen.getByTestId('availability-picker-submit')
     expect(cont).not.toBeDisabled()
@@ -256,8 +286,9 @@ describe('AvailabilityPicker with fixed daily start times (landr-xtkae.2)', () =
     expect(options[2]).toHaveTextContent('13:00')
     expect(options[2]).toBeDisabled()
     expect(options[2]).toHaveTextContent(/Too late to book/)
-    // No "any time" fallback on a timed product.
-    expect(screen.queryByRole('button', { name: /Any time/ })).toBeNull()
+    // No time-confirmed-by-operator fallback on a timed product.
+    expect(screen.queryByRole('button', { name: /Time confirmed by the operator/ })).toBeNull()
+    expect(screen.queryByTestId('time-confirmed-helper')).toBeNull()
 
     const cont = screen.getByTestId('availability-picker-submit')
     expect(cont).toBeDisabled()
@@ -305,6 +336,45 @@ describe('AvailabilityPicker with fixed daily start times (landr-xtkae.2)', () =
     await waitFor(() => expect(screen.getAllByTestId('start-time-option')).toHaveLength(2))
     fireEvent.click(screen.getByTestId('availability-picker-submit'))
     expect(onConfirm).toHaveBeenCalledWith(slots[1])
+  })
+
+  // landr-mfgx4: the price sidebar prices the pick before Continue.
+  it('reports the live date + time pick before Continue', async () => {
+    const tomorrow = new Date()
+    tomorrow.setDate(tomorrow.getDate() + 1)
+    const dayAfter = new Date()
+    dayAfter.setDate(dayAfter.getDate() + 2)
+    const slots = [
+      timed(tomorrow, '09:00:00'),
+      timed(tomorrow, '11:00:00'),
+      timed(dayAfter, '09:00:00'),
+    ]
+    mocks.getAvailability.mockResolvedValue(slots)
+    const onLiveSlotChange = vi.fn()
+    render(
+      <AvailabilityPicker
+        product={timedProduct()}
+        onBack={() => {}}
+        onConfirm={vi.fn()}
+        onLiveSlotChange={onLiveSlotChange}
+      />,
+    )
+    await waitFor(() => dayButton(tomorrow))
+    fireEvent.click(dayButton(tomorrow))
+    // A day alone is not priceable yet — no time picked.
+    expect(onLiveSlotChange).toHaveBeenLastCalledWith(null)
+
+    fireEvent.click(screen.getAllByTestId('start-time-option')[1])
+    expect(onLiveSlotChange).toHaveBeenLastCalledWith(slots[1])
+    const calls = onLiveSlotChange.mock.calls.length
+
+    // A re-render with the same pick does not re-report.
+    fireEvent.click(screen.getAllByTestId('start-time-option')[1])
+    expect(onLiveSlotChange).toHaveBeenCalledTimes(calls)
+
+    // Switching day drops the time again.
+    fireEvent.click(dayButton(dayAfter))
+    expect(onLiveSlotChange).toHaveBeenLastCalledWith(null)
   })
 })
 

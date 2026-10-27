@@ -29,7 +29,7 @@
  */
 import type { Product } from '@/api/types'
 import { pickLocalized } from '@/lib/locale'
-import { isGermanLocale, tr } from '@/lib/strings'
+import { tr, type Bundle } from '@/lib/strings'
 import { languageName, productDisplayLanguages } from '../participantLanguages'
 
 /** Icon keys ProductFacts.tsx maps to lucide-react icons. */
@@ -62,29 +62,26 @@ function humaniseKind(kind: string): string {
 }
 
 /**
- * landr-5aih0.9: best-effort German label for the platform-level product
+ * landr-5aih0.9: best-effort translated label for the platform-level product
  * kinds this fallback chip can show (a product with no operator category
- * yet — see the file header). Not exhaustive: `ProductKind` is a generated
- * DB enum this module doesn't have a full list of, so an unknown kind
- * fails open to the humanised English label rather than guessing — no
- * regression versus the pre-landr-5aih0.9 behaviour.
+ * yet, see the file header). The labels live in the language catalog
+ * (Bundle.factKind*, landr-8r6oc.18). Not exhaustive: `ProductKind` is a
+ * generated DB enum this module doesn't have a full list of, so an unknown
+ * kind fails open to the humanised label rather than guessing.
  */
-const KIND_LABEL_DE: Partial<Record<string, string>> = {
-  gift_card: 'Geschenkgutschein',
-  digital_good: 'Digitales Produkt',
-  physical_good: 'Physisches Produkt',
-  membership: 'Mitgliedschaft',
-  subscription: 'Abonnement',
-  hotel_room: 'Zimmer',
-  addon: 'Zusatzleistung',
+const KIND_LABEL_KEY: Record<string, keyof Bundle> = {
+  gift_card: 'factKindGiftCard',
+  digital_good: 'factKindDigitalGood',
+  physical_good: 'factKindPhysicalGood',
+  membership: 'factKindMembership',
+  subscription: 'factKindSubscription',
+  hotel_room: 'factKindHotelRoom',
+  addon: 'factKindAddon',
 }
 
 function kindLabel(kind: string, locale: string): string {
-  if (isGermanLocale(locale)) {
-    const de = KIND_LABEL_DE[kind]
-    if (de) return de
-  }
-  return humaniseKind(kind)
+  const key = Object.hasOwn(KIND_LABEL_KEY, kind) ? KIND_LABEL_KEY[kind] : undefined
+  return key ? tr(key, locale) : humaniseKind(kind)
 }
 
 export function deriveProductFacts(product: Product, locale: string): ProductFact[] {

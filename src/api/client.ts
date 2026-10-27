@@ -16,15 +16,20 @@ import type {
   Location,
   MeetingPoint,
   OperatorSettings,
+  PassMemberProofResponse,
+  PassTiersResponse,
   PriceAdjustment,
   Product,
   ProductAddon,
+  ProductAlternative,
   ProductGroup,
   SavingLine,
   ServiceRole,
   StaffSubmitBody,
   SubmitBookingBody,
   SubmitBookingResponse,
+  VerificationFileKind,
+  VerificationState,
 } from './types'
 import type { ProductFlowResponse } from './flowTypes'
 import type {
@@ -32,6 +37,9 @@ import type {
   CustomerDetailsPutBody,
   DetailsFieldError,
 } from './customerDetailsTypes'
+import { parsePausedBody, setPaused } from './pauseStore'
+import { isDemoMode } from '@/lib/demo'
+import { demoRequest } from './demo'
 import {
   mockAvailability,
   mockEstimate,
@@ -49,7 +57,9 @@ import {
 // Read env flags lazily (per-call) so tests can vi.stubEnv after the
 // module is imported — contract tests in particular need to flip
 // VITE_USE_MOCKS off mid-suite to exercise the real fetch path (landr-piyv).
-const mocksEnabled = (): boolean => import.meta.env.VITE_USE_MOCKS === '1'
+// Demo mode (marketing use-case pages) answers from `./demo` instead — it
+// outranks the dev-mock switch so the demo never depends on build env.
+const mocksEnabled = (): boolean => !isDemoMode() && import.meta.env.VITE_USE_MOCKS === '1'
 const apiBase = (): string =>
   (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/+$/, '')
 
@@ -120,6 +130,9 @@ export class HttpError extends Error {
 }
 
 async function http<T>(path: string, init?: RequestInit): Promise<T> {
+  // Demo mode: no request leaves the browser except the read-only template
+  // lookup inside demoRequest — never a booking, payment or mail endpoint.
+  if (isDemoMode()) return demoRequest<T>(path, init)
   if (!apiBase()) throw new Error('VITE_API_BASE_URL is not configured')
   const res = await fetch(`${apiBase()}${path}`, {
     ...init,
@@ -130,6 +143,12 @@ async function http<T>(path: string, init?: RequestInit): Promise<T> {
   })
   if (!res.ok) {
     const body = await res.text().catch(() => '')
+    // Off-season pause: no booking flow may start; the app shows a
+    // "back in season" screen (PausedGate) instead of a generic error.
+    if (res.status === 409) {
+      const paused = parsePausedBody(body)
+      if (paused) setPaused(paused)
+    }
     throw new HttpError(res.status, res.statusText, body)
   }
   return (await res.json()) as T
@@ -379,6 +398,38 @@ export async function requestSubscriptionPerkOtp(
 }
 
 /**
+ * the tiers of a pass product. The member amount only comes
+ * back when `email` + `memberProof` (from requestPassMemberProof) check out.
+ */
+export async function getPassTiers(
+  operatorToken: string,
+  productId: string,
+  member?: { email: string; memberProof: string },
+): Promise<PassTiersResponse> {
+  const qs = member
+    ? `?${new URLSearchParams({ email: member.email, member_proof: member.memberProof })}`
+    : ''
+  return http<PassTiersResponse>(
+    `/api/public/operators/${encodeURIComponent(operatorToken)}/products/${encodeURIComponent(productId)}/pass-tiers${qs}`,
+  )
+}
+
+/**
+ * exchange the member OTP (emailed by requestSubscriptionPerkOtp)
+ * for a short-lived proof. Every failure is the same 403 (no membership oracle).
+ */
+export async function requestPassMemberProof(
+  operatorToken: string,
+  email: string,
+  otp: string,
+): Promise<PassMemberProofResponse> {
+  return http<PassMemberProofResponse>(
+    `/api/public/operators/${encodeURIComponent(operatorToken)}/passes/member-proof`,
+    { method: 'POST', body: JSON.stringify({ email, otp }) },
+  )
+}
+
+/**
  * Stub pointing at the GET /api/public/operators/{token}/locations endpoint (landr-e10.8).
  * Falls back to mock data until the backend lands.
  */
@@ -458,6 +509,28 @@ export async function getFixedDateWindows(
   if (mocksEnabled()) return mockFixedDateWindows()
   return http<FixedDateWindow[]>(
     `/api/public/products/${encodeURIComponent(productId)}/fixed-date-windows`,
+  )
+}
+
+/**
+ * Linked alternatives of a product with their available dates (day shapes) or
+ * course windows (fixed_window) inside `[fromIso, toIso]` - one call per
+ * visible month. `party` filters to days/windows seating that many people.
+ */
+export async function getProductAlternatives(
+  productId: string,
+  fromIso: string,
+  toIso: string,
+  party = 1,
+): Promise<ProductAlternative[]> {
+  if (mocksEnabled()) return []
+  const qs = new URLSearchParams({
+    from: fromIso,
+    to: toIso,
+    party: String(Math.max(1, party)),
+  })
+  return http<ProductAlternative[]>(
+    `/api/public/products/${encodeURIComponent(productId)}/alternatives?${qs}`,
   )
 }
 
@@ -599,6 +672,39 @@ export async function submitBooking(
 }
 
 /**
+ * Upload one verification file (licence / insurance) for a booking.
+ * Raw-body PUT with the scoped token the submit returned; the API checks the
+ * real file type and the 10 MB limit. Returns the new verification progress.
+ */
+export async function uploadVerificationFile(
+  token: string,
+  kind: VerificationFileKind,
+  file: Blob,
+): Promise<VerificationState> {
+  if (!apiBase()) throw new Error('VITE_API_BASE_URL is not configured')
+  const res = await fetch(
+    `${apiBase()}/api/public/bookings/${encodeURIComponent(token)}/verification/files/${kind}`,
+    {
+      method: 'PUT',
+      headers: { 'Content-Type': file.type || 'application/octet-stream' },
+      body: file,
+    },
+  )
+  if (!res.ok) {
+    const body = await res.text().catch(() => '')
+    throw new HttpError(res.status, res.statusText, body)
+  }
+  return (await res.json()) as VerificationState
+}
+
+/** The verification progress of a booking, by its scoped token. */
+export async function getVerificationState(token: string): Promise<VerificationState> {
+  return http<VerificationState>(
+    `/api/public/bookings/${encodeURIComponent(token)}/verification`,
+  )
+}
+
+/**
  * landr-otml0.3: resolve a `?invite=<token>` link to its strict prefill
  * (landr-otml0.1 on the API — `extra="forbid"`, no booking ids). 404 on
  * every miss (bad token, wrong shape, cancelled host booking) — the caller
@@ -609,6 +715,16 @@ export async function submitBooking(
  */
 export async function getInvitePrefill(token: string): Promise<InvitePrefill> {
   return http<InvitePrefill>(`/api/public/invites/${encodeURIComponent(token)}`)
+}
+
+/**
+ * landr-nun2y: resolve a `/s/<code>` short link to the widget query string
+ * (no leading `?`). Opaque 404 on a miss. No mock fallback.
+ */
+export async function resolveShortLink(code: string): Promise<{ query: string }> {
+  return http<{ query: string }>(
+    `/api/public/short-links/${encodeURIComponent(code)}`,
+  )
 }
 
 /**
@@ -984,6 +1100,10 @@ export interface OfferTotals {
   hotel_tax_total?: number | null
   hotel_net_total?: number | null
   has_hotel_lines?: boolean
+  /** landr-hzovu.4: lines paid directly to the pilot / guide (neither operator nor hotel money). */
+  performer_gross_total?: number | null
+  performer_tax_total?: number | null
+  performer_net_total?: number | null
 }
 
 /**
@@ -1028,7 +1148,12 @@ export interface OfferLineItem {
   units: number
   line_total: number
   unit_price: number
-  paid_to: 'operator' | 'hotel'
+  /** 'performer' (landr-hzovu.11): paid directly to the pilot / guide, not part of the amount charged online. */
+  paid_to: 'operator' | 'hotel' | 'performer'
+  /** Performer lines only: bare noun for the payee ("Tandem pilot"). Absent on an older API. */
+  payee_label?: string | null
+  /** Performer lines only: operator override replacing the standard caveat. */
+  payment_note?: string | null
   participants: number | null
   per_person_price: number | null
 }

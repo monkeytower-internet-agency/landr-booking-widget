@@ -12,12 +12,13 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import type { AlternativeSelectHandler } from '@/components/booking/AlternativesPanel'
 import { MultiDayPicker } from '@/components/booking/MultiDayPicker'
 import { StepBackButton } from '@/components/booking/StepBackButton'
 import { dateFromIso, isoDate } from '@/components/booking/dateUtils'
 import { DayChips } from '@/components/booking/DayChips'
 import { isDayBookable } from '@/components/booking/bookability'
-import { availabilityWindow } from '@/components/booking/calendarStart'
+import { availabilityWindow, startOfToday } from '@/components/booking/calendarStart'
 import {
   availableDaysForLabel,
   dayNoLongerAvailableReason,
@@ -101,7 +102,18 @@ interface Props {
   onPartySizeChange?: (partySize: number) => void
   /** landr-rmcsu.5: widget token + contact email for the group-inquiry exit. */
   operatorToken?: string
+  /**
+   * landr-8ht3m.12: the operator's IANA timezone. "Today" (fetch window,
+   * first-bookable-day search) is the operator's day, not the browser's.
+   * Absent -> browser clock.
+   */
+  operatorTimezone?: string | null
   contactEmail?: string | null
+  /**
+   * Tapping a row of the "Also available" panel. A wiring point: the product
+   * switch hooks in here; without a handler a tap does nothing.
+   */
+  onSelectAlternative?: AlternativeSelectHandler
 }
 
 // Stable empty reference for the availability prop while slots are still
@@ -128,6 +140,8 @@ export function MultiDayStep({
   showPartySizeStepper = false,
   onPartySizeChange,
   operatorToken,
+  operatorTimezone,
+  onSelectAlternative,
   contactEmail,
 }: Props) {
   const [slots, setSlots] = useState<AvailabilitySlot[] | null>(null)
@@ -150,7 +164,10 @@ export function MultiDayStep({
   // How many host days "Change dates" dropped as no longer bookable.
   const [droppedOnEdit, setDroppedOnEdit] = useState<number | undefined>(undefined)
 
-  const { fromIso, toIso } = useMemo(() => availabilityWindow(), [])
+  const { fromIso, toIso } = useMemo(
+    () => availabilityWindow(startOfToday(operatorTimezone)),
+    [operatorTimezone],
+  )
 
   // landr-rmcsu.5: group size. With the stepper shown it is local state
   // seeded from the known need (Back / Change dates) and clamped to the
@@ -414,6 +431,9 @@ export function MultiDayStep({
             originalValueLabel={originalDaysLabel}
             initialDroppedCount={droppedOnEdit}
             seatsNeeded={need}
+            operatorTimezone={operatorTimezone}
+            alternativesProductId={product.product_id}
+            onSelectAlternative={onSelectAlternative}
           />
           {selectedDays.length > 0 ? (
             // landr-3mo4: selection count surfaced as a tinted chip (committed

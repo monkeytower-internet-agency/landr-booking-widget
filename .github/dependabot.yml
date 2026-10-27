@@ -11,3 +11,16 @@ updates:
     groups:
       github-actions:
         patterns: ['*']
+  # landr-0unqx.2: security-only. open-pull-requests-limit 0 disables routine
+  # version-update PRs; GitHub security updates (repo setting) still open PRs
+  # for vulnerable deps, grouped, against dev.
+  - package-ecosystem: npm
+    directory: /
+    target-branch: dev
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 0
+    groups:
+      security:
+        applies-to: security-updates
+        patterns: ['*']

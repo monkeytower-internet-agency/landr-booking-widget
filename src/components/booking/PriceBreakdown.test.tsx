@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import type { SavingLine } from '@/api/types'
 import { PriceBreakdown } from './PriceBreakdown'
@@ -89,5 +89,78 @@ describe('PriceBreakdown', () => {
       />,
     )
     expect(screen.getByTestId('test-amount-due')).toHaveTextContent('Booking total')
+  })
+  // landr-fcoh2: a weekend surcharge is itemised, and the rows add up:
+  // 150 + 20 − 10 = 160.
+  it('renders Subtotal (before surcharges) → + surcharge → − saving → Amount due', () => {
+    render(
+      <PriceBreakdown
+        subtotalBeforeSavings="170.00"
+        savings={[{ kind: 'discount', label: 'Time-slot discount', amount: '10.00' }]}
+        surcharges={[{ kind: 'surcharge', label: 'Weekend surcharge', amount: '20.00' }]}
+        subtotalBeforeSurcharges="150.00"
+        amountDue="160.00"
+        currency="EUR"
+        testIdPrefix="test"
+      />,
+    )
+    expect(screen.getByTestId('test-subtotal')).toHaveTextContent('150')
+    const surcharge = screen.getByTestId('test-surcharge')
+    expect(surcharge).toHaveTextContent('+ Weekend surcharge')
+    expect(surcharge).toHaveTextContent('20')
+    expect(screen.getByTestId('test-saving')).toHaveTextContent('Time-slot discount')
+    expect(screen.getByTestId('test-amount-due')).toHaveTextContent('160')
+    // Visual order: subtotal, surcharge, saving, total.
+    const order = ['test-subtotal', 'test-surcharge', 'test-saving', 'test-amount-due'].map(
+      (id) => screen.getByTestId(id),
+    )
+    for (let k = 1; k < order.length; k++) {
+      expect(
+        order[k - 1].compareDocumentPosition(order[k]) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy()
+    }
+  })
+
+  it('shows a surcharge with no savings (Subtotal → + surcharge → Amount due)', () => {
+    render(
+      <PriceBreakdown
+        subtotalBeforeSavings="170.00"
+        savings={[]}
+        surcharges={[{ kind: 'surcharge', label: 'Weekend surcharge', amount: '20.00' }]}
+        subtotalBeforeSurcharges="150.00"
+        amountDue="170.00"
+        currency="EUR"
+        testIdPrefix="test"
+      />,
+    )
+    expect(screen.getByTestId('test-subtotal')).toHaveTextContent('150')
+    expect(screen.getByTestId('test-surcharge')).toHaveTextContent('Weekend surcharge')
+    expect(screen.queryByTestId('test-savings')).not.toBeInTheDocument()
+    expect(screen.getByTestId('test-amount-due')).toHaveTextContent('170')
+  })
+})
+
+describe('PriceBreakdown named adjustments (landr-soewf)', () => {
+  it('shows the operator name on the row and opens its description with a chevron', () => {
+    render(
+      <PriceBreakdown
+        amountDue="120.00"
+        currency="EUR"
+        subtotalBeforeSavings="110.00"
+        subtotalBeforeSurcharges="100.00"
+        surcharges={[
+          { kind: 'surcharge', label: 'Wochenend-Zuschlag', amount: '20.00', description: 'Etwas mehr am Wochenende.' },
+        ]}
+        savings={[{ kind: 'discount', label: 'Early Bird', amount: '10.00' }]}
+        testIdPrefix="t"
+      />,
+    )
+    expect(screen.getByTestId('t-surcharge')).toHaveTextContent('+ Wochenend-Zuschlag')
+    expect(screen.getByTestId('t-saving')).toHaveTextContent('− Early Bird')
+    // No description -> no chevron on the discount row.
+    expect(screen.getAllByRole('button')).toHaveLength(1)
+    expect(screen.queryByText('Etwas mehr am Wochenende.')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Show details about Wochenend-Zuschlag' }))
+    expect(screen.getByText('Etwas mehr am Wochenende.')).toBeInTheDocument()
   })
 })

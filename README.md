@@ -61,6 +61,7 @@ The widget is loaded by Para42's WordPress site via the shortcode `[landr_bookin
 - `preview_token` — optional operator preview token; surfaces draft products during operator preview
 - `show_sold_out` — optional; `true` (or `1`) makes the catalogue / category overview SHOW sold-out products as informational "Fully booked" cards (no Select CTA) instead of hiding them. Default off: sold-out products are hidden from the overview. (landr-7jgo)
 - `variant` — optional visual direction: `aurora` (default, brand-gradient immersive), `summit` (editorial / image-forward), or `alpine` (crisp classic, dense). Token-level theming applied across the whole flow. (landr-d8rg.3)
+- `demo` — optional template slug (e.g. `?demo=kayak`; on a host that serves the widget itself, `data-demo="kayak"` on `<html>` or `#root` does the same). Demo mode shows the template's sample catalogue with always-available generated slots, a visible "Demo" label, and replaces checkout with a "congrats, this is what your customers would see" screen linking to signup (`?template=<slug>`). It needs no `w=` token, reads only `GET /api/public/templates/{slug}` from the network, and never calls a booking, payment or mail endpoint. `lang=de` renders it in German. Used by the marketing site's use-case pages.
 - `preview` — optional; `1` (or `true`) enables a floating bottom-right **variant switcher** chip so a reviewer can flip aurora / summit / alpine live without editing the URL (it updates `?variant=` in place, no reload). A `preview_token` also enables the switcher. Customer-facing embeds omit both, so the switcher never ships to end users. (landr-d8rg.8)
 
 **Auto-height (landr-6eita.1).** When embedded (`window.parent !== window`) the widget posts `{ type: 'landr:resize', height }` (integer CSS px of its content, target `'*'`) to the parent whenever its height changes, so the host can size the iframe instead of the widget scrolling inside it. The parent must accept it only from its own landr iframe (`event.source`) and that iframe's `src` origin (`event.origin`); the WP plugin and the dashboard embed snippet do this. Implementation: `src/lib/autoHeight.ts`.
@@ -75,13 +76,14 @@ src/
 wp-plugin/         WordPress plugin (landr-e10.4)
 ```
 
-## Languages (landr-5aih0.9)
+## Languages (landr-5aih0.9, landr-8r6oc.4)
 
 Widget chrome (buttons, headings, validation messages, date-picker help — every
-string that isn't operator-authored content) is bundled in `src/lib/strings.ts`.
-`pickBundle(locale)` / `tr(key, locale)` resolve to the German bundle for any
-`de*` locale and to English for everything else; there is no i18n library — the
-bundle is the whole translation layer, following the pattern landr-ifcu
+string that isn't operator-authored content) is bundled: English and German in
+`src/lib/strings.ts`, Spanish and Turkish as catalogs under `src/lib/locales/`.
+`pickBundle(locale)` / `tr(key, locale)` resolve `de*`, `es*` and `tr*` locales to
+their bundle and everything else to English; there is no i18n library — the
+bundles are the whole translation layer, following the pattern landr-ifcu
 established for the (then English-only) widget.
 
 - **Locale source**: the resolver in `src/lib/locale.ts` (`browserLocale()`) —
@@ -89,12 +91,27 @@ established for the (then English-only) widget.
   whitelist (falling back to `default_locale`), else the raw browser locale.
   Components call `browserLocale()` directly (no prop threading) and pass the
   result into `tr()`/`pickBundle()`.
-- **Adding a locale**: extend the `Bundle` type and the `en`/`de` objects in
-  `src/lib/strings.ts`, then widen `pickBundle`'s locale-base switch. es/fr/it
-  are out of scope for landr-5aih0.9 (DE only, per the epic) — add later by
-  copying the `de` object as a starting point.
+- **Adding a locale**: a further language is a drop-in catalog. Create
+  `src/lib/locales/<code>.ts` exporting a full `Bundle` (the type makes a missing
+  key a compile error; copy `es.ts` as a starting point and keep every
+  `{placeholder}`), then add a dynamic-import line to `CATALOG_LOADERS` in
+  `src/lib/strings.ts`. Catalogs are lazy chunks (English stays inline as the
+  fallback): `main.tsx` and `App.tsx` call `loadUiCatalog` for the resolved
+  language before it renders, and `pickBundle` serves English until it is in.
+  Product-kind labels, calendar aria words and every other chrome string are
+  Bundle fields, so they are covered automatically. Also give the language
+  entries in the small per-language tables that stay outside the bundle:
+  `participantLanguages.ts` (`LANGUAGE_NAMES_BY_UI`), `cancelStrings.ts` /
+  `approvalReplyStrings.ts` (the email-language pages) and `ui/calendar.tsx`
+  (react-day-picker locale, which also carries its aria labels).
+  `locales/catalogs.test.ts` checks key and placeholder parity for every
+  registered language.
+  Turkish and Spanish are machine translations awaiting a native-speaker review.
 - **Dates**: `src/components/booking/dateLabel.ts` formats every date/time
-  label via `Intl.DateTimeFormat`, threaded the resolved locale through.
+  label via `Intl.DateTimeFormat`, threaded the resolved locale through; the calendar's
+  month and weekday names use react-day-picker's `locale` catalogs for the same
+  languages. Plurals are bundle-driven: each count word has a singular and a
+  plural field (equal in Turkish, which keeps the noun singular after a number).
   Currency goes through `Intl.NumberFormat` in `priceSidebarHelpers.ts`
   (`formatMoney`) and `accommodationCalc.ts` (`formatCurrency`), same pattern.
 - **Page-scoped exception**: `ApprovalReplyPage` (the hotel rooms-request

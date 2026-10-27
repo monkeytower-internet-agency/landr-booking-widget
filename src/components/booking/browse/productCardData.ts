@@ -17,7 +17,7 @@ import {
   languageFlag,
   productDisplayLanguages,
 } from '@/components/booking/participantLanguages'
-import { tr } from '@/lib/strings'
+import { fmt, tr } from '@/lib/strings'
 
 /** landr-pv2r1: flags shown on the catalogue chip before collapsing to "+N". */
 export const LANGUAGE_CHIP_MAX_FLAGS = 5
@@ -74,12 +74,14 @@ export function productShortDescription(
  * other figure in the widget. Currency falls back to EUR (the only
  * currency the platform bills in today) when the product omits it.
  */
-export function productPriceLabel(product: Product): string | null {
+export function productPriceLabel(product: Product, locale?: string): string | null {
   const raw = product.price_from
   if (raw == null || raw === '') return null
   const n = Number(raw)
   if (!Number.isFinite(n) || n <= 0) return null
-  return `from ${formatMoney(raw, product.currency ?? 'EUR')}`
+  return fmt(tr('priceFromTemplate', locale), {
+    price: formatMoney(raw, product.currency ?? 'EUR', locale),
+  })
 }
 
 /**

@@ -5,7 +5,7 @@ import { validateField } from './customFormValidation'
 // landr-kcxx5.10: every validation message reads in the customer's language
 // (the widget's main table ships en + de; any other locale gets English).
 
-const LOCALES = ['en', 'de', 'de-AT', 'fr-FR', 'es'] as const
+const LOCALES = ['en', 'de', 'de-AT', 'fr-FR', 'pt'] as const
 const german = (l: string) => l.startsWith('de')
 
 describe('validateField wording per locale', () => {
@@ -60,5 +60,18 @@ describe('validateField wording per locale', () => {
   it('returns null for a valid or optional-empty field', () => {
     expect(validateField(field('o', { label: 'O' }), {}, 'en', 'de')).toBeNull()
     expect(validateField(field('o', { label: 'O', required: true }), { o: 'x' }, 'en', 'de')).toBeNull()
+  })
+})
+
+// landr-8r6oc.4: Spanish and Turkish ship the same validation wording.
+describe('validateField wording — es and tr (landr-8r6oc.4)', () => {
+  it.each([
+    ['es', 'Weight es obligatorio.'],
+    ['tr', 'Weight zorunludur.'],
+  ])('required reads in %s, not English', (l, expected) => {
+    const f = field('weight', { label: 'Weight', required: true, field_type: 'number' })
+    const msg = validateField(f, {}, 'en', l)
+    expect(msg).toContain(expected)
+    expect(msg).not.toBe('Weight is required.')
   })
 })

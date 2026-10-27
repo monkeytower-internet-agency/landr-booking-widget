@@ -14,6 +14,9 @@ import {
   deriveAccommodationMode,
   detailsFromDraft,
   draftFromStep,
+  draftForProductSwitch,
+  partyClampForSwitch,
+  stepForAlternativeSwitch,
   frameBackStep,
   mergeCapturedDraft,
   participantsBeforeSelection,
@@ -1400,5 +1403,134 @@ describe('formResponsesFromDraft (landr-kcxx5.8)', () => {
         customFormResponses: [] as never,
       }),
     ).toEqual([])
+  })
+})
+
+describe('stepForAlternativeSwitch', () => {
+  const slotProduct = makeProduct({ product_id: 'slot', service_time_shape: 'time_slot' })
+  const timedProduct = makeProduct({
+    product_id: 'timed',
+    service_time_shape: 'single_date',
+    daily_start_times: ['09:00', '11:00'],
+  })
+  const singleProduct = makeProduct({ product_id: 'single', service_time_shape: 'single_date' })
+  const rangeProduct = makeProduct({ product_id: 'range', service_time_shape: 'days_range' })
+  const courseProduct = makeProduct({ product_id: 'course', service_time_shape: 'fixed_window' })
+  const days = ['2026-06-02', '2026-06-03']
+
+  it.each([
+    ['time_slot', slotProduct],
+    ['single_date with fixed start times', timedProduct],
+  ])('%s target: day and start time ride as a carry, the date step stays', (_n, target) => {
+    expect(
+      stepForAlternativeSwitch({ target, days, startTime: '11:00:00' }),
+    ).toEqual({
+      name: 'pick-selection',
+      product: target,
+      carry: { date: '2026-06-02', startTime: '11:00:00' },
+    })
+  })
+
+  it('a time-slot target without a source start time carries the day only', () => {
+    expect(stepForAlternativeSwitch({ target: slotProduct, days: ['2026-06-02'] })).toEqual({
+      name: 'pick-selection',
+      product: slotProduct,
+      carry: { date: '2026-06-02' },
+    })
+  })
+
+  it('single_date target keeps the first day only', () => {
+    const step = stepForAlternativeSwitch({ target: singleProduct, days })
+    expect(step).toMatchObject({
+      selection: { kind: 'days', selectedDays: ['2026-06-02'] },
+    })
+  })
+
+  it('days_range target keeps every day', () => {
+    const step = stepForAlternativeSwitch({ target: rangeProduct, days })
+    expect(step).toMatchObject({ selection: { kind: 'days', selectedDays: days } })
+  })
+
+  it('fixed_window target lands on the tapped course window', () => {
+    expect(
+      stepForAlternativeSwitch({ target: courseProduct, days: ['2026-11-12'], windowId: 'w1' }),
+    ).toEqual({
+      name: 'pick-selection',
+      product: courseProduct,
+      selection: { kind: 'days', selectedDays: ['2026-11-12'], fixedDateWindowId: 'w1' },
+    })
+  })
+
+  it('no day picked yet: a plain date step on every shape', () => {
+    for (const target of [slotProduct, singleProduct, rangeProduct]) {
+      const step = stepForAlternativeSwitch({ target, days: [] })
+      expect(step).toMatchObject({ name: 'pick-selection', product: target })
+      expect(step).not.toHaveProperty('selection')
+      expect((step as { carry?: unknown }).carry).toBeUndefined()
+    }
+  })
+})
+
+describe('draftForProductSwitch', () => {
+  it('keeps who and how many, drops what belonged to the old product', () => {
+    const draft: BookingDraft = {
+      partySize: 3,
+      booker: ADA,
+      customerComment: 'hi',
+      addons: [{ addon_id: 'a', quantity: 1 } as never],
+      hotelLocationId: 'h-1',
+      pickupLocationId: 'l-1',
+      customFormAnswers: { f: { k: 'v' } },
+      includeHotel: true,
+    }
+    expect(draftForProductSwitch(draft)).toEqual({
+      partySize: 3,
+      booker: ADA,
+      customerComment: 'hi',
+    })
+  })
+})
+
+describe('draftForProductSwitch party clamp (landr-w1q0y.15)', () => {
+  const person = (n: number) =>
+    ({ first_name: `P${n}`, last_name: 'X' }) as unknown as NonNullable<
+      BookingDraft['participants']
+    >[number]
+  const draft: BookingDraft = {
+    partySize: 5,
+    booker: ADA,
+    participants: [person(1), person(2), person(3), person(4), person(5)],
+    companions: [
+      { companion_kind: 'separate_guiding' } as never,
+      { companion_kind: 'non_guiding' } as never,
+    ],
+  }
+
+  it('cuts party size, roster and invitees to the target cap', () => {
+    const out = draftForProductSwitch(draft, { max_party_size: 2 })
+    expect(out.partySize).toBe(2)
+    expect(out.participants).toHaveLength(2)
+    expect(out.companions).toEqual([{ companion_kind: 'non_guiding' }])
+    expect(partyClampForSwitch(draft, { max_party_size: 2 })).toBe(2)
+  })
+
+  it('leaves a party that fits untouched', () => {
+    expect(partyClampForSwitch(draft, { max_party_size: 9 })).toBeNull()
+    const out = draftForProductSwitch(draft, { max_party_size: 9 })
+    expect(out.partySize).toBe(5)
+    expect(out.participants).toHaveLength(5)
+  })
+
+  it('falls back to the default cap of 6 when the target sets none', () => {
+    expect(partyClampForSwitch({ partySize: 9 }, { max_party_size: null })).toBe(6)
+  })
+})
+
+describe('stepForAlternativeSwitch + detailsFromDraft carry', () => {
+  it('detailsFromDraft hands a carried day/time on to the dates step', () => {
+    const target = { product_id: 'p' } as never
+    const step = detailsFromDraft(target, undefined, {}, { date: '2026-11-01', startTime: '11:00' })
+    expect(step.carry).toEqual({ date: '2026-11-01', startTime: '11:00' })
+    expect(detailsFromDraft(target, undefined, {})).not.toHaveProperty('carry')
   })
 })

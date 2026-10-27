@@ -279,13 +279,17 @@ describe('AddonsList (landr-cip6)', () => {
     expect(plus).not.toBeDisabled()
   })
 
-  it('service add-on with expectedQty=1: qty=2 shows over-warning, qty=1 is silent', () => {
-    // "Tandem video package" — service flow, no room context, expectedQty=1.
-    // Under-warning must never fire (qty is 0 or ≥1 for non-room add-ons).
-    const addon = makeAddon({ addon_product_id: 'vid', name: 'Video Package' })
+  it('service add-on (video package): price shown, qty=2 shows no room wording or deviation hint', () => {
+    // landr-anq5s: a service add-on has no room context, so the room-sleeps
+    // over/under hint must never render, whatever the quantity.
+    const addon = makeAddon({
+      addon_product_id: 'vid',
+      name: 'Video Package',
+      product_kind: 'service',
+      price_per_unit: 40,
+    })
 
-    // qty=2: over-warning visible
-    const { rerender } = render(
+    const { container } = render(
       <AddonsList
         addons={[addon]}
         selection={{ vid: 2 }}
@@ -293,20 +297,11 @@ describe('AddonsList (landr-cip6)', () => {
         expectedQty={1}
       />,
     )
-    expect(screen.getByTestId('addon-overbook-vid')).toBeInTheDocument()
-    expect(screen.queryByTestId('addon-underbook-vid')).toBeNull()
-
-    // qty=1: no warning
-    rerender(
-      <AddonsList
-        addons={[addon]}
-        selection={{ vid: 1 }}
-        onChange={vi.fn()}
-        expectedQty={1}
-      />,
-    )
+    expect(screen.getByText(/40/)).toBeInTheDocument()
+    expect(screen.queryByText(/Price on request/i)).toBeNull()
     expect(screen.queryByTestId('addon-overbook-vid')).toBeNull()
     expect(screen.queryByTestId('addon-underbook-vid')).toBeNull()
+    expect(container.textContent).not.toMatch(/than this room sleeps/i)
   })
 
   it('shows no warning when qty is 0 regardless of expectedQty', () => {
@@ -545,5 +540,112 @@ describe('AddonsList stock (landr-lmudr.32 / .19)', () => {
       'Raft: fully reserved for another group on your dates.',
     )
     expect(screen.getByRole('button', { name: /Increase/ })).toBeDisabled()
+  })
+})
+
+describe('AddonsList quantity rule (landr-hzovu.2)', () => {
+  afterEach(() => vi.restoreAllMocks())
+
+  const video = (overrides: Partial<ProductAddon> = {}) =>
+    makeAddon({
+      addon_product_id: 'vid',
+      name: 'Video Package',
+      product_kind: 'service',
+      ...overrides,
+    })
+
+  function plus() {
+    return screen.getByRole('button', { name: /Increase Video Package/i })
+  }
+
+  it('one_per_booking: + is disabled at 1 and enabled at 0', () => {
+    const addon = video({ addon_quantity_rule: 'one_per_booking' })
+    const { rerender } = render(
+      <AddonsList addons={[addon]} selection={{}} onChange={vi.fn()} expectedQty={1} participantCount={3} />,
+    )
+    expect(plus()).not.toBeDisabled()
+    rerender(
+      <AddonsList addons={[addon]} selection={{ vid: 1 }} onChange={vi.fn()} expectedQty={1} participantCount={3} />,
+    )
+    expect(plus()).toBeDisabled()
+  })
+
+  it('one_per_participant: + stops at the participant count, with no deviation hint', () => {
+    const addon = video({ addon_quantity_rule: 'one_per_participant' })
+    const { rerender, container } = render(
+      <AddonsList addons={[addon]} selection={{ vid: 2 }} onChange={vi.fn()} expectedQty={1} participantCount={3} />,
+    )
+    expect(plus()).not.toBeDisabled()
+    rerender(
+      <AddonsList addons={[addon]} selection={{ vid: 3 }} onChange={vi.fn()} expectedQty={1} participantCount={3} />,
+    )
+    expect(plus()).toBeDisabled()
+    expect(screen.queryByTestId('addon-overbook-vid')).toBeNull()
+    expect(screen.queryByTestId('addon-underbook-vid')).toBeNull()
+    expect(container.textContent).not.toMatch(/guest|room/i)
+  })
+
+  it('one_per_participant with one guest caps at 1', () => {
+    const addon = video({ addon_quantity_rule: 'one_per_participant' })
+    render(
+      <AddonsList addons={[addon]} selection={{ vid: 1 }} onChange={vi.fn()} expectedQty={1} participantCount={1} />,
+    )
+    expect(plus()).toBeDisabled()
+  })
+
+  it('any: unlimited without a max, capped at addon_quantity_max with one', () => {
+    const unlimited = video({ addon_quantity_rule: 'any' })
+    const { rerender } = render(
+      <AddonsList addons={[unlimited]} selection={{ vid: 9 }} onChange={vi.fn()} expectedQty={1} participantCount={1} />,
+    )
+    expect(plus()).not.toBeDisabled()
+    rerender(
+      <AddonsList
+        addons={[video({ addon_quantity_rule: 'any', addon_quantity_max: 5 })]}
+        selection={{ vid: 5 }}
+        onChange={vi.fn()}
+        expectedQty={1}
+        participantCount={1}
+      />,
+    )
+    expect(plus()).toBeDisabled()
+  })
+
+  it('the per-link max_qty stays an extra tighter cap', () => {
+    const addon = video({ addon_quantity_rule: 'one_per_participant', max_qty: 2 })
+    render(
+      <AddonsList addons={[addon]} selection={{ vid: 2 }} onChange={vi.fn()} expectedQty={1} participantCount={4} />,
+    )
+    expect(plus()).toBeDisabled()
+  })
+
+  it('a room add-on ignores the rule and keeps the occupancy logic', () => {
+    const breakfast = makeAddon({
+      addon_product_id: 'bf',
+      name: 'Breakfast',
+      product_kind: 'hotel_room',
+      addon_quantity_rule: 'one_per_participant',
+    })
+    render(
+      <AddonsList
+        addons={[breakfast]}
+        selection={{ bf: 2 }}
+        onChange={vi.fn()}
+        expectedQty={4}
+        occupancyLimited
+        participantCount={1}
+      />,
+    )
+    expect(screen.getByRole('button', { name: /Increase Breakfast/i })).not.toBeDisabled()
+  })
+
+  it('the + click never pushes the quantity past the rule', () => {
+    const onChange = vi.fn()
+    const addon = video({ addon_quantity_rule: 'one_per_booking' })
+    render(
+      <AddonsList addons={[addon]} selection={{ vid: 1 }} onChange={onChange} expectedQty={1} participantCount={2} />,
+    )
+    fireEvent.click(plus())
+    expect(onChange).not.toHaveBeenCalled()
   })
 })

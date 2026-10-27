@@ -1,5 +1,6 @@
 /**
- * Shared "Subtotal → savings rows → Amount due" block (landr-nva1a.4).
+ * Shared "Subtotal → surcharge rows → savings rows → Amount due" block
+ * (landr-nva1a.4; surcharges landr-fcoh2).
  * Renders the customer-facing savings breakdown that every price surface
  * in the widget now shows (PriceSidebar's operator well, and the
  * Confirmation success screen's price breakdown) — the SAME shape the
@@ -19,10 +20,11 @@
  * for the same convention).
  */
 import type { ReactNode } from 'react'
-import type { SavingLine } from '@/api/types'
+import type { SavingLine, SurchargeLine } from '@/api/types'
 import { browserLocale } from '@/lib/locale'
 import { tr } from '@/lib/strings'
 import { cn } from '@/lib/utils'
+import { DescribedLabel } from './DescribedLabel'
 import { formatMoney } from './priceSidebarHelpers'
 import { savingLabel } from './savingRows'
 
@@ -30,6 +32,12 @@ export interface PriceBreakdownProps {
   /** Decimal string. Omit/null when there's nothing to break down. */
   subtotalBeforeSavings?: string | null
   savings?: SavingLine[] | null
+  /**
+   * landr-fcoh2: "+ label" rows (weekend / time-slot surcharge). When present
+   * the Subtotal row shows `subtotalBeforeSurcharges` so the rows add up.
+   */
+  surcharges?: SurchargeLine[] | null
+  subtotalBeforeSurcharges?: string | null
   /** Decimal string. Always shown, as the last row. */
   amountDue: string
   currency: string
@@ -52,6 +60,8 @@ export interface PriceBreakdownProps {
 export function PriceBreakdown({
   subtotalBeforeSavings,
   savings,
+  surcharges,
+  subtotalBeforeSurcharges,
   amountDue,
   currency,
   totalLabel,
@@ -64,20 +74,46 @@ export function PriceBreakdown({
   const resolvedTotalLabel = totalLabel ?? tr('amountDueLabel', locale)
   const rows = savings ?? []
   const hasSavings = rows.length > 0 && Boolean(subtotalBeforeSavings)
+  const surchargeRows = surcharges ?? []
+  const hasSurcharges = surchargeRows.length > 0 && Boolean(subtotalBeforeSurcharges)
+  const subtotal = hasSurcharges ? subtotalBeforeSurcharges : subtotalBeforeSavings
 
   return (
     <div className={cn('space-y-1', className)}>
+      {hasSavings || hasSurcharges ? (
+        <div
+          className="flex items-baseline justify-between text-sm"
+          data-testid={`${testIdPrefix}-subtotal`}
+        >
+          <span className="text-muted-foreground">{tr('offerSubtotalLabel', locale)}</span>
+          <span className="tabular-nums text-muted-foreground">
+            {formatMoney(subtotal as string, currency, locale)}
+          </span>
+        </div>
+      ) : null}
+      {hasSurcharges ? (
+        <ul className="space-y-1" data-testid={`${testIdPrefix}-surcharges`}>
+          {surchargeRows.map((surcharge, idx) => (
+            <li
+              key={`${surcharge.label}-${idx}`}
+              className="flex items-baseline justify-between gap-2 text-sm"
+              data-testid={`${testIdPrefix}-surcharge`}
+            >
+              <DescribedLabel
+                prefix="+ "
+                text={surcharge.label}
+                description={surcharge.description}
+                testId={`${testIdPrefix}-surcharge-label`}
+              />
+              <span className="tabular-nums">
+                +{formatMoney(surcharge.amount, currency, locale)}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
       {hasSavings ? (
         <>
-          <div
-            className="flex items-baseline justify-between text-sm"
-            data-testid={`${testIdPrefix}-subtotal`}
-          >
-            <span className="text-muted-foreground">{tr('offerSubtotalLabel', locale)}</span>
-            <span className="tabular-nums text-muted-foreground">
-              {formatMoney(subtotalBeforeSavings as string, currency, locale)}
-            </span>
-          </div>
           <ul className="space-y-1" data-testid={`${testIdPrefix}-savings`}>
             {rows.map((saving, idx) => (
               <li
@@ -85,7 +121,12 @@ export function PriceBreakdown({
                 className="flex items-baseline justify-between gap-2 text-sm text-emerald-700 dark:text-emerald-400"
                 data-testid={`${testIdPrefix}-saving`}
               >
-                <span>− {savingLabel(saving, locale)}</span>
+                <DescribedLabel
+                  prefix="− "
+                  text={savingLabel(saving, locale)}
+                  description={saving.description}
+                  testId={`${testIdPrefix}-saving-label`}
+                />
                 <span className="tabular-nums">
                   −{formatMoney(saving.amount, currency, locale)}
                 </span>

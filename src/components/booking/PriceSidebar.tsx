@@ -32,22 +32,38 @@
  *   - Happy path: full breakdown with operator/hotel split + applied
  *     discount tags
  */
+import { ALTERNATIVES_SLOT_ID } from '@/components/booking/alternativesSlot'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronUp, RefreshCw } from 'lucide-react'
-import type { Product } from '@/api/types'
+import type { EstimateSlotFields, Product } from '@/api/types'
 import { cn } from '@/lib/utils'
 import { deriveStayWindow, type RoomSelection } from './accommodationCalc'
 import type { AddonSelection } from './addonsState'
 import { formatDayLabel } from './dateLabel'
 import { browserLocale } from '@/lib/locale'
-import { forNamesLine, hotelSpanLabel, qtyTimesUnits, tr } from '@/lib/strings'
+import {
+  addonUnitsTimesRate,
+  forNamesLine,
+  hotelSpanLabel,
+  payeeText,
+  qtyOnly,
+  qtyTimesUnits,
+  staySpanLabel,
+  stayNightsTimesRate,
+  stayViolationMessage,
+  tr,
+} from '@/lib/strings'
 import { EMBEDDED_ATTR } from '@/lib/autoHeight'
 import { DayChips } from './DayChips'
+import { PerformerPaySections } from './PerformerPaySections'
 import { PriceBreakdown } from './PriceBreakdown'
 import { useBookingEstimate } from './useBookingEstimate'
+import { extraEstimateRequests, mergeEstimates, type ExtraLine } from './crossSell'
+import { useExtraLineEstimates } from './useExtraLineEstimates'
 import {
   buildAddonLines,
   buildDiscountExplanation,
+  groupPerformerLines,
   isSavingsLine,
   formatMoney,
   isDiscountRule,
@@ -69,6 +85,11 @@ interface Props {
   participantNames?: string[]
   accommodationRooms: RoomSelection[]
   addons: AddonSelection[]
+  /**
+   * landr-k9pji.25: the picked slot of the product (estimateSlotFields), so
+   * start-time prices show before submit. Omitted = no slot picked.
+   */
+  slot?: EstimateSlotFields
   /** Debounce delay in ms before firing the estimate RPC (default 300). */
   debounceMs?: number
   /**
@@ -96,6 +117,12 @@ interface Props {
    * can show the calculated total as its placeholder.
    */
   onCalculatedTotalChange?: (total: CalculatedTotal | null) => void
+  /**
+   * Products added on the review step ("Add more to this booking"). Each is
+   * priced by its own estimate and folded into this panel's breakdown and
+   * total, so every figure here covers ALL lines of the booking.
+   */
+  extraLines?: ExtraLine[]
 }
 
 /** landr-h0opd.3: the estimate's calculated total, lifted out of PriceSidebar. */
@@ -124,6 +151,12 @@ interface BookingOverviewBodyProps
    * to pre-landr-t869m behaviour.
    */
   accommodationCheckinOffsetDays?: number
+  /**
+   * landr-hzovu.5: true when the customer picked at least one hotel room.
+   * The "Hotel: Tue → Thu, 2 nights" stay line and the "night(s)" unit word
+   * only make sense then; a hotel-paid add-on alone (no room) has neither.
+   */
+  hasHotelRoom: boolean
 }
 
 function BookingOverviewBody({
@@ -133,6 +166,7 @@ function BookingOverviewBody({
   error,
   selectedDays,
   accommodationCheckinOffsetDays,
+  hasHotelRoom,
 }: BookingOverviewBodyProps) {
   const locale = browserLocale()
   if (!data && isLoading) {
@@ -178,7 +212,13 @@ function BookingOverviewBody({
       </div>
     )
   }
-  const { operator, hotel } = splitLineItems(data.line_items)
+  const { operator, hotel, performer } = splitLineItems(data.line_items)
+  const performerGroups = groupPerformerLines(performer)
+  // A standalone stay: the main line (always first) shows the night span,
+  // nights × rate and the cleaning fee instead of day chips.
+  const stayEstimate = data.stay ?? null
+  const stayLineId = stayEstimate ? (data.line_items[0]?.product_id ?? null) : null
+  const stayErrors = stayEstimate?.errors ?? []
   // Hotel check-in / check-out span (landr-2wyi). Derived from the
   // selected guided days: check-in = first day − 1, check-out = last
   // day + 1 (see deriveStayWindow / accommodationCalc.ts). We surface
@@ -187,7 +227,7 @@ function BookingOverviewBody({
   // night range — the chips on the operator side only cover the
   // guided days, not the +1 buffer nights.
   const stay =
-    hotel.length > 0 && selectedDays.length > 0
+    hotel.length > 0 && hasHotelRoom && selectedDays.length > 0
       ? deriveStayWindow(selectedDays, accommodationCheckinOffsetDays)
       : null
   const showStaleSpinner = isStale && data !== null
@@ -248,6 +288,22 @@ function BookingOverviewBody({
 
   return (
     <div className="space-y-4">
+      {stayErrors.length > 0 ? (
+        <ul
+          className="space-y-1 rounded-lg border border-amber-400 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-600 dark:bg-amber-950/40 dark:text-amber-100"
+          data-testid="price-sidebar-stay-errors"
+        >
+          {stayErrors.map((err, idx) => (
+            <li key={`${err.code}-${idx}`}>
+              {stayViolationMessage(
+                err.code,
+                err.date ? formatDayLabel(err.date, locale) : undefined,
+                locale,
+              )}
+            </li>
+          ))}
+        </ul>
+      ) : null}
       {operator.length > 0 ? (
         <section data-testid="price-sidebar-operator-section">
           <h4 className="mb-1 text-sm font-semibold text-foreground">
@@ -261,12 +317,61 @@ function BookingOverviewBody({
               >
                 <span className="flex-1">
                   <span className="block">{li.label}</span>
-                  {/* DayChips: one chip per picked date — replaces the
-                      previous "qty × units days" subtitle which conflated
-                      non-contiguous selections with a range. We still
-                      show the participant-count multiplier when qty > 1
-                      so the customer sees why the line total scales. */}
-                  <DayChips dates={selectedDays} />
+                  {li.product_id === stayLineId && stayEstimate ? (
+                    <>
+                      {stayEstimate.check_in && stayEstimate.check_out ? (
+                        <span
+                          className="block text-xs text-muted-foreground"
+                          data-testid="price-sidebar-stay-span"
+                        >
+                          {staySpanLabel(
+                            formatDayLabel(stayEstimate.check_in, locale),
+                            formatDayLabel(stayEstimate.check_out, locale),
+                            stayEstimate.nights,
+                            locale,
+                          )}
+                        </span>
+                      ) : null}
+                      <span
+                        className="block text-xs text-muted-foreground tabular-nums"
+                        data-testid="price-sidebar-stay-rate"
+                      >
+                        {stayNightsTimesRate(
+                          li.units,
+                          formatMoney(li.unit_price, data.currency, locale),
+                          locale,
+                        )}
+                      </span>
+                      {li.cleaning_fee ? (
+                        <span
+                          className="block text-xs text-muted-foreground tabular-nums"
+                          data-testid="price-sidebar-cleaning-fee"
+                        >
+                          {tr('cleaningFeeLabel', locale)}{' '}
+                          {formatMoney(li.cleaning_fee, data.currency, locale)}
+                        </span>
+                      ) : null}
+                    </>
+                  ) : li.price_unit ? (
+                    <span
+                      className="block text-xs text-muted-foreground tabular-nums"
+                      data-testid="price-sidebar-addon-units"
+                    >
+                      {addonUnitsTimesRate(
+                        li.units,
+                        formatMoney(li.unit_price, data.currency, locale),
+                        li.price_unit,
+                        locale,
+                      )}
+                    </span>
+                  ) : (
+                    // DayChips: one chip per picked date — replaces the
+                    // previous "qty × units days" subtitle which conflated
+                    // non-contiguous selections with a range.
+                    <DayChips dates={selectedDays} />
+                  )}
+                  {/* We still show the participant-count multiplier when
+                      qty > 1 so the customer sees why the line total scales. */}
                   {li.qty > 1 ? (
                     <span className="mt-1 block text-xs text-muted-foreground">
                       {qtyTimesUnits(li.qty, li.units, 'day', locale)}
@@ -294,6 +399,8 @@ function BookingOverviewBody({
           <PriceBreakdown
             subtotalBeforeSavings={data.subtotal_before_savings}
             savings={data.savings}
+            surcharges={data.surcharges}
+            subtotalBeforeSurcharges={data.subtotal_before_surcharges}
             amountDue={data.amount_due ?? data.operator_total}
             currency={data.currency}
             totalLabel={tr('amountDueLabel', locale)}
@@ -338,7 +445,9 @@ function BookingOverviewBody({
                 <span className="flex-1">
                   <span className="block">{li.label}</span>
                   <span className="block text-xs text-muted-foreground">
-                    {qtyTimesUnits(li.qty, li.units, 'night', locale)}
+                    {hasHotelRoom
+                      ? qtyTimesUnits(li.qty, li.units, 'night', locale)
+                      : qtyOnly(li.qty, locale)}
                   </span>
                 </span>
                 <span className="tabular-nums">
@@ -363,6 +472,13 @@ function BookingOverviewBody({
             {tr('payableDirectlyToHotelCaveat', locale)}
           </p>
         </section>
+      ) : null}
+      {performerGroups.length > 0 ? (
+        <PerformerPaySections
+          groups={performerGroups}
+          currency={data.currency}
+          testIdPrefix="price-sidebar"
+        />
       ) : null}
       {operator.length === 0 ? discountBlock : null}
       <div
@@ -429,9 +545,11 @@ export default function PriceSidebar(props: Props) {
     participantNames,
     accommodationRooms,
     addons,
+    slot,
     debounceMs,
     onUnPriceableChange,
     onCalculatedTotalChange,
+    extraLines,
   } = props
 
   const addonLines = useMemo(
@@ -470,6 +588,7 @@ export default function PriceSidebar(props: Props) {
     selectedDays,
     participantCount,
     addonLines,
+    slot,
     enabled: hasSelection,
     debounceMs,
   })
@@ -477,8 +596,25 @@ export default function PriceSidebar(props: Props) {
   // What the UI is allowed to show: identical to `estimate` while a
   // selection exists; collapses to the no-data empty state ("Pick your
   // options to see the price.") when nothing is selected.
+  const extraRequests = useMemo(
+    () => extraEstimateRequests(extraLines ?? [], participantCount, browserLocale()),
+    [extraLines, participantCount],
+  )
+  const extras = useExtraLineEstimates(operatorToken, extraRequests)
+  // The main estimate with every added line folded in. While an added line's
+  // estimate is in flight the panel marks the main figure stale; a failed one
+  // shows the error state — never a total that silently misses a line.
+  const combined: typeof estimate =
+    extraRequests.length === 0 || !estimate.data
+      ? estimate
+      : extras.data
+        ? { ...estimate, data: mergeEstimates(estimate.data, extras.data) }
+        : extras.error
+          ? { ...estimate, data: null, isStale: false, error: extras.error }
+          : { ...estimate, isStale: true }
+
   const visible: typeof estimate = hasSelection
-    ? estimate
+    ? combined
     : {
         data: null,
         isLoading: false,
@@ -493,7 +629,12 @@ export default function PriceSidebar(props: Props) {
   // estimate (loading/error/empty-selection), never leaving the CTA
   // gated on stale information.
   useEffect(() => {
-    onUnPriceableChange?.(visible.data?.un_priceable === true)
+    // A stay range that breaks a rule (min nights, a blocked or taken
+    // night) gates the Confirm CTA the same way — the submit would 422.
+    onUnPriceableChange?.(
+      visible.data?.un_priceable === true ||
+        (visible.data?.stay?.errors?.length ?? 0) > 0,
+    )
   }, [visible.data, onUnPriceableChange])
 
   // landr-h0opd.3: report the calculated total up (see the prop doc). Keyed
@@ -578,6 +719,19 @@ export default function PriceSidebar(props: Props) {
     visible.data && Number(visible.data.hotel_total) > 0
       ? formatMoney(visible.data.hotel_total, visible.data.currency, locale)
       : null
+  // landr-hzovu.5: performer-paid money gets its own suffix per payee
+  // ("+ €25.00 to your Tandem pilot"), never "at hotel".
+  const performerSuffixes = visible.data
+    ? groupPerformerLines(
+        visible.data.line_items.filter((li) => li.paid_to === 'performer'),
+      )
+        .filter((g) => Number(g.total) > 0)
+        .map((g) => ({
+          key: g.payeeLabel ?? '',
+          text: `+ ${formatMoney(g.total, visible.data!.currency, locale)} ${payeeText('paidToPayeeSuffix', g.payeeLabel, locale)}`,
+        }))
+    : []
+  const hasHotelRoom = accommodationRooms.some((r) => r.quantity > 0)
 
   return (
     <>
@@ -589,7 +743,8 @@ export default function PriceSidebar(props: Props) {
         {/* landr-3mo4: the rail is a level-2 elevated card on the tinted page,
             so it reads as a distinct panel rather than blending into the
             canvas. */}
-        <div className="sticky top-6 rounded-xl border bg-surface-card p-4 shadow-elev-2">
+        <div className="sticky top-6 flex flex-col gap-4">
+        <div className="rounded-xl border bg-surface-card p-4 shadow-elev-2">
           <div className="mb-1 flex items-center justify-between">
             <h3 className="text-base font-semibold">{tr('bookingOverviewTitle', locale)}</h3>
             {visible.isStale ? (
@@ -618,7 +773,11 @@ export default function PriceSidebar(props: Props) {
             {...visible}
             selectedDays={selectedDays}
             accommodationCheckinOffsetDays={product.accommodation_checkin_offset_days}
+            hasHotelRoom={hasHotelRoom}
           />
+        </div>
+        {/* "Also available" panel of the date step portals in here. */}
+        <div id={ALTERNATIVES_SLOT_ID} data-testid="alternatives-desktop-slot" />
         </div>
       </aside>
 
@@ -675,6 +834,15 @@ export default function PriceSidebar(props: Props) {
                 + {atHotelLabel} {tr('atHotelSuffix', locale)}
               </span>
             ) : null}
+            {performerSuffixes.map((sfx) => (
+              <span
+                key={sfx.key}
+                className="text-xs text-muted-foreground"
+                data-testid="price-sidebar-mobile-performer"
+              >
+                {sfx.text}
+              </span>
+            ))}
           </span>
           {/* landr-v94dz: solid brand pill + chevron so the affordance is
               unmistakable. Both labels share one grid cell and the inactive
@@ -732,6 +900,7 @@ export default function PriceSidebar(props: Props) {
             {...visible}
             selectedDays={selectedDays}
             accommodationCheckinOffsetDays={product.accommodation_checkin_offset_days}
+            hasHotelRoom={hasHotelRoom}
           />
           </div>
         ) : null}

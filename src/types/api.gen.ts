@@ -363,9 +363,16 @@ export interface paths {
          * @description Return a short-lived signed URL for a private community-media object.
          *
          *     The community-media bucket is PRIVATE (landr-w6gi.13) — raw object URLs are
-         *     not public. Any authenticated community member may read a non-removed asset
-         *     (mirrors the media_assets SELECT RLS policy: moderation_status != 'removed').
-         *     'removed' assets return 410 so a takedown actually hides the bytes.
+         *     not public. Who may read depends on the asset's subject_type (landr-2ws2z):
+         *
+         *       * 'site'  — community content: any authenticated member.
+         *       * 'gear', 'personal' or NULL — the uploader's own PII (gear/insurance/
+         *         serial shots): only the uploader or Landr staff. Anyone else gets 404,
+         *         the same answer as a missing id, so ids don't confirm existence.
+         *
+         *     This mirrors the media_assets SELECT RLS policy (migration
+         *     *_media_assets_private_subjects_owner_select.sql). 'removed' assets return
+         *     410 so a takedown actually hides the bytes.
          *
          *     media_id is the media_assets.id.
          */
@@ -589,6 +596,26 @@ export interface paths {
          *     are still 200 — they are expected no-ops, not errors.
          */
         post: operations["staging_activity"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/internal/mail/drain": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Drain Mail
+         * @description Run one pass of the tenant and the platform outbound-email drain.
+         */
+        post: operations["drain_mail"];
         delete?: never;
         options?: never;
         head?: never;
@@ -835,6 +862,262 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/landr-staff/billing/invoices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Invoices */
+        get: operations["list_invoices"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/landr-staff/billing/invoices/{invoice_id}/credit-note": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Credit Note */
+        post: operations["create_credit_note"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/landr-staff/billing/invoices/{invoice_id}/finalize": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Finalize Invoice */
+        post: operations["finalize_invoice"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/landr-staff/billing/invoices/{invoice_id}/partial-credit-note": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Partial Credit Note */
+        post: operations["create_partial_credit_note"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/landr-staff/billing/invoices/{invoice_id}/payment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mark Payment */
+        post: operations["mark_payment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/landr-staff/billing/invoices/{invoice_id}/pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Staff Invoice Pdf */
+        get: operations["staff_invoice_pdf"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/landr-staff/billing/operators/{operator_id}/billing-plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Billing Plan */
+        get: operations["get_billing_plan"];
+        /** Put Billing Plan */
+        put: operations["put_billing_plan"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/landr-staff/billing/payments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Payments */
+        get: operations["list_payments"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/landr-staff/billing/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Run Statements */
+        post: operations["run_statements"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/landr-staff/billing/sepa/pain008": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Sepa Pain008 */
+        get: operations["sepa_pain008"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/landr-staff/billing/sepa/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Sepa Preview */
+        get: operations["sepa_preview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/landr-staff/billing/statements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Statements */
+        get: operations["list_statements"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/landr-staff/billing/statements/{statement_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Statement */
+        get: operations["get_statement"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/landr-staff/billing/statements/{statement_id}/issue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Issue Statement */
+        post: operations["issue_statement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/landr-staff/billing/statements/{statement_id}/rebuild": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Rebuild Statement */
+        post: operations["rebuild_statement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/landr-staff/community-photos/{photo_id}/remove": {
         parameters: {
             query?: never;
@@ -941,6 +1224,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/landr-staff/operators/{operator_id}/contract-terms": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Put Contract Terms */
+        put: operations["put_contract_terms"];
+        post?: never;
+        /** Delete Contract Terms */
+        delete: operations["delete_contract_terms"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/landr-staff/operators/{operator_id}/delete": {
         parameters: {
             query?: never;
@@ -969,6 +1270,28 @@ export interface paths {
         put?: never;
         /** Landr Staff Purge Operator */
         post: operations["landr_staff_purge_operator"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/landr-staff/operators/{operator_id}/resend-verification": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Landr Staff Resend Verification
+         * @description landr-dgbkm: re-send the sign-up confirmation email to an owner who never
+         *     confirmed. EMAIL ONLY, like the password reset: the link is never returned
+         *     or logged. 409 ``owner_already_confirmed`` when there is nothing to confirm.
+         */
+        post: operations["landr_staff_resend_verification"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1045,6 +1368,23 @@ export interface paths {
         put?: never;
         /** Landr Staff Unsuspend Operator */
         post: operations["landr_staff_unsuspend_operator"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/landr-staff/package-prices/{slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Put Package Price */
+        put: operations["put_package_price"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1269,6 +1609,75 @@ export interface paths {
         get: operations["preview_migrations"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/landr-staff/promotions/prod-hotfix/candidates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Prod Hotfix Candidates
+         * @description Staging hotfix merges that main lacks, per deployable repo (landr-ctqww).
+         *     Approver. A repo whose read fails carries ``error``.
+         */
+        get: operations["list_prod_hotfix_candidates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/landr-staff/promotions/prod-hotfix/code": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Prod Hotfix Code
+         * @description Hotfix to production (landr-ctqww). Approver, staging api only.
+         *
+         *     Creates a queued run that cherry-picks the picked staging hotfix merges
+         *     onto ``hotfix-prod/<run-id>`` off each repo's main tip, checks the
+         *     back-merge into staging is clean, applies the picked landr-api migrations
+         *     to the production DB (only those), merges into ``main`` and back-merges
+         *     main into ``staging``. Any conflict before the merge ⇒ nothing changes.
+         */
+        post: operations["create_prod_hotfix_code"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/landr-staff/promotions/prod-hotfix/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview Prod Hotfix
+         * @description What a Hotfix to production with these picks would cherry-pick onto
+         *     main and which migrations would reach the production DB (landr-ctqww).
+         *     Read-only. 422 on a bad pick set.
+         */
+        post: operations["preview_prod_hotfix"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1625,8 +2034,8 @@ export interface paths {
          * @description Platform-commission revenue overview, per operator + overall.
          *
          *     LANDR-STAFF ONLY. Optional `operator_id` narrows to a single operator;
-         *     otherwise every operator that has an active PLATFORM commission scheme is
-         *     included.
+         *     otherwise every operator is included (landr-0eg91.6: all tier-ladder
+         *     operators accrue platform commission).
          */
         get: operations["get_revenue_overview"];
         put?: never;
@@ -1659,6 +2068,151 @@ export interface paths {
          *     create memberships, only flags an existing one).
          */
         patch: operations["set_site_warning_publisher"];
+        trace?: never;
+    };
+    "/api/landr-staff/templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Landr Staff List Templates */
+        get: operations["landr_staff_list_templates"];
+        put?: never;
+        /** Landr Staff Flag Template */
+        post: operations["landr_staff_flag_template"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/landr-staff/templates/{slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Landr Staff Unflag Template */
+        delete: operations["landr_staff_unflag_template"];
+        options?: never;
+        head?: never;
+        /** Landr Staff Patch Template */
+        patch: operations["landr_staff_patch_template"];
+        trace?: never;
+    };
+    "/api/landr-staff/templates/{slug}/bump-version": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Landr Staff Bump Template Version */
+        post: operations["landr_staff_bump_template_version"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/landr-staff/terms-changes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Staff Terms Changes */
+        get: operations["list_staff_terms_changes"];
+        put?: never;
+        /** Create Terms Change */
+        post: operations["create_terms_change"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/landr-staff/terms-changes/{change_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Terms Change */
+        get: operations["get_terms_change"];
+        put?: never;
+        post?: never;
+        /** Delete Terms Change */
+        delete: operations["delete_terms_change"];
+        options?: never;
+        head?: never;
+        /** Update Terms Change */
+        patch: operations["update_terms_change"];
+        trace?: never;
+    };
+    "/api/landr-staff/terms-changes/{change_id}/acknowledgements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Terms Change Acknowledgements */
+        get: operations["terms_change_acknowledgements"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/landr-staff/terms-changes/{change_id}/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Preview Terms Change
+         * @description Exactly what the audience gets: the rendered owner email and the banner.
+         *     For a draft the audience is resolved live; once sent it is the snapshot.
+         */
+        get: operations["preview_terms_change"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/landr-staff/terms-changes/{change_id}/send": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Send Terms Change */
+        post: operations["send_terms_change"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/landr-staff/tickets/{ticket_id}/bd-intent": {
@@ -1847,6 +2401,15 @@ export interface paths {
          *          for the happy path; provider lands in ``dns_provider``.
          *
          *     503 'ses_not_configured' when AWS creds are unset — never a 500.
+         *
+         *     landr-rtozr refusals (nothing is created or written on any of them):
+         *       * 422 ``invalid_sending_domain`` — not a bare domain.
+         *       * 409 ``sending_domain_reserved`` — landr.de / a platform sending domain
+         *         or a subdomain of one.
+         *       * 409 ``sending_domain_taken`` — equals, contains or sits under another
+         *         operator's sending domain (exact match also a DB unique index).
+         *       * 409 ``sending_domain_unavailable`` — the SES identity already exists
+         *         and was not created by this operator (never inherited).
          */
         post: operations["setup"];
         delete?: never;
@@ -2169,6 +2732,44 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/operator/terms-changes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Terms Changes */
+        get: operations["list_terms_changes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/operator/terms-changes/{change_id}/acknowledge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Acknowledge Terms Change
+         * @description Record the caller's acknowledgement for every operator of theirs the
+         *     change was sent to. Idempotent.
+         */
+        post: operations["acknowledge_terms_change"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/operators/{operator_id}/emails/dismiss-failed": {
         parameters: {
             query?: never;
@@ -2478,7 +3079,8 @@ export interface paths {
          *
          *     Errors: 401 bad/expired token; 404 ``booking_not_found``; 409
          *     ``offer_not_applied`` (no applied offer), ``offer_not_sent`` (never
-         *     sent), ``offer_changed_since_sent`` (edited after the send, or the
+         *     sent), ``offer_expired`` (landr-aowkj: the 30-day offer window lapsed,
+         *     whichever token is presented), ``offer_changed_since_sent`` (edited after the send, or the
          *     booking's days / products changed under it -- landr-wbzjp.4: the link is
          *     stale until the offer is re-sent), ``booking_closed`` (deleted /
          *     cancelled / finalised).
@@ -2627,6 +3229,40 @@ export interface paths {
          *     ``customer_details_already_complete`` when nothing is pending.
          */
         put: operations["public_put_booking_details"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/bookings/{token}/verification": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Verification */
+        get: operations["public_get_booking_verification"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/bookings/{token}/verification/files/{kind}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Put Verification File */
+        put: operations["public_put_booking_verification_file"];
         post?: never;
         delete?: never;
         options?: never;
@@ -2910,6 +3546,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/public/environment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Public Get Environment
+         * @description landr-m6tp4.1 — which tier this API serves ('development' / 'staging'
+         *     / 'production'). The dashboard reads it once to decide whether staging-
+         *     only tools (the template editor) are shown. Cheap: no DB, no network.
+         */
+        get: operations["public_get_environment"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/public/health": {
         parameters: {
             query?: never;
@@ -3022,6 +3680,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/public/operators/{slug}/my-calendar.ics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Member Calendar Ics
+         * @description Personal assignments-only feed (landr-0eg91.5): only the bookings the
+         *     token's member is assigned to. Same opaque 404 for unknown slug, bad
+         *     token and a gated (Free) operator.
+         */
+        get: operations["get_member_calendar_ics"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/public/operators/{token}/account-link": {
         parameters: {
             query?: never;
@@ -3041,6 +3721,11 @@ export interface paths {
          *     template, SES → Resend) — never through the tenant-readable outbox. Gated on the operator's
          *     ``offer_account_link`` opt-in (landr-atwy): when off, returns 404 so the
          *     surface stays opaque.
+         *
+         *     landr-0unqx.40: past the opt-in gate the answer is a FIXED ``202 {"ok":
+         *     true}`` — sent, malformed address, recipient over budget, or GoTrue
+         *     failure alike — so the response says nothing about any address. Only the
+         *     caller's own budgets (per IP, per operator) answer 429, fail closed.
          */
         post: operations["request_account_link"];
         delete?: never;
@@ -3091,6 +3776,30 @@ export interface paths {
         get: operations["get_operator_locations"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/operators/{token}/passes/member-proof": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Post Member Proof
+         * @description Exchange the emailed member OTP for a stateless proof (15 minutes).
+         *
+         *     Same budget as the booking-time perk lookup (per widget token + IP), and
+         *     the OTP itself is single-use and attempt-limited. Every failure is the same
+         *     403 body: no oracle for who is a member.
+         */
+        post: operations["public_pass_member_proof"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3214,6 +3923,23 @@ export interface paths {
          *     here); an unknown token 404s via ``_resolve_operator_by_token``.
          */
         get: operations["get_product_flow"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/operators/{token}/products/{product_id}/pass-tiers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Pass Tiers */
+        get: operations["public_get_pass_tiers"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3367,6 +4093,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/public/products/{product_id}/alternatives": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Product Alternatives
+         * @description Linked alternatives of a product with their available dates (day
+         *     shapes) or course windows (fixed_window) inside [from, to]
+         *     (landr-w1q0y.2). One call per visible month; the widget filters
+         *     client-side. Operator isolation: the RPC only returns alternatives of the
+         *     parent's own operator that are publicly listed and bookable. Unknown or
+         *     unlisted product -> [].
+         */
+        get: operations["get_product_alternatives"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/public/products/{product_id}/availability": {
         parameters: {
             query?: never;
@@ -3416,6 +4167,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/public/short-links/{code}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Resolve Short Link */
+        get: operations["public_resolve_short_link"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/public/signup": {
         parameters: {
             query?: never;
@@ -3437,8 +4205,9 @@ export interface paths {
          *     user verifies their email (avoids email-enumeration oracle).
          *
          *     Error contract:
-         *       * 422 unknown_preset_key — preset_key is not in PRESET_KEYS (checked
-         *                           first, before Turnstile, so no token is burnt).
+         *       * 422 unknown_preset_key — preset_key is neither a flow key nor a live
+         *                           template slug (checked first, before Turnstile, so
+         *                           no token is burnt).
          *       * 403 captcha_*   — Turnstile failed / unavailable.
          *       * 429             — per-IP or global rate limit exceeded.
          *       * 503             — rate-limiter infra error (fail CLOSED).
@@ -3457,6 +4226,50 @@ export interface paths {
          *     the endpoint can't be used to enumerate which emails have accounts.
          */
         post: operations["signup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/signup/pilot": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pilot Signup
+         * @description Email + password signup for a pilot from the mobile app (landr-0unqx.63).
+         *
+         *     The app used to call GoTrue ``/auth/v1/signup`` directly. For an email that
+         *     already has an UNCONFIRMED user, GoTrue re-sends that user's confirmation
+         *     and keeps its FIRST password, so whoever signed up first with someone
+         *     else's address could sign in once the real owner confirmed (pre-account
+         *     takeover, same mechanism as landr-1dnvc).
+         *
+         *     Here the identity is checked first:
+         *
+         *     * none -> create it (``generate_link`` type=signup, unconfirmed, no
+         *       session) with the caller's password and send the confirm link
+         *       ourselves (``signup_verify`` system mail; the redirect is GoTrue's site
+         *       URL, as with the old direct call);
+         *     * pending and unheld (:func:`_pilot_identity_is_discardable`) -> deleted,
+         *       then created fresh, so the password the inbox owner confirms is the one
+         *       this caller chose;
+         *     * confirmed, signed in, invited, a web self-signup or a member of an
+         *       operator -> left alone; the owner gets the "you already have an
+         *       account" notice.
+         *
+         *     The answer is the same 201 ``verification_email_sent`` body in every case
+         *     (no email-enumeration oracle). No session is ever returned: the user signs
+         *     in after confirming. 422 bad input, 429 over a cap, 503 limiter down (fail
+         *     closed), 500 create/send failure (the new identity is deleted again).
+         */
+        post: operations["pilot_signup"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3569,6 +4382,57 @@ export interface paths {
         put?: never;
         /** Run Send */
         post: operations["system_update_notice_run_send"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Public List Templates */
+        get: operations["public_list_templates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/templates/{slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Public Get Template */
+        get: operations["public_get_template"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/templates/{slug}/catalogue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Public Get Template Catalogue */
+        get: operations["public_get_template_catalogue"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -3772,6 +4636,10 @@ export interface paths {
          *     booking's `booking_group`) and `narrow_participant_ids`; for a code those
          *     are `null` and `[]`.
          *
+         *     A valid booking reference whose only activity is on a later day answers
+         *     409 `activity_not_today` with `next_activity_date` (landr-zv5gf); every
+         *     other miss, and every activity code, stays the opaque 404.
+         *
          *     A valid code for a product with nobody on it today returns an EMPTY
          *     participant list, not a 404: "the code works, nothing is scheduled" is a
          *     real and useful answer, and collapsing it into the not-found body would
@@ -3802,6 +4670,26 @@ export interface paths {
          *     one whose fingerprint the token has to carry.
          */
         post: operations["public_today_session"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/ui-locales": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Ui Locales
+         * @description The languages the staff dashboard UI can be shown in (switcher order).
+         */
+        get: operations["public_list_ui_locales"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -3856,6 +4744,10 @@ export interface paths {
          *     before landr-5oox.9 the delete succeeded. A slot row instead relies
          *     entirely on the pointer signal (``live_count``, already the correct
          *     per-slot match) for both the block decision AND ``booked_participants``.
+         *
+         *     landr-8ht3m.15: on a plain time_slot product (no ``daily_start_times``) the
+         *     slot row also counts staff free-time lines at exactly its start time
+         *     (``free_time_load_per_slot``), which carry no pointer.
          */
         delete: operations["delete_availability"];
         options?: never;
@@ -4292,19 +5184,81 @@ export interface paths {
         /**
          * Switch Booking Product
          * @description Replace a line's product with another of the same kind
-         *     (landr-d7ij2.3) — same days and quantity, re-priced.
+         *     (landr-d7ij2.3; activities landr-nnwlq.1) — room -> room or activity ->
+         *     activity, same days and quantity, re-priced.
          *
          *     ``dry_run=true`` writes nothing (confirm dialog). The old product shows
          *     in ``removed_lines``, the new one in ``added_lines`` (or, merged into a
-         *     line of that product the booking already holds, in ``changed_lines``).
+         *     line of that product the booking already holds, in ``changed_lines``);
+         *     ``old_product`` / ``new_product`` name both and
+         *     ``switched_booking_product_id`` the line that carries the new product
+         *     (a new id when the line had to be recreated). Each commit is recorded in
+         *     ``booking_product_change_events``.
          *     ``PATCH .../products/{booking_product_id}`` with ``{"product_id"}`` runs
          *     the same commit. Same guards and 409s as ``POST .../products``.
+         *
+         *     ``price_decision`` (landr-nnwlq.3): ``apply`` (default) re-prices — an
+         *     upgrade is balance due, a downgrade is settled by ``downgrade_settlement``
+         *     (``credit`` default: stays on the booking; ``refund``: returned to the
+         *     original payment). ``keep`` pins the booking total to its pre-switch
+         *     value through the booking price override (reason ``product change``);
+         *     403 ``role_not_allowed`` without the price-override power. The dry run
+         *     always returns ``price_old_total`` / ``price_new_total`` /
+         *     ``price_difference``. ``notify_customer`` (default true) sends the
+         *     updated booking confirmation after the commit (``customer_notified``;
+         *     ``customer_notify_skipped`` says why not, e.g. the booking was never
+         *     confirmed); the switch is recorded with its price decision and
+         *     settlement in ``booking_product_change_events``.
+         *
+         *     ``selected_days`` (landr-nnwlq.2, activity lines; also on the dry run)
+         *     moves the line to new days in the same edit: they must fit the target's
+         *     booking shape, capacity is judged on them, the room nights and room
+         *     add-ons follow like a staff day edit, the accommodation partner is
+         *     re-asked as a change when it was asked before (the response previews the
+         *     stay before / after) and the customer's pending
+         *     reschedule request on the line is closed
+         *     (``superseded_reschedule_request_ids``). ``fixed_date_window_id`` picks
+         *     the course window when two span exactly those days (else 422
+         *     ``fixed_date_window_ambiguous`` with ``candidates``, dry run too).
+         *
+         *     422s: ``line_not_switchable`` (an add-on line), ``product_not_addable``
+         *     (``reason`` ``kind_mismatch`` for activity <-> room, ``not_accommodation``,
+         *     ``inactive``), ``same_product``, ``addon_not_offered`` /
+         *     ``addon_not_addable``, ``un_priceable``, ``product_already_on_booking``
+         *     and ``dates_not_valid_for_product`` — ``{error, message, product_id,
+         *     service_time_shape, reason, days}`` where ``days`` are the offending ISO
+         *     days and ``reason`` one of ``single_date_required``,
+         *     ``contiguous_range_required``, ``fixed_window_mismatch`` (+ ``windows``),
+         *     ``day_not_offered``, and for slot-based targets (landr-sgf63;
+         *     ``slot_start_time`` + exactly one day) ``slot_required``,
+         *     ``slot_not_offered``, ``slot_not_applicable``. Service add-on lines on the
+         *     booking follow the new day and slot (``changed_lines``). 409s: ``booking_locked_for_edit``,
+         *     ``capacity_exceeded`` (``conflicts``; pass the days as ``forced_days``),
+         *     ``line_changed`` (the line changed since it was read).
          */
         post: operations["staff_switch_booking_product"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/staff/me/profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get My Profile */
+        get: operations["staff_get_my_profile"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Patch My Profile */
+        patch: operations["staff_patch_my_profile"];
         trace?: never;
     };
     "/api/staff/operators": {
@@ -4322,7 +5276,8 @@ export interface paths {
          *
          *     Responses: 201 `{operator_id, slug}`; 422 `invalid_slug` /
          *     `unknown_preset_key` (+ suggestions on the former); 409 `slug_taken` +
-         *     suggestions; 403 `not_a_member` (no `public.users` row); 429
+         *     suggestions; 403 `not_a_member` (no `public.users` row); 403
+         *     `free_tier_limit` (no paid operator owned, landr-981dz); 429
          *     `rate_limited` (5/user/day).
          */
         post: operations["create_operator"];
@@ -4428,8 +5383,28 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Apply Preset Endpoint */
+        /**
+         * Apply Preset Endpoint
+         * @deprecated
+         */
         post: operations["apply_preset_endpoint"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/apply-template": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Staff Apply Operator Template */
+        post: operations["staff_apply_operator_template"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4469,6 +5444,92 @@ export interface paths {
          *     ``account_holder`` is plaintext (stripped, max 140) — landr-u7fqw.
          */
         put: operations["upsert_bank_details"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/billing-invoices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List My Invoices */
+        get: operations["list_my_invoices"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/billing-invoices/{invoice_id}/pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** My Invoice Pdf */
+        get: operations["my_invoice_pdf"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/billing-profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Billing Profile */
+        get: operations["get_billing_profile"];
+        /** Put Billing Profile */
+        put: operations["put_billing_profile"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/billing-statements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List My Statements */
+        get: operations["list_my_statements"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/billing-statements/{statement_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get My Statement */
+        get: operations["get_my_statement"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -4582,6 +5643,33 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/bookings/customer-unnotified": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Customer Unnotified
+         * @description Booking ids whose ``customer_unnotified`` flag is true.
+         *
+         *     A live booking an operator created (``booking_channel`` != ``public_website``)
+         *     that the customer has heard nothing about: no confirmation mail sent, no
+         *     offer sent, no custom offer applied (those carry "Offer not sent" instead).
+         *     No ``ids`` -> every flagged booking of the operator; with repeated ``ids``
+         *     -> only those among them (the page being rendered). Operator-scoped:
+         *     another operator's ids are never reported.
+         */
+        get: operations["staff_list_customer_unnotified"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/bookings/offer-unsent": {
         parameters: {
             query?: never;
@@ -4591,11 +5679,13 @@ export interface paths {
         };
         /**
          * List Offer Unsent
-         * @description Booking ids whose ``offer_unsent`` flag is true.
+         * @description Booking ids whose ``offer_unsent`` flag is true, plus why.
          *
          *     No ``ids`` -> every flagged booking of the operator; with repeated ``ids``
          *     -> only those among them (the page being rendered). Operator-scoped:
-         *     another operator's ids are never reported.
+         *     another operator's ids are never reported. ``reasons`` maps each id to
+         *     ``never_sent`` or ``changed_since_sent``; ``booking_ids`` is the union
+         *     (dismissed bookings excluded).
          */
         get: operations["staff_list_offer_unsent"];
         put?: never;
@@ -5154,6 +6244,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/offer-unsent/dismiss": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Dismiss Offer Unsent
+         * @description Mark the "Offer not sent" flag as handled (landr-07jed.1).
+         *
+         *     Holds until the offer is applied again. Idempotent; 404 when the booking is
+         *     not this operator's. Logs a timeline event (``audit_log``,
+         *     ``actor_subkind='offer_unsent_dismissed'``).
+         */
+        post: operations["staff_dismiss_offer_unsent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/bookings/{booking_id}/participants/{participant_id}/day-group/{day_date}/join": {
         parameters: {
             query?: never;
@@ -5495,7 +6609,9 @@ export interface paths {
          *     - Guards: only allowed when the booking is in/past the confirmed set (same
          *       gate as resend, landr-tf39) AND no prior confirmation exists yet.
          *       If a prior exists → 409 {"error": "already_confirmed"} (use resend).
-         *       If the stage is not yet confirmed/due → 409 {"error": "confirmation_not_allowed_yet"}.
+         *       If the stage is not yet confirmed/due → 409 {"error": "confirmation_not_allowed_yet"}
+         *       (public-website bookings only; staff-created bookings skip this stage gate,
+         *       the hotel and offer guards still apply).
          *     - Calls send_booking_confirmation(is_update=False, no extra_context) which
          *       records the initial last_confirmation_context snapshot.
          *     - Returns {"sent": true, "email_id": "<id or null>"}.
@@ -5761,6 +6877,12 @@ export interface paths {
          *     user (unlike the customer path, which passes NULL) — a scan is a staff
          *     action, has a real ``users.id``, and should show up as such on the
          *     day-state row's provenance.
+         *
+         *     landr-m6tp4.4: a PASS ticket (a booking line with a validity window) is
+         *     accepted on every day inside ``[valid_from, valid_until]`` -- operator-local
+         *     -- and records one presence row per day through the same RPC, so repeated
+         *     scans on a day stay idempotent. Outside the window the 409 carries
+         *     ``{"error": "pass_not_valid_today", valid_from, valid_until}``.
          *
          *     Every failure mode here is an opaque 404 EXCEPT the "not a trip day"
          *     case, which is a 409 the scanning UI can render distinctly ("wrong
@@ -6779,6 +7901,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/ical-token/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Or Create My Ical Token
+         * @description The caller's own subscribe URL, auto-created on first access.
+         *
+         *     Gated like the operator feed: on the tier ladder without ``calendar_feed``
+         *     nothing is minted and ``{"url": null, "token": null}`` is returned (the
+         *     dashboard hides the section).
+         *
+         *     ``has_roster_link`` (landr-0eg91.29): whether the member's membership
+         *     contact is a roster entry. False = the feed stays empty until an admin
+         *     links them; the dashboard shows the hint only then.
+         */
+        get: operations["get_or_create_my_ical_token"];
+        put?: never;
+        /**
+         * Rotate My Ical Token
+         * @description Rotate the caller's personal token; the old URL stops working.
+         */
+        post: operations["rotate_my_ical_token"];
+        /**
+         * Revoke My Ical Token
+         * @description Revoke the caller's personal token (never gated: removing is always
+         *     allowed). A later GET mints a fresh one.
+         */
+        delete: operations["revoke_my_ical_token"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/integration-credentials": {
         parameters: {
             query?: never;
@@ -7366,6 +8525,173 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/pass-tiers/{tier_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Pass Tier
+         * @description Delete an unsold tier; archive (``active=false``) one that has bookings.
+         */
+        delete: operations["staff_delete_pass_tier"];
+        options?: never;
+        head?: never;
+        /** Patch Pass Tier */
+        patch: operations["staff_patch_pass_tier"];
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/passes/checkins": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Pass Checkins
+         * @description Pass holders whose ticket was scanned on ``day_date`` (the today board).
+         *
+         *     A holder is a participant with a PRESENT day-state row for the day on a
+         *     booking that carries a pass line whose window covers the day.
+         */
+        get: operations["staff_list_pass_checkins"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/pause": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Pause */
+        get: operations["get_pause"];
+        put?: never;
+        /** Start Pause */
+        post: operations["start_pause"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/payment-gate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Payment Gate */
+        get: operations["get_payment_gate"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/payment-method": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Payment Method */
+        get: operations["get_payment_method"];
+        /** Put Payment Method */
+        put: operations["put_payment_method"];
+        post?: never;
+        /** Revoke Payment Method */
+        delete: operations["revoke_payment_method"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/payment-standing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Payment Standing */
+        get: operations["payment_standing"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/plan-change": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Plan Change */
+        get: operations["get_plan_change"];
+        put?: never;
+        /** Post Plan Change */
+        post: operations["post_plan_change"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/plan-change/scheduled": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Cancel Scheduled Plan Change */
+        delete: operations["cancel_scheduled_plan_change"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/plan-terms": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Plan Terms */
+        get: operations["get_plan_terms"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/presets": {
         parameters: {
             query?: never;
@@ -7375,10 +8701,7 @@ export interface paths {
         };
         /**
          * List Presets Endpoint
-         * @description Every preset ``POST /apply-preset`` accepts, in the order the wizard
-         *     shows them (solo pilot first, blank last). Static registry data; the
-         *     operator's current choice is ``onboarding_preset_key`` on
-         *     ``GET /api/staff/operators/{operator_id}``.
+         * @deprecated
          */
         get: operations["list_presets_endpoint"];
         put?: never;
@@ -7683,12 +9006,21 @@ export interface paths {
          *     cannot show a second seat definition. ``booked`` is the
          *     guiding participants of live bookings (``product_day_seat_load``).
          *
+         *     landr-8ht3m.24: a single_date product with start times (the public RPC
+         *     sells each open day as one timed row per start time) is ONE row per day
+         *     here: ``capacity`` = the sum of its slots' seats, ``available`` = the sum
+         *     of their free seats, ``booked`` = the seats held across the slots
+         *     (``product_slot_seat_load``: a booking with no start time holds a seat in
+         *     every slot). Slots already started are gone from the RPC, so they leave the
+         *     sums too. The response shape is unchanged.
+         *
          *     Omitted: products limited by ``resources`` (the pool lanes already show
          *     them), days whose ``seat_limit_source`` is not ``product`` (sentinel /
-         *     ``none`` / pool-filled days), closed days (the RPC does not return them),
-         *     and slot rows of time_slot products (a per-day number needs a whole-day
-         *     shape). Like the widget, products that are inactive or not publicly
-         *     listed return no rows. Ordered by product name, then date.
+         *     ``none`` / pool-filled days; for a timed day: any of its slots), closed
+         *     days (the RPC does not return them), and slot rows of time_slot and
+         *     days_range products (a per-day number needs a whole-day shape). Like the
+         *     widget, products that are inactive or not publicly listed return no rows.
+         *     Ordered by product name, then date.
          */
         get: operations["list_product_day_capacity"];
         put?: never;
@@ -8079,6 +9411,24 @@ export interface paths {
         patch: operations["patch_window"];
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/products/{product_id}/pass-tiers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Pass Tiers */
+        get: operations["staff_list_pass_tiers"];
+        put?: never;
+        /** Create Pass Tier */
+        post: operations["staff_create_pass_tier"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/products/{product_id}/pricing": {
         parameters: {
             query?: never;
@@ -8150,7 +9500,20 @@ export interface paths {
          */
         get: operations["list_product_requirements"];
         put?: never;
-        post?: never;
+        /**
+         * Create Product Requirement
+         * @description Blocking requirement on ``resource_type_id``. A staff-only type
+         *     ("Tandem pilot") is switched to count seats in the same transaction: the
+         *     Capacity facet, one seat per person, every active person released; its
+         *     row is 1 per booking. Any other type: 1 seat per participant. 404
+         *     ``product_not_found`` / ``resource_type_not_found``; 422
+         *     ``facet_required`` / ``resource_type_inactive``; 409
+         *     ``requirement_exists``. With ``exclusive_use`` (units default 1) or
+         *     ``units_required_per_booking`` the row is created per booking in the one
+         *     request; an exclusive row is never created half-way (it is removed again
+         *     if the counting cannot be applied).
+         */
+        post: operations["create_product_requirement"];
         delete?: never;
         options?: never;
         head?: never;
@@ -9677,6 +11040,23 @@ export interface paths {
         patch: operations["patch_unavailability"];
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/resume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Resume */
+        post: operations["resume"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/saved-views": {
         parameters: {
             query?: never;
@@ -10005,6 +11385,23 @@ export interface paths {
         get: operations["get_setup_checklist"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/short-links": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Short Link */
+        post: operations["staff_create_widget_short_link"];
         delete?: never;
         options?: never;
         head?: never;
@@ -10506,6 +11903,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/verifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Verifications */
+        get: operations["staff_list_verifications"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/verifications/{verification_id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approve Verification */
+        post: operations["staff_approve_verification"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/verifications/{verification_id}/files": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Verification Files */
+        get: operations["staff_verification_file_urls"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/verifications/{verification_id}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reject Verification */
+        post: operations["staff_reject_verification"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/vouchers": {
         parameters: {
             query?: never;
@@ -10918,6 +12383,28 @@ export interface components {
             user_id: string;
         };
         /**
+         * AlternativeWindow
+         * @description One bookable fixed-window course of an alternative product.
+         */
+        AlternativeWindow: {
+            /** Available Seats */
+            available_seats: number;
+            /**
+             * End Date
+             * Format: date
+             */
+            end_date: string;
+            /** Id */
+            id: string;
+            /** Label */
+            label?: string | null;
+            /**
+             * Start Date
+             * Format: date
+             */
+            start_date: string;
+        };
+        /**
          * ApiBudget
          * @description landr-g1ao.7: the operator's latest known Holded API quota snapshot,
          *     from ``operator_integration_usage`` (populated by
@@ -10973,14 +12460,55 @@ export interface components {
         ApplyPresetRequest: {
             /** Preset Key */
             preset_key: string;
-            /** Product Family */
-            product_family?: ("activity" | "course") | null;
+            /** Product Kind */
+            product_kind?: ("service" | "subscription" | "hotel_room" | "digital_good" | "physical_good" | "gift_card" | "stay" | "pass") | null;
             /** Slot Capacity */
             slot_capacity?: number | null;
             /** Start Times */
             start_times?: string[] | null;
             /** Weekdays */
             weekdays?: number[] | null;
+        };
+        /** ApplyTemplateOut */
+        ApplyTemplateOut: {
+            /** Counts */
+            counts: {
+                [key: string]: number;
+            };
+            /**
+             * Flow
+             * @enum {string}
+             */
+            flow: "solo" | "company";
+            /** Images Skipped */
+            images_skipped: {
+                [key: string]: unknown;
+            }[];
+            /** Onboarding Preset Key */
+            onboarding_preset_key: string | null;
+            /**
+             * Plan Gated
+             * @default {}
+             */
+            plan_gated: {
+                [key: string]: string[];
+            };
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "applied" | "already_applied";
+            /** Template Slug */
+            template_slug: string;
+            /** Template Version */
+            template_version: number;
+        };
+        /** ApplyTemplateRequest */
+        ApplyTemplateRequest: {
+            /** Product Kind */
+            product_kind?: ("service" | "subscription" | "hotel_room" | "digital_good" | "physical_good" | "gift_card" | "stay" | "pass") | null;
+            /** Slug */
+            slug: string;
         };
         /** ApprovalMailRequest */
         ApprovalMailRequest: {
@@ -11355,6 +12883,8 @@ export interface components {
              * Format: date
              */
             date: string;
+            /** Range Id */
+            range_id?: string | null;
         };
         /** AvailabilityBulkIn */
         AvailabilityBulkIn: {
@@ -11622,6 +13152,40 @@ export interface components {
              */
             billing_address_missing: boolean;
         };
+        /** BillingPlanIn */
+        BillingPlanIn: {
+            /**
+             * Billing Interval
+             * @default monthly
+             * @enum {string}
+             */
+            billing_interval: "monthly" | "annual";
+            /** Billing Starts On */
+            billing_starts_on?: string | null;
+            /** Trial Month */
+            trial_month?: string | null;
+        };
+        /** BillingProfileIn */
+        BillingProfileIn: {
+            /** Address Line1 */
+            address_line1: string;
+            /** Address Line2 */
+            address_line2?: string | null;
+            /** City */
+            city: string;
+            /** Country */
+            country: string;
+            /** Invoice Email */
+            invoice_email: string;
+            /** Legal Name */
+            legal_name: string;
+            /** Postal Code */
+            postal_code: string;
+            /** Region */
+            region?: string | null;
+            /** Vat Id */
+            vat_id?: string | null;
+        };
         /**
          * BookingCalendarEvent
          * @description Parsed calendar event for client-side Google Calendar / Outlook deep-links.
@@ -11635,10 +13199,16 @@ export interface components {
             description?: string | null;
             /** End Date */
             end_date: string;
+            /** End Time */
+            end_time?: string | null;
             /** Location */
             location?: string | null;
             /** Start Date */
             start_date: string;
+            /** Start Time */
+            start_time?: string | null;
+            /** Timezone */
+            timezone?: string | null;
             /** Title */
             title: string;
         };
@@ -11721,7 +13291,7 @@ export interface components {
              * Reason
              * @enum {string}
              */
-            reason: "requested" | "follows_room" | "follows_stay";
+            reason: "requested" | "follows_room" | "follows_stay" | "follows_product";
             /** Selected Days */
             selected_days: string[];
         };
@@ -11754,7 +13324,7 @@ export interface components {
              * Reason
              * @enum {string}
              */
-            reason: "requested" | "follows_room" | "follows_stay";
+            reason: "requested" | "follows_room" | "follows_stay" | "follows_product";
             /** Selected Days After */
             selected_days_after: string[];
             /** Selected Days Before */
@@ -11777,12 +13347,30 @@ export interface components {
              * @default false
              */
             approval_gate_skipped: boolean;
+            /** Balance Due After */
+            balance_due_after?: string | null;
             /** Booking Id */
             booking_id: string;
             /** Capacity Conflicts */
             capacity_conflicts?: components["schemas"]["BookingLineCapacityConflict"][];
             /** Changed Lines */
             changed_lines?: components["schemas"]["BookingLineEditLine"][];
+            /** Customer Notified */
+            customer_notified?: boolean | null;
+            /** Customer Notify Skipped */
+            customer_notify_skipped?: string | null;
+            /**
+             * Customer Will Be Notified
+             * @default false
+             */
+            customer_will_be_notified: boolean;
+            /**
+             * Days Changed
+             * @default false
+             */
+            days_changed: boolean;
+            /** Downgrade Settlement */
+            downgrade_settlement?: ("refund" | "credit") | null;
             /** Dry Run */
             dry_run: boolean;
             /**
@@ -11790,8 +13378,12 @@ export interface components {
              * @default false
              */
             hotel_will_be_notified: boolean;
+            hotel_window_after?: components["schemas"]["BookingLineStayWindow"] | null;
+            hotel_window_before?: components["schemas"]["BookingLineStayWindow"] | null;
+            new_product?: components["schemas"]["BookingLineProductRef"] | null;
             /** Notification Kind */
             notification_kind?: ("cancellation" | "modification" | "request") | null;
+            old_product?: components["schemas"]["BookingLineProductRef"] | null;
             /** Override Gross Total */
             override_gross_total?: string | null;
             /**
@@ -11804,10 +13396,35 @@ export interface components {
              * @default 0
              */
             participants_unassigned: number;
+            /** Price Decision */
+            price_decision?: ("apply" | "keep") | null;
+            /** Price Difference */
+            price_difference?: string | null;
+            /** Price Kept Total */
+            price_kept_total?: string | null;
+            /** Price New Total */
+            price_new_total?: string | null;
+            /** Price Old Total */
+            price_old_total?: string | null;
+            /** Refunded Amount */
+            refunded_amount?: string | null;
             /** Removed Lines */
             removed_lines?: components["schemas"]["BookingLineEditLine"][];
+            /** Settlement */
+            settlement?: ("refund" | "credit") | null;
+            /** Settlement Action */
+            settlement_action?: string | null;
             /** Stage After */
             stage_after?: string | null;
+            /**
+             * Stay Changed
+             * @default false
+             */
+            stay_changed: boolean;
+            /** Superseded Reschedule Request Ids */
+            superseded_reschedule_request_ids?: string[];
+            /** Switched Booking Product Id */
+            switched_booking_product_id?: string | null;
             /** Totals After */
             totals_after: {
                 [key: string]: string;
@@ -11816,6 +13433,41 @@ export interface components {
             totals_before: {
                 [key: string]: string;
             };
+        };
+        /**
+         * BookingLineProductRef
+         * @description A product a ``switch`` moves a line from / to (landr-nnwlq.1).
+         */
+        BookingLineProductRef: {
+            /** Is Addon Only */
+            is_addon_only: boolean;
+            /** Product Id */
+            product_id: string;
+            /** Product Kind */
+            product_kind: string;
+            /** Product Name */
+            product_name: string;
+            /** Service Time Shape */
+            service_time_shape?: string | null;
+        };
+        /**
+         * BookingLineStayWindow
+         * @description The hotel stay as a check-in / check-out window — the shape of the
+         *     day-change preview's ``window_before`` / ``window_after`` (landr-nnwlq.2).
+         */
+        BookingLineStayWindow: {
+            /**
+             * Check In
+             * Format: date
+             */
+            check_in: string;
+            /**
+             * Check Out
+             * Format: date
+             */
+            check_out: string;
+            /** Nights */
+            nights: number;
         };
         /**
          * BookingNoteIn
@@ -11907,6 +13559,11 @@ export interface components {
             /** Date Range Start */
             date_range_start?: string | null;
             /**
+             * Force Book
+             * @default false
+             */
+            force_book: boolean;
+            /**
              * Force Slot Time
              * @default false
              */
@@ -11932,14 +13589,37 @@ export interface components {
             /** Addons */
             addons?: components["schemas"]["BookingProductAddonIn"][];
             /**
+             * Downgrade Settlement
+             * @default credit
+             * @enum {string}
+             */
+            downgrade_settlement: "refund" | "credit";
+            /**
              * Dry Run
              * @default false
              */
             dry_run: boolean;
+            /** Fixed Date Window Id */
+            fixed_date_window_id?: string | null;
             /** Forced Days */
             forced_days?: string[] | null;
+            /**
+             * Notify Customer
+             * @default true
+             */
+            notify_customer: boolean;
+            /**
+             * Price Decision
+             * @default apply
+             * @enum {string}
+             */
+            price_decision: "apply" | "keep";
             /** Product Id */
             product_id: string;
+            /** Selected Days */
+            selected_days?: string[] | null;
+            /** Slot Start Time */
+            slot_start_time?: string | null;
         };
         /** BookingProductsRemoveIn */
         BookingProductsRemoveIn: {
@@ -11998,6 +13678,8 @@ export interface components {
             participant_count: number;
             /** Participants */
             participants?: components["schemas"]["BookingSummaryParticipant"][];
+            /** Performer Total */
+            performer_total?: string | null;
             /** Periods */
             periods?: {
                 [key: string]: unknown;
@@ -12023,6 +13705,12 @@ export interface components {
             savings_total: string;
             /** Subtotal Before Savings */
             subtotal_before_savings: string;
+            /** Subtotal Before Surcharges */
+            subtotal_before_surcharges?: string | null;
+            /** Surcharges */
+            surcharges?: components["schemas"]["SavingLineOut"][];
+            /** Surcharges Total */
+            surcharges_total?: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -12493,6 +14181,305 @@ export interface components {
              */
             notify_customer: boolean;
         };
+        /**
+         * CatalogueAddon
+         * @description One add-on linked to a product, keyed by the add-on's slug
+         *     (landr-ac47r.1). ``paid_to`` is who keeps the money: ``performer`` = the
+         *     person delivering it (the tandem pilot's video package, 100 % theirs),
+         *     ``operator`` = the operator's invoice, ``hotel`` = paid at check-in.
+         */
+        CatalogueAddon: {
+            /** Addon Quantity Max */
+            addon_quantity_max?: number | null;
+            /** Addon Quantity Rule */
+            addon_quantity_rule?: ("one_per_booking" | "one_per_participant" | "any") | null;
+            /** Currency */
+            currency?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Description Localized */
+            description_localized?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Is Required
+             * @default false
+             */
+            is_required: boolean;
+            /** Max Qty */
+            max_qty?: number | null;
+            /**
+             * Min Qty
+             * @default 0
+             */
+            min_qty: number;
+            /** Name */
+            name: string;
+            /** Name Localized */
+            name_localized?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Paid To
+             * @enum {string}
+             */
+            paid_to: "operator" | "hotel" | "performer";
+            /** Price Per Unit */
+            price_per_unit?: number | null;
+            /** Price Unit */
+            price_unit?: ("booking" | "night" | "stay" | "guest" | "guest_night") | null;
+            pricing?: components["schemas"]["CataloguePricing"] | null;
+            /** Product Kind */
+            product_kind: string;
+            /** Short Description */
+            short_description?: string | null;
+            /** Short Description Localized */
+            short_description_localized?: {
+                [key: string]: unknown;
+            } | null;
+            /** Slug */
+            slug: string;
+            /**
+             * Sort Order
+             * @default 0
+             */
+            sort_order: number;
+        };
+        /**
+         * CatalogueAlternative
+         * @description A linked alternative: the slug of another product in this catalogue.
+         */
+        CatalogueAlternative: {
+            /** Slug */
+            slug: string;
+            /**
+             * Sort Order
+             * @default 0
+             */
+            sort_order: number;
+        };
+        /** CatalogueGroup */
+        CatalogueGroup: {
+            /**
+             * Bookable Count
+             * @default 0
+             */
+            bookable_count: number;
+            /** Description */
+            description?: string | null;
+            /** Description Localized */
+            description_localized?: {
+                [key: string]: unknown;
+            } | null;
+            /** Image Url */
+            image_url?: string | null;
+            /** Name */
+            name: string;
+            /** Name Localized */
+            name_localized?: {
+                [key: string]: unknown;
+            } | null;
+            /** Parent Slug */
+            parent_slug?: string | null;
+            /**
+             * Product Count
+             * @default 0
+             */
+            product_count: number;
+            /** Slug */
+            slug: string;
+            /**
+             * Sort Order
+             * @default 0
+             */
+            sort_order: number;
+        };
+        /**
+         * CataloguePricing
+         * @description A product's price list: currency + active rules in sort order.
+         */
+        CataloguePricing: {
+            /** Currency */
+            currency?: string | null;
+            /**
+             * Rules
+             * @default []
+             */
+            rules: components["schemas"]["CatalogueRule"][];
+        };
+        /**
+         * CatalogueProduct
+         * @description One offer, keyed by slug. Mirrors the widget's catalogue product minus
+         *     every id (product, group, category, location, hotel).
+         */
+        CatalogueProduct: {
+            /**
+             * Addons
+             * @default []
+             */
+            addons: components["schemas"]["CatalogueAddon"][];
+            /**
+             * Alternatives
+             * @default []
+             */
+            alternatives: components["schemas"]["CatalogueAlternative"][];
+            /** Category Name */
+            category_name?: string | null;
+            /** Category Name Localized */
+            category_name_localized?: {
+                [key: string]: unknown;
+            } | null;
+            /** Currency */
+            currency?: string | null;
+            /** Daily Cap */
+            daily_cap?: number | null;
+            /** Daily Start Times */
+            daily_start_times?: string[] | null;
+            /** Daily Start Weekdays */
+            daily_start_weekdays?: number[] | null;
+            /** Description */
+            description?: string | null;
+            /** Description Localized */
+            description_localized?: {
+                [key: string]: unknown;
+            } | null;
+            /** Duration Minutes */
+            duration_minutes?: number | null;
+            event_window?: components["schemas"]["EventWindow"] | null;
+            /** Group Name */
+            group_name?: string | null;
+            /** Group Slug */
+            group_slug?: string | null;
+            /** Guide Languages */
+            guide_languages?: string[] | null;
+            /**
+             * Images
+             * @default []
+             */
+            images: components["schemas"]["ProductImage"][];
+            /** Is Contiguous */
+            is_contiguous?: boolean | null;
+            /** Max Party Size */
+            max_party_size?: number | null;
+            /** Name */
+            name: string;
+            /** Name Localized */
+            name_localized?: {
+                [key: string]: unknown;
+            } | null;
+            /** Pass Tiers */
+            pass_tiers?: components["schemas"]["CatalogueTier"][] | null;
+            /** Price Base */
+            price_base?: string | null;
+            /** Price From */
+            price_from?: string | null;
+            /**
+             * Price Notes
+             * @default []
+             */
+            price_notes: {
+                [key: string]: unknown;
+            }[];
+            /** Price Per Unit */
+            price_per_unit?: string | null;
+            pricing?: components["schemas"]["CataloguePricing"] | null;
+            /** Product Kind */
+            product_kind: string;
+            /**
+             * Requires Verification
+             * @default false
+             */
+            requires_verification: boolean;
+            /** Service Time Shape */
+            service_time_shape?: string | null;
+            /** Short Description */
+            short_description?: string | null;
+            /** Short Description Localized */
+            short_description_localized?: {
+                [key: string]: unknown;
+            } | null;
+            /** Slug */
+            slug: string;
+            /** Sort Order */
+            sort_order?: number | null;
+            /** Stay */
+            stay?: {
+                [key: string]: unknown;
+            } | null;
+            /** Thumb Url */
+            thumb_url?: string | null;
+            /** Waiver Text Localized */
+            waiver_text_localized?: {
+                [key: string]: string;
+            } | null;
+        };
+        /**
+         * CatalogueRule
+         * @description One active pricing rule, as the engine evaluates it (landr-ac47r.1).
+         *     ``params`` follows ``app/services/pricing_params_contract.json`` for its
+         *     ``rule_kind``; ``conditions`` keys: min_participants, valid_from,
+         *     valid_until (booking-time).
+         */
+        CatalogueRule: {
+            /** Conditions */
+            conditions?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Params
+             * @default {}
+             */
+            params: {
+                [key: string]: unknown;
+            };
+            /** Rule Kind */
+            rule_kind: string;
+            /** Sort Order */
+            sort_order: number;
+            /**
+             * Tiers
+             * @default []
+             */
+            tiers: components["schemas"]["CatalogueRuleTier"][];
+        };
+        /**
+         * CatalogueRuleTier
+         * @description One tier of a tiered pricing rule (``pricing_tiers`` minus ids).
+         */
+        CatalogueRuleTier: {
+            /** Amount Per Unit */
+            amount_per_unit?: number | null;
+            /** Amount Total */
+            amount_total?: number | null;
+            /** Threshold Max */
+            threshold_max?: number | null;
+            /** Threshold Min */
+            threshold_min: number;
+        };
+        /**
+         * CatalogueTier
+         * @description One sellable tier of a pass product, without its id. The member amount
+         *     is sample data here (a template has no members), so the demo can show it.
+         */
+        CatalogueTier: {
+            /** Label */
+            label: string;
+            /** Member Price Cents */
+            member_price_cents?: number | null;
+            /** Price Cents */
+            price_cents: number;
+            /** Season End */
+            season_end?: string | null;
+            /** Season Start */
+            season_start?: string | null;
+            /** Validity Days */
+            validity_days?: number | null;
+            /**
+             * Validity Kind
+             * @enum {string}
+             */
+            validity_kind: "day" | "days" | "week" | "season";
+        };
         /** ChangeNotification */
         ChangeNotification: {
             /** Channels */
@@ -12738,6 +14725,55 @@ export interface components {
             /** Confirm Phrase */
             confirm_phrase: string;
         };
+        /** ConfirmationStatusResponse */
+        ConfirmationStatusResponse: {
+            /** Has Material Changes */
+            has_material_changes: boolean;
+            /** Has Prior Confirmation */
+            has_prior_confirmation: boolean;
+            last_payment_link?: components["schemas"]["LastPaymentLink"] | null;
+            /** Last Sent At */
+            last_sent_at?: string | null;
+            /** Next Action */
+            next_action?: string | null;
+            /** Payment Link Amount */
+            payment_link_amount?: string | null;
+            /** Payment Link Currency */
+            payment_link_currency?: string | null;
+            /** Payment Link Pending */
+            payment_link_pending: boolean;
+        };
+        /** ContractRateIn */
+        ContractRateIn: {
+            /** Commission Rate */
+            commission_rate: number | string;
+            /**
+             * Valid From
+             * Format: date
+             */
+            valid_from: string;
+            /** Valid Until */
+            valid_until?: string | null;
+        };
+        /** ContractTermsIn */
+        ContractTermsIn: {
+            /** Base Fee Monthly */
+            base_fee_monthly?: number | string | null;
+            /** Contract Start */
+            contract_start?: string | null;
+            /** Debit Day Of Month */
+            debit_day_of_month?: number | null;
+            /** Minimum Term Months */
+            minimum_term_months?: number | null;
+            /** Notes */
+            notes?: string | null;
+            /** Pause Fee Monthly */
+            pause_fee_monthly?: number | string | null;
+            /** Pre Notification Days */
+            pre_notification_days?: number | null;
+            /** Rates */
+            rates?: components["schemas"]["ContractRateIn"][];
+        };
         /** CreateMembershipBody */
         CreateMembershipBody: {
             /** Permissions */
@@ -12759,8 +14795,9 @@ export interface components {
          *     `name` is the new operator's display name. `slug` is the desired public
          *     handle — same grammar as public signup (`app/services/operator_slugs.py`).
          *     `preset_key` (optional) is stored on the new operator only — mirrors
-         *     `SignupRequest.preset_key` (landr-k9pji.2); the onboarding wizard applies
-         *     it, nothing is applied here.
+         *     `SignupRequest.preset_key` (landr-k9pji.2; a flow key or a live template
+         *     slug, landr-m6tp4.1); the onboarding wizard applies it, nothing is
+         *     applied here.
          */
         CreateOperatorRequest: {
             /** Name */
@@ -12776,6 +14813,34 @@ export interface components {
             operator_id: string;
             /** Slug */
             slug: string;
+        };
+        /** CreateTermsChange */
+        CreateTermsChange: {
+            /** Audience Operator Ids */
+            audience_operator_ids?: string[];
+            /** Audience Package Slug */
+            audience_package_slug?: string | null;
+            /**
+             * Audience Type
+             * @default all
+             * @enum {string}
+             */
+            audience_type: "all" | "package" | "operators";
+            /**
+             * Effective Date
+             * Format: date
+             */
+            effective_date: string;
+            /**
+             * Kind
+             * @default terms
+             * @enum {string}
+             */
+            kind: "terms" | "pricing" | "features";
+            /** Translations */
+            translations: {
+                [key: string]: components["schemas"]["TermsCopy"];
+            };
         };
         /**
          * CredentialUpsertIn
@@ -12827,6 +14892,21 @@ export interface components {
             stripe_secret_key?: string | null;
             /** Stripe Webhook Secret */
             stripe_webhook_secret?: string | null;
+        };
+        /** CreditLineIn */
+        CreditLineIn: {
+            /** Amount */
+            amount: number | string;
+            /**
+             * Line Id
+             * Format: uuid
+             */
+            line_id: string;
+        };
+        /** CreditNoteIn */
+        CreditNoteIn: {
+            /** Reason */
+            reason: string;
         };
         /**
          * CustomOfferIn
@@ -13000,6 +15080,11 @@ export interface components {
             original_total: string;
             /** Paying Count */
             paying_count: number;
+            /**
+             * Performer Total
+             * @default 0
+             */
+            performer_total: string;
             /** Periods */
             periods?: {
                 [key: string]: unknown;
@@ -13846,6 +15931,11 @@ export interface components {
             /** Subject */
             subject?: string | null;
         };
+        /** EnvironmentOut */
+        EnvironmentOut: {
+            /** Environment */
+            environment: string;
+        };
         /** EstimateAddonLineIn */
         EstimateAddonLineIn: {
             /** Product Id */
@@ -13906,12 +15996,23 @@ export interface components {
          *     (e.g. "60.00"), matching ``_compute_line``'s wire format exactly.
          */
         EstimateLineItem: {
+            /** Cleaning Fee */
+            cleaning_fee?: string | null;
             /** Label */
             label: string;
             /** Line Total */
             line_total: string;
-            /** Paid To */
-            paid_to: string;
+            /**
+             * Paid To
+             * @enum {string}
+             */
+            paid_to: "operator" | "hotel" | "performer";
+            /** Payee Label */
+            payee_label?: string | null;
+            /** Payment Note */
+            payment_note?: string | null;
+            /** Price Unit */
+            price_unit?: ("night" | "stay" | "guest" | "guest_night") | null;
             /** Product Id */
             product_id: string;
             /** Qty */
@@ -13934,8 +16035,12 @@ export interface components {
              * @default 1
              */
             participants_count: number;
+            /** Product Availability Id */
+            product_availability_id?: string | null;
             /** Selected Days */
             selected_days?: string[];
+            /** Slot Start Time */
+            slot_start_time?: string | null;
         };
         /**
          * EstimateResponse
@@ -13960,12 +16065,21 @@ export interface components {
             multi_day_savings?: components["schemas"]["MultiDaySavingsOut"] | null;
             /** Operator Total */
             operator_total: string;
+            /** Performer Total */
+            performer_total: string;
             /** Savings */
             savings?: components["schemas"]["SavingLineOut"][] | null;
             /** Savings Total */
             savings_total?: string | null;
+            stay?: components["schemas"]["StayEstimate"] | null;
             /** Subtotal Before Savings */
             subtotal_before_savings?: string | null;
+            /** Subtotal Before Surcharges */
+            subtotal_before_surcharges?: string | null;
+            /** Surcharges */
+            surcharges?: components["schemas"]["SavingLineOut"][] | null;
+            /** Surcharges Total */
+            surcharges_total?: string | null;
             /**
              * Un Priceable
              * @default false
@@ -13975,6 +16089,35 @@ export interface components {
             warnings?: string[];
         } & {
             [key: string]: unknown;
+        };
+        /** EventOccurrence */
+        EventOccurrence: {
+            /**
+             * End Date
+             * Format: date
+             */
+            end_date: string;
+            /**
+             * Start Date
+             * Format: date
+             */
+            start_date: string;
+        };
+        /**
+         * EventWindow
+         * @description products.event_* plus the next occurrences (never past).
+         */
+        EventWindow: {
+            /** Cutoff Hours */
+            cutoff_hours?: number | null;
+            /** End Weekday */
+            end_weekday: number;
+            /** Horizon N */
+            horizon_n: number;
+            /** Occurrences */
+            occurrences: components["schemas"]["EventOccurrence"][];
+            /** Start Weekday */
+            start_weekday: number;
         };
         /** FanOutIn */
         FanOutIn: {
@@ -14094,6 +16237,13 @@ export interface components {
             id: string;
             /** Moderation Status */
             moderation_status: string;
+        };
+        /** FlagTemplateIn */
+        FlagTemplateIn: {
+            /** Operator Id */
+            operator_id: string;
+            /** Slug */
+            slug: string;
         };
         /**
          * FlowFieldDef
@@ -15162,6 +17312,18 @@ export interface components {
             /** Language */
             language: string | null;
         };
+        /**
+         * LastPaymentLink
+         * @description The newest ``booking_payment_link`` outbound row of a booking, any status.
+         */
+        LastPaymentLink: {
+            /** Created At */
+            created_at: string;
+            /** Sent At */
+            sent_at?: string | null;
+            /** Status */
+            status: string;
+        };
         /** LicenseCreateRequest */
         LicenseCreateRequest: {
             /** Document Url */
@@ -15605,6 +17767,13 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /** MemberProofIn */
+        MemberProofIn: {
+            /** Email */
+            email: string;
+            /** Otp */
+            otp: string;
+        };
         /** MessagePostIn */
         MessagePostIn: {
             /** Body */
@@ -15962,9 +18131,13 @@ export interface components {
              * Paid To
              * @enum {string}
              */
-            paid_to: "operator" | "hotel";
+            paid_to: "operator" | "hotel" | "performer";
             /** Participants */
             participants?: number | null;
+            /** Payee Label */
+            payee_label?: string | null;
+            /** Payment Note */
+            payment_note?: string | null;
             /** Per Person Price */
             per_person_price?: number | null;
             /** Product Id */
@@ -16272,6 +18445,12 @@ export interface components {
             operator_net_total?: number | null;
             /** Operator Tax Total */
             operator_tax_total?: number | null;
+            /** Performer Gross Total */
+            performer_gross_total?: number | null;
+            /** Performer Net Total */
+            performer_net_total?: number | null;
+            /** Performer Tax Total */
+            performer_tax_total?: number | null;
             /** Tax Total */
             tax_total: number;
         } & {
@@ -16302,6 +18481,8 @@ export interface components {
             default_locale?: string | null;
             /** Default Tax Rate */
             default_tax_rate?: number | string | null;
+            /** Default Ui Locale */
+            default_ui_locale?: string | null;
             /** Deposit Percent */
             deposit_percent?: number | null;
             /** First Day Of Week */
@@ -16338,14 +18519,12 @@ export interface components {
             postal_code?: string | null;
             /** Primary Color */
             primary_color?: string | null;
-            /** Product Family */
-            product_family?: ("activity" | "course") | null;
+            /** Product Kind */
+            product_kind?: ("service" | "subscription" | "hotel_room" | "digital_good" | "physical_good" | "gift_card" | "stay" | "pass") | null;
             /** Public Contact Email */
             public_contact_email?: string | null;
             /** Region */
             region?: string | null;
-            /** Require Declarations */
-            require_declarations?: boolean | null;
             /** Show Premium Teasers */
             show_premium_teasers?: boolean | null;
             /** Street */
@@ -16380,6 +18559,10 @@ export interface components {
             widget_catalog_layout?: string | null;
             /** Widget Category Columns */
             widget_category_columns?: number | null;
+            /** Widget Cross Sell Enabled */
+            widget_cross_sell_enabled?: boolean | null;
+            /** Widget Cross Sell Product Ids */
+            widget_cross_sell_product_ids?: string[] | null;
             /** Widget Description */
             widget_description?: string | null;
             /** Widget Description First Page Only */
@@ -16432,8 +18615,15 @@ export interface components {
             category_name_localized?: {
                 [key: string]: string;
             } | null;
+            /** Daily Cap */
+            daily_cap?: number | null;
             /** Daily Start Times */
             daily_start_times?: string[] | null;
+            /** Description Localized */
+            description_localized?: {
+                [key: string]: string;
+            } | null;
+            event_window?: components["schemas"]["EventWindow"] | null;
             /** Guide Languages */
             guide_languages?: string[] | null;
             /** Images */
@@ -16449,10 +18639,19 @@ export interface components {
             next_window_end?: string | null;
             /** Next Window Start */
             next_window_start?: string | null;
+            /** Price Base */
+            price_base?: string | null;
             /** Price From */
             price_from?: string | null;
+            /** Price Notes */
+            price_notes?: components["schemas"]["PriceNote"][];
             /** Product Id */
             product_id: string;
+            /**
+             * Requires Verification
+             * @default false
+             */
+            requires_verification: boolean;
             /**
              * Share Reference Enabled
              * @default false
@@ -16460,8 +18659,13 @@ export interface components {
             share_reference_enabled: boolean;
             /** Slug */
             slug: string;
+            stay?: components["schemas"]["StayConfig"] | null;
             /** Thumb Url */
             thumb_url?: string | null;
+            /** Waiver Text Localized */
+            waiver_text_localized?: {
+                [key: string]: string;
+            } | null;
         } & {
             [key: string]: unknown;
         };
@@ -16593,10 +18797,19 @@ export interface components {
             theme?: {
                 [key: string]: unknown;
             } | null;
+            /** Timezone */
+            timezone?: string | null;
             /** Widget Catalog Layout */
             widget_catalog_layout?: string | null;
             /** Widget Category Columns */
             widget_category_columns?: number | null;
+            /**
+             * Widget Cross Sell Enabled
+             * @default true
+             */
+            widget_cross_sell_enabled: boolean;
+            /** Widget Cross Sell Product Ids */
+            widget_cross_sell_product_ids?: string[];
             /** Widget Description */
             widget_description?: string | null;
             /**
@@ -16639,6 +18852,32 @@ export interface components {
             widget_variant?: string | null;
         } & {
             [key: string]: unknown;
+        };
+        /** PackagePriceIn */
+        PackagePriceIn: {
+            /** Base Fee Monthly */
+            base_fee_monthly: number | string;
+            /** Commission Rate */
+            commission_rate: number | string;
+            /**
+             * Is Contract
+             * @default false
+             */
+            is_contract: boolean;
+            /** Pause Fee Monthly */
+            pause_fee_monthly?: number | string | null;
+            /**
+             * Prices Net Of Vat
+             * @default true
+             */
+            prices_net_of_vat: boolean;
+        };
+        /** PartialCreditNoteIn */
+        PartialCreditNoteIn: {
+            /** Lines */
+            lines: components["schemas"]["CreditLineIn"][];
+            /** Reason */
+            reason: string;
         };
         /**
          * ParticipantDayStatusIn
@@ -16787,6 +19026,52 @@ export interface components {
             /** Requests */
             requests: components["schemas"]["PartnerRequestOut"][];
         };
+        /** PassTierIn */
+        PassTierIn: {
+            /** Label */
+            label: string;
+            /** Member Price Cents */
+            member_price_cents?: number | null;
+            /** Price Cents */
+            price_cents: number;
+            /** Season End */
+            season_end?: string | null;
+            /** Season Start */
+            season_start?: string | null;
+            /**
+             * Sort
+             * @default 0
+             */
+            sort: number;
+            /** Validity Days */
+            validity_days?: number | null;
+            /**
+             * Validity Kind
+             * @enum {string}
+             */
+            validity_kind: "day" | "days" | "week" | "season";
+        };
+        /** PassTierPatch */
+        PassTierPatch: {
+            /** Active */
+            active?: boolean | null;
+            /** Label */
+            label?: string | null;
+            /** Member Price Cents */
+            member_price_cents?: number | null;
+            /** Price Cents */
+            price_cents?: number | null;
+            /** Season End */
+            season_end?: string | null;
+            /** Season Start */
+            season_start?: string | null;
+            /** Sort */
+            sort?: number | null;
+            /** Validity Days */
+            validity_days?: number | null;
+            /** Validity Kind */
+            validity_kind?: ("day" | "days" | "week" | "season") | null;
+        };
         /**
          * PatchMoscowIn
          * @description Body for the moscow PATCH endpoint.
@@ -16808,6 +19093,31 @@ export interface components {
             /** Moscow */
             moscow: string | null;
         };
+        /** PatchTemplateIn */
+        PatchTemplateIn: {
+            pitch?: components["schemas"]["PitchIn"] | null;
+            /** Slug */
+            slug?: string | null;
+        };
+        /** PauseIn */
+        PauseIn: {
+            /** Months */
+            months: number;
+        };
+        /** PaymentIn */
+        PaymentIn: {
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "paid" | "returned";
+            /** Note */
+            note?: string | null;
+            /** Paid At */
+            paid_at?: string | null;
+            /** Return Reason */
+            return_reason?: string | null;
+        };
         /** PaymentLinkShare */
         PaymentLinkShare: {
             /** Amount */
@@ -16822,6 +19132,28 @@ export interface components {
             url: string;
             /** Whatsapp Url */
             whatsapp_url: string | null;
+        };
+        /** PaymentMethodIn */
+        PaymentMethodIn: {
+            /**
+             * Accept Mandate
+             * @default false
+             */
+            accept_mandate: boolean;
+            /**
+             * Accept Surcharge
+             * @default false
+             */
+            accept_surcharge: boolean;
+            /** Account Holder */
+            account_holder?: string | null;
+            /** Iban */
+            iban?: string | null;
+            /**
+             * Method
+             * @enum {string}
+             */
+            method: "sepa_core" | "open_invoice";
         };
         /**
          * PendingDecisionDetail
@@ -16916,6 +19248,58 @@ export interface components {
             subject_id: string;
             /** Subject Type */
             subject_type: string;
+        };
+        /**
+         * PilotSignupRequest
+         * @description POST /api/public/signup/pilot body (landr-mobile email signup).
+         *
+         *     Password floor matches the app's form and GoTrue's minimum (6).
+         */
+        PilotSignupRequest: {
+            /** Email */
+            email: string;
+            /**
+             * Locale
+             * @default en
+             */
+            locale: string;
+            /** Password */
+            password: string;
+        };
+        /** PitchCompareIn */
+        PitchCompareIn: {
+            /** Label */
+            label: string;
+            /** Pct */
+            pct: number;
+        };
+        /** PitchIn */
+        PitchIn: {
+            de: components["schemas"]["PitchLocaleIn"];
+            en: components["schemas"]["PitchLocaleIn"];
+        };
+        /** PitchLocaleIn */
+        PitchLocaleIn: {
+            /** Audience */
+            audience: string;
+            /** Benefits */
+            benefits: string[];
+            compare?: components["schemas"]["PitchCompareIn"] | null;
+            /** Headline */
+            headline: string;
+            /** Hero Url */
+            hero_url?: string | null;
+        };
+        /** PlanChangeIn */
+        PlanChangeIn: {
+            /**
+             * Interval
+             * @default monthly
+             * @enum {string}
+             */
+            interval: "monthly" | "annual";
+            /** Package Slug */
+            package_slug: string;
         };
         /**
          * PresetOut
@@ -17125,6 +19509,53 @@ export interface components {
             /** Season Name */
             season_name?: string | null;
         };
+        /**
+         * PriceNote
+         * @description landr-bwm91.4: one visible price adjustment of a product.
+         */
+        PriceNote: {
+            /** Amount */
+            amount: string;
+            /**
+             * Amount Type
+             * @enum {string}
+             */
+            amount_type: "flat" | "percent";
+            /** Description */
+            description?: string | null;
+            /** Description Localized */
+            description_localized?: {
+                [key: string]: string;
+            } | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "surcharge" | "discount";
+            /** Label */
+            label: string;
+            /** Name */
+            name?: string | null;
+            /** Name Localized */
+            name_localized?: {
+                [key: string]: string;
+            } | null;
+            /**
+             * Per Participant
+             * @default false
+             */
+            per_participant: boolean;
+            /** Rule Kind */
+            rule_kind?: string | null;
+            /** Time From */
+            time_from?: string | null;
+            /** Time To */
+            time_to?: string | null;
+            /** Weekdays */
+            weekdays?: number[] | null;
+        } & {
+            [key: string]: unknown;
+        };
         /** PriceOverrideIn */
         PriceOverrideIn: {
             /** Override Gross Total */
@@ -17228,6 +19659,11 @@ export interface components {
             /** Id */
             id: string;
             /**
+             * Is Addon Only
+             * @default false
+             */
+            is_addon_only: boolean;
+            /**
              * Is Publicly Listed
              * @default false
              */
@@ -17259,8 +19695,13 @@ export interface components {
             label: string;
             /** Line Total */
             line_total: string;
-            /** Paid To */
-            paid_to: string;
+            /**
+             * Paid To
+             * @enum {string}
+             */
+            paid_to: "operator" | "hotel" | "performer";
+            /** Payment Note */
+            payment_note?: string | null;
             /** Product Id */
             product_id: string;
             /** Qty */
@@ -17302,6 +19743,8 @@ export interface components {
             } | null;
             /** Operator Total */
             operator_total: string;
+            /** Performer Total */
+            performer_total: string;
             /** Price Adjustment */
             price_adjustment?: {
                 [key: string]: string;
@@ -17360,7 +19803,7 @@ export interface components {
              * Rule Kind
              * @enum {string}
              */
-            rule_kind: "per_day_base" | "per_streak_tier" | "per_total_days_tier" | "per_participant_tier" | "fixed_total" | "percentage_discount" | "flat_discount" | "time_of_day_surcharge" | "manual_override";
+            rule_kind: "per_day_base" | "per_streak_tier" | "per_total_days_tier" | "per_participant_tier" | "fixed_total" | "percentage_discount" | "flat_discount" | "time_of_day_surcharge" | "manual_override" | "slot_time_adjustment" | "weekday_adjustment";
             /** Sort Order */
             sort_order: number;
             /** Tiers */
@@ -17542,6 +19985,60 @@ export interface components {
             starts_on: string;
         };
         /**
+         * ProdHotfixCandidate
+         * @description landr-ctqww — one staging hotfix merge main lacks.
+         */
+        ProdHotfixCandidate: {
+            /** Author */
+            author?: string | null;
+            /** Date */
+            date?: string | null;
+            /** Files */
+            files: string[];
+            /** Migrations */
+            migrations: string[];
+            /** Number */
+            number?: number | null;
+            /**
+             * On Main
+             * @default false
+             */
+            on_main: boolean;
+            /** Prs */
+            prs: components["schemas"]["ProdHotfixPr"][];
+            /** Run Id */
+            run_id: string;
+            /** Sha */
+            sha: string;
+            /** Title */
+            title: string;
+            /** Url */
+            url?: string | null;
+        };
+        /** ProdHotfixCandidateRepo */
+        ProdHotfixCandidateRepo: {
+            /** Candidates */
+            candidates: components["schemas"]["ProdHotfixCandidate"][];
+            /** Error */
+            error?: string | null;
+            /** Label */
+            label: string;
+            /** Repo */
+            repo: string;
+        };
+        /** ProdHotfixCandidatesResponse */
+        ProdHotfixCandidatesResponse: {
+            /** Repos */
+            repos: components["schemas"]["ProdHotfixCandidateRepo"][];
+        };
+        /** ProdHotfixPr */
+        ProdHotfixPr: {
+            /** Number */
+            number: number;
+            /** Title */
+            title: string;
+        };
+        /**
          * ProductAddon
          * @description One row returned by the public_get_product_addons RPC (landr-cip6 /
          *     epic landr-ie8g). Mirrors the widget's ``ProductAddon`` TypeScript
@@ -17550,6 +20047,14 @@ export interface components {
         ProductAddon: {
             /** Addon Product Id */
             addon_product_id: string;
+            /** Addon Quantity Max */
+            addon_quantity_max?: number | null;
+            /**
+             * Addon Quantity Rule
+             * @default any
+             * @enum {string}
+             */
+            addon_quantity_rule: "one_per_booking" | "one_per_participant" | "any";
             /**
              * Available
              * @default true
@@ -17571,6 +20076,12 @@ export interface components {
             } | null;
             /** Price Per Unit */
             price_per_unit?: number | null;
+            /**
+             * Price Unit
+             * @default booking
+             * @enum {string}
+             */
+            price_unit: "booking" | "night" | "stay" | "guest" | "guest_night";
             /** Product Addon Id */
             product_addon_id: string;
             /** Product Kind */
@@ -17583,6 +20094,42 @@ export interface components {
             stock_unit_label?: string | null;
             /** Unavailable Reason */
             unavailable_reason?: ("sold_out" | "unit_taken") | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ProductAlternative
+         * @description One linked alternative of a product (landr-w1q0y.2). Day-shaped
+         *     alternatives carry ``available_dates``; ``fixed_window`` ones carry
+         *     ``windows``; the other field is null. Mirrors the widget's
+         *     ``ProductAlternative`` interface (src/api/types.ts).
+         */
+        ProductAlternative: {
+            /** Available Dates */
+            available_dates?: string[] | null;
+            /** Currency */
+            currency?: string | null;
+            /** Name */
+            name: string;
+            /** Name Localized */
+            name_localized?: {
+                [key: string]: unknown;
+            } | null;
+            /** Price From */
+            price_from?: string | null;
+            /** Product Id */
+            product_id: string;
+            /**
+             * Service Time Shape
+             * @enum {string}
+             */
+            service_time_shape: "single_date" | "days_range" | "fixed_window" | "time_slot";
+            /** Slug */
+            slug: string;
+            /** Thumb Url */
+            thumb_url?: string | null;
+            /** Windows */
+            windows?: components["schemas"]["AlternativeWindow"][] | null;
         } & {
             [key: string]: unknown;
         };
@@ -17806,6 +20353,10 @@ export interface components {
              * @default true
              */
             active: boolean;
+            /** Addon Quantity Max */
+            addon_quantity_max?: number | null;
+            /** Addon Quantity Rule */
+            addon_quantity_rule?: ("one_per_booking" | "one_per_participant" | "any") | null;
             /**
              * Booking Mode
              * @default scheduled
@@ -17820,6 +20371,14 @@ export interface components {
             capacity_per_unit?: number | null;
             /** Category Id */
             category_id?: string | null;
+            /** Check In Time */
+            check_in_time?: string | null;
+            /** Check Out Time */
+            check_out_time?: string | null;
+            /** Cleaning Fee Cents */
+            cleaning_fee_cents?: number | null;
+            /** Daily Cap */
+            daily_cap?: number | null;
             /** Daily Start Times */
             daily_start_times?: string[] | null;
             /** Daily Start Weekdays */
@@ -17836,6 +20395,17 @@ export interface components {
             } | null;
             /** Duration Minutes */
             duration_minutes?: number | null;
+            /** Event Cutoff Hours */
+            event_cutoff_hours?: number | null;
+            /** Event End Weekday */
+            event_end_weekday?: number | null;
+            /**
+             * Event Horizon N
+             * @default 2
+             */
+            event_horizon_n: number;
+            /** Event Start Weekday */
+            event_start_weekday?: number | null;
             /** Guide Languages */
             guide_languages?: string[] | null;
             /** Hotel Location Id */
@@ -17869,8 +20439,12 @@ export interface components {
              * @default 0
              */
             lead_time_minutes: number;
+            /** Max Nights */
+            max_nights?: number | null;
             /** Max Party Size */
             max_party_size?: number | null;
+            /** Min Nights */
+            min_nights?: number | null;
             /** Name */
             name: string;
             /** Name Localized */
@@ -17892,15 +20466,25 @@ export interface components {
              * @default 2
              */
             on_request_daily_capacity: number;
+            /** Paid To */
+            paid_to?: ("operator" | "hotel" | "performer") | null;
+            /** Payment Note Localized */
+            payment_note_localized?: {
+                [key: string]: unknown;
+            } | null;
+            /** Price Unit */
+            price_unit?: ("booking" | "night" | "stay" | "guest" | "guest_night") | null;
             /** Product Group Id */
             product_group_id?: string | null;
             /** Product Kind */
-            product_kind?: ("service" | "subscription" | "hotel_room" | "digital_good" | "physical_good" | "gift_card") | null;
+            product_kind?: ("service" | "subscription" | "hotel_room" | "digital_good" | "physical_good" | "gift_card" | "stay" | "pass") | null;
             /**
-             * Revenue Flows Through Operator
-             * @default true
+             * Requires Verification
+             * @default false
              */
-            revenue_flows_through_operator: boolean;
+            requires_verification: boolean;
+            /** Revenue Flows Through Operator */
+            revenue_flows_through_operator?: boolean | null;
             /** Service Time Shape */
             service_time_shape?: ("single_date" | "days_range" | "fixed_window" | "time_slot") | null;
             /**
@@ -17926,6 +20510,10 @@ export interface components {
              * @default 0
              */
             sort_order: number;
+            /** Waiver Text Localized */
+            waiver_text_localized?: {
+                [key: string]: unknown;
+            } | null;
         };
         /** ProductLineIn */
         ProductLineIn: {
@@ -17935,6 +20523,8 @@ export interface components {
             date_range_start?: string | null;
             /** Fixed Date Window Id */
             fixed_date_window_id?: string | null;
+            /** Pass Tier Id */
+            pass_tier_id?: string | null;
             /** Product Availability Id */
             product_availability_id?: string | null;
             /** Product Id */
@@ -17957,6 +20547,10 @@ export interface components {
             accommodation_lead_time_minutes?: number | null;
             /** Active */
             active?: boolean | null;
+            /** Addon Quantity Max */
+            addon_quantity_max?: number | null;
+            /** Addon Quantity Rule */
+            addon_quantity_rule?: ("one_per_booking" | "one_per_participant" | "any") | null;
             /** Booking Mode */
             booking_mode?: ("scheduled" | "on_request") | null;
             /** Briefing Content */
@@ -17967,6 +20561,14 @@ export interface components {
             capacity_per_unit?: number | null;
             /** Category Id */
             category_id?: string | null;
+            /** Check In Time */
+            check_in_time?: string | null;
+            /** Check Out Time */
+            check_out_time?: string | null;
+            /** Cleaning Fee Cents */
+            cleaning_fee_cents?: number | null;
+            /** Daily Cap */
+            daily_cap?: number | null;
             /** Daily Start Times */
             daily_start_times?: string[] | null;
             /** Daily Start Weekdays */
@@ -17983,6 +20585,14 @@ export interface components {
             } | null;
             /** Duration Minutes */
             duration_minutes?: number | null;
+            /** Event Cutoff Hours */
+            event_cutoff_hours?: number | null;
+            /** Event End Weekday */
+            event_end_weekday?: number | null;
+            /** Event Horizon N */
+            event_horizon_n?: number | null;
+            /** Event Start Weekday */
+            event_start_weekday?: number | null;
             /** Guide Languages */
             guide_languages?: string[] | null;
             /** Hotel Location Id */
@@ -18001,8 +20611,12 @@ export interface components {
             is_publicly_listed?: boolean | null;
             /** Lead Time Minutes */
             lead_time_minutes?: number | null;
+            /** Max Nights */
+            max_nights?: number | null;
             /** Max Party Size */
             max_party_size?: number | null;
+            /** Min Nights */
+            min_nights?: number | null;
             /** Name */
             name?: string | null;
             /** Name Localized */
@@ -18015,10 +20629,20 @@ export interface components {
             needs_provider?: boolean | null;
             /** On Request Daily Capacity */
             on_request_daily_capacity?: number | null;
+            /** Paid To */
+            paid_to?: ("operator" | "hotel" | "performer") | null;
+            /** Payment Note Localized */
+            payment_note_localized?: {
+                [key: string]: unknown;
+            } | null;
+            /** Price Unit */
+            price_unit?: ("booking" | "night" | "stay" | "guest" | "guest_night") | null;
             /** Product Group Id */
             product_group_id?: string | null;
             /** Product Kind */
-            product_kind?: ("service" | "subscription" | "hotel_room" | "digital_good" | "physical_good" | "gift_card") | null;
+            product_kind?: ("service" | "subscription" | "hotel_room" | "digital_good" | "physical_good" | "gift_card" | "stay" | "pass") | null;
+            /** Requires Verification */
+            requires_verification?: boolean | null;
             /** Revenue Flows Through Operator */
             revenue_flows_through_operator?: boolean | null;
             /** Service Time Shape */
@@ -18035,6 +20659,10 @@ export interface components {
             slot_capacity?: number | null;
             /** Sort Order */
             sort_order?: number | null;
+            /** Waiver Text Localized */
+            waiver_text_localized?: {
+                [key: string]: unknown;
+            } | null;
         };
         /**
          * ProductPeriodPriceIn
@@ -18074,6 +20702,27 @@ export interface components {
             periods?: components["schemas"]["ProductPeriodPriceOut"][];
             product: components["schemas"]["PricingProductOut"];
             standard?: components["schemas"]["PriceListOut"] | null;
+        };
+        /**
+         * ProductRequirementIn
+         * @description Link a resource type to the product (landr-1cib9).
+         *
+         *     landr-m6tp4.15: ``exclusive_use`` / ``units_required_per_booking`` make the
+         *     created row a whole-unit requirement in the same request (a stay's one
+         *     apartment: ``{"exclusive_use": true}`` = 1 whole unit per booking), so a
+         *     client never has to POST then PATCH. Both omitted keeps the default
+         *     counting (1 per participant, or 1 per booking for a staff type).
+         */
+        ProductRequirementIn: {
+            /**
+             * Exclusive Use
+             * @default false
+             */
+            exclusive_use: boolean;
+            /** Resource Type Id */
+            resource_type_id: string;
+            /** Units Required Per Booking */
+            units_required_per_booking?: number | null;
         };
         /**
          * ProductRequirementOut
@@ -18359,8 +21008,9 @@ export interface components {
             /**
              * Booking Channel
              * @default public_website
+             * @constant
              */
-            booking_channel: string;
+            booking_channel: "public_website";
             /** Campaign Id */
             campaign_id?: string | null;
             /** Cancellation Deadline */
@@ -18405,10 +21055,15 @@ export interface components {
             member_perk_otp?: string | null;
             /** Participants */
             participants?: components["schemas"]["ParticipantIn"][];
+            /** Pass Member Proof */
+            pass_member_proof?: string | null;
             /** Preview Token */
             preview_token?: string | null;
             /** Products */
             products: components["schemas"]["ProductLineIn"][];
+            verification?: components["schemas"]["VerificationIn"] | null;
+            /** Via Alternative Of */
+            via_alternative_of?: string | null;
             /** Voucher Code */
             voucher_code?: string | null;
             /** Widget Token */
@@ -18459,6 +21114,13 @@ export interface components {
             date: string;
             /** Fixed Date Window Id */
             fixed_date_window_id?: string | null;
+            /**
+             * Force Book
+             * @default false
+             */
+            force_book: boolean;
+            /** Pass Tier Id */
+            pass_tier_id?: string | null;
             /** Product Id */
             product_id: string;
             /** Slot Start Time */
@@ -18568,11 +21230,6 @@ export interface components {
             request_id: string;
             /** Token Expires At */
             token_expires_at: string;
-        };
-        /** RejectIn */
-        RejectIn: {
-            /** Notes */
-            notes: string;
         };
         /** RelayCommentIn */
         RelayCommentIn: {
@@ -19836,6 +22493,13 @@ export interface components {
              */
             starts_on: string;
         };
+        /** RunIn */
+        RunIn: {
+            /** Operator Id */
+            operator_id?: string | null;
+            /** Period */
+            period: string;
+        };
         /**
          * SavedViewIn
          * @description Create payload. creator_user_id is server-stamped from the JWT.
@@ -19885,13 +22549,16 @@ export interface components {
          * SavingLineOut
          * @description One "− <label>  <amount>" row of a customer-facing price breakdown
          *     (landr-nva1a.1, see ``app/services/booking_savings.py``). ``kind`` is
-         *     ``multi_day`` | ``voucher`` | ``perk`` | ``discount``; ``amount`` is a
+         *     ``multi_day`` | ``voucher`` | ``perk`` | ``discount`` (or ``surcharge`` in
+         *     a ``surcharges`` list, landr-fcoh2); ``amount`` is a
          *     positive decimal string. Shared by the estimate, the staff pricing
          *     breakdown, and the submit response's ``summary``.
          */
         SavingLineOut: {
             /** Amount */
             amount: string;
+            /** Description */
+            description?: string | null;
             /** Kind */
             kind: string;
             /** Label */
@@ -20258,6 +22925,21 @@ export interface components {
             /** Whatsapp Url */
             whatsapp_url: string | null;
         };
+        /** ShortLinkCreateIn */
+        ShortLinkCreateIn: {
+            /** Query */
+            query: string;
+        };
+        /** ShortLinkCreateOut */
+        ShortLinkCreateOut: {
+            /** Code */
+            code: string;
+        };
+        /** ShortLinkResolveOut */
+        ShortLinkResolveOut: {
+            /** Query */
+            query: string;
+        };
         /** SignedUrlResponse */
         SignedUrlResponse: {
             /** Expires In */
@@ -20317,15 +22999,18 @@ export interface components {
          *     the desired public handle. `turnstile_token` is the Cloudflare widget's
          *     client response token. `password` is the new account password (GoTrue
          *     enforces its own minimum; we keep a soft floor here). `locale` selects the
-         *     verification-email language (en/de; defaults en).
+         *     verification-email language (any `public.ui_locales` code or
+         *     browser tag such as `es-ES`; bundled en/de/es/tr, else en; defaults en).
          *
          *     Both field names and their marketing-site aliases are accepted (back-compat):
          *       name / operator_name, slug / operator_slug  (landr-oqrz.1)
          *
-         *     `preset_key` (optional, landr-k9pji.2) pre-selects the onboarding preset,
-         *     e.g. `solo_pilot` from the website's solo landing CTA. Must be one of
-         *     `app/services/presets.py` PRESET_KEYS, else 422 `unknown_preset_key`.
-         *     Blank = not sent. Stored on the operator only; the wizard applies it.
+         *     `preset_key` (optional, landr-k9pji.2) pre-selects the onboarding path,
+         *     e.g. `solo_pilot` from the website's solo landing CTA. One of
+         *     `app/services/onboarding_flow.py` FLOW_KEYS or a live operator-template
+         *     slug (landr-m6tp4.1; stored as that template's preset key), else 422
+         *     `unknown_preset_key`. Blank = not sent. Stored on the operator only; the
+         *     wizard applies the template.
          */
         SignupRequest: {
             /** Email */
@@ -20357,6 +23042,8 @@ export interface components {
          *     when ``product_id`` is given.
          */
         SimulateDraftIn: {
+            /** Daily Start Times */
+            daily_start_times?: string[] | null;
             /** Locale */
             locale?: string | null;
             /**
@@ -20374,6 +23061,8 @@ export interface components {
             selected_days?: string[];
             /** Service Time Shape */
             service_time_shape?: string | null;
+            /** Slot Start Time */
+            slot_start_time?: string | null;
             standard?: components["schemas"]["PricingDraftListIn"] | null;
         };
         /** SiteFlyabilityResponse */
@@ -20485,9 +23174,58 @@ export interface components {
             decision: "approve" | "reject";
             /** Notes */
             notes?: string | null;
+            /** Override Reason */
+            override_reason?: string | null;
             /** Reject Reason Code */
             reject_reason_code?: string | null;
             unit_release?: components["schemas"]["StaffUnitReleaseIn"] | null;
+        };
+        /**
+         * StaffProfileOut
+         * @description The caller's UI-language preference and the effective result.
+         */
+        StaffProfileOut: {
+            /**
+             * Effective Ui Locale
+             * @description What the UI should render in after user -> operator -> browser -> en.
+             */
+            effective_ui_locale: string;
+            /**
+             * Operator Default Ui Locale
+             * @description That operator's team default; null when unset or no operator_id given.
+             */
+            operator_default_ui_locale: string | null;
+            /**
+             * Operator Id
+             * @description Echo of ?operator_id= — the operator the operator rung was read from.
+             */
+            operator_id: string | null;
+            /** Supported Ui Locales */
+            supported_ui_locales: components["schemas"]["UiLocaleOut"][];
+            /**
+             * Ui Locale
+             * @description The caller's own choice; null = none (fall back down the chain).
+             */
+            ui_locale: string | null;
+            /**
+             * Ui Locale Source
+             * @description Which rung produced effective_ui_locale.
+             * @enum {string}
+             */
+            ui_locale_source: "user" | "operator" | "browser" | "fallback";
+            /** User Id */
+            user_id: string;
+        };
+        /**
+         * StaffProfilePatch
+         * @description Partial update of the caller's own profile. Unknown keys 422.
+         */
+        StaffProfilePatch: {
+            /**
+             * Ui Locale
+             * @description A registry code (case-insensitive); null clears the personal choice.
+             */
+            ui_locale?: string | null;
         };
         /** StaffSubmitBookingIn */
         StaffSubmitBookingIn: {
@@ -20562,6 +23300,36 @@ export interface components {
             products: components["schemas"]["ProductLineIn"][];
             /** Staff Session */
             staff_session: string;
+        };
+        /** StaffTemplateOut */
+        StaffTemplateOut: {
+            /** Exported At */
+            exported_at?: string | null;
+            /** Exported Version */
+            exported_version?: number | null;
+            /**
+             * Flow
+             * @enum {string}
+             */
+            flow: "solo" | "company";
+            /** Name */
+            name: string | null;
+            /** Onboarding Preset Key */
+            onboarding_preset_key: string | null;
+            /** Operator Id */
+            operator_id: string;
+            /** Pitch */
+            pitch: {
+                [key: string]: components["schemas"]["TemplatePitchLocale"];
+            } | null;
+            /** Product Count */
+            product_count: number;
+            /** Slug */
+            slug: string;
+            /** Uses Pools */
+            uses_pools: boolean;
+            /** Version */
+            version: number;
         };
         /**
          * StaffUnitReleaseIn
@@ -20778,6 +23546,58 @@ export interface components {
             status: string;
         };
         /**
+         * StayConfig
+         * @description landr-m6tp4.2: the booking rules of a ``product_kind='stay'`` product,
+         *     for the widget's range picker and price breakdown. The nightly price is
+         *     the catalogue's ``price_from`` / ``price_base`` (a per-night rate).
+         */
+        StayConfig: {
+            /** Check In Time */
+            check_in_time?: string | null;
+            /** Check Out Time */
+            check_out_time?: string | null;
+            /**
+             * Cleaning Fee Cents
+             * @default 0
+             */
+            cleaning_fee_cents: number;
+            /** Max Nights */
+            max_nights?: number | null;
+            /**
+             * Min Nights
+             * @default 1
+             */
+            min_nights: number;
+            /** Sleeps */
+            sleeps?: number | null;
+        };
+        /**
+         * StayEstimate
+         * @description landr-m6tp4.2: the stay half of an estimate for a stay product.
+         */
+        StayEstimate: {
+            /** Check In */
+            check_in?: string | null;
+            /** Check Out */
+            check_out?: string | null;
+            /** Cleaning Fee */
+            cleaning_fee: string;
+            /** Errors */
+            errors?: components["schemas"]["StayEstimateError"][];
+            /** Nights */
+            nights: number;
+        };
+        /**
+         * StayEstimateError
+         * @description One broken stay rule (app/services/stay_pricing.VIOLATION_CODES).
+         */
+        StayEstimateError: {
+            /** Code */
+            code: string;
+            /** Date */
+            date?: string | null;
+        };
+        /**
          * SubmitBookingResponse
          * @description Response of POST /api/public/bookings (booking submit).
          *
@@ -20837,6 +23657,10 @@ export interface components {
             summary?: components["schemas"]["BookingSummary"] | null;
             /** Token */
             token?: string | null;
+            /** Verification */
+            verification?: {
+                [key: string]: unknown;
+            } | null;
         } & {
             [key: string]: unknown;
         };
@@ -21156,6 +23980,61 @@ export interface components {
              */
             template_keys?: string[];
         };
+        /** TemplateCatalogueOut */
+        TemplateCatalogueOut: {
+            /** Groups */
+            groups: components["schemas"]["CatalogueGroup"][];
+            /** Products */
+            products: components["schemas"]["CatalogueProduct"][];
+            /** Template Slug */
+            template_slug: string;
+            /** Version */
+            version: number;
+        };
+        /** TemplateCompare */
+        TemplateCompare: {
+            /** Label */
+            label: string;
+            /** Pct */
+            pct: number;
+        };
+        /** TemplateOut */
+        TemplateOut: {
+            /**
+             * Flow
+             * @enum {string}
+             */
+            flow: "solo" | "company";
+            /** Onboarding Preset Key */
+            onboarding_preset_key: string | null;
+            /** Pitch */
+            pitch: {
+                [key: string]: components["schemas"]["TemplatePitchLocale"];
+            } | null;
+            /** Product Count */
+            product_count: number;
+            /** Slug */
+            slug: string;
+            /** Uses Pools */
+            uses_pools: boolean;
+            /** Version */
+            version: number;
+        };
+        /** TemplatePitchLocale */
+        TemplatePitchLocale: {
+            /** Audience */
+            audience?: string | null;
+            /**
+             * Benefits
+             * @default []
+             */
+            benefits: string[];
+            compare?: components["schemas"]["TemplateCompare"] | null;
+            /** Headline */
+            headline?: string | null;
+            /** Hero Url */
+            hero_url?: string | null;
+        };
         /**
          * TermPair
          * @description landr-iqo7q.1 — one operators.terminology override: the singular
@@ -21173,6 +24052,13 @@ export interface components {
             many: string;
             /** One */
             one: string;
+        };
+        /** TermsCopy */
+        TermsCopy: {
+            /** Body */
+            body: string;
+            /** Title */
+            title: string;
         };
         /**
          * TestEmailRequest
@@ -21333,6 +24219,40 @@ export interface components {
             notes?: string | null;
             /** Quantity */
             quantity?: number | null;
+        };
+        /**
+         * UiLocaleOut
+         * @description One supported dashboard UI language.
+         */
+        UiLocaleOut: {
+            /**
+             * Code
+             * @description BCP-47 code stored in ui_locale columns, e.g. 'de'.
+             */
+            code: string;
+            /**
+             * English Name
+             * @description English name, e.g. 'German'.
+             */
+            english_name: string;
+            /**
+             * Native Name
+             * @description Endonym for the switcher, e.g. 'Deutsch'.
+             */
+            native_name: string;
+        };
+        /**
+         * UiLocaleRegistryOut
+         * @description The supported-UI-locale registry, in switcher order.
+         */
+        UiLocaleRegistryOut: {
+            /**
+             * Fallback
+             * @description The chain's last rung; always present in `locales`.
+             */
+            fallback: string;
+            /** Locales */
+            locales: components["schemas"]["UiLocaleOut"][];
         };
         /** UnavailabilityIn */
         UnavailabilityIn: {
@@ -21528,6 +24448,23 @@ export interface components {
             /** Role */
             role?: ("owner" | "admin" | "staff" | "field" | "finance" | "readonly") | null;
         };
+        /** UpdateTermsChange */
+        UpdateTermsChange: {
+            /** Audience Operator Ids */
+            audience_operator_ids?: string[] | null;
+            /** Audience Package Slug */
+            audience_package_slug?: string | null;
+            /** Audience Type */
+            audience_type?: ("all" | "package" | "operators") | null;
+            /** Effective Date */
+            effective_date?: string | null;
+            /** Kind */
+            kind?: ("terms" | "pricing" | "features") | null;
+            /** Translations */
+            translations?: {
+                [key: string]: components["schemas"]["TermsCopy"];
+            } | null;
+        };
         /** UpgradeRequestIn */
         UpgradeRequestIn: {
             /** Message */
@@ -21555,16 +24492,14 @@ export interface components {
         };
         /** UploadPhotoRequest */
         UploadPhotoRequest: {
-            /**
-             * Bucket Id
-             * @default community-media
-             */
-            bucket_id: string;
             /** Height */
             height?: number | null;
             /** Mime Type */
             mime_type: string;
-            /** Object Path */
+            /**
+             * Object Path
+             * @description '<your auth uid>/<filename>' in the community-media bucket
+             */
             object_path: string;
             /**
              * Subject Id
@@ -21587,6 +24522,29 @@ export interface components {
             msg: string;
             /** Error Type */
             type: string;
+        };
+        /**
+         * VerificationApproveIn
+         * @description The hashes of the two files the organizer reviewed (as returned by the
+         *     queue / the ``files`` call). Approval is bound to exactly those bytes.
+         */
+        VerificationApproveIn: {
+            /** Insurance Sha256 */
+            insurance_sha256: string;
+            /** Licence Sha256 */
+            licence_sha256: string;
+        };
+        /**
+         * VerificationIn
+         * @description The customer's signed waiver on a verified registration.
+         */
+        VerificationIn: {
+            /** Waiver Accepted */
+            waiver_accepted: boolean;
+            /** Waiver Locale */
+            waiver_locale?: string | null;
+            /** Waiver Signature Name */
+            waiver_signature_name: string;
         };
         /**
          * VerifyResult
@@ -22011,6 +24969,11 @@ export interface components {
             /** Year */
             year: number;
         };
+        /** RejectIn */
+        app__routers__landr_staff_promotions__RejectIn: {
+            /** Notes */
+            notes: string;
+        };
         /** RuleIn */
         app__routers__staff_commission__RuleIn: {
             /**
@@ -22145,7 +25108,7 @@ export interface components {
              * Rule Kind
              * @enum {string}
              */
-            rule_kind: "per_day_base" | "per_streak_tier" | "per_total_days_tier" | "per_participant_tier" | "fixed_total" | "percentage_discount" | "flat_discount" | "time_of_day_surcharge" | "manual_override";
+            rule_kind: "per_day_base" | "per_streak_tier" | "per_total_days_tier" | "per_participant_tier" | "fixed_total" | "percentage_discount" | "flat_discount" | "time_of_day_surcharge" | "manual_override" | "slot_time_adjustment" | "weekday_adjustment";
             /** Sort Order */
             sort_order: number;
             /** Tiers */
@@ -22164,7 +25127,7 @@ export interface components {
                 [key: string]: unknown;
             } | null;
             /** Rule Kind */
-            rule_kind?: ("per_day_base" | "per_streak_tier" | "per_total_days_tier" | "per_participant_tier" | "fixed_total" | "percentage_discount" | "flat_discount" | "time_of_day_surcharge" | "manual_override") | null;
+            rule_kind?: ("per_day_base" | "per_streak_tier" | "per_total_days_tier" | "per_participant_tier" | "fixed_total" | "percentage_discount" | "flat_discount" | "time_of_day_surcharge" | "manual_override" | "slot_time_adjustment" | "weekday_adjustment") | null;
             /** Sort Order */
             sort_order?: number | null;
         };
@@ -22245,6 +25208,11 @@ export interface components {
             threshold_max?: number | null;
             /** Threshold Min */
             threshold_min?: number | null;
+        };
+        /** RejectIn */
+        app__routers__staff_verifications__RejectIn: {
+            /** Note */
+            note: string;
         };
     };
     responses: never;
@@ -23136,6 +26104,39 @@ export interface operations {
             };
         };
     };
+    drain_mail: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Mail-Drain-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: number;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     relay_changelog: {
         parameters: {
             query: {
@@ -23419,6 +26420,556 @@ export interface operations {
             };
         };
     };
+    list_invoices: {
+        parameters: {
+            query?: {
+                operator_id?: string | null;
+                /** @description issue month, YYYY-MM */
+                period?: string | null;
+                /** @description payment status (invoices only) */
+                status?: ("open" | "exported" | "paid" | "returned") | null;
+                kind?: ("invoice" | "credit_note") | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_credit_note: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invoice_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreditNoteIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    finalize_invoice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invoice_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_partial_credit_note: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invoice_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PartialCreditNoteIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    mark_payment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invoice_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PaymentIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_invoice_pdf: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invoice_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_billing_plan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_billing_plan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BillingPlanIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_payments: {
+        parameters: {
+            query?: {
+                period?: string | null;
+                status?: ("open" | "exported" | "paid" | "returned") | null;
+                operator_id?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    run_statements: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RunIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    sepa_pain008: {
+        parameters: {
+            query: {
+                period: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    sepa_preview: {
+        parameters: {
+            query: {
+                period: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_statements: {
+        parameters: {
+            query?: {
+                period?: string | null;
+                status?: ("draft" | "issued" | "rolled_over") | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_statement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                statement_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    issue_statement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                statement_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    rebuild_statement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                statement_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     remove_photo: {
         parameters: {
             query?: never;
@@ -23571,6 +27122,72 @@ export interface operations {
             };
         };
     };
+    put_contract_terms: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ContractTermsIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_contract_terms: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     landr_staff_delete_operator: {
         parameters: {
             query?: never;
@@ -23622,6 +27239,39 @@ export interface operations {
                 "application/json": components["schemas"]["ConfirmBody"];
             };
         };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    landr_staff_resend_verification: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {
@@ -23758,6 +27408,43 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_package_price: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PackagePriceIn"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
@@ -23977,6 +27664,94 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PreviewMigrationsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_prod_hotfix_candidates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProdHotfixCandidatesResponse"];
+                };
+            };
+        };
+    };
+    create_prod_hotfix_code: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StagingHotfixCodeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_prod_hotfix: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StagingHotfixPreviewIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HotfixPreviewResponse"];
                 };
             };
             /** @description Validation Error */
@@ -24284,7 +28059,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["RejectIn"];
+                "application/json": components["schemas"]["app__routers__landr_staff_promotions__RejectIn"];
             };
         };
         responses: {
@@ -24434,6 +28209,411 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SiteWarningPublisherResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    landr_staff_list_templates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffTemplateOut"][];
+                };
+            };
+        };
+    };
+    landr_staff_flag_template: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FlagTemplateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffTemplateOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    landr_staff_unflag_template: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    landr_staff_patch_template: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PatchTemplateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffTemplateOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    landr_staff_bump_template_version: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffTemplateOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_staff_terms_changes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    }[];
+                };
+            };
+        };
+    };
+    create_terms_change: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateTermsChange"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_terms_change: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                change_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_terms_change: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                change_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_terms_change: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                change_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateTermsChange"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    terms_change_acknowledgements: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                change_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_terms_change: {
+        parameters: {
+            query?: {
+                locale?: string;
+            };
+            header?: never;
+            path: {
+                change_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    send_terms_change: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                change_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */
@@ -24887,6 +29067,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["VersionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_terms_changes: {
+        parameters: {
+            query?: {
+                locale?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    }[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    acknowledge_terms_change: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                change_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */
@@ -25588,6 +29834,73 @@ export interface operations {
             };
         };
     };
+    public_get_booking_verification: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_put_booking_verification_file: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+                kind: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     public_get_briefing: {
         parameters: {
             query?: never;
@@ -25966,6 +30279,26 @@ export interface operations {
             };
         };
     };
+    public_get_environment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvironmentOut"];
+                };
+            };
+        };
+    };
     health: {
         parameters: {
             query?: never;
@@ -26178,6 +30511,40 @@ export interface operations {
             };
         };
     };
+    get_member_calendar_ics: {
+        parameters: {
+            query: {
+                /** @description Personal token from member_ical_tokens, issued via /api/staff/operators/{operator_id}/ical-token/me. */
+                token: string;
+            };
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     request_account_link: {
         parameters: {
             query?: never;
@@ -26272,6 +30639,43 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     }[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_pass_member_proof: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MemberProofIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */
@@ -26407,6 +30811,43 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProductFlowResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_get_pass_tiers: {
+        parameters: {
+            query?: {
+                email?: string | null;
+                member_proof?: string | null;
+            };
+            header?: never;
+            path: {
+                token: string;
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */
@@ -26590,6 +31031,41 @@ export interface operations {
             };
         };
     };
+    get_product_alternatives: {
+        parameters: {
+            query: {
+                from: string;
+                to: string;
+                party?: number;
+            };
+            header?: never;
+            path: {
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductAlternative"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_product_availability: {
         parameters: {
             query: {
@@ -26656,6 +31132,37 @@ export interface operations {
             };
         };
     };
+    public_resolve_short_link: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShortLinkResolveOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     signup: {
         parameters: {
             query?: never;
@@ -26666,6 +31173,41 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["SignupRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    pilot_signup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PilotSignupRequest"];
             };
         };
         responses: {
@@ -26843,6 +31385,88 @@ export interface operations {
                 };
                 content: {
                     "text/html": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_list_templates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TemplateOut"][];
+                };
+            };
+        };
+    };
+    public_get_template: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TemplateOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_get_template_catalogue: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TemplateCatalogueOut"];
                 };
             };
             /** @description Validation Error */
@@ -27193,6 +31817,13 @@ export interface operations {
                     };
                 };
             };
+            /** @description A valid booking reference whose activity is not today: `{detail: {error: 'activity_not_today', next_activity_date}}`. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -27235,6 +31866,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_list_ui_locales: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UiLocaleRegistryOut"];
                 };
             };
         };
@@ -27928,6 +32579,78 @@ export interface operations {
             };
         };
     };
+    staff_get_my_profile: {
+        parameters: {
+            query?: {
+                /** @description The operator the dashboard is on; enables the operator-default rung. */
+                operator_id?: string | null;
+            };
+            header?: {
+                "accept-language"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffProfileOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_patch_my_profile: {
+        parameters: {
+            query?: {
+                /** @description The operator the dashboard is on; only shapes the response's resolution. */
+                operator_id?: string | null;
+            };
+            header?: {
+                "accept-language"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StaffProfilePatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffProfileOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     create_operator: {
         parameters: {
             query?: never;
@@ -28160,6 +32883,41 @@ export interface operations {
             };
         };
     };
+    staff_apply_operator_template: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApplyTemplateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplyTemplateOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_bank_details: {
         parameters: {
             query?: never;
@@ -28207,6 +32965,208 @@ export interface operations {
                 "application/json": components["schemas"]["BankDetailsIn"];
             };
         };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_my_invoices: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    my_invoice_pdf: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                invoice_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_billing_profile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_billing_profile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BillingProfileIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_my_statements: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_my_statement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                statement_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {
@@ -28401,6 +33361,41 @@ export interface operations {
             };
         };
     };
+    staff_list_customer_unnotified: {
+        parameters: {
+            query?: {
+                ids?: string[] | null;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     staff_list_offer_unsent: {
         parameters: {
             query?: {
@@ -28421,7 +33416,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        [key: string]: string[];
+                        [key: string]: unknown;
                     };
                 };
             };
@@ -28781,9 +33776,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["ConfirmationStatusResponse"];
                 };
             };
             /** @description Validation Error */
@@ -29473,6 +34466,36 @@ export interface operations {
                         [key: string]: string;
                     };
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_dismiss_offer_unsent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -32382,6 +37405,101 @@ export interface operations {
             };
         };
     };
+    get_or_create_my_ical_token: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    rotate_my_ical_token: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    revoke_my_ical_token: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_integration_credentials: {
         parameters: {
             query?: never;
@@ -33673,6 +38791,484 @@ export interface operations {
                 "application/json": components["schemas"]["UnitRequestDecisionIn"];
             };
         };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_delete_pass_tier: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                tier_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_patch_pass_tier: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                tier_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PassTierPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_list_pass_checkins: {
+        parameters: {
+            query: {
+                day_date: string;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_pause: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    start_pause: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PauseIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_payment_gate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_payment_method: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_payment_method: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PaymentMethodIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    revoke_payment_method: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    payment_standing: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_plan_change: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_plan_change: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlanChangeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cancel_scheduled_plan_change: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_plan_terms: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {
@@ -35338,6 +40934,78 @@ export interface operations {
             };
         };
     };
+    staff_list_pass_tiers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    }[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_create_pass_tier: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PassTierIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     product_pricing_get: {
         parameters: {
             query?: never;
@@ -35460,6 +41128,42 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProductRequirementOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_product_requirement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProductRequirementIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductRequirementOut"];
                 };
             };
             /** @description Validation Error */
@@ -38300,6 +44004,39 @@ export interface operations {
             };
         };
     };
+    resume: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_saved_views: {
         parameters: {
             query?: never;
@@ -38925,6 +44662,41 @@ export interface operations {
                             [key: string]: unknown;
                         }[];
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_create_widget_short_link: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ShortLinkCreateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShortLinkCreateOut"];
                 };
             };
             /** @description Validation Error */
@@ -39852,6 +45624,151 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UpgradeRequestOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_list_verifications: {
+        parameters: {
+            query?: {
+                status?: string;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    }[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_approve_verification: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                verification_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VerificationApproveIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_verification_file_urls: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                verification_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_reject_verification: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                verification_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["app__routers__staff_verifications__RejectIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */

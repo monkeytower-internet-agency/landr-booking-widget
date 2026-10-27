@@ -1,15 +1,15 @@
 /**
- * Page-scoped de/en/es strings for CancelPage (landr-5aih0.7).
+ * Page-scoped de/en/es/it/tr strings for CancelPage (landr-5aih0.7).
  *
  * Same reasoning as approvalReplyStrings.ts: the customer arrives from a
  * booking email that was sent in de/en/es, so the page speaks the email's
  * language — the preview response's `locale` — rather than the widget's
- * browser-locale chrome. Informal address (du / tú), matching the emails.
+ * browser-locale chrome. Informal address (du / tú), matching the emails (Turkish uses the polite "siz" form).
  *
  * `{name}` placeholders are filled by `fmtCancel`.
  */
 
-export type CancelLocale = 'de' | 'en' | 'es'
+export type CancelLocale = 'de' | 'en' | 'es' | 'it' | 'tr'
 
 export interface CancelBundle {
   loadingTitle: string
@@ -30,6 +30,8 @@ export interface CancelBundle {
   tooLateBodyNoDeadline: string
   contactCall: string
   contactEmail: string
+  changeActivityHint: string
+  changeActivityHintNoOperator: string
   alreadyTitle: string
   successTitle: string
   successBody: string
@@ -62,6 +64,8 @@ const en: CancelBundle = {
     'Please contact {operator} to change or cancel your booking.',
   contactCall: 'Call {phone}',
   contactEmail: 'Email {email}',
+  changeActivityHint: 'Want a different activity? Contact {operator} to change it.',
+  changeActivityHintNoOperator: 'Want a different activity? Contact the operator to change it.',
   alreadyTitle: 'This booking is already cancelled',
   successTitle: 'Booking cancelled',
   successBody:
@@ -98,6 +102,8 @@ const de: CancelBundle = {
     'Bitte wende dich an {operator}, um deine Buchung zu ändern oder zu stornieren.',
   contactCall: 'Anrufen: {phone}',
   contactEmail: 'E-Mail: {email}',
+  changeActivityHint: 'Du möchtest eine andere Aktivität? Wende dich an {operator}, um sie zu ändern.',
+  changeActivityHintNoOperator: 'Du möchtest eine andere Aktivität? Wende dich an den Anbieter, um sie zu ändern.',
   alreadyTitle: 'Diese Buchung ist bereits storniert',
   successTitle: 'Buchung storniert',
   successBody:
@@ -109,6 +115,42 @@ const de: CancelBundle = {
   errorBody:
     'Wir konnten diese Buchung nicht stornieren. Bitte versuche es erneut oder wende dich an {operator}.',
   tryAgain: 'Erneut versuchen',
+}
+
+const it: CancelBundle = {
+  loadingTitle: 'Caricamento della tua prenotazione…',
+  invalidTitle: 'Questo link non è più valido',
+  invalidBody:
+    'Il link di annullamento potrebbe essere scaduto o essere stato sostituito. Contatta l\u2019azienda presso cui hai prenotato.',
+  title: 'Annullare la tua prenotazione?',
+  bookingRef: 'Prenotazione {ref}',
+  freeUntil: 'Annullamento gratuito fino al {deadline}.',
+  refundStripe: 'Riceverai {amount} sul tuo metodo di pagamento originale.',
+  refundManual: '{operator} ti rimborserà {amount} direttamente.',
+  refundNone: 'Non ti è stato addebitato nulla, quindi non c\u2019è nulla da rimborsare.',
+  confirmBody: 'La tua prenotazione verrà annullata subito. Non si può annullare l\u2019operazione.',
+  yes: 'Sì, annulla la prenotazione',
+  busy: 'Annullamento in corso…',
+  no: 'No, mantieni la prenotazione',
+  tooLateTitle: 'Questa prenotazione non può più essere annullata online',
+  tooLateBody:
+    'L\u2019annullamento gratuito era possibile fino al {deadline}. Contatta {operator} per modificare o annullare la tua prenotazione.',
+  tooLateBodyNoDeadline:
+    'Contatta {operator} per modificare o annullare la tua prenotazione.',
+  contactCall: 'Chiama il {phone}',
+  contactEmail: 'Scrivi a {email}',
+  changeActivityHint: 'Vuoi un\u2019altra attività? Contatta {operator} per cambiarla.',
+  changeActivityHintNoOperator: 'Vuoi un\u2019altra attività? Contatta l\u2019organizzatore per cambiarla.',
+  alreadyTitle: 'Questa prenotazione è già annullata',
+  successTitle: 'Prenotazione annullata',
+  successBody:
+    'La tua prenotazione è stata annullata. Ti abbiamo inviato un\u2019e-mail di conferma.',
+  successRefunded: 'Il tuo rimborso è in arrivo sul tuo metodo di pagamento originale.',
+  successManual: '{operator} ti contatterà per il rimborso.',
+  errorTitle: 'Impossibile annullare',
+  errorBody:
+    'Non siamo riusciti ad annullare questa prenotazione. Riprova o contatta {operator}.',
+  tryAgain: 'Riprova',
 }
 
 const es: CancelBundle = {
@@ -133,6 +175,8 @@ const es: CancelBundle = {
     'Ponte en contacto con {operator} para cambiar o cancelar tu reserva.',
   contactCall: 'Llamar al {phone}',
   contactEmail: 'Escribir a {email}',
+  changeActivityHint: '¿Quieres otra actividad? Contacta con {operator} para cambiarla.',
+  changeActivityHintNoOperator: '¿Quieres otra actividad? Contacta con el organizador para cambiarla.',
   alreadyTitle: 'Esta reserva ya está cancelada',
   successTitle: 'Reserva cancelada',
   successBody:
@@ -145,12 +189,48 @@ const es: CancelBundle = {
   tryAgain: 'Intentar de nuevo',
 }
 
-const BUNDLES: Record<CancelLocale, CancelBundle> = { de, en, es }
+const tr: CancelBundle = {
+  loadingTitle: 'Rezervasyonunuz yükleniyor…',
+  invalidTitle: 'Bu bağlantı artık geçerli değil',
+  invalidBody:
+    'İptal bağlantısının süresi dolmuş veya yenisiyle değiştirilmiş olabilir. Lütfen rezervasyon yaptığınız firmayla iletişime geçin.',
+  title: 'Rezervasyon iptal edilsin mi?',
+  bookingRef: 'Rezervasyon {ref}',
+  freeUntil: '{deadline} tarihine kadar ücretsiz iptal.',
+  refundStripe: '{amount} tutarı ilk ödeme yönteminize iade edilecek.',
+  refundManual: '{operator}, {amount} tutarını size doğrudan iade edecek.',
+  refundNone: 'Hesabınızdan ücret çekilmedi, bu nedenle iade edilecek bir tutar yok.',
+  confirmBody: 'Bu işlem rezervasyonunuzu hemen iptal eder. Geri alınamaz.',
+  yes: 'Evet, rezervasyonu iptal et',
+  busy: 'İptal ediliyor…',
+  no: 'Hayır, rezervasyonu koru',
+  tooLateTitle: 'Bu rezervasyon artık çevrimiçi iptal edilemiyor',
+  tooLateBody:
+    'Ücretsiz iptal {deadline} tarihine kadar mümkündü. Rezervasyonunuzu değiştirmek veya iptal etmek için lütfen {operator} ile iletişime geçin.',
+  tooLateBodyNoDeadline:
+    'Rezervasyonunuzu değiştirmek veya iptal etmek için lütfen {operator} ile iletişime geçin.',
+  contactCall: 'Ara: {phone}',
+  contactEmail: 'E-posta gönder: {email}',
+  changeActivityHint: 'Farklı bir etkinlik mi istiyorsunuz? Değiştirmek için {operator} ile iletişime geçin.',
+  changeActivityHintNoOperator: 'Farklı bir etkinlik mi istiyorsunuz? Değiştirmek için işletmeyle iletişime geçin.',
+  alreadyTitle: 'Bu rezervasyon zaten iptal edilmiş',
+  successTitle: 'Rezervasyon iptal edildi',
+  successBody:
+    'Rezervasyonunuz iptal edildi. Size bir onay e-postası gönderdik.',
+  successRefunded: 'İadeniz ilk ödeme yönteminize doğru yolda.',
+  successManual: '{operator} iadeniz konusunda sizinle iletişime geçecek.',
+  errorTitle: 'İptal edilemedi',
+  errorBody:
+    'Bu rezervasyonu iptal edemedik. Lütfen tekrar deneyin veya {operator} ile iletişime geçin.',
+  tryAgain: 'Tekrar dene',
+}
+
+const BUNDLES: Record<CancelLocale, CancelBundle> = { de, en, es, it, tr }
 
 /** Map any BCP-47-ish code to a supported page locale; English otherwise. */
 export function normalizeCancelLocale(code: string | null | undefined): CancelLocale {
   const base = (code ?? '').split('-')[0].trim().toLowerCase()
-  return base === 'de' || base === 'es' ? base : 'en'
+  return base === 'de' || base === 'es' || base === 'it' || base === 'tr' ? base : 'en'
 }
 
 export function pickCancelBundle(locale: CancelLocale): CancelBundle {

@@ -1607,6 +1607,30 @@ describe('OfferPage — custom offer v2 positions (landr-8f1sh.4)', () => {
     expect(rows[1]).toHaveTextContent('2 days')
   })
 
+  it('folds a timed stay into one check-in -> check-out window row', async () => {
+    const times = { nights: 3, check_in_time: '14:00', check_out_time: '10:30' }
+    mocks.getBookingByToken.mockResolvedValue({
+      ...WITH_OFFER,
+      periods: [
+        { kind: 'arrival', start_date: '2027-02-01', end_date: '2027-02-01', label: 'Arrival', product_name: null, days: 1, meta: times },
+        { kind: 'activity', start_date: '2027-02-02', end_date: '2027-02-03', label: 'Activity', product_name: 'Tandem', days: 2, meta: {} },
+        { kind: 'departure', start_date: '2027-02-04', end_date: '2027-02-04', label: 'Departure', product_name: null, days: 1, meta: times },
+      ],
+    })
+    render(<OfferPage token={TOKEN} />)
+    await waitFor(() => screen.getByTestId('offer-ready'))
+
+    const rows = screen.getAllByTestId('offer-period-row')
+    expect(rows.map((r) => r.getAttribute('data-kind'))).toEqual(['stay', 'activity'])
+    expect(rows[0]).toHaveTextContent('Stay')
+    expect(screen.getAllByTestId('offer-period-dates')[0]).toHaveTextContent(
+      /^Check-in 01\.02\. 14:00 – Check-out 04\.02\. 10:30$/,
+    )
+    expect(rows[0]).toHaveTextContent('3 nights')
+    expect(rows[0]).not.toHaveTextContent('Arrival')
+    expect(rows[0]).not.toHaveTextContent('Departure')
+  })
+
   it('legacy booking without offer_positions keeps today\'s rendering', async () => {
     mocks.getBookingByToken.mockResolvedValue({
       ...WITH_OFFER,
@@ -2177,6 +2201,41 @@ describe('OfferPage — special price rows (mode="pay", landr-1l6hl.5)', () => {
     expect(screen.getByTestId('offer-balance-due')).toHaveTextContent(formatCurrency(800, 'EUR'))
   })
 
+  it('shows a named adjustment\'s description behind a chevron, only when it has one', async () => {
+    mocks.getBookingByToken.mockResolvedValue({
+      ...SPECIAL_PRICE_PAY,
+      savings: [
+        {
+          kind: 'discount',
+          label: 'Weekday special',
+          amount: '100.00',
+          description: 'Quieter on weekdays, so we pass it on.',
+        },
+        { kind: 'group_discount', label: 'Group discount', amount: '80.00' },
+      ],
+      savings_total: '180.00',
+    })
+    render(<OfferPage token={TOKEN} mode="pay" />)
+    await waitFor(() => screen.getByTestId('offer-ready'))
+
+    const rows = screen.getAllByTestId('offer-saving')
+    expect(rows[0]).toHaveTextContent('Weekday special')
+    const toggle = screen.getByTestId('offer-saving-label-toggle')
+    expect(screen.getAllByTestId('offer-saving-label-toggle')).toHaveLength(1)
+    expect(screen.getByTestId('offer-saving-label')).toHaveAttribute(
+      'title',
+      'Quieter on weekdays, so we pass it on.',
+    )
+    expect(screen.queryByTestId('offer-saving-label-description')).not.toBeInTheDocument()
+    fireEvent.click(toggle)
+    expect(screen.getByTestId('offer-saving-label-description')).toHaveTextContent(
+      'Quieter on weekdays, so we pass it on.',
+    )
+    // The row without a description renders as before: plain text, no chevron.
+    expect(rows[1]).toHaveTextContent('Group discount')
+    expect(rows[1].querySelector('button')).toBeNull()
+  })
+
   it('explains a legacy imported price with an "Imported price" row', async () => {
     mocks.getBookingByToken.mockResolvedValue({
       ...SPECIAL_PRICE_PAY,
@@ -2219,5 +2278,137 @@ describe('OfferPage — special price rows (mode="pay", landr-1l6hl.5)', () => {
     await waitFor(() => screen.getByTestId('offer-ready'))
     expect(screen.queryByTestId('offer-saving')).not.toBeInTheDocument()
     expect(screen.getByTestId('offer-net-total')).toBeInTheDocument()
+  })
+})
+
+// ─── landr-hzovu.14: pilot-paid (performer) lines ────────────────────────────
+// A booking of an 180.00 guiding line plus a 25.00 add-on paid straight to the
+// pilot: the page charges 180.00 and names the 25.00 in its own block.
+describe('OfferPage — performer-paid lines', () => {
+  const OP_LINE = {
+    product_id: 'p-guide',
+    label: 'Tandem Classic',
+    qty: 1,
+    units: 1,
+    line_total: 180,
+    unit_price: 180,
+    paid_to: 'operator',
+    participants: null,
+    per_person_price: null,
+  }
+  const PERFORMER_LINE = {
+    product_id: 'p-photos',
+    label: 'Pilot Photos',
+    qty: 1,
+    units: 1,
+    line_total: 25,
+    unit_price: 25,
+    paid_to: 'performer',
+    payee_label: 'Tandem pilot',
+    payment_note: null,
+    participants: null,
+    per_person_price: null,
+  }
+  const PERFORMER_OFFER = {
+    ...OFFER,
+    totals: {
+      gross_total: 205,
+      tax_total: 32.73,
+      net_total: 172.27,
+      balance_due: 180,
+      currency: 'EUR',
+      operator_gross_total: 180,
+      operator_tax_total: 28.74,
+      operator_net_total: 151.26,
+      hotel_gross_total: 0,
+      hotel_tax_total: 0,
+      hotel_net_total: 0,
+      has_hotel_lines: false,
+      performer_gross_total: 25,
+      performer_tax_total: 3.99,
+      performer_net_total: 21.01,
+    },
+    product_lines: [
+      { ...OFFER.product_lines[0], product_id: 'p-guide', name: 'Tandem Classic' },
+      { ...OFFER.product_lines[0], product_id: 'p-photos', name: 'Pilot Photos' },
+    ],
+    line_items: [OP_LINE, PERFORMER_LINE],
+  }
+
+  beforeEach(() => {
+    mocks.getBookingByToken.mockReset()
+    resetQueryParams()
+  })
+
+  it('pay mode: the pay-now total excludes the performer line, which gets its own block', async () => {
+    mocks.getBookingByToken.mockResolvedValue(PERFORMER_OFFER)
+    render(<OfferPage token={TOKEN} mode="pay" />)
+    await waitFor(() => screen.getByTestId('offer-ready'))
+
+    expect(screen.getByTestId('offer-balance-due')).toHaveTextContent(formatCurrency(180, 'EUR'))
+    expect(screen.getByTestId('offer-balance-due')).not.toHaveTextContent(formatCurrency(205, 'EUR'))
+
+    // The breakdown rows list only the operator line...
+    const rows = screen.getAllByTestId('offer-line-item')
+    expect(rows).toHaveLength(1)
+    expect(rows[0]).toHaveTextContent('Tandem Classic')
+
+    // ...and the pilot-paid line sits in its own "Paid to your Tandem pilot" block.
+    const block = screen.getByTestId('offer-performer-section')
+    expect(block).toHaveTextContent('Paid to your Tandem pilot')
+    expect(block).toHaveTextContent('Pilot Photos')
+    expect(screen.getByTestId('offer-performer-total')).toHaveTextContent(formatCurrency(25, 'EUR'))
+    expect(screen.getByTestId('offer-performer-caveat')).toHaveTextContent(
+      'Paid directly to your Tandem pilot',
+    )
+  })
+
+  it('uses the operator payment note instead of the standard caveat', async () => {
+    mocks.getBookingByToken.mockResolvedValue({
+      ...PERFORMER_OFFER,
+      line_items: [OP_LINE, { ...PERFORMER_LINE, payment_note: 'Cash only, please.' }],
+    })
+    render(<OfferPage token={TOKEN} mode="pay" />)
+    await waitFor(() => screen.getByTestId('offer-ready'))
+    expect(screen.getByTestId('offer-performer-caveat')).toHaveTextContent('Cash only, please.')
+  })
+
+  it('falls back to generic "guide" wording when the payload names no payee', async () => {
+    mocks.getBookingByToken.mockResolvedValue({
+      ...PERFORMER_OFFER,
+      line_items: [OP_LINE, { ...PERFORMER_LINE, payee_label: undefined }],
+    })
+    render(<OfferPage token={TOKEN} mode="pay" />)
+    await waitFor(() => screen.getByTestId('offer-ready'))
+    expect(screen.getByTestId('offer-performer-section')).toHaveTextContent(
+      'Paid to your guide',
+    )
+  })
+
+  it('offer mode: the Total row leaves the performer money out', async () => {
+    mocks.getBookingByToken.mockResolvedValue({
+      ...PERFORMER_OFFER,
+      totals: { ...PERFORMER_OFFER.totals, balance_due: 150 },
+    })
+    render(<OfferPage token={TOKEN} />)
+    await waitFor(() => screen.getByTestId('offer-ready'))
+
+    expect(screen.getByTestId('offer-gross-total')).toHaveTextContent(formatCurrency(180, 'EUR'))
+    expect(screen.getByTestId('offer-gross-total')).not.toHaveTextContent(formatCurrency(205, 'EUR'))
+    // Subtotal + Tax = Total: both rows leave the performer share out too.
+    expect(screen.getByTestId('offer-net-total')).toHaveTextContent(formatCurrency(151.26, 'EUR'))
+    expect(screen.getByTestId('offer-tax-total')).toHaveTextContent(formatCurrency(28.74, 'EUR'))
+    expect(151.26 + 28.74).toBeCloseTo(180, 2)
+    expect(screen.getByTestId('offer-performer-section')).toBeInTheDocument()
+  })
+
+  it('renders no performer block when no line is pilot-paid', async () => {
+    mocks.getBookingByToken.mockResolvedValue({
+      ...PERFORMER_OFFER,
+      line_items: [OP_LINE],
+    })
+    render(<OfferPage token={TOKEN} mode="pay" />)
+    await waitFor(() => screen.getByTestId('offer-ready'))
+    expect(screen.queryByTestId('offer-performer-section')).not.toBeInTheDocument()
   })
 })

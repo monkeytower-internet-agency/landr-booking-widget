@@ -3,9 +3,11 @@ import { getAvailability } from '@/api/client'
 import type { AvailabilitySlot, Product } from '@/api/types'
 import { forceReasonsFor, isDayBookable } from '@/components/booking/bookability'
 import { OperatorOverrideBadge } from '@/components/booking/OperatorOverrideBadge'
+import { confirmOverride } from '@/lib/confirmOverride'
 import { useStaffMode } from '@/lib/staffMode'
-import { hasFixedStartTimes, slotKey } from '@/components/booking/slotKey'
+import { hasFixedStartTimes, slotKey, toHHMM } from '@/components/booking/slotKey'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import {
   Card,
   CardContent,
@@ -14,7 +16,7 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { Calendar } from '@/components/ui/calendar'
-import { CalendarDayHintContext } from '@/components/ui/calendarDayHints'
+import { CalendarDayHintContext, CalendarPartyContext } from '@/components/ui/calendarDayHints'
 import { PartySizeStepper, SeatFitNotice, ShortDayLegend } from '@/components/booking/PartySize'
 import { usePartySize } from '@/lib/usePartySize'
 import { seatFit, windowRangeLabel } from '@/lib/seatHold'
@@ -22,12 +24,14 @@ import { StepBackButton } from '@/components/booking/StepBackButton'
 import { dateFromIso, isoDate } from '@/components/booking/dateUtils'
 import {
   availabilityWindow,
+  startOfToday,
   useNothingBeforeNotice,
   useStartMonth,
 } from '@/components/booking/calendarStart'
 import {
   availabilityGate,
   availableDaysForLabel,
+  OVERRIDE_DAY_LEGEND,
   seatsCountLabel,
   seatsLeftLabel,
   slotSeatsShortLabel,
@@ -36,9 +40,21 @@ import {
   type ForceReason,
 } from '@/lib/strings'
 import { browserLocale } from '@/lib/locale'
+import { operatorWallClock } from '@/lib/operatorClock'
 import { NextAction } from '@/components/booking/NextAction'
 import { ContinueAction } from '@/components/booking/ContinueAction'
 import { useReportLoaded } from '@/lib/bootSplash'
+import {
+  AlternativesSection,
+  type AlternativeSelectHandler,
+} from '@/components/booking/AlternativesPanel'
+import { AltOnlyLegend, AltOnlyNotice } from '@/components/booking/AltOnlyParts'
+import {
+  monthHasAltOnly,
+  notOfferedDatesFor,
+  useAltOnly,
+  useDateStepAlternatives,
+} from '@/components/booking/altOnlyDays'
 
 interface Props {
   product: Product
@@ -71,6 +87,12 @@ interface Props {
    */
   initialSlot?: AvailabilitySlot
   /**
+   * Switched here from another product's date step: preselect this day, and
+   * the start time too when the day has a slot at that time.
+   */
+  initialDate?: string
+  initialStartTime?: string
+  /**
    * landr-tkgx8.1: called once the initial fetch settles (data or error), so
    * the boot splash can stay up until this step has something to show.
    */
@@ -87,7 +109,23 @@ interface Props {
   onPartySizeChange?: (partySize: number) => void
   /** landr-rmcsu.7: widget token + contact email for the group-inquiry exit. */
   operatorToken?: string
+  /**
+   * landr-8ht3m.9: the operator's IANA timezone. "Today" and "now" for the
+   * start-time filter are read in this zone, not on the browser clock. Absent
+   * (older API) -> the browser clock.
+   */
+  operatorTimezone?: string | null
   contactEmail?: string | null
+  /**
+   * landr-mfgx4: the picked date + time before Continue (null when cleared),
+   * so the price sidebar prices it live — the day pickers' onLiveDaysChange.
+   */
+  onLiveSlotChange?: (slot: AvailabilitySlot | null) => void
+  /**
+   * Tapping a row of the "Also available" panel. A wiring point: the product
+   * switch hooks in here; without a handler a tap does nothing.
+   */
+  onSelectAlternative?: AlternativeSelectHandler
 }
 
 // Stable empty reference while availability loads (an unstable [] in a memo
@@ -100,13 +138,18 @@ export function AvailabilityPicker({
   onConfirm,
   exposeSeatsToCustomer = false,
   initialSlot,
+  initialDate,
+  initialStartTime,
   onLoaded,
   inviteToken,
   seatsNeeded,
   showPartySizeStepper = false,
   onPartySizeChange,
   operatorToken,
+  operatorTimezone,
   contactEmail,
+  onLiveSlotChange,
+  onSelectAlternative,
 }: Props) {
   const staff = useStaffMode()
   const party = usePartySize(
@@ -121,16 +164,25 @@ export function AvailabilityPicker({
   useReportLoaded(slots !== null || error !== null, onLoaded)
   // landr (breadcrumb): seed date + slot from the restored selection.
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(() =>
-    initialSlot ? dateFromIso(initialSlot.date) : undefined,
+    initialSlot
+      ? dateFromIso(initialSlot.date)
+      : initialDate
+        ? dateFromIso(initialDate)
+        : undefined,
   )
   // landr-k9pji.1: keyed by slotKey(), not availability_id — a synthesised
   // on-request day has availability_id === null.
-  const [selectedSlotId, setSelectedSlotId] = useState<string | null>(
-    initialSlot ? slotKey(initialSlot) : null,
+  // `undefined` = the customer has not touched the time yet (a carried start
+  // time from a product switch may fill in); `null` = explicitly none.
+  const [pickedSlotId, setSelectedSlotId] = useState<string | null | undefined>(
+    initialSlot ? slotKey(initialSlot) : initialStartTime ? undefined : null,
   )
   const locale = browserLocale()
 
-  const { fromIso, toIso } = useMemo(() => availabilityWindow(), [])
+  const { fromIso, toIso } = useMemo(
+    () => availabilityWindow(startOfToday(operatorTimezone)),
+    [operatorTimezone],
+  )
 
   useEffect(() => {
     let cancelled = false
@@ -152,8 +204,49 @@ export function AvailabilityPicker({
   // routed here from SingleDatePicker — every other product keeps exactly the
   // behaviour it had in this picker before.
   const fixedTimes = hasFixedStartTimes(product)
-  const canForce = fixedTimes && staff.active && staff.powers.includes('force_book')
+  const hasForcePower = staff.active && staff.powers.includes('force_book')
+  const canForce = fixedTimes && hasForcePower
+  // landr-8ht3m.5: a plain time_slot product has no menu of times, so on a day
+  // with no slot rows the operator types the start time. Staff-only, and only
+  // on days with no slot rows -- days that have rows keep today's behaviour.
+  const canFreeTime =
+    !fixedTimes && product.service_time_shape === 'time_slot' && hasForcePower
+  const canOverrideDay = canForce || canFreeTime
+  const [freeTime, setFreeTime] = useState(() =>
+    initialSlot && !initialSlot.availability_id && !hasFixedStartTimes(product)
+      ? (toHHMM(initialSlot.start_time) ?? '')
+      : '',
+  )
   // landr-rmcsu.7: "pickable" = room for the WHOLE group (need 1 → any seat).
+  // landr-8ht3m.4: staff may book ANY future day. A day the schedule does not
+  // offer (no slot rows at all) gets the product's own daily start times as
+  // synthetic, force-booked slots; the operator confirms once on picking the
+  // day, and the API records the forced day in the audit log.
+  const today = useMemo(() => startOfToday(operatorTimezone), [operatorTimezone])
+  const slotDates = useMemo(() => new Set((slots ?? EMPTY_SLOTS).map((s) => s.date)), [slots])
+  const isOffSchedule = (iso: string): boolean =>
+    canOverrideDay && slots !== null && !slotDates.has(iso)
+  const offScheduleSlots = (iso: string): AvailabilitySlot[] => {
+    // landr-8ht3m.9: "today" and "now" are the OPERATOR's, not the browser's.
+    const opNow = operatorWallClock(operatorTimezone)
+    return (product.daily_start_times ?? [])
+      .filter((t) => {
+        // Today: a start time that has already passed is not offered.
+        if (iso !== opNow.iso) return true
+        const [h, m] = t.split(':').map(Number)
+        return h * 60 + m > opNow.minutes
+      })
+      .map((t) => ({
+        availability_id: null,
+        date: iso,
+        start_time: t.length === 5 ? `${t}:00` : t,
+        end_time: null,
+        capacity: 0,
+        capacity_reserved: 0,
+        available_seats: 0,
+        status: 'open',
+      }))
+  }
   const slotIsPickable = (s: AvailabilitySlot): boolean =>
     s.available_seats >= need && isDayBookable(s, product.hotel_offering)
   // Has seats, but fewer than the group — shown "Only n left", not "Full".
@@ -173,6 +266,17 @@ export function AvailabilityPicker({
     // Staff can open any day that has times, even a full / closed one.
     return canForce ? new Set(slots.map((s) => s.date)) : fitDates
   }, [slots, canForce, fitDates])
+  // Staff override: days customers cannot book are still openable — mark them.
+  const overrideDates = useMemo(() => {
+    if (!canOverrideDay) return []
+    const out: Date[] = []
+    const d = new Date(today)
+    for (let i = 0; i < 366; i++) {
+      if (!fitDates.has(isoDate(d))) out.push(new Date(d))
+      d.setDate(d.getDate() + 1)
+    }
+    return out
+  }, [canOverrideDay, fitDates, today])
   const shortDates = useMemo(
     () => Array.from(shortSeats.keys()).sort().map(dateFromIso),
     [shortSeats],
@@ -191,8 +295,43 @@ export function AvailabilityPicker({
   const [month, setMonth] = useStartMonth(
     selectedDate ? [isoDate(selectedDate)] : [],
     availableDates,
+    undefined,
+    operatorTimezone,
   )
-  const nothingBefore = useNothingBeforeNotice(availableDates)
+  const nothingBefore = useNothingBeforeNotice(availableDates, undefined, operatorTimezone)
+
+  // A full / unscheduled day where another activity is free stays clickable
+  // (dot + notice + alternatives panel). Customers only: staff override wins.
+  const alternatives = useDateStepAlternatives(
+    product.product_id,
+    month,
+    selectedDate ? [isoDate(selectedDate)] : [],
+    need,
+    operatorTimezone,
+  )
+  const { days: altOnlyDays, dates: altOnlyDates } = useAltOnly({
+    slots: canOverrideDay ? null : slots,
+    fit: fitDates,
+    short: shortSeats,
+    alternatives,
+    todayIso: isoDate(today),
+  })
+  // Unbookable for a customer whether or not the alternatives have loaded.
+  const selectedUnbookable =
+    !!selectedDate &&
+    slots !== null &&
+    !canOverrideDay &&
+    !fitDates.has(isoDate(selectedDate)) &&
+    !shortSeats.has(isoDate(selectedDate))
+  // A short day (seats left, fewer than the party) is rescued only once an
+  // alternative is in; until then its slots show as short and stay disabled.
+  const selectedShortAlt =
+    !!selectedDate && altOnlyDays.has(isoDate(selectedDate)) && shortSeats.has(isoDate(selectedDate))
+  const selectedAltOnly = selectedUnbookable || selectedShortAlt
+  const notOfferedDates = useMemo(
+    () => notOfferedDatesFor(altOnlyDays, slotDates, shortSeats),
+    [altOnlyDays, slotDates, shortSeats],
+  )
 
   // landr-xtkae.2: on a fixed-daily-times product the day's times are a menu
   // the operator published, so a FULL (or lead-time-closed) time stays visible
@@ -201,19 +340,31 @@ export function AvailabilityPicker({
   const slotsForSelectedDate = useMemo(() => {
     if (!slots || !selectedDate) return []
     const key = isoDate(selectedDate)
+    if (canForce && !slotDates.has(key)) return offScheduleSlots(key)
     return slots.filter(
       (s) =>
         s.date === key &&
         (fixedTimes ||
           (s.available_seats > 0 && isDayBookable(s, product.hotel_offering))),
     )
-  }, [slots, selectedDate, product.hotel_offering, fixedTimes])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- offScheduleSlots closes over product.daily_start_times, today and operatorTimezone
+  }, [slots, selectedDate, product.hotel_offering, product.daily_start_times, fixedTimes, canForce, slotDates, today, operatorTimezone])
+
+  // Product switch: keep the start time when this product has that time open
+  // on the carried day; otherwise the customer stays on the day and picks.
+  const carriedSlotId =
+    pickedSlotId === undefined && initialStartTime && selectedDate && isoDate(selectedDate) === initialDate
+      ? slotsForSelectedDate.find(
+          (s) => toHHMM(s.start_time) === toHHMM(initialStartTime) && slotIsPickable(s),
+        )
+      : undefined
+  const selectedSlotId = pickedSlotId ?? (carriedSlotId ? slotKey(carriedSlotId) : null)
 
   // The slot Continue would commit — ONE lookup shared by `ready`, the gate
   // line and onContinue, so the button is never enabled while it would do
   // nothing (e.g. a restored time that has filled up meanwhile). Staff can
   // commit an unpickable time (force-book).
-  const selectedSlot = useMemo(
+  const selectedSlotRow = useMemo(
     () =>
       slotsForSelectedDate.find(
         (s) => slotKey(s) === selectedSlotId && (canForce || slotIsPickable(s)),
@@ -222,10 +373,48 @@ export function AvailabilityPicker({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- slotIsPickable closes over product.hotel_offering and need, both already listed
     [slotsForSelectedDate, selectedSlotId, canForce, product.hotel_offering, need],
   )
+  // landr-8ht3m.5: the typed start time on an off-schedule day of a plain
+  // time_slot product, as a synthesised slot (no availability row; the submit
+  // carries it as slot_start_time, exactly like a fixed daily time).
+  const selectedDateIso = selectedDate ? isoDate(selectedDate) : null
+  const freeTimeDay =
+    canFreeTime && selectedDateIso !== null && isOffSchedule(selectedDateIso)
+  const freeTimeValid = /^([01]\d|2[0-3]):[0-5]\d$/.test(freeTime)
+  const freeTimePassed = useMemo(() => {
+    if (!freeTimeValid || selectedDateIso === null) return false
+    const opNow = operatorWallClock(operatorTimezone)
+    if (selectedDateIso !== opNow.iso) return false
+    const [h, m] = freeTime.split(':').map(Number)
+    return h * 60 + m <= opNow.minutes
+  }, [freeTime, freeTimeValid, selectedDateIso, operatorTimezone])
+  // landr-mfgx4: memoised so the live-pick report below fires on a real change.
+  const freeSlot = useMemo<AvailabilitySlot | undefined>(
+    () =>
+      freeTimeDay && selectedDateIso !== null && freeTimeValid && !freeTimePassed
+        ? {
+            availability_id: null,
+            date: selectedDateIso,
+            start_time: `${freeTime}:00`,
+            end_time: null,
+            capacity: 0,
+            capacity_reserved: 0,
+            available_seats: 0,
+            status: 'open',
+          }
+        : undefined,
+    [freeTimeDay, selectedDateIso, freeTimeValid, freeTimePassed, freeTime],
+  )
+  const selectedSlot = freeTimeDay ? freeSlot : selectedSlotRow
+  // landr-mfgx4: report the live pick up so the price sidebar can price it.
+  useEffect(() => {
+    onLiveSlotChange?.(selectedSlot ?? null)
+  }, [selectedSlot, onLiveSlotChange])
   const selectedForceReasons: ForceReason[] =
-    selectedSlot && canForce && !slotIsPickable(selectedSlot)
-      ? forceReasonsFor(selectedSlot.available_seats >= need, selectedSlot, product.hotel_offering)
-      : []
+    selectedSlot && isOffSchedule(selectedSlot.date)
+      ? ['off_schedule']
+      : selectedSlot && canForce && !slotIsPickable(selectedSlot)
+        ? forceReasonsFor(selectedSlot.available_seats >= need, selectedSlot, product.hotel_offering)
+        : []
 
   if (error) {
     return (
@@ -284,21 +473,39 @@ export function AvailabilityPicker({
             </p>
           ) : null}
           <CalendarDayHintContext.Provider value={dayHint}>
+          <CalendarPartyContext.Provider value={need}>
             <Calendar
               className={slots === null ? 'pointer-events-none opacity-40' : undefined}
               mode="single"
               selected={selectedDate}
               onSelect={(date) => {
+                // landr-8ht3m.4: a day outside the schedule needs ONE confirm.
+                if (date && isOffSchedule(isoDate(date))) {
+                  if (!confirmOverride()) return
+                }
                 setSelectedDate(date)
                 setSelectedSlotId(null)
               }}
-              disabled={(date) => !availableDates.has(isoDate(date))}
+              disabled={(date) =>
+                // Staff (force_book) can open any day that is not in the past.
+                canOverrideDay
+                  ? date < today
+                  : !availableDates.has(isoDate(date)) && !altOnlyDays.has(isoDate(date))
+              }
               month={month}
               onMonthChange={setMonth}
-              modifiers={{ short: shortDates }}
+              modifiers={{ short: shortDates, override: overrideDates, altOnly: altOnlyDates, notOffered: notOfferedDates }}
             />
+          </CalendarPartyContext.Provider>
           </CalendarDayHintContext.Provider>
           {shortSeats.size > 0 ? <ShortDayLegend /> : null}
+          {monthHasAltOnly(altOnlyDays, month) ? <AltOnlyLegend /> : null}
+          {overrideDates.length > 0 ? (
+            <p className="text-xs text-muted-foreground" data-testid="override-day-legend">
+              <span className="underline decoration-dotted underline-offset-4">11</span>{' '}
+              {OVERRIDE_DAY_LEGEND}
+            </p>
+          ) : null}
           {nothingBefore ? (
             <p
               className="text-xs text-muted-foreground"
@@ -308,7 +515,37 @@ export function AvailabilityPicker({
             </p>
           ) : null}
         </NextAction>
-        {selectedDate ? (
+        {selectedDate && selectedAltOnly ? (
+          <AltOnlyNotice
+            productName={product.name}
+            iso={isoDate(selectedDate)}
+            offered={slotDates.has(isoDate(selectedDate))}
+            short={selectedShortAlt}
+          />
+        ) : selectedDate && freeTimeDay ? (
+          <NextAction active={!freeSlot} cue={tr('availabilityTimeCue', locale)}>
+            <label className="flex flex-col gap-1.5 text-sm font-medium">
+              {tr('freeStartTimeLabel', locale)}
+              <Input
+                type="time"
+                value={freeTime}
+                onChange={(e) => setFreeTime(e.target.value)}
+                aria-invalid={freeTimePassed}
+                data-testid="free-start-time"
+              />
+            </label>
+            <p
+              className={
+                freeTimePassed
+                  ? 'text-xs text-destructive'
+                  : 'text-xs text-muted-foreground'
+              }
+              data-testid={freeTimePassed ? 'free-start-time-past' : 'free-start-time-hint'}
+            >
+              {tr(freeTimePassed ? 'freeStartTimePast' : 'freeStartTimeHint', locale)}
+            </p>
+          </NextAction>
+        ) : selectedDate ? (
           <NextAction active={!selectedSlotId} cue={tr('availabilityTimeCue', locale)}>
             <p className="text-sm font-medium">{timesOnLabel(isoDate(selectedDate), locale)}</p>
             {slotsForSelectedDate.length === 0 ? (
@@ -332,17 +569,16 @@ export function AvailabilityPicker({
                       if (
                         canForce &&
                         !slotIsPickable(slot) &&
-                        !window.confirm(
-                          'Force-book this full / blocked time on behalf of the customer?',
-                        )
+                        !isOffSchedule(slot.date) &&
+                        !confirmOverride()
                       ) {
                         return
                       }
                       setSelectedSlotId(slotKey(slot))
                     }}
                   >
-                    {slot.start_time?.slice(0, 5) ?? tr('anyTime', locale)}
-                    {!slotIsPickable(slot) ? (
+                    {slot.start_time?.slice(0, 5) ?? tr('timeConfirmedByOperator', locale)}
+                    {!slotIsPickable(slot) && !isOffSchedule(slot.date) ? (
                       <span
                         className="ml-2 text-xs text-muted-foreground"
                         data-testid={slotIsShort(slot) ? 'slot-seats-short' : undefined}
@@ -367,12 +603,33 @@ export function AvailabilityPicker({
                 ))}
               </div>
             )}
+            {slotsForSelectedDate.some((slot) => !slot.start_time) ? (
+              <p
+                className="text-xs text-muted-foreground"
+                data-testid="time-confirmed-helper"
+              >
+                {tr('timeConfirmedHelper', locale)}
+              </p>
+            ) : null}
           </NextAction>
         ) : null}
         {selectedForceReasons.length > 0 ? <OperatorOverrideBadge /> : null}
+        <AlternativesSection
+          productId={product.product_id}
+          party={need}
+          selectedDays={selectedDate ? [isoDate(selectedDate)] : []}
+          month={month}
+          alternatives={alternatives}
+          operatorTimezone={operatorTimezone}
+          onSelectAlternative={onSelectAlternative}
+        />
         <ContinueAction
           ready={!!selectedSlot}
-          reason={availabilityGate(!!selectedDate, !!selectedSlot, locale)}
+          reason={
+            selectedAltOnly
+              ? tr('altDayGate', locale)
+              : availabilityGate(!!selectedDate, !!selectedSlot, locale)
+          }
           reasonId="availability-picker-gate"
           onContinue={() => {
             if (!selectedSlot) return

@@ -284,4 +284,35 @@ describe('Confirmation — German UI (landr-5aih0.9)', () => {
     expect(hint).toHaveTextContent('Referenz auf Ihrer Buchungsseite hinzufügen.')
     expect(hint).not.toHaveTextContent('Sharing a room booked by someone else?')
   })
+
+  // landr-hzovu.5: performer-paid lines get their own payee-aware block.
+  it('shows the performer-paid block in German, without hotel words', () => {
+    setBrowserLanguage('de-DE')
+    const response = baseResponse({
+      summary: baseSummary({
+        line_items: [
+          ...baseSummary().line_items,
+          {
+            product_id: 'video',
+            label: 'Video Package',
+            qty: 1,
+            units: 1,
+            unit_price: '39.00',
+            line_total: '39.00',
+            paid_to: 'performer',
+            payee_label: 'Tandempilot',
+            payment_note: null,
+          },
+        ],
+        performer_total: '39.00',
+      }),
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    const block = screen.getByTestId('confirmation-performer-section')
+    expect(block).toHaveTextContent('Zahlung an: Tandempilot · am Tag selbst')
+    expect(block).toHaveTextContent('Wird direkt vor Ort an Tandempilot bezahlt')
+    const breakdown = screen.getByTestId('confirmation-price-breakdown')
+    expect(breakdown.textContent).not.toMatch(/Hotel|Nacht/)
+  })
 })

@@ -6,7 +6,7 @@
  * - staging          → amber background, dark text, "STAGING" label.
  * - dev              → blue background, white text, "DEV" label.
  *
- * The badge is positioned as a fixed overlay in the top-right corner of the
+ * The badge is positioned as a fixed overlay in the top-left corner (a host page's close button usually sits top-right) of the
  * viewport so it is always visible regardless of which booking step is shown,
  * survives iframe scrolling, and doesn't displace any booking UI.
  */
@@ -31,7 +31,7 @@ export function TierBadge() {
       role="status"
       data-testid="tier-badge"
       className={[
-        'fixed top-2 right-2 z-[9999]',
+        'fixed top-2 left-2 z-[9999]',
         'rounded-full px-2.5 py-0.5',
         'text-xs font-bold tracking-widest uppercase',
         'shadow-md select-none pointer-events-none',
