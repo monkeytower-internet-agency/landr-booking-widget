@@ -77,9 +77,13 @@ const BOOKER: BookerDetails = {
 function Harness({
   main = MAIN,
   participantLanguages,
+  allowed,
+  off,
 }: {
   main?: Product
   participantLanguages?: Record<number, string>
+  allowed?: string[]
+  off?: boolean
 }) {
   const [lines, setLines] = useState<ExtraLine[]>([])
   return (
@@ -92,7 +96,8 @@ function Harness({
       participants={[{ ...BOOKER, service_role_code: '' }]}
       pickupLocationId={null}
       extraLines={lines}
-      onExtraLinesChange={setLines}
+      onExtraLinesChange={off ? undefined : setLines}
+      crossSellProductIds={allowed}
       onBack={vi.fn()}
       onConfirmed={vi.fn()}
     />
@@ -405,5 +410,27 @@ describe('Add more to this booking (review step)', () => {
       quantity: 1,
       selected_days: ['2026-11-02'],
     })
+  })
+
+  it('offers only the curated products when the operator lists some', async () => {
+    const other = product('other', { name: 'Other' })
+    vi.mocked(listProducts).mockResolvedValue([MAIN, CAMPING, other])
+    vi.mocked(getAvailability).mockResolvedValue([])
+    render(<Harness allowed={['other']} />)
+    expect(await screen.findByTestId('add-more-candidate-other')).toBeInTheDocument()
+    expect(screen.queryByTestId('add-more-candidate-camping')).toBeNull()
+  })
+
+  it('offers every eligible product when the curated list is empty', async () => {
+    vi.mocked(getAvailability).mockResolvedValue([])
+    render(<Harness allowed={[]} />)
+    expect(await screen.findByTestId('add-more-candidate-camping')).toBeInTheDocument()
+  })
+
+  it('hides the section entirely when the operator turned cross-sell off', async () => {
+    render(<Harness off />)
+    await screen.findByRole('button', { name: /Confirm booking/i })
+    expect(screen.queryByTestId('add-more-candidate-camping')).toBeNull()
+    expect(listProducts).not.toHaveBeenCalled()
   })
 })

@@ -1015,6 +1015,8 @@ function BookingFlowApp() {
     // landr-otml0.2 D8: default true (matches the API column default) so
     // the logo doesn't flash-hide before the settings fetch resolves.
     widget_show_logo: true,
+    widget_cross_sell_enabled: true,
+    widget_cross_sell_product_ids: [],
     primary_color: null,
     // landr-ens5 — 3-colour theme null until the fetch resolves (built-in
     // default theme until then).
@@ -3613,7 +3615,10 @@ function BookingFlowApp() {
             // placeholder — see PriceSidebar's onCalculatedTotalChange.
             calculatedTotal={estimateTotal}
             extraLines={extraLines}
-            onExtraLinesChange={setExtraLines}
+            onExtraLinesChange={
+              operatorSettings.widget_cross_sell_enabled === false ? undefined : setExtraLines
+            }
+            crossSellProductIds={operatorSettings.widget_cross_sell_product_ids}
             inlineAnswers={inlineAnswers}
             onInlineAnswersChange={setInlineAnswers}
             // landr-rmcsu.5: keep the committed dates (like Back does) so the
