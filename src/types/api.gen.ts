@@ -23174,6 +23174,8 @@ export interface components {
             decision: "approve" | "reject";
             /** Notes */
             notes?: string | null;
+            /** Override Reason */
+            override_reason?: string | null;
             /** Reject Reason Code */
             reject_reason_code?: string | null;
             unit_release?: components["schemas"]["StaffUnitReleaseIn"] | null;
