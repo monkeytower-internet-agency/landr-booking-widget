@@ -1,7 +1,16 @@
 import { PausedGate } from '@/components/booking/PausedGate'
 import { DemoBanner, DemoCongrats } from '@/components/booking/DemoMode'
 import { demoSlug, demoToken } from '@/lib/demo'
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type Dispatch,
+  type SetStateAction,
+} from 'react'
 import type { CSSProperties } from 'react'
 import {
   AccommodationStep,
@@ -68,6 +77,7 @@ import { PassCheckoutStep } from '@/components/booking/PassCheckoutStep'
 import { MultiDayStep } from '@/components/booking/MultiDayStep'
 import { PickupLocationPicker } from '@/components/booking/PickupLocationPicker'
 import PriceSidebar, { type CalculatedTotal } from '@/components/booking/PriceSidebar'
+import type { ExtraLine } from '@/components/booking/crossSell'
 import { ProductList } from '@/components/booking/ProductList'
 import {
   alternativePartyClampedMessage,
@@ -741,6 +751,35 @@ function BookingFlowApp() {
   // landr-h0opd.3: the same estimate's calculated total, for the staff
   // price-override placeholder in BookingForm (same lifting pattern).
   const [estimateTotal, setEstimateTotal] = useState<CalculatedTotal | null>(null)
+  // "Add more to this booking": the products added on the review step. Shared
+  // by BookingForm (submit lines) and PriceSidebar (total). Bound to the main
+  // line it was built on: a different product or different dates start empty,
+  // so an added line never keeps dates inherited from an earlier selection.
+  const crossSellSig =
+    step.name === 'fill-form'
+      ? JSON.stringify([
+          step.product.product_id,
+          step.selection.kind === 'slot'
+            ? [step.selection.slot.date]
+            : step.selection.selectedDays,
+        ])
+      : ''
+  const [crossSell, setCrossSell] = useState<{ sig: string; lines: ExtraLine[] }>({
+    sig: '',
+    lines: [],
+  })
+  const extraLines = crossSell.sig === crossSellSig ? crossSell.lines : []
+  const setExtraLines = useCallback<Dispatch<SetStateAction<ExtraLine[]>>>(
+    (update) =>
+      setCrossSell((prev) => {
+        const base = prev.sig === crossSellSig ? prev.lines : []
+        return {
+          sig: crossSellSig,
+          lines: typeof update === 'function' ? update(base) : update,
+        }
+      }),
+    [crossSellSig, setCrossSell],
+  )
   // Staff mode: the operator hands a filled-in form back to the customer —
   // drop its response. Which forms the customer completes is derived at render
   // time (the product's forms minus those with a response), never kept here.
@@ -3546,6 +3585,8 @@ function BookingFlowApp() {
             // landr-h0opd.3: the calculated total for the staff override
             // placeholder — see PriceSidebar's onCalculatedTotalChange.
             calculatedTotal={estimateTotal}
+            extraLines={extraLines}
+            onExtraLinesChange={setExtraLines}
             // landr-rmcsu.5: keep the committed dates (like Back does) so the
             // calendar re-opens on them with any short day marked.
             onChangeDates={() =>
@@ -3591,6 +3632,7 @@ function BookingFlowApp() {
               )
             }}
             onConfirmed={(response, email) => {
+              setCrossSell({ sig: '', lines: [] })
               // landr-2mgl: the booking is now placed — drop the persisted
               // snapshot so a reload on the confirmation screen can't replay a
               // completed/stale funnel. The persistence effect also skips the
@@ -3709,6 +3751,7 @@ function BookingFlowApp() {
             // its Confirm CTA on it — see the prop's doc on PriceSidebar.
             onUnPriceableChange={setEstimateUnPriceable}
             onCalculatedTotalChange={setEstimateTotal}
+            extraLines={step.name === 'fill-form' ? extraLines : undefined}
           />
         ) : null}
         </div>

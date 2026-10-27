@@ -1,0 +1,365 @@
+/**
+ * "Add more to this booking" on the review step: the operator's other
+ * bookable products, each added as one more line of the SAME booking with the
+ * main line's dates inherited (rules in crossSell.ts). Time-slot and course
+ * products open their own small picker inline, prefilled to the main date.
+ * Every added line's availability is checked here (the existing availability
+ * reads); an unavailable day is shown on the line, never silently dropped,
+ * and blocks Confirm until the customer edits or removes it.
+ */
+import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react'
+import { getAvailability, getFixedDateWindows, listProducts } from '@/api/client'
+import type { AvailabilitySlot, FixedDateWindow, Product } from '@/api/types'
+import { Button } from '@/components/ui/button'
+import { pickLocalized } from '@/lib/locale'
+import { fmt, tr } from '@/lib/strings'
+import {
+  crossSellCandidates,
+  inheritLine,
+  lineIssue,
+  preferredWindow,
+  seatsForLine,
+  unavailableDaysFor,
+  withWindow,
+  type ExtraLine,
+} from './crossSell'
+import { formatDayLabel } from './dateLabel'
+import { toHHMM } from './slotKey'
+
+interface Props {
+  operatorToken: string
+  previewToken?: string
+  inviteToken?: string
+  /** Product ids already in the cart (main line, rooms, add-ons). */
+  cartProductIds: string[]
+  /** The main line's booked days (a slot's date, a stay's nights). */
+  mainDays: string[]
+  /** Seats the party takes (participants + held invitees). */
+  partySize: number
+  lines: ExtraLine[]
+  onLinesChange: Dispatch<SetStateAction<ExtraLine[]>>
+  locale: string
+}
+
+function slotFree(s: AvailabilitySlot, need: number): boolean {
+  return s.status !== 'closed' && s.activity_bookable !== false && s.available_seats >= need
+}
+
+export function AddMoreProducts({
+  operatorToken,
+  previewToken,
+  inviteToken,
+  cartProductIds,
+  mainDays,
+  partySize,
+  lines,
+  onLinesChange,
+  locale,
+}: Props) {
+  const [catalogue, setCatalogue] = useState<Product[]>([])
+  const [slotsByKey, setSlotsByKey] = useState<Record<string, AvailabilitySlot[]>>({})
+  const [windowsByKey, setWindowsByKey] = useState<Record<string, FixedDateWindow[]>>({})
+  const inflight = useRef(new Set<string>())
+
+  useEffect(() => {
+    let live = true
+    listProducts(operatorToken, previewToken ? { previewToken } : undefined)
+      .then((products) => {
+        if (live) setCatalogue(products)
+      })
+      .catch(() => {
+        /* no catalogue, no cross-sell: the booking itself is unaffected */
+      })
+    return () => {
+      live = false
+    }
+  }, [operatorToken, previewToken])
+
+  // Availability for every line marked `checking` (set by the add / edit
+  // handlers below). One request per line state; a stale answer is dropped.
+  useEffect(() => {
+    for (const line of lines) {
+      if (!line.checking) continue
+      const sig = `${line.key}|${line.days.join(',')}`
+      if (inflight.current.has(sig)) continue
+      inflight.current.add(sig)
+      const need = seatsForLine(line, partySize)
+      const settle = (patch: Partial<ExtraLine>) =>
+        onLinesChange((prev) =>
+          prev.map((l) =>
+            l.key === line.key && `${l.key}|${l.days.join(',')}` === sig
+              ? { ...l, ...patch, checking: false }
+              : l,
+          ),
+        )
+      const done = () => inflight.current.delete(sig)
+      if (line.mode === 'window') {
+        getFixedDateWindows(line.product.product_id)
+          .then((all) => {
+            const open = all.filter((w) => w.capacity - w.capacity_reserved >= need)
+            setWindowsByKey((m) => ({ ...m, [line.key]: open }))
+            const pick = line.windowId ? null : preferredWindow(open, mainDays)
+            settle(pick ? withWindow(line, pick) : {})
+          })
+          .catch(() => settle({}))
+          .finally(done)
+        continue
+      }
+      if (line.days.length === 0) {
+        settle({ unavailableDays: [] })
+        done()
+        continue
+      }
+      const sorted = [...line.days].sort()
+      getAvailability(line.product.product_id, sorted[0], sorted[sorted.length - 1], inviteToken)
+        .then((slots) => {
+          if (line.mode === 'slot') {
+            const day = slots.filter((s) => s.date === sorted[0])
+            setSlotsByKey((m) => ({ ...m, [line.key]: day }))
+            const picked = line.slot
+            const stillFree =
+              picked !== null &&
+              day.some(
+                (s) =>
+                  s.availability_id === picked.availability_id &&
+                  s.start_time === picked.start_time &&
+                  slotFree(s, need),
+              )
+            settle({
+              slot: stillFree ? line.slot : null,
+              unavailableDays: day.length > 0 && !day.some((s) => slotFree(s, need)) ? [sorted[0]] : [],
+            })
+          } else {
+            settle({ unavailableDays: unavailableDaysFor(slots, sorted, need) })
+          }
+        })
+        // A failed read never blocks: the submit re-checks every line.
+        .catch(() => settle({ unavailableDays: [] }))
+        .finally(done)
+    }
+  }, [lines, partySize, mainDays, inviteToken, onLinesChange])
+
+  const taken = [...cartProductIds, ...lines.map((l) => l.product.product_id)]
+  const candidates = crossSellCandidates(catalogue, taken)
+  if (candidates.length === 0 && lines.length === 0) return null
+
+  const update = (key: string, patch: Partial<ExtraLine>) =>
+    onLinesChange((prev) => prev.map((l) => (l.key === key ? { ...l, ...patch } : l)))
+  const name = (p: Product) => pickLocalized(p.name, p.name_localized, locale)
+
+  return (
+    <section
+      data-testid="add-more-products"
+      className="space-y-3 rounded-lg border border-border bg-surface-raised p-4"
+    >
+      <div>
+        <h3 className="text-base font-semibold">{tr('addMoreTitle', locale)}</h3>
+        <p className="text-sm text-muted-foreground">{tr('addMoreIntro', locale)}</p>
+      </div>
+
+      {lines.map((line) => {
+        const issue = lineIssue(line)
+        const slots = (slotsByKey[line.key] ?? []).filter((s) =>
+          slotFree(s, seatsForLine(line, partySize)),
+        )
+        const windows = windowsByKey[line.key] ?? []
+        return (
+          <div
+            key={line.key}
+            data-testid={`add-more-line-${line.product.product_id}`}
+            className="space-y-2 rounded-md border border-border p-3"
+          >
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-medium">{name(line.product)}</span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => onLinesChange((prev) => prev.filter((l) => l.key !== line.key))}
+              >
+                {tr('addMoreRemove', locale)}
+              </Button>
+            </div>
+
+            {line.mode === 'days' || line.mode === 'nights' ? (
+              <div className="space-y-1">
+                <span className="text-xs text-muted-foreground">
+                  {tr(line.mode === 'nights' ? 'addMoreNights' : 'addMoreDates', locale)}
+                </span>
+                <ul className="flex flex-wrap gap-1.5">
+                  {[...line.days].sort().map((d) => {
+                    const bad = line.unavailableDays.includes(d)
+                    return (
+                      <li
+                        key={d}
+                        className={`flex items-center gap-1 rounded-full border px-2 py-0.5 text-sm ${bad ? 'border-destructive text-destructive' : 'border-border'}`}
+                      >
+                        {formatDayLabel(d, locale)}
+                        <button
+                          type="button"
+                          aria-label={fmt(tr('addMoreRemoveDay', locale), {
+                            date: formatDayLabel(d, locale),
+                          })}
+                          className="px-1"
+                          onClick={() =>
+                            update(line.key, {
+                              days: line.days.filter((x) => x !== d),
+                              checking: true,
+                            })
+                          }
+                        >
+                          ×
+                        </button>
+                      </li>
+                    )
+                  })}
+                </ul>
+              </div>
+            ) : null}
+
+            {line.mode === 'slot' ? (
+              <div className="space-y-1">
+                <label className="flex items-center gap-2 text-sm">
+                  {tr('addMoreDate', locale)}
+                  <input
+                    type="date"
+                    className="rounded border border-border px-2 py-1"
+                    value={line.days[0] ?? ''}
+                    onChange={(e) =>
+                      update(line.key, {
+                        days: e.target.value ? [e.target.value] : [],
+                        slot: null,
+                        checking: Boolean(e.target.value),
+                      })
+                    }
+                  />
+                </label>
+                {line.days[0] && !line.checking ? (
+                  slots.length > 0 ? (
+                    <div className="flex flex-wrap gap-1.5" role="group">
+                      {slots.map((s) => {
+                        const on =
+                          line.slot?.availability_id === s.availability_id &&
+                          line.slot?.start_time === s.start_time
+                        return (
+                          <Button
+                            key={`${s.availability_id ?? ''}${s.start_time ?? ''}`}
+                            type="button"
+                            size="sm"
+                            variant={on ? 'default' : 'outline'}
+                            aria-pressed={on}
+                            onClick={() => update(line.key, { slot: s })}
+                          >
+                            {toHHMM(s.start_time) ?? formatDayLabel(s.date, locale)}
+                          </Button>
+                        )
+                      })}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-destructive">
+                      {fmt(tr('addMoreNoTimes', locale), {
+                        date: formatDayLabel(line.days[0], locale),
+                      })}
+                    </p>
+                  )
+                ) : null}
+              </div>
+            ) : null}
+
+            {line.mode === 'window' && !line.checking ? (
+              windows.length > 0 ? (
+                <label className="flex flex-col gap-1 text-sm">
+                  {tr('addMorePickWindow', locale)}
+                  <select
+                    className="rounded border border-border px-2 py-1"
+                    value={line.windowId ?? ''}
+                    onChange={(e) => {
+                      const w = windows.find((x) => x.id === e.target.value)
+                      if (w) update(line.key, withWindow(line, w))
+                    }}
+                  >
+                    {line.windowId ? null : <option value="">—</option>}
+                    {windows.map((w) => (
+                      <option key={w.id} value={w.id}>
+                        {w.label ? `${w.label}: ` : ''}
+                        {formatDayLabel(w.start_date, locale)} – {formatDayLabel(w.end_date, locale)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : (
+                <p className="text-sm text-destructive">{tr('addMoreNoWindows', locale)}</p>
+              )
+            ) : null}
+
+            <div className="flex items-center gap-2 text-sm">
+              <span>{tr('addMoreQuantity', locale)}</span>
+              <Button
+                type="button"
+                size="icon-sm"
+                variant="outline"
+                aria-label="−"
+                disabled={line.quantity <= 1}
+                onClick={() => update(line.key, { quantity: Math.max(1, line.quantity - 1) })}
+              >
+                −
+              </Button>
+              <span data-testid="add-more-quantity">{line.quantity}</span>
+              <Button
+                type="button"
+                size="icon-sm"
+                variant="outline"
+                aria-label="+"
+                onClick={() => update(line.key, { quantity: line.quantity + 1 })}
+              >
+                +
+              </Button>
+              {line.mode !== 'nights' ? (
+                <span className="text-xs text-muted-foreground">
+                  {fmt(tr('addMoreForGroup', locale), { count: partySize })}
+                </span>
+              ) : null}
+            </div>
+
+            {issue === 'checking' ? (
+              <p className="text-sm text-muted-foreground">{tr('addMoreChecking', locale)}</p>
+            ) : issue === 'unavailable' ? (
+              <p className="text-sm text-destructive" role="alert">
+                {fmt(tr('addMoreUnavailable', locale), {
+                  dates: line.unavailableDays.map((d) => formatDayLabel(d, locale)).join(', '),
+                })}
+              </p>
+            ) : issue === 'needs_time' && slots.length > 0 ? (
+              <p className="text-sm text-muted-foreground">{tr('addMorePickTime', locale)}</p>
+            ) : issue === 'no_days' ? (
+              <p className="text-sm text-destructive">{tr('addMoreNoDays', locale)}</p>
+            ) : null}
+          </div>
+        )
+      })}
+
+      {candidates.length > 0 ? (
+        <ul className="flex flex-wrap gap-2">
+          {candidates.map((p) => (
+            <li key={p.product_id}>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                data-testid={`add-more-candidate-${p.product_id}`}
+                onClick={() =>
+                  onLinesChange((prev) => [
+                    ...prev,
+                    { ...inheritLine(p, mainDays, `x-${p.product_id}`), checking: true },
+                  ])
+                }
+              >
+                + {name(p)}
+              </Button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </section>
+  )
+}
