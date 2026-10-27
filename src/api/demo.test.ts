@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   estimateBookingPrice,
+  getProductAddons,
+  getProductAlternatives,
   getAvailability,
   getFixedDateWindows,
   getOperatorSettings,
@@ -18,8 +20,9 @@ import {
   putBookingDetails,
   cancelBooking,
 } from './client'
-import { DemoWriteBlockedError, resetDemoTemplateCache } from './demo'
-import { demoSignupUrl, demoSlug } from '@/lib/demo'
+import { DemoWriteBlockedError, demoAdjustments, demoProducts, demoSettings, resetDemoTemplateCache } from './demo'
+import { DEMO_LANGS, demoCompanion, demoCopy, demoCustomer, demoLang, demoSignupUrl, demoSlug } from '@/lib/demo'
+import { browserLocale } from '@/lib/locale'
 import type { SubmitBookingBody } from './types'
 
 const TEMPLATE = {
@@ -45,6 +48,7 @@ const CATALOGUE = {
   ],
   products: [
     {
+      description_localized: { en: 'Write to {email}', de: 'Schreib an {email}', es: 'Escribe a {email}', tr: 'Şuraya yaz: {email}' },
       slug: 'sunset-tour', name: 'Sunset tour with {company}', name_localized: { de: 'Sonnenuntergangstour' },
       short_description: 'Paddle at dusk', short_description_localized: { de: 'Paddeln in der Dämmerung' },
       description: null, product_kind: 'service', service_time_shape: 'days_range', is_contiguous: true,
@@ -138,6 +142,68 @@ describe('demo slug', () => {
   it('signup link carries the template slug', () => {
     expect(demoSignupUrl('kayak', 'de')).toBe('https://www.landr.de/de/signup/?template=kayak')
     expect(demoSignupUrl('kayak', 'en')).toBe('https://www.landr.de/signup/?template=kayak')
+    for (const l of ['es', 'it', 'tr'] as const) {
+      expect(demoSignupUrl('kayak', l)).toBe(`https://www.landr.de/${l}/signup/?template=kayak`)
+    }
+  })
+
+  it('demoLang supports en/de/es/it/tr and falls back to en (fr, junk)', () => {
+    const at = (q: string) => {
+      window.history.replaceState({}, '', `/?demo=kayak${q}`)
+      return demoLang()
+    }
+    expect(at('')).toBe('en')
+    expect(at('&lang=de')).toBe('de')
+    expect(at('&lang=es')).toBe('es')
+    expect(at('&lang=IT')).toBe('it')
+    expect(at('&lang=tr-TR')).toBe('tr')
+    expect(at('&lang=fr')).toBe('en')
+    expect(at('&lang=xx')).toBe('en')
+  })
+
+  it('every language has a non-empty, distinct-from-English demoCopy for every key', () => {
+    const en = demoCopy('en')
+    for (const l of DEMO_LANGS) {
+      const c = demoCopy(l)
+      expect(Object.keys(c).sort()).toEqual(Object.keys(en).sort())
+      for (const v of Object.values(c)) expect(v.trim().length).toBeGreaterThan(0)
+      if (l !== 'en') {
+        expect(c.banner).not.toBe(en.banner)
+        expect(c.congratsTitle).not.toBe(en.congratsTitle)
+        expect(c.congratsBody).not.toBe(en.congratsBody)
+        expect(c.cta).not.toBe(en.cta)
+        expect(c.again).not.toBe(en.again)
+      }
+    }
+  })
+
+  it('browserLocale follows ?lang= in demo mode, ignoring the browser', () => {
+    window.history.replaceState({}, '', '/?demo=kayak&lang=es')
+    expect(browserLocale()).toBe('es')
+    window.history.replaceState({}, '', '/?demo=kayak&lang=fr')
+    expect(browserLocale()).toBe('en')
+  })
+
+  it('settings headline picks pitch[lang] then falls back to en', () => {
+    const tpl = {
+      slug: 'kayak',
+      pitch: { en: { headline: 'EN head' }, es: { headline: 'ES head' }, it: { headline: '' } },
+    }
+    window.history.replaceState({}, '', '/?demo=kayak&lang=es')
+    expect(demoSettings(tpl).name).toBe('ES head')
+    expect(demoSettings(tpl).default_locale).toBe('es')
+    window.history.replaceState({}, '', '/?demo=kayak&lang=it')
+    expect(demoSettings(tpl).name).toBe('EN head')
+    window.history.replaceState({}, '', '/?demo=kayak&lang=tr')
+    expect(demoSettings(tpl).name).toBe('EN head')
+  })
+
+  it('sample offers and roles are localized', () => {
+    const p = demoProducts({ slug: 'kayak' })
+    for (const l of ['de', 'es', 'it', 'tr']) {
+      expect(p[0].name_localized?.[l]).toBeTruthy()
+      expect(p[0].name_localized?.[l]).not.toBe(p[0].name)
+    }
   })
 })
 
@@ -146,6 +212,10 @@ describe('demo mode reads', () => {
     const products = await listProducts('demo-kayak')
     expect(products.map((p) => p.name)).toEqual(['Sunset tour with your company', 'Lagoon rental'])
     expect(products[0].name_localized?.de).toBe('Sonnenuntergangstour')
+    // the long text keeps every language and fills the clone placeholders per language
+    expect(products[0].description_localized).toEqual({
+      en: 'Write to your email', de: 'Schreib an deine E-Mail', es: 'Escribe a tu correo electrónico', tr: 'Şuraya yaz: e-posta adresin',
+    })
     expect(products[0].thumb_url).toBe('https://img.example/t.jpg')
     expect(products[0].product_id).toBe('demo-kayak-sunset-tour')
     expect(products[0].product_group_id).toBe('demo-kayak-group-tours')
@@ -314,6 +384,169 @@ describe('demo mode: stay, pass and verification templates (landr-m6tp4.46)', ()
   })
 })
 
+// ac47r.2: a tandem catalogue shaped like landr-api's (daily_start_times / weekdays,
+// pricing rules, add-ons, alternatives).
+const TANDEM_CATALOGUE = {
+  template_slug: 'tandem', version: 1, groups: [],
+  products: [
+    {
+      ...bare, slug: 'tandem-flight', name: 'Tandem flight', name_localized: { de: 'Tandemflug' },
+      product_kind: 'service', service_time_shape: 'single_date',
+      price_per_unit: 120, price_from: '110.00', price_base: '120.00',
+      daily_start_times: ['09:00', '11:00', '15:00'], daily_start_weekdays: null,
+      pricing: {
+        currency: 'EUR',
+        rules: [
+          { rule_kind: 'slot_time_adjustment', sort_order: 10, conditions: {}, tiers: [],
+            params: { time_from: '09:00', time_to: '09:00', adjustment: -10, name: 'Early bird' } },
+          { rule_kind: 'weekday_adjustment', sort_order: 20, conditions: {}, tiers: [],
+            params: { weekdays: [6, 7], adjustment: 20, name: 'Weekend' } },
+          { rule_kind: 'slot_time_adjustment', sort_order: 30, conditions: {}, tiers: [],
+            params: { weekdays: [5], time_from: '15:00', time_to: '23:59', adjustment: 20, name: 'Weekend' } },
+        ],
+      },
+      addons: [
+        { slug: 'photo-video', name: 'Photo and video', name_localized: { de: 'Foto und Video' },
+          paid_to: 'performer', price_unit: 'booking', addon_quantity_rule: 'one_per_booking',
+          price_per_unit: 35, currency: 'EUR', is_required: false, min_qty: 0, max_qty: 1, sort_order: 1 },
+        { slug: 'transfer', name: 'Hotel transfer', paid_to: 'operator', price_unit: 'guest',
+          addon_quantity_rule: 'any', price_per_unit: '10.00', currency: 'EUR', sort_order: 2 },
+      ],
+      alternatives: [{ slug: 'tandem-xl', sort_order: 1 }, { slug: 'ghost', sort_order: 2 }],
+    },
+    {
+      ...bare, slug: 'tandem-xl', name: 'Tandem XL', product_kind: 'service', service_time_shape: 'single_date',
+      price_per_unit: 160, price_from: '160.00', price_base: '160.00',
+      daily_start_times: ['10:00'], daily_start_weekdays: [6, 7], pricing: null, addons: [], alternatives: [],
+    },
+  ],
+}
+
+describe('demo mode: slots, price rules, add-ons and alternatives (ac47r.2)', () => {
+  beforeEach(() => {
+    catalogue = TANDEM_CATALOGUE
+    window.history.replaceState({}, '', '/?demo=tandem')
+    resetDemoTemplateCache()
+  })
+  const body = (day: string, start: string | null, qty = 1, addon_lines: { product_id: string; qty: number }[] = []) => ({
+    selected_days: [day], participants_count: qty, addon_lines, ...(start ? { slot_start_time: start } : {}),
+  })
+
+  it('offers the template start times, on its weekdays only', async () => {
+    const [flight, xl] = await listProducts('demo-tandem')
+    const slots = await getAvailability(flight.product_id, '2027-03-01', '2027-03-02')
+    expect(slots.map((s) => s.start_time)).toEqual(['09:00:00', '11:00:00', '15:00:00', '09:00:00', '11:00:00', '15:00:00'])
+    // 2027-03-05 Fri .. 03-08 Mon: XL runs on Sat/Sun only.
+    const weekend = await getAvailability(xl.product_id, '2027-03-05', '2027-03-08')
+    expect([...new Set(weekend.map((s) => s.date))]).toEqual(['2027-03-06', '2027-03-07'])
+    expect(weekend.every((s) => s.start_time === '10:00:00')).toBe(true)
+  })
+
+  it('evaluates the real rules: early bird, weekend, Friday from 15:00', async () => {
+    const [flight] = await listProducts('demo-tandem')
+    const quote = async (day: string, start: string) =>
+      (await estimateBookingPrice('demo-tandem', flight.product_id, body(day, start))).grand_total
+    // 2027-03-03 is a Wednesday, 03-05 Friday, 03-06 Saturday.
+    expect(await quote('2027-03-03', '09:00')).toBe('110.00')
+    expect(await quote('2027-03-03', '11:00')).toBe('120.00')
+    expect(await quote('2027-03-05', '11:00')).toBe('120.00')
+    expect(await quote('2027-03-05', '15:00')).toBe('140.00')
+    expect(await quote('2027-03-06', '11:00')).toBe('140.00')
+    expect(await quote('2027-03-06', '09:00')).toBe('130.00')
+    const est = await estimateBookingPrice('demo-tandem', flight.product_id, body('2027-03-06', '09:00', 2))
+    expect(est.grand_total).toBe('260.00')
+    expect(est.surcharges?.map((x) => [x.label, x.amount])).toEqual([['Weekend', '40.00']])
+    expect(est.savings?.map((x) => [x.label, x.amount])).toEqual([['Early bird', '20.00']])
+    expect(est.amount_due).toBe('260.00')
+  })
+
+  it('reads the slot from the picked demo slot id; the sole fixed time is used otherwise', async () => {
+    const [flight] = await listProducts('demo-tandem')
+    const slots = await getAvailability(flight.product_id, '2027-03-03', '2027-03-03')
+    const early = await estimateBookingPrice('demo-tandem', flight.product_id, {
+      selected_days: ['2027-03-03'], participants_count: 1, addon_lines: [],
+      product_availability_id: slots[0]!.availability_id!,
+    })
+    expect(early.grand_total).toBe('110.00')
+    // several fixed times and none picked: slot rules match nothing (as the API).
+    const none = await estimateBookingPrice('demo-tandem', flight.product_id, body('2027-03-03', null))
+    expect(none.grand_total).toBe('120.00')
+  })
+
+  it('applies percent rules and midnight-wrapping windows like the engine', () => {
+    const rules = [
+      { rule_kind: 'slot_time_adjustment', params: { time_from: '22:00', time_to: '02:00', adjustment: 10, adjustment_type: 'percent' } },
+    ]
+    expect(demoAdjustments(rules, ['2027-03-03'], '23:30', 'single_date', 200).map((a) => a.amount)).toEqual([20])
+    expect(demoAdjustments(rules, ['2027-03-03'], '01:00', 'single_date', 200)).toHaveLength(1)
+    expect(demoAdjustments(rules, ['2027-03-03'], '12:00', 'single_date', 200)).toEqual([])
+    expect(demoAdjustments(rules, ['2027-03-03'], null, 'single_date', 200)).toEqual([])
+  })
+
+  it('serves add-ons from the catalogue and prices them by payee and unit', async () => {
+    const [flight] = await listProducts('demo-tandem')
+    const addons = await getProductAddons(flight.product_id)
+    expect(addons.map((a) => [a.name, a.price_per_unit, a.max_qty])).toEqual([
+      ['Photo and video', 35, 1], ['Hotel transfer', 10, null],
+    ])
+    expect(addons[0]).toMatchObject({ name_localized: { de: 'Foto und Video' }, addon_quantity_rule: 'one_per_booking' })
+    const est = await estimateBookingPrice('demo-tandem', flight.product_id, body('2027-03-03', '11:00', 2, [
+      { product_id: addons[0]!.addon_product_id, qty: 1 }, { product_id: addons[1]!.addon_product_id, qty: 1 },
+    ]))
+    // 2 x 120 + photo 35 (pilot keeps it) + transfer 10 per guest x 2.
+    expect(est.operator_total).toBe('260.00')
+    expect(est.performer_total).toBe('35.00')
+    expect(est.grand_total).toBe('295.00')
+    expect(est.line_items.map((l) => l.paid_to)).toEqual(['operator', 'performer', 'operator'])
+  })
+
+  it('answers the submit with a full sample booking summary: slot, add-ons, rules, total, customer', async () => {
+    const [flight] = await listProducts('demo-tandem')
+    const addons = await getProductAddons(flight.product_id)
+    const res = await submitBooking({
+      widget_token: 'x', customer_first_name: 'Alex', customer_last_name: 'Morgan', customer_email: 'a@example.com',
+      cancellation_deadline: '2027-03-01',
+      products: [
+        { product_id: flight.product_id, quantity: 2, selected_days: ['2027-03-06'], slot_start_time: '09:00' },
+        { product_id: addons[0]!.addon_product_id, quantity: 1 },
+      ],
+      participants: [
+        { first_name: 'Alex', last_name: 'Morgan', service_role_code: 'participant' },
+        { first_name: 'Sam', last_name: 'Morgan', service_role_code: 'participant' },
+      ],
+    } as unknown as SubmitBookingBody)
+    const sum = res.summary!
+    expect(res.booking_id).toBe('demo-booking')
+    expect(sum.product_label).toBe('Tandem flight')
+    expect(sum.dates.label).toContain('09:00')
+    expect(sum.participants.map((p) => p.name)).toEqual(['Alex Morgan', 'Sam Morgan'])
+    expect(sum.line_items.map((l) => l.paid_to)).toEqual(['operator', 'performer'])
+    expect(sum.surcharges?.map((x) => x.label)).toEqual(['Weekend'])
+    expect(sum.savings.map((x) => x.label)).toEqual(['Early bird'])
+    expect(sum.grand_total).toBe('295.00')
+  })
+
+  it('serves alternatives from the catalogue, skipping unknown slugs', async () => {
+    const [flight] = await listProducts('demo-tandem')
+    const alts = await getProductAlternatives(flight.product_id, '2027-03-05', '2027-03-08')
+    expect(alts).toHaveLength(1)
+    expect(alts[0]).toMatchObject({ slug: 'tandem-xl', name: 'Tandem XL', price_from: '160.00' })
+    expect(alts[0]!.available_dates).toEqual(['2027-03-06', '2027-03-07'])
+  })
+
+  it('has a sample customer in every demo language', () => {
+    for (const lang of DEMO_LANGS) {
+      const c = demoCustomer(lang)
+      expect(c.email).toContain('@')
+      expect(c.phone).toMatch(/^\+\d{8,}$/)
+      expect(c.country).toBe('DE')
+      expect(demoCompanion(0, lang).first_name).not.toBe(c.first_name)
+    }
+    expect(demoCustomer('de').first_name).toBe('Lena')
+    expect(demoCustomer('en').first_name).toBe('Alex')
+  })
+})
+
 describe('demo mode never writes', () => {
   it('only ever GETs the public template and its catalogue; no booking/payment endpoint is called', async () => {
     const [full] = await listProducts('demo-kayak')
@@ -342,5 +575,34 @@ describe('demo mode never writes', () => {
       expect(String(url)).toMatch(/\/api\/public\/templates\/kayak(\/catalogue)?$/)
       expect((init as RequestInit | undefined)?.method ?? 'GET').toBe('GET')
     }
+  })
+})
+
+describe('demoArt', () => {
+  it('gives known template products three comic images', async () => {
+    const { demoArt } = await import('./demo')
+    const imgs = demoArt('kayak', 'half-day-tour', 'Half-day tour')
+    expect(imgs).toHaveLength(3)
+    expect(imgs[0].hero_url).toMatch(/demo\/kayak\/half-day-tour-1\.svg$/)
+  })
+
+  it('gives unknown products none', async () => {
+    const { demoArt } = await import('./demo')
+    expect(demoArt('kayak', 'nope', 'x')).toEqual([])
+  })
+})
+
+describe('demoGroups art', () => {
+  it('gives a group without a cover the art of its first product', async () => {
+    const { demoGroups } = await import('./demo')
+    const prod = { slug: 'half-day-tour', name: 'x', group_slug: 'tours', images: [] }
+    const groups = demoGroups({
+      slug: 'kayak',
+      catalogue: {
+        groups: [{ slug: 'tours', name: 'Tours', image_url: null, parent_slug: null }],
+        products: [prod],
+      },
+    } as never)
+    expect(groups[0].image_url).toMatch(/demo\/kayak\/half-day-tour-1\.svg$/)
   })
 })

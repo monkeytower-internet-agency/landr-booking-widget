@@ -26,6 +26,16 @@
  * read/write/clear primitives unit-testable without rendering App.
  */
 import type { Step, BookingDraft } from './appStepMachine'
+import { isDemoMode } from './lib/demo'
+
+/** Demo pages are hosted in an overlay; tell the host whether there is unsaved progress to confirm-discard. */
+function notifyDemoHost(dirty: boolean): void {
+  try {
+    if (window.parent !== window) window.parent.postMessage({ type: 'landr:dirty', dirty }, '*')
+  } catch {
+    // ignore — host is best-effort
+  }
+}
 import {
   withBilling,
   type BookerDetails,
@@ -267,6 +277,9 @@ export function normalizeBookerJoins(progress: BookingProgress): BookingProgress
  * restorable one, OR storage is unavailable/throws (sandboxed embed).
  */
 export function readStoredProgress(): BookingProgress | null {
+  // Demo pages share one origin (one sessionStorage) across templates; a draft
+  // from template A must never resurface in B. The host page owns the lifecycle.
+  if (isDemoMode()) return null
   try {
     const raw = window.sessionStorage.getItem(BOOKING_PROGRESS_STORAGE_KEY)
     if (!raw) return null
@@ -307,6 +320,10 @@ export function readStoredProgress(): BookingProgress | null {
  * confirmation) so a reload at those points starts clean.
  */
 export function writeStoredProgress(progress: BookingProgress): void {
+  if (isDemoMode()) {
+    notifyDemoHost(isRestorableStep(progress.step))
+    return
+  }
   try {
     if (!isRestorableStep(progress.step)) {
       // Don't persist entry/terminal steps — and proactively clear any

@@ -624,6 +624,16 @@ export interface OperatorSettings {
    */
   widget_show_logo?: boolean
   /**
+   * Operator setting: offer "Add more to this booking" on the last step.
+   * Optional for rolling deploy: absent/undefined means on (today's behaviour).
+   */
+  widget_cross_sell_enabled?: boolean
+  /**
+   * Product ids the cross-sell may offer; empty or absent = every eligible
+   * product.
+   */
+  widget_cross_sell_product_ids?: string[]
+  /**
    * landr-atwy — per-operator opt-in for the post-booking "Track this
    * booking in the LANDR app" account-link prompt. Default false: the
    * prompt (which creates a real LANDR auth account via signInWithOtp)

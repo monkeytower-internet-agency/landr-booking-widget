@@ -6,6 +6,7 @@ import {
   waiverText,
   type VerificationInput,
 } from './verification'
+import { CameraCaptureButton } from './CameraCaptureButton'
 import { verificationStrings } from './verificationStrings'
 
 interface Props {
@@ -43,6 +44,14 @@ export function VerificationFields({ products, value, onChange, locale, disabled
           data-testid={id}
           onChange={(e) => onChange({ ...value, [kind]: e.target.files?.[0] ?? null })}
         />
+        <div>
+          <CameraCaptureButton
+            label={t.takePhoto}
+            disabled={disabled}
+            testId={`${id}-camera`}
+            onFile={(f) => f && onChange({ ...value, [kind]: f })}
+          />
+        </div>
         <p className="text-xs text-muted-foreground">
           {file ? file.name : t.fileHint}
         </p>

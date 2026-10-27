@@ -138,12 +138,17 @@ function nightRows() {
 }
 
 async function clickDay(iso: string) {
+  const selector = `button[data-day="${dateFromIso(iso).toLocaleDateString()}"]`
   for (let i = 0; i < 3; i += 1) {
-    const btn = document.querySelector<HTMLButtonElement>(
-      `button[data-day="${dateFromIso(iso).toLocaleDateString()}"]`,
-    )
-    if (btn) {
-      fireEvent.click(btn)
+    if (document.querySelector(selector)) {
+      // A day renders before its availability arrives and stays disabled until
+      // then; a click on it in that window is silently ignored (a loaded
+      // full-suite run hit it), so wait for the day to open first.
+      await waitFor(
+        () => expect(document.querySelector<HTMLButtonElement>(selector)).toBeEnabled(),
+        SLOW_FLOW,
+      )
+      fireEvent.click(document.querySelector<HTMLButtonElement>(selector)!)
       return
     }
     fireEvent.click(screen.getByRole('button', { name: /next month/i }))
@@ -194,7 +199,7 @@ describe('standalone stay booking flow', () => {
     await clickDay(CHECK_IN)
     await clickDay(CHECK_OUT)
     const pickerContinue = screen.getByTestId('stay-picker-submit')
-    await waitFor(() => expect(pickerContinue).toBeEnabled())
+    await waitFor(() => expect(pickerContinue).toBeEnabled(), SLOW_FLOW)
     fireEvent.click(pickerContinue)
 
     await screen.findByText(/your contact details/i, undefined, SLOW_FLOW)
@@ -256,7 +261,11 @@ describe('standalone stay booking flow', () => {
     )
     await clickDay(CHECK_IN)
     await clickDay(CHECK_OUT)
-    fireEvent.click(screen.getByTestId('stay-picker-submit'))
+    // The picker enables Continue only once the range is priced; a click
+    // before that is a no-op and the flow never reaches the details step.
+    const pickerContinue = screen.getByTestId('stay-picker-submit')
+    await waitFor(() => expect(pickerContinue).toBeEnabled(), SLOW_FLOW)
+    fireEvent.click(pickerContinue)
     await screen.findByText(/your contact details/i, undefined, SLOW_FLOW)
     const setInput = (name: string, value: string) =>
       fireEvent.change(document.querySelector<HTMLInputElement>(`input[name="${name}"]`)!, {

@@ -3,12 +3,13 @@ import type { AnimationEvent } from 'react'
 import { Copy } from 'lucide-react'
 import { guessCountry } from '@/lib/guessCountry'
 import { countryOptions } from '@/lib/countries'
+import { demoCompanion, demoCustomer, isDemoMode } from '@/lib/demo'
 import { useStaffMode } from '@/lib/staffMode'
 import { Checkbox } from '@/components/ui/checkbox'
 import type { BookingSelection } from '@/components/booking/BookingForm'
 import type { Product, ServiceRole } from '@/api/types'
 import { requestSubscriptionPerkOtp } from '@/api/client'
-import { browserLocale } from '@/lib/locale'
+import { browserLocale, pickLocalized } from '@/lib/locale'
 import { formatDayLabel } from '@/components/booking/dateLabel'
 import {
   addAnyoneElseUpTo,
@@ -276,6 +277,26 @@ interface Props {
  * Generic copy per landr-genericity-northstar — "participants" not
  * "pilots"/"divers".
  */
+/** Demo mode: the sample customer the details step starts with (nothing is booked). */
+function demoBooker(): BookerDetails {
+  const c = demoCustomer()
+  const base = emptyBooker()
+  return {
+    ...base,
+    first_name: c.first_name,
+    last_name: c.last_name,
+    email: c.email,
+    phone: c.phone,
+    billing: {
+      ...base.billing,
+      address_line1: c.address_line1,
+      postal_code: c.postal_code,
+      city: c.city,
+      country: c.country,
+    },
+  }
+}
+
 /**
  * Short selection summary for the card description. After landr-2wyi the
  * persistent PriceSidebar carries the full day-by-day breakdown (chips
@@ -344,7 +365,7 @@ export function DetailsStep({
   const defaultRoleCode = serviceRoles[0]?.code ?? ''
   const showRoleDropdown = serviceRoles.length > 1
   const [booker, setBooker] = useState<BookerDetails>(
-    () => (initialBooker ? withBilling(initialBooker) : emptyBooker()),
+    () => (initialBooker ? withBilling(initialBooker) : isDemoMode() ? demoBooker() : emptyBooker()),
   )
   // landr-jiagg.2: "I'm booking for someone else and won't take part". The
   // invite flow never offers it (the invitee takes the seat themselves), and a
@@ -422,6 +443,10 @@ export function DetailsStep({
       othersCapFor(joinsOnMount) - (initialCompanions?.length ?? 0),
     )
     while (rows.length < want) rows.push(emptyParticipant(defaultRoleCode))
+    // Demo: sample names for the extra travellers, so nobody has to type anything.
+    if (isDemoMode() && !initialParticipants?.length) {
+      rows = rows.map((r, i) => ({ ...r, ...demoCompanion(i) }))
+    }
     // landr-jiagg.2: a booker who is not joining always has "Participant 1".
     if (!joinsOnMount && rows.length === 0) rows.push(emptyParticipant(defaultRoleCode))
     return rows
@@ -2375,7 +2400,7 @@ function RoleSelect({
     >
       {serviceRoles.map((role) => (
         <option key={role.id} value={role.code}>
-          {role.label}
+          {pickLocalized(role.label, role.label_localized, browserLocale())}
         </option>
       ))}
     </select>

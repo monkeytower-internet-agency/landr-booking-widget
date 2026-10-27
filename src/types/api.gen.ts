@@ -12487,6 +12487,13 @@ export interface components {
             /** Onboarding Preset Key */
             onboarding_preset_key: string | null;
             /**
+             * Plan Gated
+             * @default {}
+             */
+            plan_gated: {
+                [key: string]: string[];
+            };
+            /**
              * Status
              * @enum {string}
              */
@@ -14174,6 +14181,83 @@ export interface components {
              */
             notify_customer: boolean;
         };
+        /**
+         * CatalogueAddon
+         * @description One add-on linked to a product, keyed by the add-on's slug
+         *     (landr-ac47r.1). ``paid_to`` is who keeps the money: ``performer`` = the
+         *     person delivering it (the tandem pilot's video package, 100 % theirs),
+         *     ``operator`` = the operator's invoice, ``hotel`` = paid at check-in.
+         */
+        CatalogueAddon: {
+            /** Addon Quantity Max */
+            addon_quantity_max?: number | null;
+            /** Addon Quantity Rule */
+            addon_quantity_rule?: ("one_per_booking" | "one_per_participant" | "any") | null;
+            /** Currency */
+            currency?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Description Localized */
+            description_localized?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Is Required
+             * @default false
+             */
+            is_required: boolean;
+            /** Max Qty */
+            max_qty?: number | null;
+            /**
+             * Min Qty
+             * @default 0
+             */
+            min_qty: number;
+            /** Name */
+            name: string;
+            /** Name Localized */
+            name_localized?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Paid To
+             * @enum {string}
+             */
+            paid_to: "operator" | "hotel" | "performer";
+            /** Price Per Unit */
+            price_per_unit?: number | null;
+            /** Price Unit */
+            price_unit?: ("booking" | "night" | "stay" | "guest" | "guest_night") | null;
+            pricing?: components["schemas"]["CataloguePricing"] | null;
+            /** Product Kind */
+            product_kind: string;
+            /** Short Description */
+            short_description?: string | null;
+            /** Short Description Localized */
+            short_description_localized?: {
+                [key: string]: unknown;
+            } | null;
+            /** Slug */
+            slug: string;
+            /**
+             * Sort Order
+             * @default 0
+             */
+            sort_order: number;
+        };
+        /**
+         * CatalogueAlternative
+         * @description A linked alternative: the slug of another product in this catalogue.
+         */
+        CatalogueAlternative: {
+            /** Slug */
+            slug: string;
+            /**
+             * Sort Order
+             * @default 0
+             */
+            sort_order: number;
+        };
         /** CatalogueGroup */
         CatalogueGroup: {
             /**
@@ -14211,11 +14295,34 @@ export interface components {
             sort_order: number;
         };
         /**
+         * CataloguePricing
+         * @description A product's price list: currency + active rules in sort order.
+         */
+        CataloguePricing: {
+            /** Currency */
+            currency?: string | null;
+            /**
+             * Rules
+             * @default []
+             */
+            rules: components["schemas"]["CatalogueRule"][];
+        };
+        /**
          * CatalogueProduct
          * @description One offer, keyed by slug. Mirrors the widget's catalogue product minus
          *     every id (product, group, category, location, hotel).
          */
         CatalogueProduct: {
+            /**
+             * Addons
+             * @default []
+             */
+            addons: components["schemas"]["CatalogueAddon"][];
+            /**
+             * Alternatives
+             * @default []
+             */
+            alternatives: components["schemas"]["CatalogueAlternative"][];
             /** Category Name */
             category_name?: string | null;
             /** Category Name Localized */
@@ -14228,8 +14335,14 @@ export interface components {
             daily_cap?: number | null;
             /** Daily Start Times */
             daily_start_times?: string[] | null;
+            /** Daily Start Weekdays */
+            daily_start_weekdays?: number[] | null;
             /** Description */
             description?: string | null;
+            /** Description Localized */
+            description_localized?: {
+                [key: string]: unknown;
+            } | null;
             /** Duration Minutes */
             duration_minutes?: number | null;
             event_window?: components["schemas"]["EventWindow"] | null;
@@ -14269,6 +14382,7 @@ export interface components {
             }[];
             /** Price Per Unit */
             price_per_unit?: string | null;
+            pricing?: components["schemas"]["CataloguePricing"] | null;
             /** Product Kind */
             product_kind: string;
             /**
@@ -14298,6 +14412,49 @@ export interface components {
             waiver_text_localized?: {
                 [key: string]: string;
             } | null;
+        };
+        /**
+         * CatalogueRule
+         * @description One active pricing rule, as the engine evaluates it (landr-ac47r.1).
+         *     ``params`` follows ``app/services/pricing_params_contract.json`` for its
+         *     ``rule_kind``; ``conditions`` keys: min_participants, valid_from,
+         *     valid_until (booking-time).
+         */
+        CatalogueRule: {
+            /** Conditions */
+            conditions?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Params
+             * @default {}
+             */
+            params: {
+                [key: string]: unknown;
+            };
+            /** Rule Kind */
+            rule_kind: string;
+            /** Sort Order */
+            sort_order: number;
+            /**
+             * Tiers
+             * @default []
+             */
+            tiers: components["schemas"]["CatalogueRuleTier"][];
+        };
+        /**
+         * CatalogueRuleTier
+         * @description One tier of a tiered pricing rule (``pricing_tiers`` minus ids).
+         */
+        CatalogueRuleTier: {
+            /** Amount Per Unit */
+            amount_per_unit?: number | null;
+            /** Amount Total */
+            amount_total?: number | null;
+            /** Threshold Max */
+            threshold_max?: number | null;
+            /** Threshold Min */
+            threshold_min: number;
         };
         /**
          * CatalogueTier
@@ -18402,6 +18559,10 @@ export interface components {
             widget_catalog_layout?: string | null;
             /** Widget Category Columns */
             widget_category_columns?: number | null;
+            /** Widget Cross Sell Enabled */
+            widget_cross_sell_enabled?: boolean | null;
+            /** Widget Cross Sell Product Ids */
+            widget_cross_sell_product_ids?: string[] | null;
             /** Widget Description */
             widget_description?: string | null;
             /** Widget Description First Page Only */
@@ -18642,6 +18803,13 @@ export interface components {
             widget_catalog_layout?: string | null;
             /** Widget Category Columns */
             widget_category_columns?: number | null;
+            /**
+             * Widget Cross Sell Enabled
+             * @default true
+             */
+            widget_cross_sell_enabled: boolean;
+            /** Widget Cross Sell Product Ids */
+            widget_cross_sell_product_ids?: string[];
             /** Widget Description */
             widget_description?: string | null;
             /**
@@ -23006,6 +23174,8 @@ export interface components {
             decision: "approve" | "reject";
             /** Notes */
             notes?: string | null;
+            /** Override Reason */
+            override_reason?: string | null;
             /** Reject Reason Code */
             reject_reason_code?: string | null;
             unit_release?: components["schemas"]["StaffUnitReleaseIn"] | null;

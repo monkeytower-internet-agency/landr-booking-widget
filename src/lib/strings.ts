@@ -35,6 +35,10 @@ export type Bundle = {
   continueLabel: string
   /** landr-80ubl.1: OptionalReveal's link text for CustomerCommentField. */
   customerCommentAdd: string
+  /** aria-label of the dismiss (x) button on the invite notice banner. */
+  dismissLabel: string
+  /** Placeholder of the shared-double reference-code input. */
+  sharedDoubleRefPlaceholder: string
   /** landr-80ubl.1: LanguageStep's explanation copy (behind HelpDisclosure). */
   languageStepWhy: string
   languageStepHowTo: string
@@ -941,6 +945,27 @@ export type Bundle = {
   perGuestNightSuffix: string
   perStaySuffix: string
   addonUnitsTimesRateTemplate: string
+  // Add more to this booking (review-step cross-sell)
+  addMoreTitle: string
+  addMoreIntro: string
+  addMoreRemove: string
+  addMoreDates: string
+  addMoreNights: string
+  addMoreRemoveDay: string
+  addMoreDate: string
+  addMoreNoTimes: string
+  addMorePickTime: string
+  addMorePickWindow: string
+  addMoreNoWindows: string
+  addMoreQuantity: string
+  addMoreForGroup: string
+  addMoreChecking: string
+  addMoreUnavailable: string
+  addMoreNoDays: string
+  addMoreIncomplete: string
+  addMoreModuleSave: string
+  addMoreModuleDone: string
+  addMoreModuleChange: string
 }
 
 const en: Bundle = {
@@ -960,6 +985,8 @@ const en: Bundle = {
   continueCue: 'continue',
   continueLabel: 'Continue',
   customerCommentAdd: 'a note for us',
+  dismissLabel: 'Dismiss',
+  sharedDoubleRefPlaceholder: 'e.g. A1B2C3D4',
   languageStepWhy:
     'Tell us who speaks what, so the guide briefs everyone in a language ' +
     'they understand.',
@@ -1842,6 +1869,26 @@ const en: Bundle = {
   perGuestNightSuffix: '/ guest / night',
   perStaySuffix: '/ stay',
   addonUnitsTimesRateTemplate: '{units} × {rate} {suffix}',
+  addMoreTitle: 'Add more to this booking',
+  addMoreIntro: 'Book another product for the same dates, in one go.',
+  addMoreRemove: 'Remove',
+  addMoreDates: 'Dates',
+  addMoreNights: 'Nights',
+  addMoreRemoveDay: 'Remove {date}',
+  addMoreDate: 'Date',
+  addMoreNoTimes: 'No times left on {date}. Pick another date.',
+  addMorePickTime: 'Pick a time.',
+  addMorePickWindow: 'Course dates',
+  addMoreNoWindows: 'No course dates with free places.',
+  addMoreQuantity: 'Quantity',
+  addMoreForGroup: 'priced for your group of {count}',
+  addMoreChecking: 'Checking availability…',
+  addMoreUnavailable: 'Not available on {dates}. Remove these dates or this product.',
+  addMoreNoDays: 'No dates left for this product. Remove it or pick a date.',
+  addMoreIncomplete: 'Finish or remove the added products before confirming.',
+  addMoreModuleSave: 'Save',
+  addMoreModuleDone: '{title} saved',
+  addMoreModuleChange: 'Change',
 }
 
 /**

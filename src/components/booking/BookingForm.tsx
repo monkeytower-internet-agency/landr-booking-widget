@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   HttpError,
   getAvailability,
@@ -42,6 +42,19 @@ import {
 import { ContinueAction } from './ContinueAction'
 import { isOwnAccommodation, ownAccommodationWire } from './ownAccommodation'
 import { CustomerCommentField } from './CustomerCommentField'
+import { AddMoreProducts } from './AddMoreProducts'
+import {
+  bookingLanguageOffer,
+  effectiveLanguages,
+  extraLinesBlocking,
+  extraProductLines,
+  inlineModulesPending,
+  lineNeeds,
+  productOfferedLanguages,
+  type CrossSellContext,
+  type ExtraLine,
+  type InlineModuleState,
+} from './crossSell'
 import { UN_PRICEABLE_MESSAGE } from './priceSidebarHelpers'
 import {
   additionalAccommodationHeading,
@@ -56,9 +69,17 @@ import {
   distinctAssignedLanguages,
   languageFlag,
   languageName,
+  type ParticipantLanguageMap,
 } from './participantLanguages'
 import { withFallbackGuestLanguage } from './stayFlow'
 import { isStayKind } from '@/flowPlan'
+
+/** Answers given inline on added lines (language board, forms, pickup). */
+export interface InlineAnswers {
+  languages: ParticipantLanguageMap | null
+  forms: Record<string, { entry: FormResponseEntry; raw: Record<string, unknown> }>
+  pickupId: string | null
+}
 
 export type BookingSelection =
   | {
@@ -112,7 +133,7 @@ import { Label } from '@/components/ui/label'
 import { browserLocale, browserTimezone } from '@/lib/locale'
 import { StepBackButton } from './StepBackButton'
 import { alignFormResponses, parseFormResponseErrors } from './formScopes'
-import type { ProductFlowResponse } from '@/api/flowTypes'
+import type { FormResponseEntry, ProductFlowResponse } from '@/api/flowTypes'
 import { findFlowField, localizeFieldError } from './formErrorText'
 import { Button } from '@/components/ui/button'
 import { useStaffMode, resolveParentTargetOrigin } from '@/lib/staffMode'
@@ -399,6 +420,22 @@ interface Props {
    * offered after a capacity_exceeded 422. Falls back to onBack.
    */
   onChangeDates?: () => void
+  /**
+   * "Add more to this booking": products the customer added on this step,
+   * each one more line of the same booking (crossSell.ts). App owns the
+   * state so the PriceSidebar prices the same lines. Absent = no cross-sell.
+   */
+  extraLines?: ExtraLine[]
+  onExtraLinesChange?: import('react').Dispatch<import('react').SetStateAction<ExtraLine[]>>
+  /**
+   * The answers given inline on added lines, kept by the parent so they
+   * survive Back from review (BookingForm unmounts). Seeds the inline state
+   * on mount; every change is reported through onInlineAnswersChange.
+   */
+  inlineAnswers?: InlineAnswers
+  onInlineAnswersChange?: (answers: InlineAnswers) => void
+  /** Operator curation: only these products may be offered (empty/absent = all eligible). */
+  crossSellProductIds?: string[]
   onBack: () => void
   onConfirmed: (response: SubmitBookingResponse, email: string) => void
 }
@@ -904,7 +941,7 @@ export function BookingForm({
   booker,
   participants,
   companions = [],
-  pickupLocationId,
+  pickupLocationId: mainPickupLocationId,
   accommodationRooms,
   addons,
   customerDeclarations,
@@ -912,14 +949,14 @@ export function BookingForm({
   customerOtherLanguages,
   customerComment,
   onCustomerCommentChange = () => {},
-  participantLanguages = {},
+  participantLanguages: mainParticipantLanguages = {},
   isSharedDouble: isSharedDoubleProp = false,
   roomAssignment,
   occupantAgeMap = {},
   perRoomAddons,
   roomProductNames,
   breakfastMap = {},
-  formResponses,
+  formResponses: mainFormResponses,
   customerCompletesForms,
   productFlow,
   memberPerkOtp,
@@ -931,6 +968,11 @@ export function BookingForm({
   onCompanionContactRequired,
   onBack,
   onChangeDates,
+  extraLines = [],
+  onExtraLinesChange,
+  inlineAnswers,
+  onInlineAnswersChange,
+  crossSellProductIds,
   onConfirmed,
 }: Props) {
   // landr-jiagg.2: the shared double covers the BOOKER'S own bed, so it only
@@ -946,14 +988,76 @@ export function BookingForm({
   const locale = browserLocale()
   // Registration with organizer verification: documents + signed waiver,
   // collected here and sent with / right after the booking.
-  const verificationRequired = needsVerification([product])
   const [verification, setVerification] = useState<VerificationInput>(EMPTY_VERIFICATION)
-  const verificationBlocked = verificationRequired && !verificationReady(verification)
   const timezone = browserTimezone()
 
   // landr-aoak.2 [S3]: staff/operator mode. When inactive, none of the staff
   // branches below render and the submit body is byte-identical to today.
   const staff = useStaffMode()
+  // "Add more to this booking" is the public funnel's; a staff booking keeps
+  // its single product (staff add lines on the booking afterwards).
+  const setExtraLines = staff.active ? undefined : onExtraLinesChange
+  const crossSellLines = setExtraLines ? extraLines : []
+  // An added product's guide language, custom forms and pickup point run
+  // inline on its line below (AddMoreProducts) when the main flow did not
+  // cover them. What the customer answers there is shared across lines (the
+  // submit takes one language per participant, one pickup, one answer per
+  // form key) and is folded into the submit values right here.
+  const [inlineLanguages, setInlineLanguages] = useState<ParticipantLanguageMap | null>(
+    inlineAnswers?.languages ?? null,
+  )
+  const [inlineForms, setInlineForms] = useState<InlineAnswers['forms']>(
+    inlineAnswers?.forms ?? {},
+  )
+  const [inlinePickupId, setInlinePickupId] = useState<string | null>(
+    inlineAnswers?.pickupId ?? null,
+  )
+  useEffect(() => {
+    onInlineAnswersChange?.({
+      languages: inlineLanguages,
+      forms: inlineForms,
+      pickupId: inlinePickupId,
+    })
+  }, [inlineLanguages, inlineForms, inlinePickupId, onInlineAnswersChange])
+  const mainOfferedLanguages = useMemo(() => productOfferedLanguages(product), [product])
+  const crossSellContext: CrossSellContext = {
+    participantLanguages: mainParticipantLanguages,
+    participantCount: participants.length,
+    mainLanguages: mainOfferedLanguages,
+    answeredFormKeys: (mainFormResponses ?? []).map((f) => f.form_key),
+    hasPickup: mainPickupLocationId != null || (accommodationRooms ?? []).length > 0,
+  }
+  const inlineModuleState: InlineModuleState = {
+    languages: inlineLanguages,
+    formKeys: Object.keys(inlineForms),
+    pickupLocationId: inlinePickupId,
+  }
+  const addedNeeds = Object.values(lineNeeds(crossSellLines, crossSellContext))
+  const participantLanguages = effectiveLanguages(
+    mainParticipantLanguages,
+    inlineLanguages,
+    bookingLanguageOffer(mainOfferedLanguages, crossSellLines),
+    participants.length + companions.length,
+  )
+  const pickupLocationId =
+    mainPickupLocationId ?? (addedNeeds.some((n) => n.pickup) ? inlinePickupId : null)
+  // Only the forms a CURRENT line still needs are sent (a removed line's
+  // answers would be an unknown form to the server).
+  const neededInlineFormKeys = new Set(addedNeeds.flatMap((n) => n.forms.map((f) => f.key)))
+  const formResponses = [
+    ...(mainFormResponses ?? []),
+    ...Object.values(inlineForms)
+      .filter((f) => neededInlineFormKeys.has(f.entry.form_key))
+      .map((f) => f.entry),
+  ]
+  const extrasBlocked =
+    extraLinesBlocking(crossSellLines) ||
+    inlineModulesPending(crossSellLines, crossSellContext, inlineModuleState)
+  // An added product's verification runs inline here too: one set of
+  // documents and one signed waiver covers every line that asks for it.
+  const verificationProducts = [product, ...crossSellLines.map((l) => l.product)]
+  const verificationRequired = needsVerification(verificationProducts)
+  const verificationBlocked = verificationRequired && !verificationReady(verification)
   const canOverridePrice =
     staff.active && staff.powers.includes('price_override')
   // Operator price-override inputs (amount + reason). Empty strings ⇒ no
@@ -1241,6 +1345,10 @@ export function BookingForm({
       setServerError(UN_PRICEABLE_MESSAGE)
       return
     }
+    if (extrasBlocked) {
+      setServerError(tr('addMoreIncomplete', locale))
+      return
+    }
     setSubmitting(true)
     // landr-my6fc.7: staff mode — if the overlap lookup is still in flight, give
     // it a short window so "Book anyway" is not skipped. Timeout/error proceeds.
@@ -1375,6 +1483,8 @@ export function BookingForm({
           selected_days:
             addon.productKind === 'hotel_room' ? nightIsos : selectedDaysForSubmit,
         })),
+        // "Add more to this booking": the products added on this step.
+        ...extraProductLines(crossSellLines),
       ]
       // Drop participant phone before submit — backend ParticipantIn
       // doesn't accept it yet (follow-up filed in landr-8c03 handoff).
@@ -2131,11 +2241,46 @@ export function BookingForm({
 
         {verificationRequired ? (
           <VerificationFields
-            products={[product]}
+            products={verificationProducts}
             value={verification}
             onChange={setVerification}
             locale={locale}
             disabled={submitting}
+          />
+        ) : null}
+
+        {setExtraLines ? (
+          <AddMoreProducts
+            operatorToken={widgetToken}
+            previewToken={previewToken}
+            inviteToken={inviteToken}
+            cartProductIds={[
+              product.product_id,
+              ...(accommodationRooms ?? []).map((r) => r.productId),
+              ...(addons ?? []).map((a) => a.productId),
+            ]}
+            mainDays={
+              selection.kind === 'slot' ? [selection.slot.date] : selection.selectedDays
+            }
+            partySize={seatsNeeded(participants.length, companions, product.invite_hold_hours)}
+            lines={crossSellLines}
+            onLinesChange={setExtraLines}
+            allowedProductIds={crossSellProductIds}
+            locale={locale}
+            context={crossSellContext}
+            modules={{
+              state: inlineModuleState,
+              formAnswers: Object.fromEntries(
+                Object.entries(inlineForms).map(([k, v]) => [k, v.raw]),
+              ),
+              participantLabels: partyMemberLabels.slice(0, participants.length),
+              participants,
+              companions,
+              onLanguages: setInlineLanguages,
+              onForm: (entry, raw) =>
+                setInlineForms((prev) => ({ ...prev, [entry.form_key]: { entry, raw } })),
+              onPickup: setInlinePickupId,
+            }}
           />
         ) : null}
 
@@ -2156,10 +2301,14 @@ export function BookingForm({
             with the fixed price at creation, so disabled while an amount is
             entered). Both are hidden entirely for normal customers. */}
         <ContinueAction
-          ready={!submitting && !unPriceable && !overrideBlocked && !verificationBlocked}
+          ready={
+            !submitting && !unPriceable && !overrideBlocked && !verificationBlocked && !extrasBlocked
+          }
           reason={
             unPriceable
               ? UN_PRICEABLE_MESSAGE
+              : extrasBlocked
+              ? tr('addMoreIncomplete', locale)
               : verificationBlocked
               ? verificationStrings(locale).missingHint
               : overrideAmountInvalid

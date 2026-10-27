@@ -129,6 +129,15 @@ function makeRoom(
   }
 }
 
+// Continue stays disabled until the room pick and the async bookability check
+// settle; a click in that window is silently ignored (a loaded full-suite run
+// hit it), so wait for the button to enable before clicking.
+async function clickContinue() {
+  const btn = screen.getByRole('button', { name: /Continue/i })
+  await waitFor(() => expect(btn).not.toBeDisabled())
+  fireEvent.click(btn)
+}
+
 describe('AccommodationStep', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -579,7 +588,7 @@ describe('AccommodationStep', () => {
     fireEvent.click(
       screen.getByRole('button', { name: /Increase Single Room quantity/i }),
     )
-    fireEvent.click(screen.getByRole('button', { name: /Continue/i }))
+    await clickContinue()
     expect(onConfirm).toHaveBeenCalledWith(
       [{ productId: 'single-room', quantity: 1 }],
       'hotel-a',
@@ -874,7 +883,7 @@ describe('AccommodationStep', () => {
     )
     expect(screen.queryByText('Double Room')).not.toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: /Continue/i }))
+    await clickContinue()
     // Zero room lines despite having picked a room in package mode first.
     expect(onConfirm).toHaveBeenCalledWith([], 'hotel-a', [], undefined, true, {}, {}, {}, {}, {})
   })
@@ -1255,7 +1264,7 @@ describe('AccommodationStep', () => {
       expect(screen.getByText(/Everyone has a room/i)).toBeInTheDocument(),
     )
 
-    fireEvent.click(screen.getByRole('button', { name: /Continue/i }))
+    await clickContinue()
     expect(onConfirm).toHaveBeenCalledTimes(1)
     expect(onConfirm).toHaveBeenCalledWith(
       [{ productId: 'single-room', quantity: 2 }],
@@ -1330,7 +1339,7 @@ describe('AccommodationStep', () => {
       expect(qtySpan?.textContent?.trim()).toBe('3')
     })
 
-    fireEvent.click(screen.getByRole('button', { name: /Continue/i }))
+    await clickContinue()
     expect(onConfirm).toHaveBeenCalledTimes(1)
     expect(onConfirm).toHaveBeenCalledWith(
       [{ productId: 'double-room', quantity: 1 }],
@@ -1418,7 +1427,7 @@ describe('AccommodationStep', () => {
     ).not.toBeInTheDocument()
     expect(mocks.getHotelRoomsForHotel).not.toHaveBeenCalled()
 
-    fireEvent.click(screen.getByRole('button', { name: /Continue/i }))
+    await clickContinue()
     expect(onConfirm).toHaveBeenCalledWith([], 'hotel-a', [], undefined, true, {}, {}, {}, {}, {})
   })
 
@@ -1628,7 +1637,7 @@ describe('AccommodationStep', () => {
     expect(bfQtySpans2[1]).toBe('2')  // Double: 2
 
     // Continue and check the FLATTENED submit payload sums across rooms.
-    fireEvent.click(screen.getByRole('button', { name: /Continue/i }))
+    await clickContinue()
     expect(onConfirm).toHaveBeenCalledTimes(1)
     const [rooms, , addons] = onConfirm.mock.calls[0] as Parameters<typeof onConfirm>
     expect(rooms).toHaveLength(2)
@@ -1758,7 +1767,7 @@ describe('AccommodationStep', () => {
     await waitFor(() =>
       expect(screen.getByText(/Everyone has a room/i)).toBeInTheDocument(),
     )
-    fireEvent.click(screen.getByRole('button', { name: /Continue/i }))
+    await clickContinue()
 
     expect(onConfirm).toHaveBeenCalledTimes(1)
     const [, , addonLines] = onConfirm.mock.calls[0] as Parameters<typeof onConfirm>
@@ -1865,7 +1874,7 @@ describe('AccommodationStep', () => {
     await waitFor(() =>
       expect(screen.getByText(/Everyone has a room/i)).toBeInTheDocument(),
     )
-    fireEvent.click(screen.getByRole('button', { name: /Continue/i }))
+    await clickContinue()
 
     expect(onConfirm).toHaveBeenCalledTimes(1)
     const [, , addonLines] = onConfirm.mock.calls[0] as Parameters<typeof onConfirm>
@@ -2670,7 +2679,7 @@ describe('AccommodationStep — invitee accommodation (landr-zeg4u.4)', () => {
       screen.queryByTestId('additional-accommodation'),
     ).not.toBeInTheDocument()
     expect(mocks.getHotelRoomsForHotel).not.toHaveBeenCalled()
-    fireEvent.click(screen.getByRole('button', { name: /Continue/i }))
+    await clickContinue()
     const [rooms, hotelId, , , isSharedDouble, assignment] =
       onConfirm.mock.calls[0]!
     expect(rooms).toEqual([])
@@ -2762,7 +2771,7 @@ describe('AccommodationStep — invitee accommodation (landr-zeg4u.4)', () => {
     await waitFor(() =>
       expect(screen.getByRole('button', { name: /Continue/i })).not.toBeDisabled(),
     )
-    fireEvent.click(screen.getByRole('button', { name: /Continue/i }))
+    await clickContinue()
     const [rooms, , , , isSharedDouble] = onConfirm.mock.calls[0]!
     expect(rooms).toEqual([])
     expect(isSharedDouble).toBe(true)
@@ -2948,7 +2957,7 @@ describe('AccommodationStep — invitee accommodation (landr-zeg4u.4)', () => {
     expect(screen.getByTestId('empty-beds-notice')).toHaveTextContent(
       'Double Room #1 has 1 empty bed — you pay for the whole room.',
     )
-    fireEvent.click(screen.getByRole('button', { name: /Continue/i }))
+    await clickContinue()
     const [rooms, , , , , assignment] = onConfirm.mock.calls[0]!
     expect(rooms).toEqual([{ productId: 'double-room', quantity: 1 }])
     expect(Object.keys(assignment as object)).toEqual(['1'])
@@ -3055,7 +3064,7 @@ describe('AccommodationStep — invitee accommodation (landr-zeg4u.4)', () => {
     expect(chips.some((c) => c.textContent?.includes('Anna'))).toBe(true)
     expect(chips.some((c) => c.textContent?.includes('Thomas'))).toBe(false)
 
-    fireEvent.click(screen.getByRole('button', { name: /Continue/i }))
+    await clickContinue()
     const [rooms, , , , isSharedDouble, assignment] = onConfirm.mock.calls[0]!
     expect(rooms).toEqual([{ productId: 'double-room', quantity: 1 }])
     expect(isSharedDouble).toBe(true)
@@ -3302,7 +3311,7 @@ describe('AccommodationStep — invitee accommodation (landr-zeg4u.4)', () => {
       await waitFor(() =>
         expect(screen.getByRole('button', { name: /Continue/i })).not.toBeDisabled(),
       )
-      fireEvent.click(screen.getByRole('button', { name: /Continue/i }))
+      await clickContinue()
       const [rooms, hotelId, , includeHotel, isSharedDouble] =
         onConfirm.mock.calls[0]!
       expect(rooms).toEqual([])
@@ -3352,7 +3361,7 @@ describe('AccommodationStep — invitee accommodation (landr-zeg4u.4)', () => {
       await waitFor(() =>
         expect(screen.getByRole('button', { name: /Continue/i })).not.toBeDisabled(),
       )
-      fireEvent.click(screen.getByRole('button', { name: /Continue/i }))
+      await clickContinue()
       const [rooms, hotelId, , , isSharedDouble] = onConfirm.mock.calls[0]!
       expect(rooms).toEqual([{ productId: 'single-room', quantity: 1 }])
       expect(hotelId).toBe('hotel-a')
@@ -3408,7 +3417,7 @@ describe('AccommodationStep — invitee accommodation (landr-zeg4u.4)', () => {
     await waitFor(() =>
       expect(screen.getByRole('button', { name: /Continue/i })).not.toBeDisabled(),
     )
-    fireEvent.click(screen.getByRole('button', { name: /Continue/i }))
+    await clickContinue()
     const [rooms, , , , isSharedDouble] = onConfirm.mock.calls[0]!
     expect(rooms).toEqual([])
     expect(isSharedDouble).toBe(true)

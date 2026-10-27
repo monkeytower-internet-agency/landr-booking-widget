@@ -205,7 +205,7 @@ export function ExpandedCatalog({
           straight into the picker, so the whole catalog IS the one pending
           control. One NextAction wraps every section, not one per section —
           the rule is "one per screen", not "one per group". */}
-      <NextAction active cue={tr('productListCue')}>
+      <NextAction active cue={tr('productListCue', locale)}>
       {sections.map(({ group, visible }) => {
         const groupName = pickLocalized(
           group.name,

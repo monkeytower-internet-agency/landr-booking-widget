@@ -5,6 +5,7 @@ import type { VerificationFileKind, VerificationState } from '@/api/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { CameraCaptureButton } from './CameraCaptureButton'
 import { fileProblem } from './verification'
 import { verificationStrings } from './verificationStrings'
 
@@ -123,6 +124,12 @@ export function VerificationStatusPanel({ initial, locale }: Props) {
                   disabled={busy !== null}
                   data-testid={`verification-retry-${kind}`}
                   onChange={(e) => void upload(kind, e.target.files?.[0])}
+                />
+                <CameraCaptureButton
+                  label={t.takePhoto}
+                  disabled={busy !== null}
+                  testId={`verification-retry-${kind}-camera`}
+                  onFile={(f) => void upload(kind, f ?? undefined)}
                 />
                 {busy === kind ? (
                   <Button type="button" variant="outline" size="sm" disabled>
