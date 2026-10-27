@@ -110,6 +110,7 @@ const it: VerificationBundle = {
   insuranceLabel: 'Prova dell\u2019assicurazione',
   fileHint: 'Foto o PDF, fino a 10 MB.',
   chooseFile: 'Scegli file',
+  takePhoto: 'Scatta una foto',
   replaceFile: 'Sostituisci file',
   takePhoto: 'Scatta una foto',
   fileTooLarge: 'Questo file supera i 10 MB.',

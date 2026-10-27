@@ -317,7 +317,7 @@ function heroOf(template: DemoTemplate): string | null {
 /** Template texts may carry clone placeholders; show neutral wording instead. */
 const PLACEHOLDERS: Record<DemoLang, Record<string, string>> = {
   en: { company: 'your company', city: 'your city', email: 'your email' },
-  de: { company: 'dein Unternehmen', city: 'deine Stadt', email: 'deine E-Mail' },
+  de: { company: 'deinem Unternehmen', city: 'deiner Stadt', email: 'deine E-Mail' },
   es: { company: 'tu empresa', city: 'tu ciudad', email: 'tu correo electrónico' },
   it: { company: 'la tua azienda', city: 'la tua città', email: 'la tua e-mail' },
   tr: { company: 'şirketin', city: 'şehrin', email: 'e-posta adresin' },

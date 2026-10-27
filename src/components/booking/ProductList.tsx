@@ -189,7 +189,7 @@ export function ProductList({
 
       {/* landr-80ubl.2: one-next-action rule — selecting a card navigates
           straight into the picker, so the list IS the one pending control. */}
-      <NextAction active cue={tr('productListCue')}>
+      <NextAction active cue={tr('productListCue', locale)}>
         <div
           className={
             view === 'grid' ? 'grid gap-4 sm:grid-cols-2' : 'flex flex-col gap-3'
