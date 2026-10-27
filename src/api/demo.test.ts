@@ -227,6 +227,15 @@ describe('demo mode reads', () => {
     expect(settings.name).toBe('Paddle for a living')
   })
 
+  it('scopes the product list to the picked category in demo mode', async () => {
+    const all = await listProducts('demo-kayak')
+    expect(all.length).toBeGreaterThan(0)
+    const tours = await listProducts('demo-kayak', { group: 'tours' })
+    expect(tours.every((p) => p.group_slug === 'tours')).toBe(true)
+    expect(tours.length).toBe(all.filter((p) => p.group_slug === 'tours').length)
+    expect(await listProducts('demo-kayak', { group: 'no-such-group' })).toEqual([])
+  })
+
   it('falls back to the sample offers when the catalogue request fails', async () => {
     catalogueStatus = 500
     resetDemoTemplateCache()
