@@ -77,6 +77,29 @@ describe('App in demo mode', () => {
     }
   })
 
+  it('prefills the sample customer so a viewer just clicks Continue', async () => {
+    render(<App />)
+    fireEvent.click(await screen.findByText('Alpine tandem flight'))
+    fireEvent.click(await screen.findByTestId('product-detail-book-cta'))
+    await waitFor(() => {
+      expect(screen.getAllByRole('gridcell').some((c) => c.querySelector('button:not([disabled])'))).toBe(true)
+    })
+    const day = screen
+      .getAllByRole('gridcell')
+      .map((c) => c.querySelector('button'))
+      .filter((b): b is HTMLButtonElement => !!b && !b.disabled)[0]!
+    fireEvent.click(day)
+    fireEvent.click(await screen.findByRole('button', { name: /continue/i }))
+    await screen.findByText(/your contact details/i)
+    const val = (name: string) => document.querySelector<HTMLInputElement>(`[name="${name}"]`)!.value
+    expect(val('booker_first_name')).toBe('Alex')
+    expect(val('booker_email')).toBe('alex.morgan@example.com')
+    expect(val('booker_phone')).toBe('+4915112345678')
+    expect(val('booker_billing_city')).toBe('Munich')
+    expect(val('booker_billing_country')).toBe('DE')
+    expect(screen.getByRole('button', { name: /continue/i })).toBeEnabled()
+  })
+
   it('walks the whole flow to the congrats screen and never POSTs', async () => {
     render(<App />)
     fireEvent.click(await screen.findByText('Alpine tandem flight'))
@@ -113,6 +136,10 @@ describe('App in demo mode', () => {
     }
     fireEvent.click(await screen.findByRole('button', { name: /confirm booking/i }))
     expect(await screen.findByTestId('demo-congrats')).toBeInTheDocument()
+    // the real confirmation, with the sample booking overview, under the demo-only text
+    expect(await screen.findByTestId('demo-overview')).toHaveTextContent(/Alpine tandem flight/)
+    expect(screen.getByTestId('demo-overview')).toHaveTextContent('Ada')
+    expect(screen.getByTestId('demo-congrats')).toHaveTextContent(/only a demo/i)
     expect(screen.queryByTestId('demo-congrats-cta')).toHaveAttribute('href', expect.stringContaining('template=tandem'))
     for (const [, init] of (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls) {
       expect((init as RequestInit | undefined)?.method ?? 'GET').toBe('GET')

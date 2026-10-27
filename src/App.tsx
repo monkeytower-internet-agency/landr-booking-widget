@@ -3613,7 +3613,12 @@ function BookingFlowApp() {
         ) : null}
 
         {step.name === 'confirmed' && demoSlug() ? (
-          <DemoCongrats slug={demoSlug()!} onRestart={goToProductStep} />
+          <DemoCongrats
+            slug={demoSlug()!}
+            onRestart={goToProductStep}
+            response={step.response}
+            operatorName={operatorSettings.name ?? null}
+          />
         ) : null}
 
         {step.name === 'confirmed' && !demoSlug() ? (
