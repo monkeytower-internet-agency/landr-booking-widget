@@ -7,18 +7,22 @@
  * reads); an unavailable day is shown on the line, never silently dropped,
  * and blocks Confirm until the customer edits or removes it.
  */
-import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react'
+import { useEffect, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react'
 import { getAvailability, getFixedDateWindows, getProductFlow, listProducts } from '@/api/client'
-import type { ProductFlowResponse } from '@/api/flowTypes'
+import type { FormResponseEntry, ProductFlowResponse } from '@/api/flowTypes'
 import type { AvailabilitySlot, FixedDateWindow, Product } from '@/api/types'
 import { Button } from '@/components/ui/button'
 import { pickLocalized } from '@/lib/locale'
 import { fmt, tr } from '@/lib/strings'
 import {
+  bookingLanguageOffer,
   crossSellCandidates,
   crossSellExclusion,
   inheritLine,
+  languagesCover,
+  lineNeeds,
   type CrossSellContext,
+  type InlineModuleState,
   lineIssue,
   preferredWindow,
   seatsForLine,
@@ -26,7 +30,12 @@ import {
   withWindow,
   type ExtraLine,
 } from './crossSell'
+import { CustomFormStep } from './CustomFormStep'
 import { formatDayLabel } from './dateLabel'
+import { LanguageStep } from './LanguageStep'
+import type { ParticipantLanguageMap } from './participantLanguages'
+import { PickupLocationPicker } from './PickupLocationPicker'
+import type { FormPersonSource } from './formScopes'
 import { toHHMM } from './slotKey'
 
 interface Props {
@@ -44,6 +53,25 @@ interface Props {
   locale: string
   /** What the main flow already captured (languages, forms, pickup). */
   context: CrossSellContext
+  /**
+   * The modules an added product needs and the main flow did not cover
+   * (guide language, custom forms, pickup point) are rendered inline on its
+   * line; what the customer answers there lives in the booking form.
+   */
+  modules: InlineModules
+}
+
+export interface InlineModules {
+  state: InlineModuleState
+  /** Raw answers of the inline forms by form key, for re-editing. */
+  formAnswers: Readonly<Record<string, Record<string, unknown>>>
+  /** Participants' display labels (the language board's rows). */
+  participantLabels: string[]
+  participants: readonly FormPersonSource[]
+  companions: readonly FormPersonSource[]
+  onLanguages: (assignment: ParticipantLanguageMap) => void
+  onForm: (entry: FormResponseEntry, raw: Record<string, unknown>) => void
+  onPickup: (locationId: string) => void
 }
 
 function slotFree(s: AvailabilitySlot, need: number): boolean {
@@ -61,12 +89,16 @@ export function AddMoreProducts({
   onLinesChange,
   locale,
   context,
+  modules,
 }: Props) {
   const [catalogue, setCatalogue] = useState<Product[]>([])
   // Each candidate's own flow (custom forms); undefined while loading.
   const [flows, setFlows] = useState<Record<string, ProductFlowResponse | null>>({})
   const [slotsByKey, setSlotsByKey] = useState<Record<string, AvailabilitySlot[]>>({})
   const [windowsByKey, setWindowsByKey] = useState<Record<string, FixedDateWindow[]>>({})
+  // Inline modules the customer re-opened with "Change" (ids: language,
+  // pickup, form:<key>).
+  const [editing, setEditing] = useState<ReadonlySet<string>>(() => new Set())
   const inflight = useRef(new Set<string>())
   const flowsRef = useRef<Record<string, null>>({})
 
@@ -163,13 +195,46 @@ export function AddMoreProducts({
   }, [lines, partySize, mainDays, inviteToken, onLinesChange])
 
   const taken = [...cartProductIds, ...lines.map((l) => l.product.product_id)]
-  // A product whose required modules cannot run here is not offered at all
-  // (crossSellExclusion); one whose flow is still loading waits.
+  // A product shares no guide language with the booking: not offered
+  // (crossSellExclusion); one whose flow is still loading waits. Its own
+  // language / form / pickup modules render inline on its line.
   const candidates = crossSellCandidates(catalogue, taken).filter(
-    (p) =>
-      p.product_id in flows &&
-      crossSellExclusion(p, flows[p.product_id] ?? null, context) === null,
+    (p) => p.product_id in flows && crossSellExclusion(p, context, lines) === null,
   )
+  const needsByLine = lineNeeds(lines, context)
+  const languageOffer = bookingLanguageOffer(context.mainLanguages, lines)
+  const languageDone =
+    languageOffer !== null &&
+    languagesCover(modules.state.languages ?? {}, context.participantCount, languageOffer)
+  const setEditingId = (id: string, on: boolean) =>
+    setEditing((prev) => {
+      const next = new Set(prev)
+      if (on) next.add(id)
+      else next.delete(id)
+      return next
+    })
+  const moduleRow = (
+    id: string,
+    title: string,
+    done: boolean,
+    editor: ReactNode,
+  ) =>
+    done && !editing.has(id) ? (
+      <div
+        key={id}
+        data-testid={`add-more-module-${id}`}
+        className="flex items-center justify-between gap-2 text-sm"
+      >
+        <span>{fmt(tr('addMoreModuleDone', locale), { title })}</span>
+        <Button type="button" variant="ghost" size="sm" onClick={() => setEditingId(id, true)}>
+          {tr('addMoreModuleChange', locale)}
+        </Button>
+      </div>
+    ) : (
+      <div key={id} data-testid={`add-more-module-${id}`}>
+        {editor}
+      </div>
+    )
   if (candidates.length === 0 && lines.length === 0) return null
 
   const update = (key: string, patch: Partial<ExtraLine>) =>
@@ -192,6 +257,7 @@ export function AddMoreProducts({
           slotFree(s, seatsForLine(line, partySize)),
         )
         const windows = windowsByKey[line.key] ?? []
+        const needs = needsByLine[line.key]
         return (
           <div
             key={line.key}
@@ -350,6 +416,70 @@ export function AddMoreProducts({
               ) : null}
             </div>
 
+            {needs && (needs.language || needs.pickup || needs.forms.length > 0) ? (
+              <div className="space-y-3">
+                {needs.language && languageOffer
+                  ? moduleRow(
+                      'language',
+                      tr('guideLanguageTitle', locale),
+                      languageDone,
+                      <LanguageStep
+                        key={`language-${languageOffer.join(',')}`}
+                        embedded
+                        productName={name(line.product)}
+                        participantNames={modules.participantLabels}
+                        offeredLanguages={languageOffer}
+                        initialAssignment={modules.state.languages ?? context.participantLanguages}
+                        onConfirm={(assignment) => {
+                          modules.onLanguages(assignment)
+                          setEditingId('language', false)
+                        }}
+                      />,
+                    )
+                  : null}
+                {needs.pickup
+                  ? moduleRow(
+                      'pickup',
+                      tr('pickupLocationTitle', locale),
+                      modules.state.pickupLocationId !== null,
+                      <PickupLocationPicker
+                        embedded
+                        operatorToken={operatorToken}
+                        productName={name(line.product)}
+                        initialLocationId={modules.state.pickupLocationId}
+                        onConfirm={(id) => {
+                          modules.onPickup(id)
+                          setEditingId('pickup', false)
+                        }}
+                      />,
+                    )
+                  : null}
+                {needs.forms.map((form) =>
+                  moduleRow(
+                    `form:${form.key}`,
+                    pickLocalized(form.name, form.name_localized, 'en') || form.name,
+                    modules.state.formKeys.includes(form.key),
+                    <CustomFormStep
+                      operatorToken={operatorToken}
+                      productId={line.product.product_id}
+                      formKey={form.key}
+                      productName={name(line.product)}
+                      flow={line.flow ?? null}
+                      initialAnswers={modules.formAnswers[form.key]}
+                      participants={modules.participants}
+                      companions={modules.companions}
+                      hideCustomerComment
+                      submitLabel={tr('addMoreModuleSave', locale)}
+                      onConfirm={(entry, raw) => {
+                        modules.onForm(entry, raw)
+                        setEditingId(`form:${form.key}`, false)
+                      }}
+                    />,
+                  ),
+                )}
+              </div>
+            ) : null}
+
             {issue === 'checking' ? (
               <p className="text-sm text-muted-foreground">{tr('addMoreChecking', locale)}</p>
             ) : issue === 'unavailable' ? (
@@ -379,7 +509,10 @@ export function AddMoreProducts({
                 onClick={() =>
                   onLinesChange((prev) => [
                     ...prev,
-                    { ...inheritLine(p, mainDays, `x-${p.product_id}`), checking: true },
+                    {
+                      ...inheritLine(p, mainDays, `x-${p.product_id}`, flows[p.product_id] ?? null),
+                      checking: true,
+                    },
                   ])
                 }
               >

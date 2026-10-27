@@ -21,11 +21,16 @@ import type {
   Product,
   ProductLine,
 } from '@/api/types'
-import type { ProductFlowResponse } from '@/api/flowTypes'
+import type { FlowFormDef, ProductFlowResponse } from '@/api/flowTypes'
 import { isBookable } from './bookability'
 import { isBookableKind, isStayKind } from '@/flowPlan'
 import { hasFixedStartTimes, toHHMM } from './slotKey'
 import { expandWindowDays } from './expandWindowDays'
+import {
+  productDisplayLanguages,
+  pruneLanguageAssignment,
+  singleLanguageAssignment,
+} from './participantLanguages'
 
 /**
  * How an added line picks its dates:
@@ -48,6 +53,8 @@ export interface ExtraLine {
   slot: AvailabilitySlot | null
   /** 'window' mode: the picked course window, null until picked. */
   windowId: string | null
+  /** The product's flow (custom forms), read when the line was added. */
+  flow?: ProductFlowResponse | null
   /** Line multiplier; the line is always priced for the whole party. */
   quantity: number
   /** Days of `days` the availability check found unavailable. */
@@ -92,57 +99,196 @@ export interface CrossSellContext {
   /** Guide language per participant (index 0..participantCount-1), if assigned. */
   participantLanguages: Readonly<Record<number, string>>
   participantCount: number
+  /** Guide languages the MAIN product offers; empty = any language / none. */
+  mainLanguages: readonly string[]
   /** Form keys the main flow already answered. */
   answeredFormKeys: readonly string[]
   /** A pickup point (or a booked hotel acting as one) is already set. */
   hasPickup: boolean
 }
 
-/** Why an added product cannot be offered: a required module of its own the review step cannot run. */
-export type CrossSellExclusion = 'form' | 'language' | 'pickup'
+/**
+ * What the customer answered inline on the review step for the added lines.
+ * Shared across lines: the submit takes ONE language per participant, ONE
+ * pickup point and ONE answer per form key for the whole booking.
+ */
+export interface InlineModuleState {
+  languages: Readonly<Record<number, string>> | null
+  /** Form keys answered inline (their entries live in the booking form). */
+  formKeys: readonly string[]
+  pickupLocationId: string | null
+}
+
+export const EMPTY_INLINE_MODULES: InlineModuleState = {
+  languages: null,
+  formKeys: [],
+  pickupLocationId: null,
+}
+
+/** The guide languages a product restricts to; empty = no restriction (any language, or a stay). */
+export function productOfferedLanguages(product: Product): string[] {
+  if (isStayKind(product.product_kind)) return []
+  // No default fallback: a product without a language list (a tier that
+  // predates guide languages) is not narrowed here, as before.
+  return productDisplayLanguages(product.guide_languages)
+}
+
+/** The languages every restricted set allows at once; null when none restricts. */
+function intersectOffers(sets: ReadonlyArray<readonly string[]>): string[] | null {
+  const restricted = sets.filter((s) => s.length > 0)
+  if (restricted.length === 0) return null
+  return restricted[0]!.filter((code) => restricted.every((s) => s.includes(code)))
+}
 
 /**
- * Each added product runs its REQUIRED flow modules on the review step:
- *  - verification (documents + waiver) is rendered inline, once for the
- *    whole booking, so it never excludes a product;
- *  - a guide-language restriction is satisfied only when every participant's
- *    assigned language is one this product offers (the submit checks the
- *    intersection over every service line);
- *  - a custom form is satisfied only when the main flow answered the same form;
- *  - a pickup is satisfied only when the main flow already set one.
- * Anything else cannot be rendered inline, so the product is left out of the
- * list rather than letting the submit fail.
+ * The language set the whole booking must stay inside once an added line
+ * restricts it (the submit checks the intersection over every service line).
+ * Null when no ADDED line restricts: the main flow's own language handling
+ * then stands untouched.
+ */
+export function bookingLanguageOffer(
+  mainLanguages: readonly string[],
+  lines: readonly ExtraLine[],
+): string[] | null {
+  const added = lines.map((l) => productOfferedLanguages(l.product))
+  if (!added.some((s) => s.length > 0)) return null
+  return intersectOffers([mainLanguages, ...added])
+}
+
+/** Why an added product cannot be offered at all: no language every line could share. */
+export type CrossSellExclusion = 'language'
+
+/**
+ * A language/custom-form/pickup module of an added product is rendered inline
+ * on the review step (see lineNeeds), so the only product left out of the
+ * list is one whose guide languages share nothing with the booking's: no
+ * single language per participant could satisfy both.
  */
 export function crossSellExclusion(
   product: Product,
-  flow: ProductFlowResponse | null,
   ctx: CrossSellContext,
+  lines: readonly ExtraLine[],
 ): CrossSellExclusion | null {
+  const own = productOfferedLanguages(product)
+  if (own.length === 0) return null
+  const sets = [ctx.mainLanguages, ...lines.map((l) => productOfferedLanguages(l.product)), own]
+  const shared = intersectOffers(sets)
+  return shared !== null && shared.length === 0 ? 'language' : null
+}
+
+/**
+ * The language map the submit sends: the main flow's, narrowed to what every
+ * added line allows. One shared language is applied to the whole roster (the
+ * customer has no choice to make); otherwise the inline picks win, and a pick
+ * outside the shared set is dropped so the picker asks again.
+ */
+export function effectiveLanguages(
+  main: Readonly<Record<number, string>>,
+  inline: Readonly<Record<number, string>> | null,
+  offer: readonly string[] | null,
+  rosterCount: number,
+): Record<number, string> {
+  if (offer === null) return { ...main }
+  const only = singleLanguageAssignment(offer, rosterCount)
+  if (only) return only
+  return pruneLanguageAssignment({ ...(inline ?? main) }, offer, rosterCount)
+}
+
+export function languagesCover(
+  map: Readonly<Record<number, string>>,
+  count: number,
+  offer: readonly string[],
+): boolean {
+  for (let i = 0; i < Math.max(1, count); i++) {
+    const code = map[i]
+    if (!code || !offer.includes(code)) return false
+  }
+  return true
+}
+
+/** The modules one added line needs the customer to fill in on this step. */
+export interface LineNeeds {
+  /** Guide-language picker: the main flow's languages do not fit this line. */
+  language: boolean
+  /** Pickup-point picker: the line needs a pickup and the main flow set none. */
+  pickup: boolean
+  /** Custom forms of this line the main flow has not answered. */
+  forms: FlowFormDef[]
+}
+
+/**
+ * Per added line, the modules the review step must collect (verification is
+ * rendered separately, once for the whole booking). A module several lines
+ * share (the language, the pickup, a form key) is owned by the FIRST line that
+ * needs it, so it renders once and satisfies the rest.
+ */
+export function lineNeeds(
+  lines: readonly ExtraLine[],
+  ctx: CrossSellContext,
+): Record<string, LineNeeds> {
+  const out: Record<string, LineNeeds> = {}
+  const offer = bookingLanguageOffer(ctx.mainLanguages, lines)
+  const languageMissing =
+    offer !== null &&
+    offer.length > 1 &&
+    !languagesCover(ctx.participantLanguages, ctx.participantCount, offer)
   const answered = new Set(ctx.answeredFormKeys)
-  const unanswered = (flow?.modules ?? []).some(
-    (m) => m.kind === 'custom_form' && m.form != null && !answered.has(m.form.key),
-  )
-  if (unanswered) return 'form'
-  const offered = product.guide_languages ?? []
-  if (product.product_kind === 'service' && offered.length > 0) {
-    for (let i = 0; i < Math.max(1, ctx.participantCount); i++) {
-      const lang = ctx.participantLanguages[i]
-      if (!lang || !offered.includes(lang)) return 'language'
+  const claimed = new Set<string>()
+  let languageClaimed = false
+  let pickupClaimed = false
+  for (const line of lines) {
+    const needs: LineNeeds = { language: false, pickup: false, forms: [] }
+    if (languageMissing && !languageClaimed && productOfferedLanguages(line.product).length > 0) {
+      needs.language = true
+      languageClaimed = true
     }
+    if (
+      !pickupClaimed &&
+      !ctx.hasPickup &&
+      line.product.needs_pickup &&
+      !line.product.auto_pickup_location_id &&
+      !isStayKind(line.product.product_kind)
+    ) {
+      needs.pickup = true
+      pickupClaimed = true
+    }
+    for (const m of line.flow?.modules ?? []) {
+      if (m.kind !== 'custom_form' || m.form == null) continue
+      const key = m.form.key
+      if (answered.has(key) || claimed.has(key)) continue
+      claimed.add(key)
+      needs.forms.push(m.form)
+    }
+    out[line.key] = needs
   }
-  if (
-    product.needs_pickup &&
-    !product.auto_pickup_location_id &&
-    !isStayKind(product.product_kind) &&
-    !ctx.hasPickup
-  ) {
-    return 'pickup'
-  }
-  return null
+  return out
+}
+
+/** True while an inline module of an added line still waits for the customer. */
+export function inlineModulesPending(
+  lines: readonly ExtraLine[],
+  ctx: CrossSellContext,
+  inline: InlineModuleState,
+): boolean {
+  const needs = lineNeeds(lines, ctx)
+  const offer = bookingLanguageOffer(ctx.mainLanguages, lines)
+  const answered = new Set(inline.formKeys)
+  return Object.values(needs).some(
+    (n) =>
+      (n.language &&
+        !(offer && languagesCover(inline.languages ?? {}, ctx.participantCount, offer))) ||
+      (n.pickup && inline.pickupLocationId === null) ||
+      n.forms.some((f) => !answered.has(f.key)),
+  )
 }
 
 /** A new added line, its dates inherited from the main line's days. */
-export function inheritLine(product: Product, mainDays: readonly string[], key: string): ExtraLine {
+export function inheritLine(
+  product: Product,
+  mainDays: readonly string[],
+  key: string,
+  flow: ProductFlowResponse | null = null,
+): ExtraLine {
   const mode = lineMode(product)
   const sorted = [...new Set(mainDays)].sort()
   const days = mode === 'window' ? [] : mode === 'slot' ? sorted.slice(0, 1) : sorted
@@ -153,6 +299,7 @@ export function inheritLine(product: Product, mainDays: readonly string[], key: 
     days,
     slot: null,
     windowId: null,
+    flow,
     quantity: 1,
     unavailableDays: [],
     checking: false,

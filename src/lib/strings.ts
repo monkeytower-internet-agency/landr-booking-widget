@@ -963,6 +963,9 @@ export type Bundle = {
   addMoreUnavailable: string
   addMoreNoDays: string
   addMoreIncomplete: string
+  addMoreModuleSave: string
+  addMoreModuleDone: string
+  addMoreModuleChange: string
 }
 
 const en: Bundle = {
@@ -1883,6 +1886,9 @@ const en: Bundle = {
   addMoreUnavailable: 'Not available on {dates}. Remove these dates or this product.',
   addMoreNoDays: 'No dates left for this product. Remove it or pick a date.',
   addMoreIncomplete: 'Finish or remove the added products before confirming.',
+  addMoreModuleSave: 'Save',
+  addMoreModuleDone: '{title} saved',
+  addMoreModuleChange: 'Change',
 }
 
 /**

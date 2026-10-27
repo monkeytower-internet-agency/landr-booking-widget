@@ -3,6 +3,12 @@ import type { AvailabilitySlot, EstimateResponse, FixedDateWindow, Product } fro
 import {
   crossSellCandidates,
   crossSellExclusion,
+  effectiveLanguages,
+  EMPTY_INLINE_MODULES,
+  inlineModulesPending,
+  lineNeeds,
+  type CrossSellContext,
+  type ExtraLine,
   extraEstimateRequests,
   extraLinesBlocking,
   extraProductLines,
@@ -209,53 +215,126 @@ describe('mergeEstimates', () => {
   })
 })
 
+const ctx: CrossSellContext = {
+  participantLanguages: { 0: 'de', 1: 'en' },
+  participantCount: 2,
+  mainLanguages: [],
+  answeredFormKeys: ['waiver'],
+  hasPickup: false,
+}
+const formModule = (key: string) => ({
+  kind: 'custom_form',
+  position: 1,
+  form: { key, version: 1, name: key, name_localized: null, fields: [] },
+})
+const lineOf = (p: Product, flow: ExtraLine['flow'] = null) => inheritLine(p, MAIN_DAYS, `x-${p.product_id}`, flow)
+
 describe('crossSellExclusion', () => {
-  const ctx = {
-    participantLanguages: { 0: 'de', 1: 'en' },
-    participantCount: 2,
-    answeredFormKeys: ['waiver'],
-    hasPickup: false,
-  }
-  const form = (key: string) => ({
-    modules: [
-      { kind: 'custom_form', position: 1, form: { key, version: 1, name: key, name_localized: null, fields: [] } },
-    ],
-  })
-
-  it('offers a product with no own required modules', () => {
-    expect(crossSellExclusion(product('a'), null, ctx)).toBeNull()
-  })
-
-  it('needs every participant assigned a language the product offers', () => {
-    expect(crossSellExclusion(product('a', { guide_languages: ['de', 'en'] }), null, ctx)).toBeNull()
-    expect(crossSellExclusion(product('a', { guide_languages: ['de'] }), null, ctx)).toBe('language')
+  it('offers any product that shares a guide language with the booking', () => {
+    expect(crossSellExclusion(product('a'), ctx, [])).toBeNull()
+    expect(crossSellExclusion(product('a', { guide_languages: ['fr'] }), ctx, [])).toBeNull()
     expect(
-      crossSellExclusion(product('a', { guide_languages: ['de'] }), null, {
-        ...ctx,
-        participantLanguages: {},
-      }),
+      crossSellExclusion(product('a', { guide_languages: ['fr'] }), { ...ctx, mainLanguages: ['en', 'de'] }, []),
     ).toBe('language')
-    // A stay has no guide.
-    expect(
-      crossSellExclusion(
-        product('a', { product_kind: 'stay', service_time_shape: null, guide_languages: ['fr'] }),
-        null,
-        ctx,
-      ),
-    ).toBeNull()
   })
 
-  it('needs every custom form already answered by the main flow', () => {
-    expect(crossSellExclusion(product('a'), form('waiver'), ctx)).toBeNull()
-    expect(crossSellExclusion(product('a'), form('medical'), ctx)).toBe('form')
+  it('leaves out a product sharing no language with an already added line', () => {
+    const added = lineOf(product('b', { guide_languages: ['de'] }))
+    expect(crossSellExclusion(product('a', { guide_languages: ['en'] }), ctx, [added])).toBe('language')
+    expect(crossSellExclusion(product('a', { guide_languages: ['en', 'de'] }), ctx, [added])).toBeNull()
   })
 
-  it('needs a pickup unless one is set or auto-selected', () => {
-    const p = product('a', { needs_pickup: true })
-    expect(crossSellExclusion(p, null, ctx)).toBe('pickup')
-    expect(crossSellExclusion(p, null, { ...ctx, hasPickup: true })).toBeNull()
+  it('never restricts a stay, which has no guide', () => {
+    const stay = product('s', { product_kind: 'stay', service_time_shape: null, guide_languages: ['fr'] })
+    expect(crossSellExclusion(stay, { ...ctx, mainLanguages: ['en'] }, [])).toBeNull()
+  })
+})
+
+describe('lineNeeds', () => {
+  it('needs nothing from a product with no own modules', () => {
+    expect(lineNeeds([lineOf(product('a'))], ctx)['x-a']).toEqual({ language: false, pickup: false, forms: [] })
+  })
+
+  it('asks for a language when the assigned ones do not fit the product', () => {
+    const fits = lineOf(product('a', { guide_languages: ['de', 'en'] }))
+    expect(lineNeeds([fits], ctx)['x-a']!.language).toBe(false)
+    const misses = lineOf(product('a', { guide_languages: ['de', 'fr'] }))
+    expect(lineNeeds([misses], ctx)['x-a']!.language).toBe(true)
+    expect(lineNeeds([misses], { ...ctx, participantLanguages: {} })['x-a']!.language).toBe(true)
+  })
+
+  it('does not ask when one shared language settles it', () => {
+    const only = lineOf(product('a', { guide_languages: ['fr'] }))
+    expect(lineNeeds([only], { ...ctx, participantLanguages: {} })['x-a']!.language).toBe(false)
+  })
+
+  it('asks for the forms the main flow has not answered, once per key', () => {
+    const flow = { modules: [formModule('waiver'), formModule('medical')] }
+    const a = lineOf(product('a'), flow)
+    const b = lineOf(product('b'), flow)
+    const needs = lineNeeds([a, b], ctx)
+    expect(needs['x-a']!.forms.map((f) => f.key)).toEqual(['medical'])
+    expect(needs['x-b']!.forms).toEqual([])
+  })
+
+  it('asks for a pickup unless one is set or auto-selected, once for the booking', () => {
+    const a = lineOf(product('a', { needs_pickup: true }))
+    const b = lineOf(product('b', { needs_pickup: true }))
+    const needs = lineNeeds([a, b], ctx)
+    expect(needs['x-a']!.pickup).toBe(true)
+    expect(needs['x-b']!.pickup).toBe(false)
+    expect(lineNeeds([a], { ...ctx, hasPickup: true })['x-a']!.pickup).toBe(false)
+    const auto = lineOf(product('c', { needs_pickup: true, auto_pickup_location_id: 'loc' }))
+    expect(lineNeeds([auto], ctx)['x-c']!.pickup).toBe(false)
+  })
+})
+
+describe('inlineModulesPending', () => {
+  it('clears as the customer answers each inline module', () => {
+    const line = lineOf(
+      product('a', { guide_languages: ['de', 'fr'], needs_pickup: true }),
+      { modules: [formModule('medical')] },
+    )
+    const base = { languages: null, formKeys: [], pickupLocationId: null }
+    expect(inlineModulesPending([line], ctx, base)).toBe(true)
+    const langs = { 0: 'de', 1: 'de' }
+    expect(inlineModulesPending([line], ctx, { ...base, languages: langs })).toBe(true)
     expect(
-      crossSellExclusion(product('a', { needs_pickup: true, auto_pickup_location_id: 'loc' }), null, ctx),
-    ).toBeNull()
+      inlineModulesPending([line], ctx, {
+        languages: langs,
+        formKeys: ['medical'],
+        pickupLocationId: 'loc-1',
+      }),
+    ).toBe(false)
+    // A pick outside the product's languages does not count.
+    expect(
+      inlineModulesPending([line], ctx, {
+        languages: { 0: 'de', 1: 'en' },
+        formKeys: ['medical'],
+        pickupLocationId: 'loc-1',
+      }),
+    ).toBe(true)
+  })
+
+  it('is false when no added line needs anything', () => {
+    expect(inlineModulesPending([lineOf(product('a'))], ctx, EMPTY_INLINE_MODULES)).toBe(false)
+  })
+})
+
+describe('effectiveLanguages', () => {
+  it('leaves the main flow untouched when no added line restricts the languages', () => {
+    expect(effectiveLanguages({ 0: 'de' }, null, null, 2)).toEqual({ 0: 'de' })
+  })
+
+  it('applies a single shared language to the whole party', () => {
+    expect(effectiveLanguages({ 0: 'de' }, null, ['fr'], 3)).toEqual({ 0: 'fr', 1: 'fr', 2: 'fr' })
+  })
+
+  it('prefers the inline picks and drops any outside the shared set', () => {
+    expect(effectiveLanguages({ 0: 'de', 1: 'en' }, { 0: 'fr', 1: 'es' }, ['fr', 'es'], 2)).toEqual({
+      0: 'fr',
+      1: 'es',
+    })
+    expect(effectiveLanguages({ 0: 'de', 1: 'en' }, null, ['en', 'fr'], 2)).toEqual({ 1: 'en' })
   })
 })

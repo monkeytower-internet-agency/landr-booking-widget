@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   HttpError,
   getAvailability,
@@ -43,7 +43,18 @@ import { ContinueAction } from './ContinueAction'
 import { isOwnAccommodation, ownAccommodationWire } from './ownAccommodation'
 import { CustomerCommentField } from './CustomerCommentField'
 import { AddMoreProducts } from './AddMoreProducts'
-import { extraLinesBlocking, extraProductLines, type ExtraLine } from './crossSell'
+import {
+  bookingLanguageOffer,
+  effectiveLanguages,
+  extraLinesBlocking,
+  extraProductLines,
+  inlineModulesPending,
+  lineNeeds,
+  productOfferedLanguages,
+  type CrossSellContext,
+  type ExtraLine,
+  type InlineModuleState,
+} from './crossSell'
 import { UN_PRICEABLE_MESSAGE } from './priceSidebarHelpers'
 import {
   additionalAccommodationHeading,
@@ -58,6 +69,7 @@ import {
   distinctAssignedLanguages,
   languageFlag,
   languageName,
+  type ParticipantLanguageMap,
 } from './participantLanguages'
 import { withFallbackGuestLanguage } from './stayFlow'
 import { isStayKind } from '@/flowPlan'
@@ -114,7 +126,7 @@ import { Label } from '@/components/ui/label'
 import { browserLocale, browserTimezone } from '@/lib/locale'
 import { StepBackButton } from './StepBackButton'
 import { alignFormResponses, parseFormResponseErrors } from './formScopes'
-import type { ProductFlowResponse } from '@/api/flowTypes'
+import type { FormResponseEntry, ProductFlowResponse } from '@/api/flowTypes'
 import { findFlowField, localizeFieldError } from './formErrorText'
 import { Button } from '@/components/ui/button'
 import { useStaffMode, resolveParentTargetOrigin } from '@/lib/staffMode'
@@ -913,7 +925,7 @@ export function BookingForm({
   booker,
   participants,
   companions = [],
-  pickupLocationId,
+  pickupLocationId: mainPickupLocationId,
   accommodationRooms,
   addons,
   customerDeclarations,
@@ -921,14 +933,14 @@ export function BookingForm({
   customerOtherLanguages,
   customerComment,
   onCustomerCommentChange = () => {},
-  participantLanguages = {},
+  participantLanguages: mainParticipantLanguages = {},
   isSharedDouble: isSharedDoubleProp = false,
   roomAssignment,
   occupantAgeMap = {},
   perRoomAddons,
   roomProductNames,
   breakfastMap = {},
-  formResponses,
+  formResponses: mainFormResponses,
   customerCompletesForms,
   productFlow,
   memberPerkOtp,
@@ -967,7 +979,50 @@ export function BookingForm({
   // its single product (staff add lines on the booking afterwards).
   const setExtraLines = staff.active ? undefined : onExtraLinesChange
   const crossSellLines = setExtraLines ? extraLines : []
-  const extrasBlocked = extraLinesBlocking(crossSellLines)
+  // An added product's guide language, custom forms and pickup point run
+  // inline on its line below (AddMoreProducts) when the main flow did not
+  // cover them. What the customer answers there is shared across lines (the
+  // submit takes one language per participant, one pickup, one answer per
+  // form key) and is folded into the submit values right here.
+  const [inlineLanguages, setInlineLanguages] = useState<ParticipantLanguageMap | null>(null)
+  const [inlineForms, setInlineForms] = useState<
+    Record<string, { entry: FormResponseEntry; raw: Record<string, unknown> }>
+  >({})
+  const [inlinePickupId, setInlinePickupId] = useState<string | null>(null)
+  const mainOfferedLanguages = useMemo(() => productOfferedLanguages(product), [product])
+  const crossSellContext: CrossSellContext = {
+    participantLanguages: mainParticipantLanguages,
+    participantCount: participants.length,
+    mainLanguages: mainOfferedLanguages,
+    answeredFormKeys: (mainFormResponses ?? []).map((f) => f.form_key),
+    hasPickup: mainPickupLocationId != null || (accommodationRooms ?? []).length > 0,
+  }
+  const inlineModuleState: InlineModuleState = {
+    languages: inlineLanguages,
+    formKeys: Object.keys(inlineForms),
+    pickupLocationId: inlinePickupId,
+  }
+  const addedNeeds = Object.values(lineNeeds(crossSellLines, crossSellContext))
+  const participantLanguages = effectiveLanguages(
+    mainParticipantLanguages,
+    inlineLanguages,
+    bookingLanguageOffer(mainOfferedLanguages, crossSellLines),
+    participants.length + companions.length,
+  )
+  const pickupLocationId =
+    mainPickupLocationId ?? (addedNeeds.some((n) => n.pickup) ? inlinePickupId : null)
+  // Only the forms a CURRENT line still needs are sent (a removed line's
+  // answers would be an unknown form to the server).
+  const neededInlineFormKeys = new Set(addedNeeds.flatMap((n) => n.forms.map((f) => f.key)))
+  const formResponses = [
+    ...(mainFormResponses ?? []),
+    ...Object.values(inlineForms)
+      .filter((f) => neededInlineFormKeys.has(f.entry.form_key))
+      .map((f) => f.entry),
+  ]
+  const extrasBlocked =
+    extraLinesBlocking(crossSellLines) ||
+    inlineModulesPending(crossSellLines, crossSellContext, inlineModuleState)
   // An added product's verification runs inline here too: one set of
   // documents and one signed waiver covers every line that asks for it.
   const verificationProducts = [product, ...crossSellLines.map((l) => l.product)]
@@ -2181,11 +2236,19 @@ export function BookingForm({
             lines={crossSellLines}
             onLinesChange={setExtraLines}
             locale={locale}
-            context={{
-              participantLanguages,
-              participantCount: participants.length,
-              answeredFormKeys: (formResponses ?? []).map((f) => f.form_key),
-              hasPickup: pickupLocationId != null || (accommodationRooms ?? []).length > 0,
+            context={crossSellContext}
+            modules={{
+              state: inlineModuleState,
+              formAnswers: Object.fromEntries(
+                Object.entries(inlineForms).map(([k, v]) => [k, v.raw]),
+              ),
+              participantLabels: partyMemberLabels.slice(0, participants.length),
+              participants,
+              companions,
+              onLanguages: setInlineLanguages,
+              onForm: (entry, raw) =>
+                setInlineForms((prev) => ({ ...prev, [entry.form_key]: { entry, raw } })),
+              onPickup: setInlinePickupId,
             }}
           />
         ) : null}

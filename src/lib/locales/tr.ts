@@ -915,4 +915,7 @@ export const tr: Bundle = {
   addMoreUnavailable: '{dates} tarihlerinde müsait değil. Bu tarihleri veya bu ürünü kaldır.',
   addMoreNoDays: 'Bu ürün için tarih kalmadı. Kaldır veya bir tarih seç.',
   addMoreIncomplete: 'Onaylamadan önce eklenen ürünleri tamamla veya kaldır.',
+  addMoreModuleSave: 'Kaydet',
+  addMoreModuleDone: '{title} kaydedildi',
+  addMoreModuleChange: 'Değiştir',
 }
