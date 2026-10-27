@@ -12,6 +12,7 @@ export interface VerificationBundle {
   fileHint: string
   chooseFile: string
   replaceFile: string
+  takePhoto: string
   fileTooLarge: string
   fileWrongType: string
   waiverHeading: string
@@ -39,9 +40,10 @@ const en: VerificationBundle = {
     'The organizer checks your licence and insurance before your registration is confirmed.',
   licenceLabel: 'Pilot licence',
   insuranceLabel: 'Insurance proof',
-  fileHint: 'Photo or PDF, up to 10 MB.',
+  fileHint: 'Take a photo, pick one from your library, or a PDF, up to 10 MB.',
   chooseFile: 'Choose file',
   replaceFile: 'Replace file',
+  takePhoto: 'Take photo',
   fileTooLarge: 'This file is larger than 10 MB.',
   fileWrongType: 'Please choose a photo (JPG, PNG, WebP, HEIC) or a PDF.',
   waiverHeading: 'Waiver',
@@ -71,9 +73,10 @@ const de: VerificationBundle = {
     'Der Veranstalter prüft Lizenz und Versicherung, bevor deine Anmeldung bestätigt wird.',
   licenceLabel: 'Pilotenlizenz',
   insuranceLabel: 'Versicherungsnachweis',
-  fileHint: 'Foto oder PDF, bis 10 MB.',
+  fileHint: 'Foto aufnehmen, aus der Galerie wählen oder PDF, bis 10 MB.',
   chooseFile: 'Datei wählen',
   replaceFile: 'Datei ersetzen',
+  takePhoto: 'Foto aufnehmen',
   fileTooLarge: 'Diese Datei ist größer als 10 MB.',
   fileWrongType: 'Bitte wähle ein Foto (JPG, PNG, WebP, HEIC) oder eine PDF-Datei.',
   waiverHeading: 'Haftungsverzicht',
@@ -107,6 +110,7 @@ const it: VerificationBundle = {
   insuranceLabel: 'Prova dell\u2019assicurazione',
   fileHint: 'Foto o PDF, fino a 10 MB.',
   chooseFile: 'Scegli file',
+  takePhoto: 'Scatta una foto',
   replaceFile: 'Sostituisci file',
   fileTooLarge: 'Questo file supera i 10 MB.',
   fileWrongType: 'Scegli una foto (JPG, PNG, WebP, HEIC) o un PDF.',
@@ -143,6 +147,7 @@ const es: VerificationBundle = {
   fileHint: 'Foto o PDF, hasta 10 MB.',
   chooseFile: 'Elegir archivo',
   replaceFile: 'Cambiar archivo',
+  takePhoto: 'Hacer foto',
   fileTooLarge: 'Este archivo pesa más de 10 MB.',
   fileWrongType: 'Elige una foto (JPG, PNG, WebP, HEIC) o un PDF.',
   waiverHeading: 'Exención de responsabilidad',
@@ -178,6 +183,7 @@ const tr: VerificationBundle = {
   fileHint: 'Fotoğraf veya PDF, en fazla 10 MB.',
   chooseFile: 'Dosya seç',
   replaceFile: 'Dosyayı değiştir',
+  takePhoto: 'Fotoğraf çek',
   fileTooLarge: 'Bu dosya 10 MB’tan büyük.',
   fileWrongType: 'Lütfen bir fotoğraf (JPG, PNG, WebP, HEIC) veya PDF seçin.',
   waiverHeading: 'Sorumluluk feragatnamesi',

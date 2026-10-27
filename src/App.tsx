@@ -1,7 +1,16 @@
 import { PausedGate } from '@/components/booking/PausedGate'
 import { DemoBanner, DemoCongrats } from '@/components/booking/DemoMode'
 import { demoSlug, demoToken } from '@/lib/demo'
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type Dispatch,
+  type SetStateAction,
+} from 'react'
 import type { CSSProperties } from 'react'
 import {
   AccommodationStep,
@@ -21,6 +30,7 @@ import { estimateSlotFields, hasFixedStartTimes } from '@/components/booking/slo
 import {
   BookingForm,
   type BookingSelection,
+  type InlineAnswers,
 } from '@/components/booking/BookingForm'
 import { ServiceAddonsStep } from '@/components/booking/ServiceAddonsStep'
 import type { AddonSelection } from '@/components/booking/addonsState'
@@ -68,6 +78,7 @@ import { PassCheckoutStep } from '@/components/booking/PassCheckoutStep'
 import { MultiDayStep } from '@/components/booking/MultiDayStep'
 import { PickupLocationPicker } from '@/components/booking/PickupLocationPicker'
 import PriceSidebar, { type CalculatedTotal } from '@/components/booking/PriceSidebar'
+import type { ExtraLine } from '@/components/booking/crossSell'
 import { ProductList } from '@/components/booking/ProductList'
 import {
   alternativePartyClampedMessage,
@@ -741,6 +752,61 @@ function BookingFlowApp() {
   // landr-h0opd.3: the same estimate's calculated total, for the staff
   // price-override placeholder in BookingForm (same lifting pattern).
   const [estimateTotal, setEstimateTotal] = useState<CalculatedTotal | null>(null)
+  // "Add more to this booking": the products added on the review step. Shared
+  // by BookingForm (submit lines) and PriceSidebar (total). Bound to the main
+  // line it was built on: a different product or different dates start empty,
+  // so an added line never keeps dates inherited from an earlier selection.
+  const crossSellSig =
+    step.name === 'fill-form'
+      ? JSON.stringify([
+          step.product.product_id,
+          step.selection.kind === 'slot'
+            ? [step.selection.slot.date]
+            : step.selection.selectedDays,
+        ])
+      : ''
+  // The inline language/form/pickup answers given on the added lines live
+  // beside them: BookingForm unmounts on Back, and returning must restore both.
+  const [crossSell, setCrossSell] = useState<{
+    sig: string
+    lines: ExtraLine[]
+    inline?: InlineAnswers
+  }>({
+    sig: '',
+    lines: [],
+  })
+  const extraLines = crossSell.sig === crossSellSig ? crossSell.lines : []
+  const inlineAnswers = crossSell.sig === crossSellSig ? crossSell.inline : undefined
+  const setInlineAnswers = useCallback(
+    (inline: InlineAnswers) =>
+      setCrossSell((prev) => {
+        const same = prev.sig === crossSellSig
+        // The first report after a (re)mount repeats what was restored.
+        if (same && prev.inline === inline) return prev
+        // Nothing answered and nothing stored: no state change, no re-render.
+        if (
+          !inline.languages &&
+          !inline.pickupId &&
+          Object.keys(inline.forms).length === 0 &&
+          (same ? !prev.inline : true)
+        )
+          return prev
+        return { sig: crossSellSig, lines: same ? prev.lines : [], inline }
+      }),
+    [crossSellSig, setCrossSell],
+  )
+  const setExtraLines = useCallback<Dispatch<SetStateAction<ExtraLine[]>>>(
+    (update) =>
+      setCrossSell((prev) => {
+        const base = prev.sig === crossSellSig ? prev.lines : []
+        return {
+          sig: crossSellSig,
+          lines: typeof update === 'function' ? update(base) : update,
+          inline: prev.sig === crossSellSig ? prev.inline : undefined,
+        }
+      }),
+    [crossSellSig, setCrossSell],
+  )
   // Staff mode: the operator hands a filled-in form back to the customer —
   // drop its response. Which forms the customer completes is derived at render
   // time (the product's forms minus those with a response), never kept here.
@@ -949,6 +1015,8 @@ function BookingFlowApp() {
     // landr-otml0.2 D8: default true (matches the API column default) so
     // the logo doesn't flash-hide before the settings fetch resolves.
     widget_show_logo: true,
+    widget_cross_sell_enabled: true,
+    widget_cross_sell_product_ids: [],
     primary_color: null,
     // landr-ens5 — 3-colour theme null until the fetch resolves (built-in
     // default theme until then).
@@ -3546,6 +3614,13 @@ function BookingFlowApp() {
             // landr-h0opd.3: the calculated total for the staff override
             // placeholder — see PriceSidebar's onCalculatedTotalChange.
             calculatedTotal={estimateTotal}
+            extraLines={extraLines}
+            onExtraLinesChange={
+              operatorSettings.widget_cross_sell_enabled === false ? undefined : setExtraLines
+            }
+            crossSellProductIds={operatorSettings.widget_cross_sell_product_ids}
+            inlineAnswers={inlineAnswers}
+            onInlineAnswersChange={setInlineAnswers}
             // landr-rmcsu.5: keep the committed dates (like Back does) so the
             // calendar re-opens on them with any short day marked.
             onChangeDates={() =>
@@ -3591,6 +3666,7 @@ function BookingFlowApp() {
               )
             }}
             onConfirmed={(response, email) => {
+              setCrossSell({ sig: '', lines: [] })
               // landr-2mgl: the booking is now placed — drop the persisted
               // snapshot so a reload on the confirmation screen can't replay a
               // completed/stale funnel. The persistence effect also skips the
@@ -3613,7 +3689,12 @@ function BookingFlowApp() {
         ) : null}
 
         {step.name === 'confirmed' && demoSlug() ? (
-          <DemoCongrats slug={demoSlug()!} onRestart={goToProductStep} />
+          <DemoCongrats
+            slug={demoSlug()!}
+            onRestart={goToProductStep}
+            response={step.response}
+            operatorName={operatorSettings.name ?? null}
+          />
         ) : null}
 
         {step.name === 'confirmed' && !demoSlug() ? (
@@ -3704,6 +3785,7 @@ function BookingFlowApp() {
             // its Confirm CTA on it — see the prop's doc on PriceSidebar.
             onUnPriceableChange={setEstimateUnPriceable}
             onCalculatedTotalChange={setEstimateTotal}
+            extraLines={step.name === 'fill-form' ? extraLines : undefined}
           />
         ) : null}
         </div>

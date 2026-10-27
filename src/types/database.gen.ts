@@ -9644,6 +9644,8 @@ export type Database = {
           widget_catalog_layout: string | null
           widget_category_columns: number | null
           widget_description: string | null
+          widget_cross_sell_enabled: boolean
+          widget_cross_sell_product_ids: string[]
           widget_description_first_page_only: boolean
           widget_footer: string | null
           widget_footer_first_page_only: boolean
@@ -9742,6 +9744,8 @@ export type Database = {
           widget_category_columns?: number | null
           widget_description?: string | null
           widget_description_first_page_only?: boolean
+          widget_cross_sell_enabled?: boolean
+          widget_cross_sell_product_ids?: string[]
           widget_footer?: string | null
           widget_footer_first_page_only?: boolean
           widget_headline?: string | null
@@ -9840,6 +9844,8 @@ export type Database = {
           widget_description?: string | null
           widget_description_first_page_only?: boolean
           widget_footer?: string | null
+          widget_cross_sell_enabled?: boolean
+          widget_cross_sell_product_ids?: string[]
           widget_footer_first_page_only?: boolean
           widget_headline?: string | null
           widget_headline_first_page_only?: boolean
@@ -21022,6 +21028,8 @@ export type Database = {
           widget_description_first_page_only: boolean
           widget_footer: string
           widget_footer_first_page_only: boolean
+          widget_cross_sell_enabled: boolean
+          widget_cross_sell_product_ids: string[]
           widget_headline: string
           widget_headline_first_page_only: boolean
           widget_show_logo: boolean

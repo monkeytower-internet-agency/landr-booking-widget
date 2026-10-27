@@ -77,7 +77,13 @@ export interface LanguageStepProps {
    */
   customerComment?: string
   onCustomerCommentChange?: (comment: string) => void
-  onBack: () => void
+  /** Absent -> no back button (the step is embedded in another screen). */
+  onBack?: () => void
+  /**
+   * Embedded in the review step for an added product (cross-sell): no back
+   * button, no comment field, no help text, and a "Save" button.
+   */
+  embedded?: boolean
   onConfirm: (assignment: ParticipantLanguageMap) => void
 }
 
@@ -114,6 +120,7 @@ export function LanguageStep({
   customerComment = '',
   onCustomerCommentChange = () => {},
   onBack,
+  embedded = false,
   onConfirm,
 }: LanguageStepProps) {
   const partyCount = participantNames.length
@@ -185,7 +192,7 @@ export function LanguageStep({
 
   return (
     <Card>
-      <StepBackButton onBack={onBack} />
+      {onBack ? <StepBackButton onBack={onBack} /> : null}
       <CardHeader>
         <CardTitle>{tr('guideLanguageTitle', locale)}</CardTitle>
         <CardDescription>{productName}</CardDescription>
@@ -200,10 +207,12 @@ export function LanguageStep({
             the disclosure; the NextAction cue is the one-line instruction.
             "Assign with dropdowns instead" stays where it was (inside the
             board, already collapsed): it is the a11y fallback, not help copy. */}
-        <HelpDisclosure data-testid="language-step-help">
-          <p>{tr('languageStepWhy', locale)}</p>
-          <p>{tr('languageStepHowTo', locale)}</p>
-        </HelpDisclosure>
+        {embedded ? null : (
+          <HelpDisclosure data-testid="language-step-help">
+            <p>{tr('languageStepWhy', locale)}</p>
+            <p>{tr('languageStepHowTo', locale)}</p>
+          </HelpDisclosure>
+        )}
 
         <ParticipantLanguageBoard
           offeredLanguages={offeredLanguages}
@@ -220,11 +229,13 @@ export function LanguageStep({
 
         {/* landr-n6ii3: same field DetailsStep collects, editable here too —
             last field before Continue. */}
-        <CustomerCommentField
-          value={customerComment}
-          onChange={onCustomerCommentChange}
-          collapsible
-        />
+        {embedded ? null : (
+          <CustomerCommentField
+            value={customerComment}
+            onChange={onCustomerCommentChange}
+            collapsible
+          />
+        )}
 
         {/* The gate is a role="status" live region the disabled Continue
             points at (aria-describedby) — a disabled button with a silent
@@ -237,6 +248,7 @@ export function LanguageStep({
           reasonId={gateId}
           reasonTestId="language-step-gate"
           reasonClassName={!complete && started ? 'text-destructive' : undefined}
+          {...(embedded ? { label: tr('addMoreModuleSave', locale) } : {})}
           onContinue={() => onConfirm(assignment)}
           data-testid="language-step-submit"
         />

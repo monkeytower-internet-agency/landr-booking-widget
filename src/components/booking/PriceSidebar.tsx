@@ -58,6 +58,8 @@ import { DayChips } from './DayChips'
 import { PerformerPaySections } from './PerformerPaySections'
 import { PriceBreakdown } from './PriceBreakdown'
 import { useBookingEstimate } from './useBookingEstimate'
+import { extraEstimateRequests, mergeEstimates, type ExtraLine } from './crossSell'
+import { useExtraLineEstimates } from './useExtraLineEstimates'
 import {
   buildAddonLines,
   buildDiscountExplanation,
@@ -115,6 +117,12 @@ interface Props {
    * can show the calculated total as its placeholder.
    */
   onCalculatedTotalChange?: (total: CalculatedTotal | null) => void
+  /**
+   * Products added on the review step ("Add more to this booking"). Each is
+   * priced by its own estimate and folded into this panel's breakdown and
+   * total, so every figure here covers ALL lines of the booking.
+   */
+  extraLines?: ExtraLine[]
 }
 
 /** landr-h0opd.3: the estimate's calculated total, lifted out of PriceSidebar. */
@@ -541,6 +549,7 @@ export default function PriceSidebar(props: Props) {
     debounceMs,
     onUnPriceableChange,
     onCalculatedTotalChange,
+    extraLines,
   } = props
 
   const addonLines = useMemo(
@@ -587,8 +596,25 @@ export default function PriceSidebar(props: Props) {
   // What the UI is allowed to show: identical to `estimate` while a
   // selection exists; collapses to the no-data empty state ("Pick your
   // options to see the price.") when nothing is selected.
+  const extraRequests = useMemo(
+    () => extraEstimateRequests(extraLines ?? [], participantCount, browserLocale()),
+    [extraLines, participantCount],
+  )
+  const extras = useExtraLineEstimates(operatorToken, extraRequests)
+  // The main estimate with every added line folded in. While an added line's
+  // estimate is in flight the panel marks the main figure stale; a failed one
+  // shows the error state — never a total that silently misses a line.
+  const combined: typeof estimate =
+    extraRequests.length === 0 || !estimate.data
+      ? estimate
+      : extras.data
+        ? { ...estimate, data: mergeEstimates(estimate.data, extras.data) }
+        : extras.error
+          ? { ...estimate, data: null, isStale: false, error: extras.error }
+          : { ...estimate, isStale: true }
+
   const visible: typeof estimate = hasSelection
-    ? estimate
+    ? combined
     : {
         data: null,
         isLoading: false,

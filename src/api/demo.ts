@@ -13,8 +13,11 @@
  */
 import { checkStayRange, stayWindowOf } from '@/components/booking/accommodationCalc'
 import { DEMO_LANGS, demoLang, demoSlug, type DemoLang } from '@/lib/demo'
+import { formatDayRange } from '@/components/booking/dateLabel'
 import { pickLocalized } from '@/lib/locale'
 import type {
+  AddonPriceUnit,
+  AddonQuantityRule,
   AvailabilitySlot,
   EstimateRequestBody,
   EventWindow,
@@ -25,9 +28,15 @@ import type {
   PassTiersResponse,
   PassValidityKind,
   Product,
+  ProductAddon,
+  ProductAlternative,
+  SavingLine,
+  SurchargeLine,
   ServiceRole,
   ProductGroup,
   ServiceTimeShape,
+  BookingSummary,
+  SubmitBookingBody,
   SubmitBookingResponse,
 } from './types'
 
@@ -48,12 +57,61 @@ export interface DemoCatalogueTier {
   member_price_cents?: number | null
 }
 
+/** One rule of a catalogue product's `pricing.rules` (the price-list rules, slug-free). */
+export interface DemoPricingRule {
+  rule_kind: string
+  sort_order?: number | null
+  params?: Record<string, unknown> | null
+  conditions?: unknown
+  tiers?: unknown[] | null
+}
+
+export interface DemoCataloguePricing {
+  currency?: string | null
+  rules: DemoPricingRule[]
+}
+
+/** An add-on of a catalogue product (slug-keyed; becomes a `ProductAddon`). */
+export interface DemoCatalogueAddon {
+  slug: string
+  name: string
+  name_localized?: Record<string, string> | null
+  description?: string | null
+  description_localized?: Record<string, string> | null
+  /** performer = the pilot keeps 100 percent. */
+  paid_to?: 'operator' | 'hotel' | 'performer' | null
+  price_unit?: AddonPriceUnit | null
+  addon_quantity_rule?: AddonQuantityRule | null
+  addon_quantity_max?: number | null
+  price_per_unit?: number | string | null
+  currency?: string | null
+  pricing?: DemoCataloguePricing | null
+  is_required?: boolean
+  min_qty?: number
+  max_qty?: number | null
+  sort_order?: number
+}
+
+/** A linked alternative of a catalogue product (the target's slug). */
+export interface DemoCatalogueAlternative {
+  slug: string
+  sort_order?: number
+}
+
 /** A product of `GET /api/public/templates/{slug}/catalogue` (slug-keyed, no ids). */
 export type DemoCatalogueProduct = Omit<
   Product,
   | 'product_id' | 'product_group_id' | 'fixed_start_date' | 'fixed_end_date'
   | 'sport_subcategory_codes' | 'location_ids' | 'hotel_location_id'
-> & { price_per_unit: number | string | null; pass_tiers?: DemoCatalogueTier[] | null }
+> & {
+  price_per_unit: number | string | null
+  pass_tiers?: DemoCatalogueTier[] | null
+  /** ISO weekdays (1 = Monday .. 7 = Sunday) the fixed daily start times run on; null = every day. */
+  daily_start_weekdays?: number[] | null
+  pricing?: DemoCataloguePricing | null
+  addons?: DemoCatalogueAddon[] | null
+  alternatives?: DemoCatalogueAlternative[] | null
+}
 
 export type DemoCatalogueGroup = Omit<ProductGroup, 'id' | 'parent_id'> & { parent_slug: string | null }
 
@@ -288,7 +346,7 @@ export function demoArt(templateSlug: string, productSlug: string, name: string)
 /** Template texts may carry clone placeholders; show neutral wording instead. */
 const PLACEHOLDERS: Record<DemoLang, Record<string, string>> = {
   en: { company: 'your company', city: 'your city', email: 'your email' },
-  de: { company: 'dein Unternehmen', city: 'deine Stadt', email: 'deine E-Mail' },
+  de: { company: 'deinem Unternehmen', city: 'deiner Stadt', email: 'deine E-Mail' },
   es: { company: 'tu empresa', city: 'tu ciudad', email: 'tu correo electrónico' },
   it: { company: 'la tua azienda', city: 'la tua città', email: 'la tua e-mail' },
   tr: { company: 'şirketin', city: 'şehrin', email: 'e-posta adresin' },
@@ -354,6 +412,10 @@ const catalogueProducts = (template: DemoTemplate, cat: DemoCatalogue): Product[
     // The tiers are served by the pass-tiers read, not carried on the product.
     const rest: Partial<DemoCatalogueProduct> = { ...c }
     delete rest.pass_tiers
+    // Rules, add-ons and alternatives are served by their own reads / the estimate.
+    delete rest.pricing
+    delete rest.addons
+    delete rest.alternatives
     return {
       ...rest,
       product_id: productId(template.slug, c.slug),
@@ -362,6 +424,7 @@ const catalogueProducts = (template: DemoTemplate, cat: DemoCatalogue): Product[
       short_description: c.short_description == null ? null : fill(c.short_description, 'en'),
       short_description_localized: fillMap(c.short_description_localized),
       description: c.description == null ? null : fill(c.description, 'en'),
+      description_localized: fillMap(c.description_localized),
       product_group_id: c.group_slug ? groupId(template.slug, c.group_slug) : null,
       fixed_start_date: null,
       fixed_end_date: null,
@@ -416,9 +479,32 @@ const iso = (d: Date): string => d.toISOString().slice(0, 10)
 const DAY_MS = 86_400_000
 const DEMO_START_TIMES = ['09:00', '14:00']
 
+const hhmm = (t: string | null | undefined): string | null => {
+  const m = /^(\d{1,2}):(\d{2})/.exec((t ?? '').trim())
+  return m ? `${m[1]!.padStart(2, '0')}:${m[2]}` : null
+}
+
+/** ISO weekday (1 = Monday .. 7 = Sunday) of a YYYY-MM-DD day. */
+const isoWeekday = (day: string): number => new Date(`${day}T00:00:00Z`).getUTCDay() || 7
+
+/** The slot rhythm of a product: its template start times and the weekdays they run on. */
+export interface DemoSlotPlan {
+  startTimes: string[] | null
+  weekdays: number[] | null
+}
+
+function slotPlanOf(template: DemoTemplate, product: Product | undefined): DemoSlotPlan {
+  const cat = template.catalogue?.products.find((c) => c.slug === product?.slug)
+  const times = (cat?.daily_start_times ?? product?.daily_start_times ?? []).map(hhmm).filter((t): t is string => !!t)
+  const days = (cat?.daily_start_weekdays ?? []).filter((w) => w >= 1 && w <= 7)
+  return { startTimes: times.length ? [...times].sort() : null, weekdays: days.length ? days : null }
+}
+
 /**
  * Every day in [from, to] (clamped to a year) is open — nothing is ever sold out —
- * except, for an event product, the days outside its next occurrences.
+ * except, for an event product, the days outside its next occurrences. A product
+ * with template start times offers exactly those (on its weekdays); a bare
+ * `time_slot` product falls back to two sample times.
  */
 export function demoAvailability(
   id: string,
@@ -426,16 +512,18 @@ export function demoAvailability(
   to: string,
   shape: ServiceTimeShape | null,
   eventWindow?: EventWindow | null,
+  plan?: DemoSlotPlan | null,
 ): AvailabilitySlot[] {
   const start = Date.parse(`${from}T00:00:00Z`)
   const end = Math.min(Date.parse(`${to}T00:00:00Z`), start + 366 * DAY_MS)
-  const timed = shape === 'time_slot'
+  const times = plan?.startTimes ?? (shape === 'time_slot' ? DEMO_START_TIMES : null)
   const out: AvailabilitySlot[] = []
   for (let t = start; t <= end; t += DAY_MS) {
     const date = iso(new Date(t))
     // an event product is open only on its next occurrences.
     if (eventWindow && !eventWindow.occurrences.some((o) => date >= o.start_date && date <= o.end_date)) continue
-    for (const st of timed ? DEMO_START_TIMES : [null]) {
+    if (plan?.weekdays && !plan.weekdays.includes(isoWeekday(date))) continue
+    for (const st of times ?? [null]) {
       out.push({
         availability_id: `${id}-${date}-${st ?? 'day'}`,
         date,
@@ -499,16 +587,134 @@ const demoRoles = (): ServiceRole[] => [
   },
 ]
 
+// ------------------------------------------------------- price rules (demo)
+
+/**
+ * Mirror of landr-api `app/services/pricing.py`, section "Time-slot and
+ * weekday adjustments": `slot_time_adjustment` (the slot's start time falls in
+ * time_from..time_to inclusive, equal = one exact time, to < from wraps past
+ * midnight, optional `weekdays`) and `weekday_adjustment` (the travel day's ISO
+ * weekday is listed). A rule applies once per matching travel day; a flat
+ * adjustment adds `adjustment x matching days`, a percent one
+ * `running x adjustment% x matching / all days`. Other rule kinds are not
+ * evaluated here: the base is the catalogue's base price.
+ */
+export interface DemoAdjustment {
+  kind: 'slot_time_adjustment' | 'weekday_adjustment'
+  label: string
+  /** Signed amount added to the price of ONE unit (before the party size). */
+  amount: number
+}
+
+const toMinutes = (t: string | null): number | null => {
+  const h = hhmm(t)
+  return h ? Number(h.slice(0, 2)) * 60 + Number(h.slice(3)) : null
+}
+
+const weekdaySet = (raw: unknown): Set<number> =>
+  new Set((Array.isArray(raw) ? raw : []).map(Number).filter((w) => Number.isInteger(w) && w >= 1 && w <= 7))
+
+const inWindow = (t: number, from: number, to: number): boolean =>
+  from <= to ? t >= from && t <= to : t >= from || t <= to
+
+const adjustmentRules = (rules: DemoPricingRule[] | null | undefined): DemoPricingRule[] =>
+  (rules ?? [])
+    .filter((r) => r.rule_kind === 'slot_time_adjustment' || r.rule_kind === 'weekday_adjustment')
+    .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+
+/** Days an adjustment is evaluated on: a fixed_window booking is one unit dated by its start day. */
+const travelUnits = (days: string[], shape: ServiceTimeShape | null): string[] =>
+  shape === 'fixed_window' ? days.slice(0, 1) : days
+
+function adjustmentLabel(params: Record<string, unknown>, amount: number, lang: DemoLang): string {
+  const name = typeof params.name === 'string' ? params.name : null
+  const loc = params.name_localized && typeof params.name_localized === 'object'
+    ? (params.name_localized as Record<string, string>) : null
+  if (name || loc) return pickLocalized(name, loc, lang)
+  if (amount < 0) return lang === 'de' ? 'Rabatt' : 'Discount'
+  return lang === 'de' ? 'Zuschlag' : 'Surcharge'
+}
+
+/**
+ * Evaluate a product's slot-time and weekday rules for the travel `days` and the
+ * booked slot start (null = unknown: slot rules then match nothing, as the API).
+ * `base` is the price of one unit across all days (percent rules scale with it).
+ */
+export function demoAdjustments(
+  rules: DemoPricingRule[] | null | undefined,
+  days: string[],
+  slotStart: string | null,
+  shape: ServiceTimeShape | null,
+  base: number,
+  lang: DemoLang = demoLang(),
+): DemoAdjustment[] {
+  const units = travelUnits(days, shape)
+  const start = toMinutes(slotStart)
+  const out: DemoAdjustment[] = []
+  let running = base
+  for (const rule of adjustmentRules(rules)) {
+    const params = rule.params ?? {}
+    const adj = Number(params.adjustment ?? 0) || 0
+    let matched: string[]
+    if (rule.rule_kind === 'weekday_adjustment') {
+      const wd = weekdaySet(params.weekdays)
+      matched = units.filter((d) => wd.has(isoWeekday(d)))
+    } else {
+      const from = toMinutes(String(params.time_from ?? ''))
+      const rawTo = params.time_to
+      const to = rawTo == null || rawTo === '' ? from : toMinutes(String(rawTo))
+      if (from === null || to === null || start === null || !inWindow(start, from, to)) continue
+      const only = params.weekdays ? weekdaySet(params.weekdays) : new Set<number>()
+      matched = units.filter((d) => only.size === 0 || only.has(isoWeekday(d)))
+    }
+    if (matched.length === 0 || units.length === 0) continue
+    const amount = params.adjustment_type === 'percent'
+      ? (running * adj / 100 * matched.length) / units.length
+      : adj * matched.length
+    const rounded = Math.round(amount * 100) / 100
+    running += rounded
+    out.push({ kind: rule.rule_kind as DemoAdjustment['kind'], label: adjustmentLabel(params, rounded, lang), amount: rounded })
+  }
+  return out
+}
+
+/** The booked slot start: the explicit one, else the picked demo slot id, else the one fixed daily time. */
+function slotStartOf(body: EstimateRequestBody, plan: DemoSlotPlan): string | null {
+  const explicit = hhmm(body.slot_start_time)
+  if (explicit) return explicit
+  const picked = /-\d{4}-\d{2}-\d{2}-(\d{2}:\d{2})$/.exec(body.product_availability_id ?? '')
+  if (picked) return picked[1]!
+  return plan.startTimes?.length === 1 ? plan.startTimes[0]! : null
+}
+
+const addonUnits = (unit: AddonPriceUnit | null | undefined, nights: number, guests: number): number =>
+  unit === 'night' ? nights : unit === 'guest' ? guests : unit === 'guest_night' ? nights * guests : 1
+
+const addonId = (slug: string, key: string): string => `demo-${slug}-addon-${key}`
+
+function findAddon(template: DemoTemplate, id: string): DemoCatalogueAddon | null {
+  for (const p of template.catalogue?.products ?? []) {
+    const hit = (p.addons ?? []).find((a) => addonId(template.slug, a.slug) === id)
+    if (hit) return hit
+  }
+  return null
+}
+
+const money = (n: number): string => (Math.round(n * 100) / 100).toFixed(2)
+
 export function demoEstimate(
   template: DemoTemplate,
   id: string,
   body: EstimateRequestBody,
 ): EstimateResponse {
+  const lang = demoLang()
   const hit = findOffer(template, id)
   const days = Math.max(1, body.selected_days.length)
   const qty = Math.max(1, body.participants_count)
   const lines: EstimateResponse['line_items'] = []
-  let total = 0
+  const totals = { operator: 0, hotel: 0, performer: 0 }
+  const surcharges: SurchargeLine[] = []
+  const savings: SavingLine[] = []
   let stay: EstimateResponse['stay'] = null
   if (hit?.product.product_kind === 'stay') {
     // A stay sells one unit for the night list: nights x nightly rate, plus the
@@ -517,10 +723,10 @@ export function demoEstimate(
     const config = hit.product.stay ?? null
     const fee = (config?.cleaning_fee_cents ?? 0) / 100
     const lineTotal = hit.price * nights.length + fee
-    total = lineTotal
+    totals.operator += lineTotal
     lines.push({
       product_id: id,
-      label: pickLocalized(hit.product.name, hit.product.name_localized, demoLang()),
+      label: pickLocalized(hit.product.name, hit.product.name_localized, lang),
       qty: 1,
       units: nights.length,
       unit_price: hit.price.toFixed(2),
@@ -547,31 +753,145 @@ export function demoEstimate(
         : [{ code: 'invalid_range' }],
     }
   } else if (hit) {
-    const units = hit.product.service_time_shape === 'days_range' ? days : 1
-    const lineTotal = hit.price * units * qty
-    total = lineTotal
+    const shape = hit.product.service_time_shape ?? null
+    const units = shape === 'days_range' ? days : 1
+    const cat = template.catalogue?.products.find((c) => c.slug === hit.product.slug)
+    const rules = adjustmentRules(cat?.pricing?.rules)
+    // With rules the base is the list price; the cheapest "price from" already contains the discounts.
+    const unitBase = rules.length ? Number(hit.product.price_per_unit ?? hit.price) || hit.price : hit.price
+    const plan = slotPlanOf(template, hit.product)
+    const adjustments = demoAdjustments(
+      cat?.pricing?.rules, [...new Set(body.selected_days)].sort(), slotStartOf(body, plan), shape, unitBase * units, lang,
+    )
+    const adjusted = unitBase * units + adjustments.reduce((n, a) => n + a.amount, 0)
+    const lineTotal = adjusted * qty
+    totals.operator += lineTotal
     lines.push({
       product_id: id,
-      label: pickLocalized(hit.product.name, hit.product.name_localized, demoLang()),
+      label: pickLocalized(hit.product.name, hit.product.name_localized, lang),
       qty,
       units,
-      unit_price: hit.price.toFixed(2),
-      line_total: lineTotal.toFixed(2),
+      unit_price: money(adjusted / units),
+      line_total: money(lineTotal),
       paid_to: 'operator',
     })
+    for (const a of adjustments) {
+      const amount = money(Math.abs(a.amount) * qty)
+      if (a.amount > 0) surcharges.push({ kind: 'surcharge', label: a.label, amount })
+      else if (a.amount < 0) savings.push({ kind: 'discount', label: a.label, amount })
+    }
   }
+  // Add-ons: their catalogue price x units x quantity, paid to whoever the add-on says.
+  const nights = Math.max(1, new Set(body.selected_days).size)
+  for (const line of body.addon_lines ?? []) {
+    const addon = findAddon(template, line.product_id)
+    if (!addon || line.qty <= 0) continue
+    const each = Number(addon.price_per_unit ?? 0) || 0
+    const mult = addonUnits(addon.price_unit, nights, qty)
+    const total = each * mult * line.qty
+    const paidTo = addon.paid_to ?? 'operator'
+    totals[paidTo] += total
+    lines.push({
+      product_id: line.product_id,
+      label: pickLocalized(addon.name, addon.name_localized, lang),
+      qty: line.qty,
+      units: mult,
+      unit_price: money(each),
+      line_total: money(total),
+      paid_to: paidTo,
+    })
+  }
+  const grand = totals.operator + totals.hotel + totals.performer
+  const surchargeTotal = surcharges.reduce((n, s) => n + Number(s.amount), 0)
+  const savingTotal = savings.reduce((n, s) => n + Number(s.amount), 0)
+  const itemised = surcharges.length + savings.length > 0
   return {
     line_items: lines,
-    operator_total: total.toFixed(2),
-    hotel_total: '0.00',
-    performer_total: '0.00',
-    grand_total: total.toFixed(2),
+    operator_total: money(totals.operator),
+    hotel_total: money(totals.hotel),
+    performer_total: money(totals.performer),
+    grand_total: money(grand),
     currency: 'EUR',
-    applied_rules: [],
+    applied_rules: [...surcharges, ...savings].map((r) => ({ kind: r.kind, detail: { label: r.label, amount: r.amount } })),
     warnings: [],
     un_priceable: false,
+    ...(itemised
+      ? {
+          surcharges,
+          surcharges_total: money(surchargeTotal),
+          subtotal_before_surcharges: money(totals.operator - surchargeTotal + savingTotal),
+          savings,
+          savings_total: money(savingTotal),
+          subtotal_before_savings: money(totals.operator + savingTotal),
+          amount_due: money(totals.operator),
+        }
+      : {}),
     ...(stay ? { stay } : {}),
   }
+}
+
+// ------------------------------------------------------ add-ons, alternatives
+
+/** The add-ons of an offer, from its catalogue entry (empty for the sample fallback). */
+export function demoAddons(template: DemoTemplate, id: string): ProductAddon[] {
+  const hit = findOffer(template, id)
+  const cat = template.catalogue?.products.find((c) => c.slug === hit?.product.slug)
+  return [...(cat?.addons ?? [])]
+    .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+    .map((a, i): ProductAddon => ({
+      product_addon_id: `demo-${template.slug}-pa-${hit!.product.slug}-${a.slug}`,
+      addon_product_id: addonId(template.slug, a.slug),
+      name: fill(a.name, 'en'),
+      name_localized: fillMap(a.name_localized),
+      is_required: !!a.is_required,
+      min_qty: a.min_qty ?? 0,
+      max_qty: a.max_qty ?? null,
+      sort_order: a.sort_order ?? i,
+      price_per_unit: a.price_per_unit == null ? null : Number(a.price_per_unit),
+      currency: a.currency ?? 'EUR',
+      product_kind: 'service',
+      addon_quantity_rule: a.addon_quantity_rule ?? null,
+      addon_quantity_max: a.addon_quantity_max ?? null,
+      price_unit: a.price_unit ?? null,
+      available: true,
+    }))
+}
+
+/** Linked alternatives of an offer with their open days / course windows inside [from, to]. */
+export function demoAlternatives(template: DemoTemplate, id: string, from: string, to: string): ProductAlternative[] {
+  const hit = findOffer(template, id)
+  const cat = template.catalogue?.products.find((c) => c.slug === hit?.product.slug)
+  const all = demoProducts(template)
+  const out: ProductAlternative[] = []
+  for (const alt of [...(cat?.alternatives ?? [])].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))) {
+    const target = all.find((p) => p.slug === alt.slug)
+    if (!target) continue
+    const shape = target.service_time_shape ?? 'single_date'
+    const isWindow = shape === 'fixed_window'
+    const dates = isWindow
+      ? null
+      : [...new Set(
+          demoAvailability(target.product_id, from, to, shape, target.event_window, slotPlanOf(template, target)).map((s) => s.date),
+        )]
+    const windows = isWindow
+      ? demoFixedWindows()
+          .filter((w) => w.start_date >= from && w.start_date <= to)
+          .map((w) => ({ id: w.id, start_date: w.start_date, end_date: w.end_date, available_seats: w.capacity - w.capacity_reserved }))
+      : null
+    out.push({
+      product_id: target.product_id,
+      slug: target.slug,
+      name: target.name,
+      name_localized: target.name_localized,
+      service_time_shape: shape,
+      thumb_url: target.thumb_url ?? null,
+      price_from: target.price_from ?? null,
+      currency: target.currency ?? 'EUR',
+      available_dates: dates,
+      windows,
+    })
+  }
+  return out
 }
 
 // ------------------------------------------------------------------- passes
@@ -608,8 +928,63 @@ export function demoPassTiers(template: DemoTemplate, id: string, isMember: bool
 /** What the checkout "submit" resolves with in demo mode. The App swaps in the congrats screen. */
 export const DEMO_BOOKING_ID = 'demo-booking'
 
-export function demoSubmitResponse(): SubmitBookingResponse {
-  return { booking_id: DEMO_BOOKING_ID, semantic_state: 'demo', stage_code: 'demo' } as SubmitBookingResponse
+/**
+ * The submit answer: a full sample booking summary built from what the viewer
+ * "booked", priced by the same local estimate the sidebar used. Nothing is stored.
+ */
+export function demoSubmitResponse(template?: DemoTemplate, body?: SubmitBookingBody): SubmitBookingResponse {
+  const base = { booking_id: DEMO_BOOKING_ID, semantic_state: 'demo', stage_code: 'demo' }
+  const main = body?.products?.[0]
+  const hit = template && main ? findOffer(template, main.product_id) : null
+  if (!template || !body || !main || !hit) return base as SubmitBookingResponse
+  const lang = demoLang()
+  const days = [...new Set(main.selected_days ?? [])].sort()
+  const count = Math.max(1, body.participants?.length ?? 1)
+  const addonLines = (body.products ?? [])
+    .slice(1)
+    .filter((l) => findAddon(template, l.product_id))
+    .map((l) => ({ product_id: l.product_id, qty: l.quantity ?? 1 }))
+  const est = demoEstimate(template, main.product_id, {
+    selected_days: days,
+    participants_count: count,
+    addon_lines: addonLines,
+    product_availability_id: main.product_availability_id ?? undefined,
+    slot_start_time: main.slot_start_time ?? undefined,
+  })
+  const label = pickLocalized(hit.product.name, hit.product.name_localized, lang)
+  const slot = hhmm(main.slot_start_time) ?? /-\d{4}-\d{2}-\d{2}-(\d{2}:\d{2})$/.exec(main.product_availability_id ?? '')?.[1] ?? null
+  const dateLabel = formatDayRange(days[0] ?? '', days[days.length - 1] ?? '', lang)
+  const summary: BookingSummary = {
+    booking_id: DEMO_BOOKING_ID,
+    booking_reference: 'DEMO-0001',
+    operator_name: '',
+    product_label: label,
+    products: [{ product_id: main.product_id, label, qty: main.quantity ?? 1, selected_days: days }],
+    dates: { days, start: days[0] ?? null, end: days[days.length - 1] ?? null, label: slot ? `${dateLabel}, ${slot}` : dateLabel },
+    participant_count: count,
+    participants: (body.participants ?? []).map((p, i) => ({
+      name: [p.first_name, p.last_name].filter(Boolean).join(' '),
+      is_guiding: i === 0 ? true : undefined,
+    })),
+    pickup_location: null,
+    pickup_locations: [],
+    hotel: null,
+    line_items: est.line_items,
+    operator_total: est.operator_total,
+    hotel_total: est.hotel_total,
+    performer_total: est.performer_total,
+    grand_total: est.grand_total,
+    currency: est.currency,
+    savings: est.savings ?? [],
+    savings_total: est.savings_total ?? '0.00',
+    subtotal_before_savings: est.subtotal_before_savings ?? est.operator_total,
+    amount_due: est.amount_due ?? est.operator_total,
+    multi_day_savings: null,
+    surcharges: est.surcharges ?? null,
+    surcharges_total: est.surcharges_total ?? null,
+    subtotal_before_surcharges: est.subtotal_before_surcharges ?? null,
+  }
+  return { ...base, approval_outcome: 'auto_approved', payment_mode: 'on_site', summary } as SubmitBookingResponse
 }
 
 // ------------------------------------------------------------------- router
@@ -647,7 +1022,7 @@ export async function demoRequest<T>(path: string, init?: RequestInit): Promise<
       const body = JSON.parse(String(init?.body ?? '{}')) as EstimateRequestBody
       return demoEstimate(template, decodeURIComponent(est[1]), body) as T
     }
-    if (pathname === '/api/public/bookings') return demoSubmitResponse() as T
+    if (pathname === '/api/public/bookings') return demoSubmitResponse(template, JSON.parse(String(init?.body ?? '{}')) as SubmitBookingBody) as T
     // Member price of a pass: the emailed code is never sent and any code is
     // accepted, so the visitor can see the member tiers. Nothing is stored.
     if (/^\/api\/public\/operators\/[^/]+\/subscription-perk\/otp$/.test(pathname)) return { ok: true } as T
@@ -678,10 +1053,17 @@ export async function demoRequest<T>(path: string, init?: RequestInit): Promise<
     const hit = findOffer(template, id)
     if (rest === '/availability') {
       const today = iso(new Date())
-      return demoAvailability(id, params.get('from') ?? today, params.get('to') ?? today, hit?.product.service_time_shape ?? null, hit?.product.event_window) as T
+      return demoAvailability(
+        id, params.get('from') ?? today, params.get('to') ?? today, hit?.product.service_time_shape ?? null,
+        hit?.product.event_window, slotPlanOf(template, hit?.product),
+      ) as T
     }
     if (rest === '/fixed-date-windows') return demoFixedWindows() as T
-    if (rest === '/alternatives' || rest === '/addons') return [] as T
+    if (rest === '/addons') return demoAddons(template, id) as T
+    if (rest === '/alternatives') {
+      const today = iso(new Date())
+      return demoAlternatives(template, id, params.get('from') ?? today, params.get('to') ?? today) as T
+    }
   }
   throw notFound(pathname)
 }

@@ -55,6 +55,8 @@ import { formatHoldDeadline } from '@/lib/seatHold'
 interface Props {
   response: SubmitBookingResponse
   onRestart: () => void
+  /** Hide the "make another booking" link (demo mode has its own restart CTA). */
+  hideRestart?: boolean
   /**
    * The operator's display name (OperatorSettings.name), used in the
    * "contact <operator> to change your activity" hint. Optional: absent or
@@ -993,6 +995,7 @@ function PostBookingSection({
 export function Confirmation({
   response,
   onRestart,
+  hideRestart = false,
   isSharedDouble,
   shareReferenceEnabled = false,
   operatorName = null,
@@ -1388,11 +1391,13 @@ export function Confirmation({
         {/* landr-nva1a.4 step 8: "Make another booking" demoted to a small
             link-style affordance at the very bottom — it used to be an
             outline button competing with the calendar/CTA group above it. */}
-        <div>
-          <Button type="button" variant="link" size="sm" onClick={onRestart}>
-            {tr('makeAnotherBookingLink', locale)}
-          </Button>
-        </div>
+        {hideRestart ? null : (
+          <div>
+            <Button type="button" variant="link" size="sm" onClick={onRestart}>
+              {tr('makeAnotherBookingLink', locale)}
+            </Button>
+          </div>
+        )}
       </CardContent>
     </Card>
   )
