@@ -1147,6 +1147,68 @@ describe('App', () => {
       expect(screen.getByTestId('party-size-value')).toHaveTextContent('2')
     })
 
+    // The dates-step "How many of you?" stepper must reach the live estimate,
+    // else the sidebar keeps pricing a party of 1 (scheduled add-on price bug).
+    it('time-slot picker: party stepper feeds participants_count into the live estimate', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] })
+      vi.setSystemTime(new Date('2026-05-15T08:00:00Z'))
+      onTestFinished(() => {
+        vi.useRealTimers()
+      })
+      const tomorrow = new Date(2026, 4, 16)
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          product_kind: 'service',
+          service_time_shape: 'single_date',
+          daily_start_times: ['09:00', '11:00'],
+          max_party_size: 4,
+          name: 'City bike',
+        }),
+      ])
+      mocks.getAvailability.mockResolvedValue([
+        {
+          availability_id: null,
+          date: '2026-05-16',
+          start_time: '11:00:00',
+          end_time: null,
+          capacity: 4,
+          capacity_reserved: 0,
+          available_seats: 4,
+          status: 'open',
+        } as AvailabilitySlot,
+      ])
+      render(<App />)
+      await pickProduct('City bike')
+      await waitFor(
+        () => {
+          if (screen.queryAllByTestId('start-time-option').length === 0) {
+            const btn = Array.from(
+              document.querySelectorAll<HTMLButtonElement>('button[data-day]'),
+            ).find((b) => {
+              const d = new Date(b.dataset.day!)
+              return d.getDate() === tomorrow.getDate() && d.getMonth() === tomorrow.getMonth()
+            })
+            expect(btn).toBeDefined()
+            fireEvent.click(btn!)
+          }
+          expect(screen.getAllByTestId('start-time-option').length).toBeGreaterThan(0)
+        },
+        { timeout: 4000 },
+      )
+      fireEvent.click(screen.getByTestId('start-time-option'))
+      fireEvent.click(await screen.findByTestId('party-size-increase'))
+      expect(screen.getByTestId('party-size-value')).toHaveTextContent('2')
+      await waitFor(
+        () =>
+          expect(mocks.estimateBookingPrice).toHaveBeenLastCalledWith(
+            expect.anything(),
+            expect.anything(),
+            expect.objectContaining({ participants_count: 2 }),
+          ),
+        { timeout: 4000 },
+      )
+    })
+
     it('a switch whose fetch resolves after Continue was pressed is ignored', async () => {
       const { pickDay } = switchSetup()
       render(<App />)

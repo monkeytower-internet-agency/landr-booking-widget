@@ -3742,7 +3742,11 @@ function BookingFlowApp() {
             participantCount={
               step.name === 'details' && liveParticipantCount > 0
                 ? liveParticipantCount
-                : sidebarInputs.participantCount
+                : step.name === 'pick-selection' && !participantsFirstFor(step.product)
+                  ? // The dates-step "How many of you?" stepper prices the
+                    // group live: it was ignored here, so the sidebar kept 1x.
+                    (draftSeatsNeeded(step.product) ?? sidebarInputs.participantCount)
+                  : sidebarInputs.participantCount
             }
             participantNames={
               step.name === 'details' && liveParticipantCount > 0
