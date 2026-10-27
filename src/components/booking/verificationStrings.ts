@@ -112,7 +112,6 @@ const it: VerificationBundle = {
   chooseFile: 'Scegli file',
   takePhoto: 'Scatta una foto',
   replaceFile: 'Sostituisci file',
-  takePhoto: 'Scatta una foto',
   fileTooLarge: 'Questo file supera i 10 MB.',
   fileWrongType: 'Scegli una foto (JPG, PNG, WebP, HEIC) o un PDF.',
   waiverHeading: 'Liberatoria di responsabilità',
