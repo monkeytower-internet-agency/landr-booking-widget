@@ -74,6 +74,13 @@ import {
 import { withFallbackGuestLanguage } from './stayFlow'
 import { isStayKind } from '@/flowPlan'
 
+/** Answers given inline on added lines (language board, forms, pickup). */
+export interface InlineAnswers {
+  languages: ParticipantLanguageMap | null
+  forms: Record<string, { entry: FormResponseEntry; raw: Record<string, unknown> }>
+  pickupId: string | null
+}
+
 export type BookingSelection =
   | {
       kind: 'slot'
@@ -420,6 +427,13 @@ interface Props {
    */
   extraLines?: ExtraLine[]
   onExtraLinesChange?: import('react').Dispatch<import('react').SetStateAction<ExtraLine[]>>
+  /**
+   * The answers given inline on added lines, kept by the parent so they
+   * survive Back from review (BookingForm unmounts). Seeds the inline state
+   * on mount; every change is reported through onInlineAnswersChange.
+   */
+  inlineAnswers?: InlineAnswers
+  onInlineAnswersChange?: (answers: InlineAnswers) => void
   onBack: () => void
   onConfirmed: (response: SubmitBookingResponse, email: string) => void
 }
@@ -954,6 +968,8 @@ export function BookingForm({
   onChangeDates,
   extraLines = [],
   onExtraLinesChange,
+  inlineAnswers,
+  onInlineAnswersChange,
   onConfirmed,
 }: Props) {
   // landr-jiagg.2: the shared double covers the BOOKER'S own bed, so it only
@@ -984,11 +1000,22 @@ export function BookingForm({
   // cover them. What the customer answers there is shared across lines (the
   // submit takes one language per participant, one pickup, one answer per
   // form key) and is folded into the submit values right here.
-  const [inlineLanguages, setInlineLanguages] = useState<ParticipantLanguageMap | null>(null)
-  const [inlineForms, setInlineForms] = useState<
-    Record<string, { entry: FormResponseEntry; raw: Record<string, unknown> }>
-  >({})
-  const [inlinePickupId, setInlinePickupId] = useState<string | null>(null)
+  const [inlineLanguages, setInlineLanguages] = useState<ParticipantLanguageMap | null>(
+    inlineAnswers?.languages ?? null,
+  )
+  const [inlineForms, setInlineForms] = useState<InlineAnswers['forms']>(
+    inlineAnswers?.forms ?? {},
+  )
+  const [inlinePickupId, setInlinePickupId] = useState<string | null>(
+    inlineAnswers?.pickupId ?? null,
+  )
+  useEffect(() => {
+    onInlineAnswersChange?.({
+      languages: inlineLanguages,
+      forms: inlineForms,
+      pickupId: inlinePickupId,
+    })
+  }, [inlineLanguages, inlineForms, inlinePickupId, onInlineAnswersChange])
   const mainOfferedLanguages = useMemo(() => productOfferedLanguages(product), [product])
   const crossSellContext: CrossSellContext = {
     participantLanguages: mainParticipantLanguages,

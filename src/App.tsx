@@ -30,6 +30,7 @@ import { estimateSlotFields, hasFixedStartTimes } from '@/components/booking/slo
 import {
   BookingForm,
   type BookingSelection,
+  type InlineAnswers,
 } from '@/components/booking/BookingForm'
 import { ServiceAddonsStep } from '@/components/booking/ServiceAddonsStep'
 import type { AddonSelection } from '@/components/booking/addonsState'
@@ -764,11 +765,36 @@ function BookingFlowApp() {
             : step.selection.selectedDays,
         ])
       : ''
-  const [crossSell, setCrossSell] = useState<{ sig: string; lines: ExtraLine[] }>({
+  // The inline language/form/pickup answers given on the added lines live
+  // beside them: BookingForm unmounts on Back, and returning must restore both.
+  const [crossSell, setCrossSell] = useState<{
+    sig: string
+    lines: ExtraLine[]
+    inline?: InlineAnswers
+  }>({
     sig: '',
     lines: [],
   })
   const extraLines = crossSell.sig === crossSellSig ? crossSell.lines : []
+  const inlineAnswers = crossSell.sig === crossSellSig ? crossSell.inline : undefined
+  const setInlineAnswers = useCallback(
+    (inline: InlineAnswers) =>
+      setCrossSell((prev) => {
+        const same = prev.sig === crossSellSig
+        // The first report after a (re)mount repeats what was restored.
+        if (same && prev.inline === inline) return prev
+        // Nothing answered and nothing stored: no state change, no re-render.
+        if (
+          !inline.languages &&
+          !inline.pickupId &&
+          Object.keys(inline.forms).length === 0 &&
+          (same ? !prev.inline : true)
+        )
+          return prev
+        return { sig: crossSellSig, lines: same ? prev.lines : [], inline }
+      }),
+    [crossSellSig, setCrossSell],
+  )
   const setExtraLines = useCallback<Dispatch<SetStateAction<ExtraLine[]>>>(
     (update) =>
       setCrossSell((prev) => {
@@ -776,6 +802,7 @@ function BookingFlowApp() {
         return {
           sig: crossSellSig,
           lines: typeof update === 'function' ? update(base) : update,
+          inline: prev.sig === crossSellSig ? prev.inline : undefined,
         }
       }),
     [crossSellSig, setCrossSell],
@@ -3587,6 +3614,8 @@ function BookingFlowApp() {
             calculatedTotal={estimateTotal}
             extraLines={extraLines}
             onExtraLinesChange={setExtraLines}
+            inlineAnswers={inlineAnswers}
+            onInlineAnswersChange={setInlineAnswers}
             // landr-rmcsu.5: keep the committed dates (like Back does) so the
             // calendar re-opens on them with any short day marked.
             onChangeDates={() =>

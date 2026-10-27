@@ -213,6 +213,12 @@ export function AddMoreProducts({
       else next.delete(id)
       return next
     })
+  // One-next-action rule: only the first module still being answered paints
+  // the accent ring and "Next:" cue; later open ones sit quiet until their
+  // turn, so the review step never shows several competing rings.
+  let openEditors = 0
+  const QUIET =
+    '[&_[data-next-action=active]]:bg-transparent [&_[data-next-action=active]]:p-0 [&_[data-next-action=active]]:ring-0 [&_[data-testid=next-action-cue]]:hidden'
   const moduleRow = (
     id: string,
     title: string,
@@ -231,7 +237,11 @@ export function AddMoreProducts({
         </Button>
       </div>
     ) : (
-      <div key={id} data-testid={`add-more-module-${id}`}>
+      <div
+        key={id}
+        data-testid={`add-more-module-${id}`}
+        className={openEditors++ > 0 ? QUIET : undefined}
+      >
         {editor}
       </div>
     )
