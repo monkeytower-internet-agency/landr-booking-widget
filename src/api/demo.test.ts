@@ -591,3 +591,18 @@ describe('demoArt', () => {
     expect(demoArt('kayak', 'nope', 'x')).toEqual([])
   })
 })
+
+describe('demoGroups art', () => {
+  it('gives a group without a cover the art of its first product', async () => {
+    const { demoGroups } = await import('./demo')
+    const prod = { slug: 'half-day-tour', name: 'x', group_slug: 'tours', images: [] }
+    const groups = demoGroups({
+      slug: 'kayak',
+      catalogue: {
+        groups: [{ slug: 'tours', name: 'Tours', image_url: null, parent_slug: null }],
+        products: [prod],
+      },
+    } as never)
+    expect(groups[0].image_url).toMatch(/demo\/kayak\/half-day-tour-1\.svg$/)
+  })
+})
