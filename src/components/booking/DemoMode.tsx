@@ -15,6 +15,7 @@ const DEMO_LANG_LABEL: Record<string, string> = {
 
 /** Language + light/dark switch, right-aligned under the banner. */
 function DemoControls() {
+  const copy = demoCopy();
   const [dark, setDark] = useState(() =>
     document.documentElement.classList.contains("dark"),
   );
@@ -31,7 +32,7 @@ function DemoControls() {
   return (
     <div className="flex items-center justify-end gap-2" data-testid="demo-controls">
       <select
-        aria-label="Language"
+        aria-label={copy.language}
         className="border-border bg-card text-foreground h-9 rounded-md border px-2 text-sm"
         data-testid="demo-lang"
         value={demoLang()}
@@ -46,7 +47,7 @@ function DemoControls() {
       <Button
         variant="outline"
         size="icon"
-        aria-label={dark ? "Light mode" : "Dark mode"}
+        aria-label={dark ? copy.lightMode : copy.darkMode}
         data-testid="demo-theme"
         onClick={toggleTheme}
       >
