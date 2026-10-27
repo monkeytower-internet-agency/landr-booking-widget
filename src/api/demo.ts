@@ -332,6 +332,7 @@ const catalogueProducts = (template: DemoTemplate, cat: DemoCatalogue): Product[
       short_description: c.short_description == null ? null : fill(c.short_description, 'en'),
       short_description_localized: fillMap(c.short_description_localized),
       description: c.description == null ? null : fill(c.description, 'en'),
+      description_localized: fillMap(c.description_localized),
       product_group_id: c.group_slug ? groupId(template.slug, c.group_slug) : null,
       fixed_start_date: null,
       fixed_end_date: null,
