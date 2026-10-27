@@ -10,7 +10,7 @@ import {
   listProducts,
   submitBooking,
 } from '@/api/client'
-import { BookingForm, type BookingSelection } from './BookingForm'
+import { BookingForm, type BookingSelection, type InlineAnswers } from './BookingForm'
 import type { ExtraLine } from './crossSell'
 import type { BookerDetails } from './detailsTypes'
 
@@ -99,6 +99,36 @@ function Harness({
   )
 }
 
+/** Holds lines + inline answers above BookingForm, like App, and can unmount it (Back). */
+function RoundTripHarness() {
+  const [lines, setLines] = useState<ExtraLine[]>([])
+  const [inline, setInline] = useState<InlineAnswers | undefined>(undefined)
+  const [onReview, setOnReview] = useState(true)
+  if (!onReview) {
+    return (
+      <button type="button" onClick={() => setOnReview(true)}>
+        Return to review
+      </button>
+    )
+  }
+  return (
+    <BookingForm
+      widgetToken="tok"
+      product={MAIN}
+      selection={SELECTION}
+      booker={BOOKER}
+      participants={[{ ...BOOKER, service_role_code: '' }]}
+      pickupLocationId={null}
+      extraLines={lines}
+      onExtraLinesChange={setLines}
+      inlineAnswers={inline}
+      onInlineAnswersChange={setInline}
+      onBack={() => setOnReview(false)}
+      onConfirmed={vi.fn()}
+    />
+  )
+}
+
 describe('Add more to this booking (review step)', () => {
   beforeEach(() => {
     vi.mocked(submitBooking).mockReset()
@@ -179,6 +209,29 @@ describe('Add more to this booking (review step)', () => {
     const body = vi.mocked(submitBooking).mock.calls[0]![0]
     expect(body.products.map((p) => p.product_id)).toEqual(['main', 'guided'])
     expect(body.participants[0]).toMatchObject({ language: 'de' })
+  })
+
+  it('keeps the inline language answer across Back and return to review', async () => {
+    const guided = product('guided', { name: 'Guided tour', guide_languages: ['de', 'en'] })
+    vi.mocked(listProducts).mockResolvedValue([MAIN, guided])
+    vi.mocked(getAvailability).mockResolvedValue([])
+    render(<RoundTripHarness />)
+    const line = await addAndSettle('guided')
+    const module = within(line).getByTestId('add-more-module-language')
+    fireEvent.click(within(module).getByTestId('lang-add-de'))
+    await waitFor(() => expect(within(module).getByTestId('language-step-submit')).toBeEnabled())
+    fireEvent.click(within(module).getByTestId('language-step-submit'))
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Confirm booking/i })).toBeEnabled(),
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /Back/i }))
+    fireEvent.click(await screen.findByRole('button', { name: /Return to review/i }))
+
+    const back = await screen.findByTestId('add-more-line-guided')
+    await waitFor(() => expect(back).not.toHaveTextContent(/Checking availability/))
+    expect(within(back).getByTestId('add-more-module-language')).toHaveTextContent(/saved/i)
+    expect(screen.getByRole('button', { name: /Confirm booking/i })).toBeEnabled()
   })
 
   it('needs no board when one language is shared: the whole party gets it', async () => {
