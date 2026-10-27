@@ -42,6 +42,8 @@ import {
 import { ContinueAction } from './ContinueAction'
 import { isOwnAccommodation, ownAccommodationWire } from './ownAccommodation'
 import { CustomerCommentField } from './CustomerCommentField'
+import { AddMoreProducts } from './AddMoreProducts'
+import { extraLinesBlocking, extraProductLines, type ExtraLine } from './crossSell'
 import { UN_PRICEABLE_MESSAGE } from './priceSidebarHelpers'
 import {
   additionalAccommodationHeading,
@@ -399,6 +401,13 @@ interface Props {
    * offered after a capacity_exceeded 422. Falls back to onBack.
    */
   onChangeDates?: () => void
+  /**
+   * "Add more to this booking": products the customer added on this step,
+   * each one more line of the same booking (crossSell.ts). App owns the
+   * state so the PriceSidebar prices the same lines. Absent = no cross-sell.
+   */
+  extraLines?: ExtraLine[]
+  onExtraLinesChange?: import('react').Dispatch<import('react').SetStateAction<ExtraLine[]>>
   onBack: () => void
   onConfirmed: (response: SubmitBookingResponse, email: string) => void
 }
@@ -931,6 +940,8 @@ export function BookingForm({
   onCompanionContactRequired,
   onBack,
   onChangeDates,
+  extraLines = [],
+  onExtraLinesChange,
   onConfirmed,
 }: Props) {
   // landr-jiagg.2: the shared double covers the BOOKER'S own bed, so it only
@@ -954,6 +965,11 @@ export function BookingForm({
   // landr-aoak.2 [S3]: staff/operator mode. When inactive, none of the staff
   // branches below render and the submit body is byte-identical to today.
   const staff = useStaffMode()
+  // "Add more to this booking" is the public funnel's; a staff booking keeps
+  // its single product (staff add lines on the booking afterwards).
+  const setExtraLines = staff.active ? undefined : onExtraLinesChange
+  const crossSellLines = setExtraLines ? extraLines : []
+  const extrasBlocked = extraLinesBlocking(crossSellLines)
   const canOverridePrice =
     staff.active && staff.powers.includes('price_override')
   // Operator price-override inputs (amount + reason). Empty strings ⇒ no
@@ -1241,6 +1257,10 @@ export function BookingForm({
       setServerError(UN_PRICEABLE_MESSAGE)
       return
     }
+    if (extrasBlocked) {
+      setServerError(tr('addMoreIncomplete', locale))
+      return
+    }
     setSubmitting(true)
     // landr-my6fc.7: staff mode — if the overlap lookup is still in flight, give
     // it a short window so "Book anyway" is not skipped. Timeout/error proceeds.
@@ -1375,6 +1395,8 @@ export function BookingForm({
           selected_days:
             addon.productKind === 'hotel_room' ? nightIsos : selectedDaysForSubmit,
         })),
+        // "Add more to this booking": the products added on this step.
+        ...extraProductLines(crossSellLines),
       ]
       // Drop participant phone before submit — backend ParticipantIn
       // doesn't accept it yet (follow-up filed in landr-8c03 handoff).
@@ -2139,6 +2161,26 @@ export function BookingForm({
           />
         ) : null}
 
+        {setExtraLines ? (
+          <AddMoreProducts
+            operatorToken={widgetToken}
+            previewToken={previewToken}
+            inviteToken={inviteToken}
+            cartProductIds={[
+              product.product_id,
+              ...(accommodationRooms ?? []).map((r) => r.productId),
+              ...(addons ?? []).map((a) => a.productId),
+            ]}
+            mainDays={
+              selection.kind === 'slot' ? [selection.slot.date] : selection.selectedDays
+            }
+            partySize={seatsNeeded(participants.length, companions, product.invite_hold_hours)}
+            lines={crossSellLines}
+            onLinesChange={setExtraLines}
+            locale={locale}
+          />
+        ) : null}
+
         {/* landr-n6ii3: same field DetailsStep collects, editable here too —
             last field before Confirm booking. */}
         <CustomerCommentField
@@ -2156,10 +2198,14 @@ export function BookingForm({
             with the fixed price at creation, so disabled while an amount is
             entered). Both are hidden entirely for normal customers. */}
         <ContinueAction
-          ready={!submitting && !unPriceable && !overrideBlocked && !verificationBlocked}
+          ready={
+            !submitting && !unPriceable && !overrideBlocked && !verificationBlocked && !extrasBlocked
+          }
           reason={
             unPriceable
               ? UN_PRICEABLE_MESSAGE
+              : extrasBlocked
+              ? tr('addMoreIncomplete', locale)
               : verificationBlocked
               ? verificationStrings(locale).missingHint
               : overrideAmountInvalid
