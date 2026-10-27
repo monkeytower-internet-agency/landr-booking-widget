@@ -76,6 +76,7 @@ def car(x, y, col, s=1.0):
             '<path d="M-48 -88 H-8 V-58 H-78z M8 -88 H38 L70 -58 H8z" fill="#cfeeff"/>'
             '<circle cx="-75" cy="2" r="26" fill="#2b2b3a"/><circle cx="85" cy="2" r="26" fill="#2b2b3a"/>'
             '<circle cx="-75" cy="2" r="10" fill="#ddd"/><circle cx="85" cy="2" r="10" fill="#ddd"/>'
+            '<circle cx="-28" cy="-72" r="13" fill="#ffd2a8" stroke-width="4"/><circle cx="26" cy="-72" r="13" fill="#c68b5d" stroke-width="4"/>'
             '<rect x="-44" y="-132" width="60" height="22" rx="4" fill="#fff"/><path d="M-36 -121 H8" stroke-width="4"/></g>')
 
 def road(p, y0=400):
@@ -149,49 +150,146 @@ def board(x, y):
             f'<path d="M{x+30} {y+50} h150 M{x+30} {y+90} h200 M{x+30} {y+130} h120" stroke="#fff" stroke-width="5" stroke-linecap="round"/>'
             f'<path d="M{x+230} {y+120} l30 -50 l30 50z" fill="none" stroke="#ffd23d" stroke-width="5"/>')
 
-def scene(kind, v, seed):
+
+# ---- extra props -----------------------------------------------------------
+def calendar(x, y):
+    g = f'<rect x="{x}" y="{y}" width="150" height="130" rx="10" fill="#fff" stroke="{INK}" stroke-width="4"/><rect x="{x}" y="{y}" width="150" height="34" rx="10" fill="#ff5d73" stroke="{INK}" stroke-width="4"/>'
+    for r in range(3):
+        for c in range(5):
+            g += f'<rect x="{x+12+c*26}" y="{y+46+r*26}" width="18" height="16" fill="{"#2dd4a0" if (r*5+c)%2 else "#d9e2f5"}"/>'
+    return g
+
+def lplate(x, y):
+    return f'<rect x="{x}" y="{y}" width="46" height="46" rx="5" fill="#fff" stroke="{INK}" stroke-width="4"/><path d="M{x+14} {y+10} v26 h20" stroke="#e2483d" stroke-width="8" fill="none"/>'
+
+def clipboard(x, y):
+    return (f'<rect x="{x}" y="{y}" width="90" height="120" rx="8" fill="#c98a52" stroke="{INK}" stroke-width="4"/><rect x="{x+10}" y="{y+16}" width="70" height="96" fill="#fff"/>'
+            f'<path d="M{x+20} {y+40} h50 M{x+20} {y+60} h50 M{x+20} {y+80} h30" stroke="{INK}" stroke-width="4"/><path d="M{x+52} {y+88} l10 10 l18 -22" stroke="#2dd4a0" stroke-width="6" fill="none"/>')
+
+def cone(x, y):
+    return f'<path d="M{x-22} {y} L{x} {y-60} L{x+22} {y}z" fill="#ff7a3d" stroke="{INK}" stroke-width="4"/><path d="M{x-12} {y-28} h24" stroke="#fff" stroke-width="6"/><rect x="{x-30}" y="{y}" width="60" height="10" fill="{INK}"/>'
+
+def trafficlight(x, y):
+    return (f'<rect x="{x-6}" y="{y}" width="12" height="150" fill="{INK}"/><rect x="{x-24}" y="{y-80}" width="48" height="96" rx="10" fill="#2b2b3a" stroke="{INK}" stroke-width="4"/>'
+            f'<circle cx="{x}" cy="{y-56}" r="11" fill="#e2483d"/><circle cx="{x}" cy="{y-28}" r="11" fill="#555"/><circle cx="{x}" cy="{y}" r="11" fill="#2dd4a0"/>')
+
+def stars(rnd):
+    return ''.join(f'<circle cx="{rnd.randint(20,780)}" cy="{rnd.randint(20,300)}" r="{rnd.choice([2,3,4])}" fill="#fff"/>' for _ in range(24))
+
+def easel(x, y):
+    return (f'<path d="M{x-70} {y+150} L{x} {y} L{x+70} {y+150} M{x} {y} V{y+150}" stroke="{INK}" stroke-width="7" fill="none"/>'
+            f'<rect x="{x-80}" y="{y+10}" width="160" height="120" fill="#fff" stroke="{INK}" stroke-width="5"/>'
+            f'<circle cx="{x-30}" cy="{y+50}" r="16" fill="#ffd23d"/><path d="M{x-70} {y+125} L{x-20} {y+80} L{x+10} {y+110} L{x+40} {y+70} L{x+78} {y+125}z" fill="#2dd4a0" stroke="{INK}" stroke-width="3"/>')
+
+def pottery(x, y):
+    return (f'<path d="M{x-30} {y} q-24 -40 0 -70 h60 q24 30 0 70z" fill="#c46a3d" stroke="{INK}" stroke-width="4"/>'
+            f'<path d="M{x+60} {y} q-14 -24 0 -44 h34 q14 20 0 44z" fill="#e2a06a" stroke="{INK}" stroke-width="4"/>')
+
+def parachute_reserve(x, y):
+    return (f'<path d="M{x-60} {y} Q{x} {y-70} {x+60} {y} z" fill="#ffd23d" stroke="{INK}" stroke-width="4"/>'
+            f'<path d="M{x-60} {y} L{x} {y+80} L{x+60} {y}" stroke="{INK}" stroke-width="3" fill="none"/>'
+            f'<rect x="{x-18}" y="{y+80}" width="36" height="36" rx="6" fill="#ff5d73" stroke="{INK}" stroke-width="4"/>')
+
+def booth(x, y, col):
+    return (f'<rect x="{x}" y="{y}" width="240" height="150" fill="#fff" stroke="{INK}" stroke-width="5"/>'
+            f'<path d="M{x-14} {y} h268 l-18 -48 h-232z" fill="{col}" stroke="{INK}" stroke-width="5"/>'
+            f'<rect x="{x+20}" y="{y+30}" width="200" height="40" rx="6" fill="{col}" opacity=".85"/>'
+            + person(x + 120, y + 150, "#3b82f6", .9))
+
+def bunting():
+    return f'<path d="M0 60 Q400 120 800 60" stroke="{INK}" stroke-width="3" fill="none"/>' + ''.join(
+        f'<path d="M{x} {60 + 60*(1-((x-400)/400)**2)} l16 0 l-8 26z" fill="{["#ff5d73","#ffd23d","#3b82f6","#2dd4a0"][i%4]}" stroke="{INK}" stroke-width="2"/>' for i, x in enumerate(range(40, 780, 52)))
+
+def beach(p):
+    return f'<path d="M0 470 Q400 440 800 470 V600 H0z" fill="#f2dca0" stroke="{INK}" stroke-width="4"/>'
+
+def sun_rays(p):
+    return ''.join(f'<path d="M400 300 L{400+420*__import__("math").cos(a/8*6.283):.0f} {300+420*__import__("math").sin(a/8*6.283):.0f}" stroke="#fff" opacity=".35" stroke-width="22"/>' for a in range(8))
+
+def group_people(x, y, n=4, s=.8):
+    cols = ["#3b82f6", "#ff5d73", "#2dd4a0", "#ffd23d", "#a78bfa"]
+    return ''.join(person(x + i * 70, y, cols[i % 5], s) for i in range(n))
+
+def scene(kind, v, seed, props=()):
     rnd = random.Random(seed)
     p = PALS[v % 3]
-    outdoors = kind in {"glide", "ground", "thermal", "van", "camper", "sign", "festival", "kayak", "kayakrental", "bike", "ebike", "citybike", "car"}
-    if outdoors:
-        s = sky(p, v % 3, rnd)
-    else:
-        s = room(p, v % 3)
+    night = "night" in props
+    if night:
+        p = dict(PALS[2], sky1="#12183a", sky2="#2b3478", hill1="#26306a", hill2="#1c2455", hill3="#141a40")
+    outdoors = kind in {"glide", "ground", "thermal", "van", "camper", "sign", "festival", "kayak", "kayakrental", "kayaklong", "kayakbasics", "bike", "ebike", "citybike", "trail", "car", "reserve", "booth"}
+    s = sky(p, v % 3, rnd) if outdoors else room(p, v % 3)
+    if night:
+        s += stars(rnd)
     o = [0, 70, -60][v % 3]
     if kind in ("glide", "thermal"):
         s += hills(p, 400)
         s += glider(300 + o, 150 + (v * 25), PALS[(v + 1) % 3]["acc"], 1.0 if kind == "glide" else .85)
         if kind == "thermal":
             s += glider(600 - o, 100, "#3b82f6", .5, False) + glider(110 + o, 210, "#2dd4a0", .45, False)
+        if "group" in props:
+            s += glider(640 - o, 220, "#ffd23d", .55) + glider(120 + o, 150, "#2dd4a0", .5)
     elif kind == "ground":
         s += hills(p, 400) + person(300 + o, 470, "#ff5d73", 1.4, True)
         s += f'<path d="M{150+o} 440 Q{320+o} 250 {520+o} 440z" fill="{p["acc"]}" stroke="{INK}" stroke-width="4"/>'
+        if "two" in props:
+            s += person(560 + o, 480, "#3b82f6", 1.1)
+    elif kind == "reserve":
+        s += hills(p, 420) + parachute_reserve(400 + o, 170) + person(180 - o, 500, "#ff5d73", 1.2) + clipboard(600, 380)
     elif kind == "festival":
-        s += hills(p, 420)
+        s += hills(p, 420) + bunting()
         for i, c in enumerate((p["acc"], "#3b82f6", "#2dd4a0")):
             s += tent(160 + i * 240, 500, c, 1.3)
         s += glider(420 + o, 120, "#ffd23d", .6, False) + glider(180 - o, 170, "#ff5d73", .45, False)
-        s += f'<path d="M0 300 Q400 340 800 300" stroke="{INK}" stroke-width="3" fill="none"/>' + ''.join(f'<path d="M{x} {300 + (x-400)**2/ -4000 + 40} l14 0 l-7 24z" fill="{["#ff5d73","#ffd23d","#3b82f6"][i%3]}"/>' for i, x in enumerate(range(60, 760, 56)))
+    elif kind == "booth":
+        s += hills(p, 430) + bunting() + booth(280 + o, 340, p["acc"]) + glider(660 - o, 150, "#3b82f6", .45, False)
     elif kind in ("van", "camper"):
         s += hills(p, 380) + road(p, 450) + van(400 + o, 470, p["acc"] if v else "#3b82f6", 1.5, kind == "camper")
         if kind == "camper":
             s += tent(130, 440, "#2dd4a0", .9)
     elif kind == "sign":
         s += hills(p, 380) + sign(380 + o, 250) + person(210 - o, 520, "#ff5d73", 1.3)
-    elif kind in ("kayak", "kayakrental"):
-        s += hills(p, 330) + waves(p, 390)
-        s += kayak(300 + o, 470, p["acc"], 1.6)
-        if kind == "kayak":
-            s += kayak(600 - o, 540, "#2dd4a0", 1.1)
+    elif kind in ("kayak", "kayaklong"):
+        s += hills(p, 330) + waves(p, 390) + kayak(300 + o, 470, p["acc"], 1.6) + kayak(600 - o, 540, "#2dd4a0", 1.1)
+        if kind == "kayaklong":
+            s += kayak(130 + o, 430, "#a78bfa", .8)
+    elif kind == "kayakrental":
+        s += hills(p, 330) + waves(p, 390) + beach(p)
+        for i, c in enumerate((p["acc"], "#3b82f6", "#2dd4a0")):
+            s += f'<g transform="translate({150+i*250} 540) rotate(-8)"><path d="M-110 0 Q0 24 110 0 Q0 -22 -110 0z" fill="{c}" stroke="{INK}" stroke-width="4"/></g>'
+    elif kind == "kayakbasics":
+        s += hills(p, 330) + waves(p, 400) + beach(p) + person(160 + o, 520, "#ff5d73", 1.3) + kayak(560 - o, 470, p["acc"], 1.2)
+        s += f'<path d="M230 470 L330 450" stroke="{INK}" stroke-width="5"/>'
     elif kind in ("bike", "ebike"):
-        s += hills(p, 400) + f'<path d="M0 510 H800" stroke="{INK}" stroke-width="4"/>' + f'<rect y="510" width="800" height="90" fill="#9aa0b0"/>'
-        s += bike(300 + o, 500, p["acc"], 1.7, kind == "ebike") + person(310 + o, 365, "#3b82f6", .01)
+        s += hills(p, 400) + f'<rect y="510" width="800" height="90" fill="#9aa0b0"/>' + f'<path d="M0 510 H800" stroke="{INK}" stroke-width="4"/>'
+        s += bike(300 + o, 500, p["acc"], 1.7, kind == "ebike")
+        if "far" in props:
+            s += bike(560 - o, 500, "#2dd4a0", 1.0)
+    elif kind == "trail":
+        s += hills(p, 300) + f'<path d="M0 600 Q300 470 500 520 T800 430 V600z" fill="#c9a36a" stroke="{INK}" stroke-width="4"/>' + bike(330 + o, 520, p["acc"], 1.3, True)
     elif kind == "citybike":
         s += f'<g transform="translate(0 20)">{skyline(p)}</g><rect y="520" width="800" height="80" fill="#9aa0b0"/>' + bike(260 + o, 510, p["acc"], 1.4) + bike(520 - o, 510, "#2dd4a0", 1.4)
     elif kind == "car":
         s += hills(p, 400) + road(p, 450) + car(420 + o, 505, p["acc"] if v != 2 else "#3b82f6", 1.7)
+        if "L" in props:
+            s += lplate(80, 250)
+        if "light" in props:
+            s += trafficlight(690, 330)
+        if "calendar" in props:
+            s += calendar(560, 170)
+        if "clip" in props:
+            s += clipboard(110, 250)
+        if "cones" in props:
+            s += cone(120, 540) + cone(660, 540) + cone(720, 560)
+        if "two" in props:
+            s += car(150, 400, "#3b82f6", .6)
     elif kind == "theory":
         s += board(250 + o, 130 + 40) + table(220 - o // 2, 440)
+    elif kind == "class":
+        s += board(60 + o // 3, 130) + group_people(110, 560, 5, 1.25) + f'<rect x="80" y="470" width="600" height="14" fill="#c98a52" stroke="{INK}" stroke-width="4"/>'
+    elif kind == "craft":
+        s += table(220 + o, 420) + pottery(300 + o, 410) + plant(90, 440)
+    elif kind == "taster":
+        s += easel(400 + o, 200) + person(220 - o // 2, 520, "#ff5d73", 1.4) + plant(700, 440)
     elif kind in ("studio", "family"):
         s += bed(60 + o // 2, 330, "#7aa5ff" if v != 1 else "#ff9a7a") + plant(690, 440)
         if kind == "family":
@@ -202,37 +300,52 @@ def scene(kind, v, seed):
         s += f'<path d="M0 140 H800" stroke="{INK}" stroke-width="10"/>'
     elif kind == "room":
         s += bed(260 + o, 330, "#a78bfa") + plant(110, 440)
-    elif kind in ("yoga", "workshop"):
-        if kind == "yoga":
-            s += f'<rect x="0" y="0" width="{W}" height="{H}" fill="{p["wall"]}" opacity=".0"/>' + mat(400 + o, 470, "#2dd4a0") + plant(110, 440) + plant(700, 440)
-        else:
-            s += table(220 + o, 420) + plant(90, 440)
+    elif kind == "twin":
+        s += bed(40 + o // 3, 330, "#a78bfa") + bed(430 - o // 3, 330, "#2dd4a0") + plant(380, 450)
+    elif kind == "yoga":
+        s += mat(400 + o, 470, "#2dd4a0") + plant(110, 440) + plant(700, 440)
+        if "two" in props:
+            s += mat(220 - o, 520, "#ff9a7a")
+    elif kind == "workshop":
+        s += table(220 + o, 420) + plant(90, 440)
     return f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" role="img">{s}</svg>'
 
+def shot(svg, i):
+    """Three genuinely different frames: wide, close-up, mirrored."""
+    if i == 1:
+        return svg.replace(f'viewBox="0 0 {W} {H}"', 'viewBox="130 120 560 420"')
+    if i == 2:
+        return svg.replace('role="img">', f'role="img"><g transform="translate({W} 0) scale(-1 1)">', 1).replace('</svg>', '</g></svg>')
+    return svg
+
+K = lambda kind, *props: (kind, props)
 KINDS = {
-    "apartment": {"studio": "studio", "family-apartment": "family", "rooftop-loft": "loft"},
-    "bike": {"half-day-rental": "bike", "day-rental": "bike", "ebike-rental": "ebike", "guided-city-tour": "citybike", "trail-day-tour": "ebike"},
-    "course": {"course": "workshop", "weekend-workshop": "workshop", "taster-session": "workshop"},
-    "driving_school": {"trial-lesson": "car", "intensive-week": "car", "driving-lesson": "car", "double-lesson": "car", "special-drive": "car", "test-drive": "car", "theory-class": "theory"},
-    "flight_school": {"beginner-course": "ground", "ground-handling-day": "ground", "refresher-day": "glide", "thermal-clinic": "thermal", "safety-training": "glide", "tandem-intro": "glide"},
-    "kayak": {"half-day-tour": "kayak", "full-day-tour": "kayak", "sunset-paddle": "kayak", "paddling-basics": "kayakrental", "rental": "kayakrental"},
-    "retreat": {"retreat-programme": "yoga", "day-workshop": "workshop", "private-session": "yoga", "private-room": "room", "twin-room": "room"},
-    "site_day_pass": {"site-pass": "glide", "shuttle-pass": "van", "camper-pass": "camper", "site-briefing": "sign"},
-    "tandem": {"tandem-flight": "glide", "thermal-tandem": "thermal", "sunset-tandem": "glide"},
-    "tandem_company": {"tandem-flight": "glide", "thermal-tandem": "thermal", "sunset-tandem": "glide", "group-tandem-day": "thermal"},
-    "testival": {"testival-day": "festival", "testival-weekend": "festival", "exhibitor-registration": "festival"},
+    "apartment": {"studio": K("studio"), "family-apartment": K("family"), "rooftop-loft": K("loft")},
+    "bike": {"half-day-rental": K("bike"), "day-rental": K("bike", "far"), "ebike-rental": K("ebike"), "guided-city-tour": K("citybike"), "trail-day-tour": K("trail")},
+    "course": {"course": K("class"), "weekend-workshop": K("craft"), "taster-session": K("taster")},
+    "driving_school": {"trial-lesson": K("car", "L"), "intensive-week": K("car", "calendar"), "driving-lesson": K("car", "light"), "double-lesson": K("car", "two"), "special-drive": K("car", "night"), "test-drive": K("car", "clip", "cones"), "theory-class": K("theory")},
+    "flight_school": {"beginner-course": K("ground"), "ground-handling-day": K("ground", "two"), "refresher-day": K("glide"), "thermal-clinic": K("thermal"), "safety-training": K("reserve"), "tandem-intro": K("glide", "group")},
+    "kayak": {"half-day-tour": K("kayak"), "full-day-tour": K("kayaklong"), "sunset-paddle": K("kayak"), "paddling-basics": K("kayakbasics"), "rental": K("kayakrental")},
+    "retreat": {"retreat-programme": K("yoga", "two"), "day-workshop": K("craft"), "private-session": K("yoga"), "private-room": K("room"), "twin-room": K("twin")},
+    "site_day_pass": {"site-pass": K("glide", "group"), "shuttle-pass": K("van"), "camper-pass": K("camper"), "site-briefing": K("sign")},
+    "tandem": {"tandem-flight": K("glide"), "thermal-tandem": K("thermal"), "sunset-tandem": K("glide")},
+    "tandem_company": {"tandem-flight": K("glide"), "thermal-tandem": K("thermal"), "sunset-tandem": K("glide"), "group-tandem-day": K("glide", "group")},
+    "testival": {"testival-day": K("festival"), "testival-weekend": K("festival", "night"), "exhibitor-registration": K("booth")},
 }
-# sunset-ish products start on the golden-hour palette
+# sunset-ish products start on the golden-hour palette; others on a spread so siblings differ
 START = {"sunset-tandem": 1, "sunset-paddle": 2}
+
+def start_of(slug, n):
+    return START.get(slug, n % 3)
 
 if __name__ == "__main__":
     root = os.path.join(os.path.dirname(__file__), "..", "public", "demo")
     n = 0
     for tpl, prods in KINDS.items():
         os.makedirs(os.path.join(root, tpl), exist_ok=True)
-        for slug, kind in prods.items():
+        for pi, (slug, (kind, props)) in enumerate(prods.items()):
             for i in range(3):
-                svg = scene(kind, (START.get(slug, 0) + i) % 3, f"{tpl}/{slug}/{i}")
+                svg = shot(scene(kind, (start_of(slug, pi) + i) % 3, f"{tpl}/{slug}/{i}", props), i)
                 with open(os.path.join(root, tpl, f"{slug}-{i + 1}.svg"), "w") as f:
                     f.write(svg)
                 n += 1
