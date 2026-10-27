@@ -550,3 +550,15 @@ describe('consumeFreshStartParam (staff Add-booking fresh start)', () => {
     expect(readStoredProgress()).not.toBeNull()
   })
 })
+
+describe('demo mode', () => {
+  it('neither writes nor restores progress (demo pages share one origin)', () => {
+    const step: Step = { name: 'details', selection: undefined } as unknown as Step
+    window.history.replaceState(null, '', '/?demo=yoga-class')
+    writeStoredProgress({ step, bookingDraft: {} as BookingDraft })
+    expect(window.sessionStorage.getItem(BOOKING_PROGRESS_STORAGE_KEY)).toBeNull()
+    window.sessionStorage.setItem(BOOKING_PROGRESS_STORAGE_KEY, JSON.stringify({ step, bookingDraft: {} }))
+    expect(readStoredProgress()).toBeNull()
+    window.history.replaceState(null, '', '/')
+  })
+})
