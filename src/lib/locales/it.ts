@@ -910,4 +910,7 @@ export const it: Bundle = {
   addMoreUnavailable: 'Non disponibile il {dates}. Rimuovi queste date o questo prodotto.',
   addMoreNoDays: 'Nessuna data per questo prodotto. Rimuovilo o scegli una data.',
   addMoreIncomplete: 'Completa o rimuovi i prodotti aggiunti prima di confermare.',
+  addMoreModuleSave: 'Salva',
+  addMoreModuleDone: '{title} salvato',
+  addMoreModuleChange: 'Modifica',
 }

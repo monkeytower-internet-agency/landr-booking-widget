@@ -35,7 +35,10 @@ interface Props {
    */
   customerComment?: string
   onCustomerCommentChange?: (comment: string) => void
-  onBack: () => void
+  /** Absent -> no back button (the picker is embedded in another screen). */
+  onBack?: () => void
+  /** Embedded in the review step for an added product: no back, no comment field, "Save". */
+  embedded?: boolean
   onConfirm: (locationId: string) => void
 }
 
@@ -64,6 +67,7 @@ export function PickupLocationPicker({
   customerComment = '',
   onCustomerCommentChange = () => {},
   onBack,
+  embedded = false,
   onConfirm,
 }: Props) {
   const [locations, setLocations] = useState<Location[]>([])
@@ -94,7 +98,7 @@ export function PickupLocationPicker({
 
   return (
     <Card>
-      <StepBackButton onBack={onBack} />
+      {onBack ? <StepBackButton onBack={onBack} /> : null}
       <CardHeader>
         <CardTitle>{tr('pickupLocationTitle', locale)}</CardTitle>
         <CardDescription>
@@ -170,16 +174,19 @@ export function PickupLocationPicker({
 
         {/* landr-n6ii3: same field DetailsStep collects, editable here too —
             last field before Continue. */}
-        <CustomerCommentField
-          value={customerComment}
-          onChange={onCustomerCommentChange}
-          collapsible
-        />
+        {embedded ? null : (
+          <CustomerCommentField
+            value={customerComment}
+            onChange={onCustomerCommentChange}
+            collapsible
+          />
+        )}
 
         <ContinueAction
           ready={!!selected && !loading}
           reason={selected ? tr('readyToContinue', locale) : tr('choosePickupLocationToContinue', locale)}
           reasonId="pickup-step-gate"
+          {...(embedded ? { label: tr('addMoreModuleSave', locale) } : {})}
           onContinue={() => {
             if (selected) onConfirm(selected)
           }}

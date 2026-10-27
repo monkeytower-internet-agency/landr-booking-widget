@@ -1,9 +1,15 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { useState } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { Product } from '@/api/types'
-import { getAvailability, getProductFlow, listProducts, submitBooking } from '@/api/client'
+import type { Location, Product } from '@/api/types'
+import {
+  getAvailability,
+  getProductFlow,
+  listPickupLocationsForOperator,
+  listProducts,
+  submitBooking,
+} from '@/api/client'
 import { BookingForm, type BookingSelection } from './BookingForm'
 import type { ExtraLine } from './crossSell'
 import type { BookerDetails } from './detailsTypes'
@@ -17,6 +23,7 @@ vi.mock('@/api/client', async (importOriginal) => {
     listProducts: vi.fn(),
     getFixedDateWindows: vi.fn(),
     getProductFlow: vi.fn(),
+    listPickupLocationsForOperator: vi.fn(),
   }
 })
 
@@ -67,12 +74,19 @@ const BOOKER: BookerDetails = {
   },
 }
 
-function Harness() {
+function Harness({
+  main = MAIN,
+  participantLanguages,
+}: {
+  main?: Product
+  participantLanguages?: Record<number, string>
+}) {
   const [lines, setLines] = useState<ExtraLine[]>([])
   return (
     <BookingForm
       widgetToken="tok"
-      product={MAIN}
+      product={main}
+      participantLanguages={participantLanguages}
       selection={SELECTION}
       booker={BOOKER}
       participants={[{ ...BOOKER, service_role_code: '' }]}
@@ -93,43 +107,182 @@ describe('Add more to this booking (review step)', () => {
     vi.mocked(listProducts).mockResolvedValue([MAIN, CAMPING])
     vi.mocked(getProductFlow).mockReset()
     vi.mocked(getProductFlow).mockResolvedValue({ modules: null })
+    vi.mocked(listPickupLocationsForOperator).mockReset()
+    vi.mocked(listPickupLocationsForOperator).mockResolvedValue([])
   })
 
-  it('leaves out products whose required modules cannot run on the review step', async () => {
-    const guided = product('guided', { name: 'Guided tour', guide_languages: ['de'] })
-    const formed = product('formed', { name: 'Course' })
-    const pickup = product('pickup', { name: 'Shuttle tour', needs_pickup: true })
-    const verified = product('verified', { name: 'Test event', requires_verification: true })
-    vi.mocked(listProducts).mockResolvedValue([MAIN, CAMPING, guided, formed, pickup, verified])
-    vi.mocked(getProductFlow).mockImplementation(async (_t, id) =>
-      id === 'formed'
-        ? {
-            modules: [
-              {
-                kind: 'custom_form',
-                position: 1,
-                form: { key: 'medical', version: 1, name: 'Medical', name_localized: null, fields: [] },
-              },
-            ],
-          }
-        : { modules: null },
-    )
-    vi.mocked(getAvailability).mockResolvedValue([])
-    render(<Harness />)
-
-    await screen.findByTestId('add-more-candidate-camping')
-    // The main flow assigned no language, answered no form, set no pickup.
-    expect(screen.queryByTestId('add-more-candidate-guided')).toBeNull()
-    expect(screen.queryByTestId('add-more-candidate-formed')).toBeNull()
-    expect(screen.queryByTestId('add-more-candidate-pickup')).toBeNull()
-
-    // Verification renders inline: adding the product asks for it right here.
-    const add = await screen.findByTestId('add-more-candidate-verified')
+  const flowWith = (key: string, fields: unknown[] = []) => ({
+    modules: [
+      {
+        kind: 'custom_form',
+        position: 1,
+        form: { key, version: 1, name: 'Medical', name_localized: null, fields },
+      },
+    ],
+  })
+  const addAndSettle = async (id: string) => {
+    const add = await screen.findByTestId(`add-more-candidate-${id}`)
     await act(async () => {
       fireEvent.click(add)
     })
-    await screen.findByTestId('add-more-line-verified')
+    const line = await screen.findByTestId(`add-more-line-${id}`)
+    await waitFor(() => expect(line).not.toHaveTextContent(/Checking availability/))
+    return line
+  }
+  const confirm = async () => {
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+    })
+  }
+
+  it('asks for verification inline when the added product requires it', async () => {
+    const verified = product('verified', { name: 'Test event', requires_verification: true })
+    vi.mocked(listProducts).mockResolvedValue([MAIN, CAMPING, verified])
+    vi.mocked(getAvailability).mockResolvedValue([])
+    render(<Harness />)
+    await addAndSettle('verified')
     expect(screen.getByRole('button', { name: /Confirm booking/i })).toBeDisabled()
+  })
+
+  it('leaves out a product that shares no guide language with the booking', async () => {
+    const mainEn = product('main', { guide_languages: ['en'] })
+    const guided = product('guided', { name: 'Guided tour', guide_languages: ['de'] })
+    vi.mocked(listProducts).mockResolvedValue([mainEn, CAMPING, guided])
+    vi.mocked(getAvailability).mockResolvedValue([])
+    render(<Harness main={mainEn} participantLanguages={{ 0: 'en' }} />)
+    await screen.findByTestId('add-more-candidate-camping')
+    expect(screen.queryByTestId('add-more-candidate-guided')).toBeNull()
+  })
+
+  it('renders the guide-language board inline and submits the picked language', async () => {
+    const guided = product('guided', { name: 'Guided tour', guide_languages: ['de', 'en'] })
+    vi.mocked(listProducts).mockResolvedValue([MAIN, guided])
+    vi.mocked(getAvailability).mockResolvedValue([])
+    vi.mocked(submitBooking).mockResolvedValue({ booking_id: 'b-3', semantic_state: 'pending' })
+    render(<Harness />)
+    const line = await addAndSettle('guided')
+
+    const module = within(line).getByTestId('add-more-module-language')
+    expect(screen.getByRole('button', { name: /Confirm booking/i })).toBeDisabled()
+    fireEvent.click(within(module).getByTestId('lang-add-de'))
+    await waitFor(() => expect(within(module).getByTestId('language-step-submit')).toBeEnabled())
+    fireEvent.click(within(module).getByTestId('language-step-submit'))
+
+    // Saved: the board collapses to a one-line summary.
+    await waitFor(() => expect(within(line).queryByTestId('language-step-submit')).toBeNull())
+    expect(within(line).getByTestId('add-more-module-language')).toHaveTextContent(/saved/i)
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Confirm booking/i })).toBeEnabled(),
+    )
+    await confirm()
+    await waitFor(() => expect(submitBooking).toHaveBeenCalledTimes(1))
+    const body = vi.mocked(submitBooking).mock.calls[0]![0]
+    expect(body.products.map((p) => p.product_id)).toEqual(['main', 'guided'])
+    expect(body.participants[0]).toMatchObject({ language: 'de' })
+  })
+
+  it('needs no board when one language is shared: the whole party gets it', async () => {
+    const guided = product('guided', { name: 'Guided tour', guide_languages: ['fr'] })
+    vi.mocked(listProducts).mockResolvedValue([MAIN, guided])
+    vi.mocked(getAvailability).mockResolvedValue([])
+    vi.mocked(submitBooking).mockResolvedValue({ booking_id: 'b-4', semantic_state: 'pending' })
+    render(<Harness />)
+    const line = await addAndSettle('guided')
+    expect(within(line).queryByTestId('add-more-module-language')).toBeNull()
+    await confirm()
+    await waitFor(() => expect(submitBooking).toHaveBeenCalledTimes(1))
+    expect(vi.mocked(submitBooking).mock.calls[0]![0].participants[0]).toMatchObject({
+      language: 'fr',
+    })
+  })
+
+  it('renders the added product\'s custom form inline and submits its answers', async () => {
+    const formed = product('formed', { name: 'Course' })
+    vi.mocked(listProducts).mockResolvedValue([MAIN, formed])
+    vi.mocked(getAvailability).mockResolvedValue([])
+    vi.mocked(getProductFlow).mockResolvedValue(
+      flowWith('medical', [
+        {
+          key: 'allergies',
+          field_type: 'text',
+          label: 'Allergies',
+          label_localized: null,
+          help_text: null,
+          help_text_localized: null,
+          required: true,
+          position: 0,
+          options: null,
+          validation: null,
+          visibility_rule: null,
+          scope: 'booking',
+        },
+      ]) as never,
+    )
+    vi.mocked(submitBooking).mockResolvedValue({ booking_id: 'b-5', semantic_state: 'pending' })
+    render(<Harness />)
+    const line = await addAndSettle('formed')
+
+    const module = within(line).getByTestId('add-more-module-form:medical')
+    expect(screen.getByRole('button', { name: /Confirm booking/i })).toBeDisabled()
+    fireEvent.change(within(module).getByRole('textbox'), { target: { value: 'Peanuts' } })
+    await waitFor(() => expect(within(module).getByTestId('cf-submit')).toBeEnabled())
+    fireEvent.click(within(module).getByTestId('cf-submit'))
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Confirm booking/i })).toBeEnabled(),
+    )
+    await confirm()
+    await waitFor(() => expect(submitBooking).toHaveBeenCalledTimes(1))
+    expect(vi.mocked(submitBooking).mock.calls[0]![0].form_responses).toEqual([
+      { form_key: 'medical', answers: { allergies: 'Peanuts' } },
+    ])
+  })
+
+  it('drops the inline form answers when the product is removed', async () => {
+    const formed = product('formed', { name: 'Course' })
+    vi.mocked(listProducts).mockResolvedValue([MAIN, formed])
+    vi.mocked(getAvailability).mockResolvedValue([])
+    vi.mocked(getProductFlow).mockResolvedValue(flowWith('medical') as never)
+    vi.mocked(submitBooking).mockResolvedValue({ booking_id: 'b-6', semantic_state: 'pending' })
+    render(<Harness />)
+    const line = await addAndSettle('formed')
+    const module = within(line).getByTestId('add-more-module-form:medical')
+    await waitFor(() => expect(within(module).getByTestId('cf-submit')).toBeEnabled())
+    fireEvent.click(within(module).getByTestId('cf-submit'))
+    await waitFor(() => expect(within(line).queryByTestId('cf-submit')).toBeNull())
+    fireEvent.click(within(line).getAllByRole('button', { name: 'Remove' })[0]!)
+    await waitFor(() => expect(screen.queryByTestId('add-more-line-formed')).toBeNull())
+    await confirm()
+    await waitFor(() => expect(submitBooking).toHaveBeenCalledTimes(1))
+    expect(vi.mocked(submitBooking).mock.calls[0]![0].form_responses).toBeUndefined()
+  })
+
+  it('renders the pickup picker inline and submits the picked point', async () => {
+    const shuttle = product('shuttle', { name: 'Shuttle tour', needs_pickup: true })
+    vi.mocked(listProducts).mockResolvedValue([MAIN, shuttle])
+    vi.mocked(getAvailability).mockResolvedValue([])
+    vi.mocked(listPickupLocationsForOperator).mockResolvedValue([
+      { location_id: 'loc-1', name: 'Harbour', name_localized: null },
+      { location_id: 'loc-2', name: 'Station', name_localized: null },
+    ] as unknown as Location[])
+    vi.mocked(submitBooking).mockResolvedValue({ booking_id: 'b-7', semantic_state: 'pending' })
+    render(<Harness />)
+    const line = await addAndSettle('shuttle')
+
+    const module = within(line).getByTestId('add-more-module-pickup')
+    expect(screen.getByRole('button', { name: /Confirm booking/i })).toBeDisabled()
+    fireEvent.click(await within(module).findByLabelText('Station'))
+    await waitFor(() => expect(within(module).getByTestId('pickup-step-submit')).toBeEnabled())
+    fireEvent.click(within(module).getByTestId('pickup-step-submit'))
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Confirm booking/i })).toBeEnabled(),
+    )
+    await confirm()
+    await waitFor(() => expect(submitBooking).toHaveBeenCalledTimes(1))
+    expect(vi.mocked(submitBooking).mock.calls[0]![0].participants[0]).toMatchObject({
+      pickup_location_id: 'loc-2',
+    })
   })
 
   it('adds a product with the main dates and submits both lines in one booking', async () => {

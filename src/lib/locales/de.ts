@@ -920,4 +920,7 @@ export const de: Bundle = {
   addMoreUnavailable: 'Nicht verfügbar am {dates}. Entferne diese Tage oder dieses Angebot.',
   addMoreNoDays: 'Für dieses Angebot sind keine Tage mehr gewählt. Entferne es oder wähle ein Datum.',
   addMoreIncomplete: 'Vervollständige oder entferne die hinzugefügten Angebote, bevor du bestätigst.',
+  addMoreModuleSave: 'Speichern',
+  addMoreModuleDone: '{title} gespeichert',
+  addMoreModuleChange: 'Ändern',
 }
