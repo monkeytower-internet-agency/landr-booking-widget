@@ -321,7 +321,7 @@ function heroOf(template: DemoTemplate): string | null {
  */
 const DEMO_ART_COUNT = 3
 const DEMO_ART_PRODUCTS: Record<string, string[]> = {
-  apartment: ['studio', 'family-apartment', 'rooftop-loft'],
+  apartment: ['studio', 'family-apartment', 'rooftop-loft', 'bike-rental'],
   bike: ['half-day-rental', 'day-rental', 'ebike-rental', 'guided-city-tour', 'trail-day-tour'],
   course: ['course', 'weekend-workshop', 'taster-session'],
   driving_school: ['trial-lesson', 'intensive-week', 'driving-lesson', 'double-lesson', 'special-drive', 'test-drive', 'theory-class'],
@@ -407,8 +407,10 @@ const catalogueProducts = (template: DemoTemplate, cat: DemoCatalogue): Product[
   const hero = heroOf(template)
   return cat.products.map((c): Product => {
     const own = (c.images ?? []).filter((im) => im.thumb_url || im.hero_url)
-    const images = own.length ? own : demoArt(template.slug, c.slug, fill(c.name, 'en'))
-    const thumb = c.thumb_url ?? images[0]?.thumb_url ?? hero
+    // Bundled art first: catalogue image URLs can point at a storage host the visitor's browser cannot reach.
+    const art = demoArt(template.slug, c.slug, fill(c.name, 'en'))
+    const images = art.length ? art : own
+    const thumb = art.length ? art[0].thumb_url : (c.thumb_url ?? images[0]?.thumb_url ?? hero)
     // The tiers are served by the pass-tiers read, not carried on the product.
     const rest: Partial<DemoCatalogueProduct> = { ...c }
     delete rest.pass_tiers

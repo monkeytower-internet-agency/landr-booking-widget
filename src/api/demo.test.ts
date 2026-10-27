@@ -595,6 +595,11 @@ describe('demoArt', () => {
     expect(imgs[0].hero_url).toMatch(/demo\/kayak\/half-day-tour-1\.svg$/)
   })
 
+  it('covers the apartment city-bike add-on', async () => {
+    const { demoArt } = await import('./demo')
+    expect(demoArt('apartment', 'bike-rental', 'City bike')[0].hero_url).toMatch(/demo\/apartment\/bike-rental-1\.svg$/)
+  })
+
   it('gives unknown products none', async () => {
     const { demoArt } = await import('./demo')
     expect(demoArt('kayak', 'nope', 'x')).toEqual([])
