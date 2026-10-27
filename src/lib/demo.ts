@@ -67,6 +67,9 @@ interface DemoCopy {
   congratsOverview: string
   cta: string
   again: string
+  language: string
+  lightMode: string
+  darkMode: string
 }
 
 const COPY: Record<DemoLang, DemoCopy> = {
@@ -79,6 +82,9 @@ const COPY: Record<DemoLang, DemoCopy> = {
     congratsOverview: 'Sample booking overview',
     cta: 'Set up my own booking page',
     again: 'Try the demo again',
+    language: 'Language',
+    lightMode: 'Light mode',
+    darkMode: 'Dark mode',
   },
   de: {
     badge: 'Demo',
@@ -89,6 +95,9 @@ const COPY: Record<DemoLang, DemoCopy> = {
     congratsOverview: 'Beispiel-Buchungsübersicht',
     cta: 'Meine eigene Buchungsseite einrichten',
     again: 'Demo noch einmal ausprobieren',
+    language: 'Sprache',
+    lightMode: 'Heller Modus',
+    darkMode: 'Dunkler Modus',
   },
   es: {
     badge: 'Demo',
@@ -99,6 +108,9 @@ const COPY: Record<DemoLang, DemoCopy> = {
     congratsOverview: 'Resumen de reserva de ejemplo',
     cta: 'Crear mi propia página de reservas',
     again: 'Probar la demo otra vez',
+    language: 'Idioma',
+    lightMode: 'Modo claro',
+    darkMode: 'Modo oscuro',
   },
   it: {
     badge: 'Demo',
@@ -109,6 +121,9 @@ const COPY: Record<DemoLang, DemoCopy> = {
     congratsOverview: 'Riepilogo di prenotazione di esempio',
     cta: 'Crea la mia pagina di prenotazione',
     again: 'Riprova la demo',
+    language: 'Lingua',
+    lightMode: 'Modalità chiara',
+    darkMode: 'Modalità scura',
   },
   tr: {
     badge: 'Demo',
@@ -119,6 +134,9 @@ const COPY: Record<DemoLang, DemoCopy> = {
     congratsOverview: 'Örnek rezervasyon özeti',
     cta: 'Kendi rezervasyon sayfamı oluştur',
     again: 'Demoyu tekrar dene',
+    language: 'Dil',
+    lightMode: 'Açık mod',
+    darkMode: 'Koyu mod',
   },
 }
 
