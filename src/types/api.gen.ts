@@ -7420,6 +7420,77 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/contracts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Contracts */
+        get: operations["list_contracts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/contracts/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * My Contracts
+         * @description The caller's own live contracts at this operator (any role).
+         */
+        get: operations["my_contracts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/contracts/{contract_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Patch Contract */
+        patch: operations["patch_contract"];
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/contracts/{contract_id}/end": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** End Contract */
+        post: operations["end_contract"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/day-manifest": {
         parameters: {
             query?: never;
@@ -15040,6 +15111,78 @@ export interface components {
             payment_link_currency?: string | null;
             /** Payment Link Pending */
             payment_link_pending: boolean;
+        };
+        /** ContractOut */
+        ContractOut: {
+            /** Accepted At */
+            accepted_at?: string | null;
+            /** Commission Scheme Id */
+            commission_scheme_id?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Currency */
+            currency?: string | null;
+            /** Ended At */
+            ended_at?: string | null;
+            /** Id */
+            id: string;
+            /** Invite Id */
+            invite_id?: string | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "provider" | "agent";
+            /** Notes */
+            notes?: string | null;
+            /** Operator Id */
+            operator_id: string;
+            /** Provider Id */
+            provider_id?: string | null;
+            /**
+             * Rate Kind
+             * @enum {string}
+             */
+            rate_kind: "scheme" | "percent" | "flat_per_booking" | "flat_per_day";
+            /** Rate Value */
+            rate_value?: number | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "invited" | "accepted" | "ended";
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** User Id */
+            user_id?: string | null;
+            /**
+             * Valid From
+             * Format: date
+             */
+            valid_from: string;
+            /** Valid To */
+            valid_to?: string | null;
+        };
+        /** ContractPatch */
+        ContractPatch: {
+            /** Commission Scheme Id */
+            commission_scheme_id?: string | null;
+            /** Currency */
+            currency?: string | null;
+            /** Notes */
+            notes?: string | null;
+            /** Rate Kind */
+            rate_kind?: ("scheme" | "percent" | "flat_per_booking" | "flat_per_day") | null;
+            /** Rate Value */
+            rate_value?: number | null;
+            /** Valid To */
+            valid_to?: string | null;
         };
         /** ContractRateIn */
         ContractRateIn: {
@@ -37123,6 +37266,139 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_contracts: {
+        parameters: {
+            query?: {
+                kind?: ("provider" | "agent") | null;
+                status?: ("invited" | "accepted" | "ended") | null;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContractOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    my_contracts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContractOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_contract: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                contract_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ContractPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContractOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    end_contract: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                contract_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContractOut"];
                 };
             };
             /** @description Validation Error */
