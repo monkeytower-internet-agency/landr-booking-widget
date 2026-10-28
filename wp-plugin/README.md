@@ -35,6 +35,7 @@ The setting accepts any full `https://` URL. A trailing slash is added automatic
   group="courses"             ( optional — scope to one product category + all its sub-categories )
   product="open-water"        ( optional — deep-link to a single product slug )
   start="dates"               ( optional — with product=, opens on the date picker, skipping product-detail )
+  lang="auto"                 ( optional — default "auto": page language → ?lang=de-DE; "off" = visitor's browser; "de" = pin )
   height="900"                ( optional — iframe height in px, default 800 )
   src="https://bw.landr.de/"  ( optional — per-page override of the Settings URL )
 ]
@@ -50,6 +51,8 @@ above is only the initial height, used until the first resize message
 arrives (so older widget deploys that never post keep working unchanged).
 
 The `token=` value maps to `?w=<token>` in the iframe `src`; the API resolves the operator server-side, so the operator slug never appears in the page source. Pass at most one of `group=`/`product=` — when both are given, `product=` wins and the widget lands directly on that product (the `group=` filter is still forwarded).
+
+`lang=` (0.6.0) keeps the widget in the host page's language on multilingual sites. The default `auto` reads WordPress's `determine_locale()`, which TranslatePress, WPML and Polylang switch per language, and sends it as `?lang=` (`de_DE` → `de-DE`). The widget uses it instead of the visitor's browser language, still limited to the languages the operator offers, and remembers it for the browser tab. `lang="off"` (or empty) sends nothing; any other value that looks like a language tag (`de`, `pt-BR`) is sent as-is.
 
 The `src=` attribute always wins, which is handy when one specific page should iframe a different preview while the rest of the site uses the configured default.
 

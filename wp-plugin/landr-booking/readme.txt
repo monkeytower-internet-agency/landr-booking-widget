@@ -3,7 +3,7 @@ Contributors: monkeytower
 Tags: booking, iframe, shortcode
 Requires at least: 6.0
 Tested up to: 6.6
-Stable tag: 0.5.1
+Stable tag: 0.6.0
 License: MIT
 
 Embed the LANDR booking widget via a shortcode.
@@ -25,6 +25,7 @@ Drops the LANDR booking widget into any page or post using a shortcode. The widg
    - `group="slug"` to scope the embed to one product category and all of its sub-categories.
    - `product="slug"` to deep-link to a single product (wins over `group=` when both are given).
    - `start="dates"` to open directly on the date picker instead of the product detail step (only meaningful together with `product=`).
+   - `lang="auto"` (default) shows the widget in the page's language, as set by TranslatePress, WPML or Polylang (sent as `?lang=de-DE`). `lang="off"` lets the widget follow the visitor's browser instead; `lang="de"` pins one language. The widget only ever shows languages the operator offers.
    - `height="900"` to override the iframe height (default 800px).
    - `src="https://..."` to override the configured widget origin for this one page.
 
@@ -34,6 +35,9 @@ or shrinks the iframe accordingly. The `height=` attribute is only the
 initial height before the first resize message arrives.
 
 == Changelog ==
+
+= 0.6.0 =
+* Add `lang=` attribute, default `auto`: the iframe passes the page's language (`determine_locale()`, which TranslatePress, WPML and Polylang set per language) to the widget as `?lang=`, so a visitor on the German page gets the German widget regardless of their browser language. `lang="off"` restores the old browser-language behaviour; an explicit code such as `lang="de"` pins one language.
 
 = 0.5.1 =
 * Print the auto-resize listener inline, right after the first booking iframe, instead of only in the page footer. Page builders such as Thrive Architect can render the shortcode after (or without) `wp_footer`, which left the iframe at its initial height. The footer copy stays as a fallback; a window-level guard makes sure only one listener is ever registered.
