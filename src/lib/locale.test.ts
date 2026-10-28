@@ -128,6 +128,101 @@ describe('overrideBookingLocale (landr-otml0.3 review fix MAJOR 2)', () => {
   })
 })
 
+describe('browserLocale ?lang= host-page hint', () => {
+  function setUrl(search: string) {
+    window.history.replaceState(null, '', `/${search}`)
+  }
+
+  afterEach(() => {
+    setUrl('')
+    window.sessionStorage.clear()
+    overrideBookingLocale(null)
+    configureCustomerLocale(null, null)
+    vi.restoreAllMocks()
+    vi.unstubAllGlobals()
+  })
+
+  it('beats the navigator locale', () => {
+    setBrowserLanguage('en-US')
+    setUrl('?w=tok&lang=de-DE')
+    expect(browserLocale()).toBe('de-DE')
+  })
+
+  it('normalizes _ to - and lowercases the language subtag', () => {
+    setBrowserLanguage('en-US')
+    setUrl('?lang=de_DE')
+    expect(browserLocale()).toBe('de-DE')
+    setUrl('?lang=ES')
+    expect(browserLocale()).toBe('es')
+  })
+
+  it('still goes through the operator whitelist and default-locale fallback', () => {
+    setBrowserLanguage('de')
+    configureCustomerLocale(['en', 'es', 'de'], 'en')
+    setUrl('?lang=es-ES')
+    expect(browserLocale()).toBe('es')
+    setUrl('?lang=fr-FR')
+    expect(browserLocale()).toBe('en')
+  })
+
+  it('loses to an invite override', () => {
+    setBrowserLanguage('en-US')
+    setUrl('?lang=de-DE')
+    overrideBookingLocale('es')
+    expect(browserLocale()).toBe('es')
+  })
+
+  it('is remembered for the tab and replaced by a new explicit ?lang=', () => {
+    setBrowserLanguage('en-US')
+    setUrl('?lang=de-DE')
+    expect(browserLocale()).toBe('de-DE')
+    setUrl('?w=tok')
+    expect(browserLocale()).toBe('de-DE')
+    setUrl('?lang=es')
+    expect(browserLocale()).toBe('es')
+    setUrl('')
+    expect(browserLocale()).toBe('es')
+  })
+
+  it('ignores an invalid value (navigator wins, a remembered hint survives)', () => {
+    setBrowserLanguage('it')
+    for (const bad of ['', 'd', 'deutsch', 'de-DE-x-phonebook', '<script>', 'de DE']) {
+      setUrl(`?lang=${encodeURIComponent(bad)}`)
+      expect(browserLocale()).toBe('it')
+    }
+    setUrl('?lang=de')
+    expect(browserLocale()).toBe('de')
+    setUrl('?lang=%3Cscript%3E')
+    expect(browserLocale()).toBe('de')
+  })
+
+  it('still works from the query when sessionStorage throws', () => {
+    setBrowserLanguage('en-US')
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('blocked')
+    })
+    setUrl('?lang=de')
+    expect(browserLocale()).toBe('de')
+    setUrl('')
+    expect(browserLocale()).toBe('en-US')
+  })
+
+  it('leaves demo mode alone: demo follows its own ?lang=, never the remembered hint', () => {
+    setBrowserLanguage('en-US')
+    setUrl('?lang=es')
+    expect(browserLocale()).toBe('es')
+    setUrl('?demo=paragliding&lang=de-DE')
+    expect(browserLocale()).toBe('de')
+    setUrl('?demo=paragliding')
+    expect(browserLocale()).toBe('en')
+    setUrl('?demo=paragliding&lang=it')
+    expect(browserLocale()).toBe('it')
+    // The demo visit did not touch the remembered hint.
+    setUrl('')
+    expect(browserLocale()).toBe('es')
+  })
+})
+
 describe('resolveCustomerStageLabel', () => {
   // landr-821d6.7 review round: the customer_label-vs-staff-label choice
   // is made SERVER-SIDE (public_get_booking_by_token / booking_submit.
