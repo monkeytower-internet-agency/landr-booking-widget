@@ -1,11 +1,19 @@
 name: dependency-audit
 
-# landr-0unqx.2: osv-scanner over the lockfile(s). Fails the job on any
-# HIGH/CRITICAL (CVSS >= 7.0) advisory that is not listed in the checked-in
-# osv-scanner.toml. Every ignore carries a reason and an ignoreUntil expiry;
-# once the date passes the finding resurfaces and the job goes red again.
-# Also runs weekly so new advisories surface without a code change.
-# Separate file from the secret-scan workflow (landr-0unqx.1) on purpose.
+# landr-0unqx.2: osv-scanner over the lockfile(s), HIGH/CRITICAL
+# (CVSS >= 7.0) advisories not listed in the checked-in osv-scanner.toml.
+#
+# A new advisory can be published at any time, so a PR must not go red for a
+# finding it did not cause. Therefore:
+#   * pull_request: scan the base lockfile and the head lockfile; FAIL only on
+#     findings that are new in head (the PR added or changed a vulnerable
+#     dependency). Pre-existing findings are reported as warnings.
+#   * schedule (daily) / workflow_dispatch / push: report only (never red for
+#     findings), and for schedule/dispatch the `bump` job upgrades the
+#     affected packages on dev, runs the repo gate and opens or updates ONE PR
+#     `deps: security bumps` from branch deps/security-bumps.
+# Note: schedule and workflow_dispatch run the workflow file on the default
+# branch (main); the jobs check out `dev` explicitly.
 
 on:
   pull_request:
@@ -13,15 +21,15 @@ on:
   push:
     branches: [dev]
   schedule:
-    - cron: '17 5 * * 1'
+    - cron: '17 5 * * *'
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: dependency-audit-${{ github.ref }}
-  cancel-in-progress: true
+  group: dependency-audit-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   OSV_SCANNER_VERSION: v2.7.0
@@ -33,8 +41,14 @@ jobs:
     name: osv-scanner (HIGH/CRITICAL gate)
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    outputs:
+      count: ${{ steps.report.outputs.count }}
+      packages: ${{ steps.report.outputs.packages }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          # schedule/dispatch run on the default branch; audit what ships next.
+          ref: ${{ github.event_name == 'pull_request' && github.sha || 'dev' }}
 
       - name: Install osv-scanner (pinned, checksum-verified)
         run: |
@@ -44,41 +58,114 @@ jobs:
           echo "${OSV_SCANNER_SHA256}  $RUNNER_TEMP/osv-scanner" | sha256sum -c -
           chmod +x "$RUNNER_TEMP/osv-scanner"
 
-      - name: Scan lockfiles
+      - name: Scan head lockfiles
         run: |
           set +e -uo pipefail
           args=()
           for f in $LOCKFILES; do args+=(-L "$f"); done
-          # exit 1 = vulnerabilities found (judged by the gate below); >1 = scanner error
+          # exit 1 = vulnerabilities found (judged by the next steps); >1 = scanner error
           "$RUNNER_TEMP/osv-scanner" scan source --config osv-scanner.toml --format json \
-            "${args[@]}" > "$RUNNER_TEMP/osv.json" 2> "$RUNNER_TEMP/osv.err"
+            "${args[@]}" > "$RUNNER_TEMP/osv-head.json" 2> "$RUNNER_TEMP/osv.err"
           rc=$?
           cat "$RUNNER_TEMP/osv.err" >&2
           if [ "$rc" -gt 1 ]; then echo "osv-scanner failed (exit $rc)"; exit "$rc"; fi
-          # The table (all severities) is informational; the gate is next step.
+          # The table (all severities) is informational.
           "$RUNNER_TEMP/osv-scanner" scan source --config osv-scanner.toml "${args[@]}" || true
 
-      - name: Gate on HIGH/CRITICAL
+      - name: Report HIGH/CRITICAL (non-blocking)
+        id: report
+        run: python3 .github/scripts/osv_gate.py report "$RUNNER_TEMP/osv-head.json"
+
+      - name: Scan base lockfiles (pull_request only)
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: ${{ github.base_ref }}
         run: |
-          python3 - "$RUNNER_TEMP/osv.json" <<'PY'
-          import json, sys
-          data = json.load(open(sys.argv[1]))
-          bad = []
-          for res in data.get("results", []):
-              for pkg in res.get("packages", []):
-                  p = pkg["package"]
-                  for g in pkg.get("groups", []):
-                      try:
-                          score = float(g.get("max_severity") or 0)
-                      except ValueError:
-                          score = 0.0
-                      if score >= 7.0:
-                          bad.append((score, p["name"], p["version"], ",".join(g["ids"])))
-          for s, n, v, ids in sorted(bad, reverse=True):
-              print(f"::error::HIGH/CRITICAL {s}: {n}@{v} {ids}")
-          if bad:
-              print(f"{len(bad)} un-ignored HIGH/CRITICAL advisories. Fix the dependency, or add an "
-                    "[[IgnoredVulns]] entry with reason + ignoreUntil to osv-scanner.toml and file a bd ticket.")
-              sys.exit(1)
-          print("No un-ignored HIGH/CRITICAL advisories.")
-          PY
+          set +e -uo pipefail
+          git fetch --no-tags --depth=1 origin "$BASE_REF"
+          mkdir -p "$RUNNER_TEMP/base"
+          args=()
+          for f in $LOCKFILES; do
+            if git cat-file -e "FETCH_HEAD:$f" 2>/dev/null; then
+              git show "FETCH_HEAD:$f" > "$RUNNER_TEMP/base/$f"
+              args+=(-L "$RUNNER_TEMP/base/$f")
+            fi
+          done
+          if [ "${#args[@]}" -eq 0 ]; then echo '{"results":[]}' > "$RUNNER_TEMP/osv-base.json"; exit 0; fi
+          "$RUNNER_TEMP/osv-scanner" scan source --config osv-scanner.toml --format json \
+            "${args[@]}" > "$RUNNER_TEMP/osv-base.json" 2> "$RUNNER_TEMP/osv.err"
+          rc=$?
+          cat "$RUNNER_TEMP/osv.err" >&2
+          if [ "$rc" -gt 1 ]; then echo "osv-scanner failed on base (exit $rc)"; exit "$rc"; fi
+
+      - name: Gate on findings new in this PR
+        if: github.event_name == 'pull_request'
+        run: python3 .github/scripts/osv_gate.py new "$RUNNER_TEMP/osv-head.json" "$RUNNER_TEMP/osv-base.json"
+
+  bump:
+    name: security bump PR
+    needs: osv-scan
+    if: >-
+      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+      && needs.osv-scan.outputs.count != '0'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      PACKAGES: ${{ needs.osv-scan.outputs.packages }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: dev
+          fetch-depth: 0
+          token: ${{ github.token }}
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Bump the affected packages
+        run: |
+          set -euo pipefail
+          for pkg in $PACKAGES; do
+            npm update "$pkg" || echo "::warning::npm update $pkg failed"
+          done
+          git diff --stat -- package.json package-lock.json
+          if git diff --quiet -- package.json package-lock.json; then
+            echo "Lockfile unchanged: no patched version resolvable by an in-range update."
+            echo "::warning::Security findings remain but an in-range bump changed nothing; a manual major bump is needed."
+            echo "CHANGED=false" >> "$GITHUB_ENV"
+          else
+            echo "CHANGED=true" >> "$GITHUB_ENV"
+          fi
+
+      - name: Repo gate
+        if: env.CHANGED == 'true'
+        run: |
+          set -euo pipefail
+          npm ci
+          npm run typecheck
+          npm run lint
+          npm test
+
+      - name: 'Open or update the deps: security bumps PR'
+        if: env.CHANGED == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          branch=deps/security-bumps
+          git config user.name "landr-bot"
+          git config user.email "landr-bot@users.noreply.github.com"
+          git checkout -B "$branch"
+          git add package.json package-lock.json
+          git commit -m "deps: security bumps" -m "Bumped by the daily dependency-audit run: $PACKAGES"
+          git push --force origin "$branch"
+          body="Automated by the daily dependency-audit workflow. Bumped to clear HIGH/CRITICAL osv-scanner findings: $PACKAGES. The repo gate passed on this branch before the push."
+          if gh pr list --head "$branch" --base dev --state open --json number --jq '.[0].number' | grep -q .; then
+            gh pr edit "$branch" --body "$body"
+          else
+            gh pr create --base dev --head "$branch" --title "deps: security bumps" --body "$body"
+          fi
