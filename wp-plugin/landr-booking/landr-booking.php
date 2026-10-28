@@ -3,7 +3,7 @@
  * Plugin Name: LANDR Booking
  * Plugin URI:  https://github.com/monkeytower-internet-agency/landr-booking-widget
  * Description: Embeds the LANDR booking widget via the [landr_booking token="..."] shortcode. Widget origin is configurable under Settings → LANDR Booking.
- * Version:     0.5.1
+ * Version:     0.6.0
  * Author:      Monkeytower Internet Agency
  * License:     MIT
  */
@@ -14,6 +14,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 define( 'LANDR_BOOKING_DEFAULT_SRC', 'https://bw.landr.de/' );
 define( 'LANDR_BOOKING_OPTION', 'landr_booking_widget_origin' );
+define( 'LANDR_BOOKING_LANG_RE', '/^[a-zA-Z]{2,3}([-_][a-zA-Z0-9]{2,8})?$/' );
 
 /**
  * Return the configured widget origin (with a trailing slash), falling back
@@ -28,7 +29,7 @@ function landr_booking_get_origin() {
 }
 
 /**
- * [landr_booking token="<widget_token>" group="optional-category-slug" product="optional-slug" height="800" src="https://..."]
+ * [landr_booking token="<widget_token>" group="optional-category-slug" product="optional-slug" lang="auto" height="800" src="https://..."]
  *
  * `token=` is the opaque, rotatable per-operator widget token (landr-il9f).
  * It is emitted as the `?w=<token>` URL parameter so the widget can resolve
@@ -51,6 +52,14 @@ function landr_booking_get_origin() {
  * it skips the product-detail step and opens the widget straight on the
  * date picker (forwarded as ?start=dates). Any other value is ignored.
  *
+ * `lang=` (0.6.0) tells the widget which language the host page is in,
+ * forwarded as ?lang=<code>. "auto" (default) follows the page's locale via
+ * determine_locale(), which TranslatePress / WPML / Polylang filter on the
+ * frontend, so a German page sends ?lang=de-DE. "off" (or empty) sends
+ * nothing and the widget follows the visitor's browser. Any other value
+ * (e.g. "de") is sent as-is when it looks like a language tag. The widget
+ * still only shows the languages the operator offers.
+ *
  * The shortcode's `src=` attribute always wins so individual pages can pin a
  * specific origin (handy when testing a preview deploy). When omitted, the
  * value from Settings → LANDR Booking is used.
@@ -63,6 +72,7 @@ function landr_booking_shortcode( $atts ) {
             'product' => '',
             'catalog' => '',
             'start'   => '',
+            'lang'    => 'auto',
             'height'  => '800',
             'src'     => '',
         ),
@@ -88,6 +98,10 @@ function landr_booking_shortcode( $atts ) {
     if ( $atts['start'] === 'dates' ) {
         $query['start'] = 'dates';
     }
+    $lang = landr_booking_resolve_lang( $atts['lang'] );
+    if ( $lang !== '' ) {
+        $query['lang'] = $lang;
+    }
 
     $base = $atts['src'] !== '' ? rtrim( $atts['src'], '/' ) . '/' : landr_booking_get_origin();
     $url  = $base . '?' . http_build_query( $query );
@@ -106,6 +120,25 @@ function landr_booking_shortcode( $atts ) {
     return $iframe . landr_booking_resize_listener_once();
 }
 add_shortcode( 'landr_booking', 'landr_booking_shortcode' );
+
+/**
+ * The widget's ?lang= value for a shortcode lang= attribute, or '' for none:
+ * "auto" → the page locale (de_DE / de_DE_formal → de-DE), "off"/empty → '', anything else
+ * passed through when it matches LANDR_BOOKING_LANG_RE.
+ */
+function landr_booking_resolve_lang( $lang ) {
+    $lang = trim( (string) $lang );
+    if ( $lang === '' || strtolower( $lang ) === 'off' ) {
+        return '';
+    }
+    if ( strtolower( $lang ) === 'auto' ) {
+        $lang = function_exists( 'determine_locale' ) ? determine_locale() : get_locale();
+        // de_DE_formal → de_DE: the widget only needs language + region.
+        $lang = implode( '_', array_slice( explode( '_', (string) $lang ), 0, 2 ) );
+    }
+    $lang = str_replace( '_', '-', (string) $lang );
+    return preg_match( LANDR_BOOKING_LANG_RE, $lang ) ? $lang : '';
+}
 
 /* -------------------------------------------------------------------------
  * Auto-resize: listen for landr:resize postMessages from embedded widgets
@@ -301,6 +334,8 @@ function landr_booking_render_settings_page() {
             <?php esc_html_e( '(deep-link to a single product)', 'landr-booking' ); ?>,
             <code>start="dates"</code>
             <?php esc_html_e( '(with product=, open on the date picker instead of the product detail step)', 'landr-booking' ); ?>,
+            <code>lang="auto"</code>
+            <?php esc_html_e( '(default: the widget follows the page language, e.g. from TranslatePress, WPML or Polylang; lang="off" lets it follow the visitor\'s browser instead; lang="de" pins one language)', 'landr-booking' ); ?>,
             <code>height="800"</code>,
             <code>src="https://..."</code>.
         </p>

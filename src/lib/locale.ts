@@ -62,6 +62,37 @@ function rawBrowserLocale(): string {
 }
 
 /**
+ * Host-page language hint: `?lang=<code>` on a normal embed (the WordPress
+ * plugin emits the page's locale, e.g. `de-DE`). It replaces the navigator
+ * locale as the raw locale, so browserLocale()'s operator whitelist still applies.
+ * Remembered per tab in sessionStorage so a same-tab return without the
+ * param (payment return, reloads that drop the query) keeps the language;
+ * a new valid `?lang=` replaces it, an invalid one is ignored.
+ */
+const LANG_HINT_STORAGE_KEY = 'landr.langHint'
+const LANG_HINT_RE = /^[a-zA-Z]{2,3}([-_][a-zA-Z0-9]{2,8})?$/
+
+function cleanLangHint(raw: string | null | undefined): string | null {
+  const v = (raw ?? '').trim()
+  if (!LANG_HINT_RE.test(v)) return null
+  const [lang = '', region] = v.split(/[-_]/)
+  return region ? `${lang.toLowerCase()}-${region}` : lang.toLowerCase()
+}
+
+function hostLangHint(): string | null {
+  if (typeof window === 'undefined') return null
+  const fromQuery = cleanLangHint(new URLSearchParams(window.location.search).get('lang'))
+  try {
+    const stored = window.sessionStorage.getItem(LANG_HINT_STORAGE_KEY)
+    if (!fromQuery) return cleanLangHint(stored)
+    if (stored !== fromQuery) window.sessionStorage.setItem(LANG_HINT_STORAGE_KEY, fromQuery)
+  } catch {
+    // Storage blocked (sandboxed iframe, privacy mode): the query alone still works.
+  }
+  return fromQuery
+}
+
+/**
  * landr-otml0.3 review fix (MAJOR 2): an invite link (`?invite=<token>`)
  * carries the invitee's `language`, distinct from whatever the browser
  * happens to report — the two customarily agree, but an invitee opening the
@@ -85,7 +116,7 @@ export function browserLocale(): string {
   // Demo embeds render in the `?lang=` the marketing page asked for, never the visitor's browser locale.
   if (isDemoMode()) return demoLang()
   if (bookingLocaleOverride) return bookingLocaleOverride
-  const raw = rawBrowserLocale()
+  const raw = hostLangHint() ?? rawBrowserLocale()
   if (!customerLocaleWhitelist) return raw
   if (customerLocaleWhitelist.has(raw)) return raw
   const base = raw.split('-')[0]
