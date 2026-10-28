@@ -6513,6 +6513,72 @@
         "title": "ContractTermsIn",
         "type": "object"
       },
+      "CreateInviteBody": {
+        "properties": {
+          "contact_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contact Id"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "email": {
+            "maxLength": 320,
+            "minLength": 3,
+            "pattern": "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$",
+            "title": "Email",
+            "type": "string"
+          },
+          "locale": {
+            "anyOf": [
+              {
+                "maxLength": 16,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Locale"
+          },
+          "role": {
+            "enum": [
+              "owner",
+              "admin",
+              "staff",
+              "field",
+              "finance",
+              "readonly",
+              "performer",
+              "agent"
+            ],
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "role"
+        ],
+        "title": "CreateInviteBody",
+        "type": "object"
+      },
       "CreateMembershipBody": {
         "properties": {
           "permissions": {
@@ -6534,7 +6600,9 @@
               "staff",
               "field",
               "finance",
-              "readonly"
+              "readonly",
+              "performer",
+              "agent"
             ],
             "title": "Role",
             "type": "string"
@@ -11712,6 +11780,31 @@
         "title": "HeldSeatRow",
         "type": "object"
       },
+      "HeroOut": {
+        "properties": {
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          }
+        },
+        "required": [
+          "path",
+          "url"
+        ],
+        "title": "HeroOut",
+        "type": "object"
+      },
       "HostnameBranding": {
         "properties": {
           "favicon_url": {
@@ -13246,6 +13339,33 @@
           "invite_url"
         ],
         "title": "InviteSendOut",
+        "type": "object"
+      },
+      "InviteSignupBody": {
+        "properties": {
+          "password": {
+            "maxLength": 200,
+            "minLength": 8,
+            "title": "Password",
+            "type": "string"
+          },
+          "turnstile_token": {
+            "anyOf": [
+              {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Turnstile Token"
+          }
+        },
+        "required": [
+          "password"
+        ],
+        "title": "InviteSignupBody",
         "type": "object"
       },
       "InvoiceRow": {
@@ -15288,7 +15408,7 @@
         "type": "object"
       },
       "NotifyMentionsIn": {
-        "description": "Body for the notify-mentions endpoint.\n\ncomment_id:          The UUID of the comment that was just posted.\nmentioned_user_ids:  public.users.id list of users explicitly @mentioned in\n                     the comment body (already resolved by the client).\nbody:                A short excerpt of the comment body \u2014 included as the\n                     bell notification body so recipients see context.",
+        "description": "Body for the notify-mentions endpoint.\n\ncomment_id:          The UUID of the comment that was just posted.\nmentioned_user_ids:  public.users.id list of users explicitly @mentioned in\n                     the comment body (already resolved by the client).\nbody:                Accepted for client compatibility and IGNORED\n                     (landr-wj3ez): the bell carries the stored comment\n                     body, so a caller cannot put free text in it.",
         "properties": {
           "body": {
             "default": "",
@@ -16799,6 +16919,19 @@
               }
             ],
             "title": "Deposit Percent"
+          },
+          "field_staffing_window_days": {
+            "anyOf": [
+              {
+                "maximum": 60.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Field Staffing Window Days"
           },
           "first_day_of_week": {
             "anyOf": [
@@ -19378,6 +19511,173 @@
           "created_at"
         ],
         "title": "PhotoResponse",
+        "type": "object"
+      },
+      "PickupDetailsIn": {
+        "additionalProperties": false,
+        "description": "The allowlist. Every key is optional; an unknown key is a 422.",
+        "properties": {
+          "first_name": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Name"
+          },
+          "last_name": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Name"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone"
+          },
+          "pickup_location_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pickup Location Id"
+          },
+          "weight": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "maximum": 500.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weight"
+          }
+        },
+        "title": "PickupDetailsIn",
+        "type": "object"
+      },
+      "PickupDetailsOut": {
+        "properties": {
+          "changed": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Changed",
+            "type": "array"
+          },
+          "first_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Name"
+          },
+          "last_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Name"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "participant_id": {
+            "title": "Participant Id",
+            "type": "string"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone"
+          },
+          "pickup_location_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pickup Location Id"
+          },
+          "weight": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weight"
+          }
+        },
+        "required": [
+          "participant_id"
+        ],
+        "title": "PickupDetailsOut",
         "type": "object"
       },
       "PilotSignupRequest": {
@@ -31306,6 +31606,21 @@
             "title": "Flow",
             "type": "string"
           },
+          "hero_urls": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "default": {},
+            "title": "Hero Urls",
+            "type": "object"
+          },
           "name": {
             "anyOf": [
               {
@@ -33244,6 +33559,93 @@
         "title": "TemplatePitchLocale",
         "type": "object"
       },
+      "TemplatePublishIn": {
+        "properties": {
+          "slug": {
+            "pattern": "^[a-z][a-z0-9_]{1,25}$",
+            "title": "Slug",
+            "type": "string"
+          },
+          "version": {
+            "minimum": 1.0,
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "slug",
+          "version"
+        ],
+        "title": "TemplatePublishIn",
+        "type": "object"
+      },
+      "TemplatePublishOut": {
+        "properties": {
+          "exported_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exported Version"
+          },
+          "pr_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pr Url"
+          },
+          "request_id": {
+            "title": "Request Id",
+            "type": "string"
+          },
+          "run_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Url"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "draft",
+              "dispatched",
+              "pr_open",
+              "exported"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "state",
+          "slug",
+          "version",
+          "request_id"
+        ],
+        "title": "TemplatePublishOut",
+        "type": "object"
+      },
       "TermPair": {
         "additionalProperties": false,
         "description": "landr-iqo7q.1 \u2014 one operators.terminology override: the singular\n('one') / plural ('many') word an operator wants shown instead of\nLandr's own word for a core noun (e.g. performer -> \"Guide\" / \"Guides\").\nMirrors operators_terminology_shape / the public.is_valid_terminology()\nhelper (migration 20260923173000_operators_terminology.sql)\nbyte-for-byte: both values required, trimmed, 1..40 chars after trim,\nno `<`/`>` (no HTML). extra=\"forbid\" so a value shaped besides\n{one, many} 422s here instead of silently dropping fields or reaching\nthe DB CHECK.",
@@ -34080,7 +34482,9 @@
                   "staff",
                   "field",
                   "finance",
-                  "readonly"
+                  "readonly",
+                  "performer",
+                  "agent"
                 ],
                 "type": "string"
               },
@@ -37848,6 +38252,139 @@
         ]
       }
     },
+    "/api/internal/release/template-publish": {
+      "post": {
+        "description": "Dispatch template-export for ``slug`` unless one is already in flight/done.\n\nIdempotent: an open PR or an active run for the slug is returned as-is,\nand a version already exported to dev dispatches nothing.",
+        "operationId": "relay_template_publish",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Release-Relay-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Release-Relay-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TemplatePublishIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Relay Template Publish",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Relay Template Publish",
+        "tags": [
+          "release-internal"
+        ]
+      }
+    },
+    "/api/internal/release/template-publish/{slug}": {
+      "get": {
+        "description": "Chip state for one template: draft / pr_open / dispatched / exported.",
+        "operationId": "relay_template_publish_status",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "title": "Slug",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Version",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Release-Relay-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Release-Relay-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Relay Template Publish Status",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Relay Template Publish Status",
+        "tags": [
+          "release-internal"
+        ]
+      }
+    },
     "/api/internal/release/version": {
       "get": {
         "description": "The control-plane-side implementation of operator_release.get_version.\n\nAuth: X-Release-Relay-Token (service-to-service \u2014 staging/prod relay\nhere because their OWN local promotion_runs table is always empty; see\nthis module's docstring). Identical logic to what operator_release.py\nruns directly when IT is the control plane \u2014 same\n``app.services.promotion.get_version`` call, same lazy GitHub-client\nconstruction only for tier='dev'.",
@@ -41029,6 +41566,166 @@
         ]
       }
     },
+    "/api/landr-staff/templates/{slug}/hero": {
+      "post": {
+        "description": "Raw image body (jpeg/png/webp, <= 400 KB). Answers the storage path to\nput in ``pitch.<locale>.hero_url`` and its public URL.",
+        "operationId": "landr_staff_upload_template_hero",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "title": "Slug",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "replaces",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 300,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Replaces"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HeroOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Landr Staff Upload Template Hero",
+        "tags": [
+          "landr-staff-templates"
+        ]
+      }
+    },
+    "/api/landr-staff/templates/{slug}/publish": {
+      "post": {
+        "description": "Publish the template's current version to dev as an export PR.\n\nThe version decision lives in the dev workflow: when the staging version\nalready is the exported one the answer is ``state: \"exported\"`` (the UI\nsays \"bump the version first\"); nothing is auto-bumped here.",
+        "operationId": "landr_staff_publish_template",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "title": "Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TemplatePublishOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Landr Staff Publish Template",
+        "tags": [
+          "landr-staff-templates"
+        ]
+      }
+    },
+    "/api/landr-staff/templates/{slug}/publish-status": {
+      "get": {
+        "operationId": "landr_staff_template_publish_status",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "title": "Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TemplatePublishOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Landr Staff Template Publish Status",
+        "tags": [
+          "landr-staff-templates"
+        ]
+      }
+    },
     "/api/landr-staff/terms-changes": {
       "get": {
         "operationId": "list_staff_terms_changes",
@@ -41587,6 +42284,26 @@
       "get": {
         "description": "Return the operator's current sending-domain config + status + records.\n\nLazy reconciliation: while verification is still ``pending`` we re-check SES\non read and persist the result, so the dashboard's existing poll flips the\nbadge from \"verifying\" to \"verified\" on its own \u2014 the operator never has to\nclick \"Verify\" for an auto-provisioned (records-already-published) domain.\nBest-effort: a missing SES client or any SES error leaves the stored status\nuntouched and never fails the GET.",
         "operationId": "get_config",
+        "parameters": [
+          {
+            "description": "The operator to act on. Required when the caller belongs to more than one operator (400 operator_id_required); optional otherwise.",
+            "in": "query",
+            "name": "operator_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The operator to act on. Required when the caller belongs to more than one operator (400 operator_id_required); optional otherwise.",
+              "title": "Operator Id"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -41597,6 +42314,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "security": [
@@ -41625,6 +42352,24 @@
               "minLength": 1,
               "title": "Domain",
               "type": "string"
+            }
+          },
+          {
+            "description": "The operator to act on. Required when the caller belongs to more than one operator (400 operator_id_required); optional otherwise.",
+            "in": "query",
+            "name": "operator_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The operator to act on. Required when the caller belongs to more than one operator (400 operator_id_required); optional otherwise.",
+              "title": "Operator Id"
             }
           }
         ],
@@ -41665,6 +42410,26 @@
       "post": {
         "description": "Create the SES domain identity, store its DKIM records, and provision DNS.\n\nFlow:\n  1. Create the SES email identity for ``sending_domain`` (EasyDKIM) and get\n     back the 3 DKIM CNAME records.\n  2. Persist the DKIM records on ``operator_email_sender`` (status='pending').\n  3. Provision DNS by detecting the zone's provider (NS lookup):\n     Cloudflare \u2192 push records directly (verified path); autoDNS \u2192 enqueue a\n     Marvin-side job; manual \u2192 return the records for the operator to paste.\n     Store the detected provider + a human note in ``last_error`` is NOT used\n     for the happy path; provider lands in ``dns_provider``.\n\n503 'ses_not_configured' when AWS creds are unset \u2014 never a 500.\n\nlandr-rtozr refusals (nothing is created or written on any of them):\n  * 422 ``invalid_sending_domain`` \u2014 not a bare domain.\n  * 409 ``sending_domain_reserved`` \u2014 landr.de / a platform sending domain\n    or a subdomain of one.\n  * 409 ``sending_domain_taken`` \u2014 equals, contains or sits under another\n    operator's sending domain (exact match also a DB unique index).\n  * 409 ``sending_domain_unavailable`` \u2014 the SES identity already exists\n    and was not created by this operator (never inherited).",
         "operationId": "setup",
+        "parameters": [
+          {
+            "description": "The operator to act on. Required when the caller belongs to more than one operator (400 operator_id_required); optional otherwise.",
+            "in": "query",
+            "name": "operator_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The operator to act on. Required when the caller belongs to more than one operator (400 operator_id_required); optional otherwise.",
+              "title": "Operator Id"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -41712,6 +42477,26 @@
       "post": {
         "description": "Send a one-off test email FROM the operator's verified sending domain.\n\nAlways returns 200 with a structured result so the dashboard can render a\nlog line for both success and failure.  Only a 422 is raised for an invalid\n``to`` address (Pydantic validation) \u2014 all other failure modes return\n``{\"status\": \"failed\", ...}`` at 200.\n\nFlow:\n  1. Load the ``operator_email_sender`` row.  No row or no domain \u2192 failed.\n  2. Check ``verification_status == 'verified'``.  Otherwise \u2192 failed.\n  3. Build the SES client.  No credentials \u2192 failed.\n  4. Compose a short test message from ``{from_local_part}@{sending_domain}``.\n  5. Send via SES; surface ``SESError`` (sandbox / unverified recipient /\n     throttle) in the detail so the operator sees the exact rejection reason.",
         "operationId": "send_test_email",
+        "parameters": [
+          {
+            "description": "The operator to act on. Required when the caller belongs to more than one operator (400 operator_id_required); optional otherwise.",
+            "in": "query",
+            "name": "operator_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The operator to act on. Required when the caller belongs to more than one operator (400 operator_id_required); optional otherwise.",
+              "title": "Operator Id"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -41759,6 +42544,26 @@
       "post": {
         "description": "Re-check the SES domain verification status.\n\nReads SES's identity/DKIM attrs for the operator's sending domain and\nmirrors the result onto ``operator_email_sender.verification_status``\n(``verified`` clears ``last_error``). 503 'ses_not_configured' when AWS\ncreds are unset.\n\nReconciliation: before polling SES, checks the latest dns_provisioning_jobs\nrow for the operator's domain. If the drainer marked the job 'failed', OR\nthe job has been 'pending' longer than AUTODNS_JOB_PENDING_TIMEOUT_MINUTES,\nwe degrade dns_provider to 'manual' with a clear last_error and return the\ncurrent row \u2014 the operator gets the copy-paste records instead of spinning\nforever. Existing dns_records are kept intact so the copy-paste table is\navailable. If the job is 'applied', we proceed with the normal SES check.",
         "operationId": "verify",
+        "parameters": [
+          {
+            "description": "The operator to act on. Required when the caller belongs to more than one operator (400 operator_id_required); optional otherwise.",
+            "in": "query",
+            "name": "operator_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The operator to act on. Required when the caller belongs to more than one operator (400 operator_id_required); optional otherwise.",
+              "title": "Operator Id"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -41769,6 +42574,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "security": [
@@ -44193,6 +45008,104 @@
         "summary": "Get Invite Prefill",
         "tags": [
           "public-booking-groups"
+        ]
+      }
+    },
+    "/api/public/operator-invites/{token}": {
+      "get": {
+        "operationId": "get_invite",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Invite",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Invite",
+        "tags": [
+          "public-invites"
+        ]
+      }
+    },
+    "/api/public/operator-invites/{token}/signup": {
+      "post": {
+        "operationId": "signup_for_invite",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InviteSignupBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Signup For Invite",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Signup For Invite",
+        "tags": [
+          "public-invites"
         ]
       }
     },
@@ -47583,6 +48496,87 @@
         "summary": "Switch Booking Product",
         "tags": [
           "staff-bookings"
+        ]
+      }
+    },
+    "/api/staff/invites/{token}/accept": {
+      "post": {
+        "operationId": "accept_invite",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Accept Invite",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Accept Invite",
+        "tags": [
+          "staff-invites"
+        ]
+      }
+    },
+    "/api/staff/me/paused-memberships": {
+      "get": {
+        "description": "The caller's own paused memberships with the operator's display name.\n\nNo membership dependency on purpose: a paused member must be able to ask\nwhy they are locked out. Returns only their own rows and only the\noperator's id/slug/name \u2014 nothing the pause hides.",
+        "operationId": "list_my_paused_memberships",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "title": "Response List My Paused Memberships",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List My Paused Memberships",
+        "tags": [
+          "staff-memberships"
         ]
       }
     },
@@ -51505,6 +52499,82 @@
         "summary": "Patch Participant Language",
         "tags": [
           "staff-participant-day-state"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/participants/{participant_id}/pickup-details": {
+      "patch": {
+        "description": "Edit the pickup details of one participant (see the module docstring).",
+        "operationId": "staff_patch_participant_pickup_details",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "title": "Booking Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "participant_id",
+            "required": true,
+            "schema": {
+              "title": "Participant Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PickupDetailsIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PickupDetailsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Patch Participant Pickup Details",
+        "tags": [
+          "staff-participant-pickup-details"
         ]
       }
     },
@@ -56938,6 +58008,235 @@
         ]
       }
     },
+    "/api/staff/operators/{operator_id}/invites": {
+      "get": {
+        "description": "Open invites: pending plus lapsed (``expired``), newest first.",
+        "operationId": "list_invites",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "title": "Response List Invites",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Invites",
+        "tags": [
+          "staff-invites"
+        ]
+      },
+      "post": {
+        "operationId": "create_invite",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateInviteBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Create Invite",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Invite",
+        "tags": [
+          "staff-invites"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/invites/{invite_id}": {
+      "delete": {
+        "operationId": "revoke_invite",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "invite_id",
+            "required": true,
+            "schema": {
+              "title": "Invite Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Revoke Invite",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Revoke Invite",
+        "tags": [
+          "staff-invites"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/invites/{invite_id}/resend": {
+      "post": {
+        "description": "Rotate the token, reset the expiry, send again. Also the one-click\nre-invite for an ``expired`` row.",
+        "operationId": "resend_invite",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "invite_id",
+            "required": true,
+            "schema": {
+              "title": "Invite Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Resend Invite",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Resend Invite",
+        "tags": [
+          "staff-invites"
+        ]
+      }
+    },
     "/api/staff/operators/{operator_id}/location-role-types": {
       "get": {
         "deprecated": true,
@@ -57874,6 +59173,122 @@
           }
         ],
         "summary": "Update Membership",
+        "tags": [
+          "staff-memberships"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/memberships/{membership_id}/pause": {
+      "post": {
+        "operationId": "pause_membership",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "membership_id",
+            "required": true,
+            "schema": {
+              "title": "Membership Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Pause Membership",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Pause Membership",
+        "tags": [
+          "staff-memberships"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/memberships/{membership_id}/reactivate": {
+      "post": {
+        "operationId": "reactivate_membership",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "membership_id",
+            "required": true,
+            "schema": {
+              "title": "Membership Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Reactivate Membership",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Reactivate Membership",
         "tags": [
           "staff-memberships"
         ]
@@ -72407,7 +73822,7 @@
     },
     "/api/tickets/{ticket_id}/notify-mentions": {
       "post": {
-        "description": "Fan @mention notifications out to the listed users, bypassing quiet settings.\n\nThe caller MUST have already inserted the comment via the Supabase REST API.\nThis endpoint handles only the side-effecting notification dispatch.\n\nAuth:\n    Any authenticated user (operator or landr-staff).  Returns 401 if the\n    JWT is missing/invalid; returns 403 if the caller has no public.users row.\n\nIdempotency:\n    Duplicate calls create duplicate bell records.  Callers SHOULD ensure a\n    single call per comment (the client fires once after a successful insert).\n\nReturns:\n    200 with a dispatch summary (bell_user_ids, skipped, push_sent_to,\n    email_enqueued_for).",
+        "description": "Fan @mention notifications out to the listed users, bypassing quiet settings.\n\nThe caller MUST have already inserted the comment via the Supabase REST API.\nThis endpoint handles only the side-effecting notification dispatch.\n\nAuth (landr-wj3ez):\n    The caller must be a member of the ticket's operator or Landr staff,\n    and ``comment_id`` must be the caller's own comment on this ticket;\n    otherwise 404 (same as a missing ticket). 401 if the JWT is\n    missing/invalid; 403 if the caller has no public.users row.\n    Recipients outside the ticket's audience (staff-only for an internal\n    note) are dropped into ``skipped``. ``body`` in the request is\n    ignored: the notification carries the stored comment text.\n\nIdempotency:\n    Duplicate calls create duplicate bell records.  Callers SHOULD ensure a\n    single call per comment (the client fires once after a successful insert).\n\nReturns:\n    200 with a dispatch summary (bell_user_ids, skipped, push_sent_to,\n    email_enqueued_for).",
         "operationId": "notify_mentions",
         "parameters": [
           {
