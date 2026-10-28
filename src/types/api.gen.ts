@@ -835,6 +835,49 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/internal/release/template-publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Relay Template Publish
+         * @description Dispatch template-export for ``slug`` unless one is already in flight/done.
+         *
+         *     Idempotent: an open PR or an active run for the slug is returned as-is,
+         *     and a version already exported to dev dispatches nothing.
+         */
+        post: operations["relay_template_publish"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/internal/release/template-publish/{slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Relay Template Publish Status
+         * @description Chip state for one template: draft / pr_open / dispatched / exported.
+         */
+        get: operations["relay_template_publish_status"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/internal/release/version": {
         parameters: {
             query?: never;
@@ -2117,6 +2160,68 @@ export interface paths {
         put?: never;
         /** Landr Staff Bump Template Version */
         post: operations["landr_staff_bump_template_version"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/landr-staff/templates/{slug}/hero": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Landr Staff Upload Template Hero
+         * @description Raw image body (jpeg/png/webp, <= 400 KB). Answers the storage path to
+         *     put in ``pitch.<locale>.hero_url`` and its public URL.
+         */
+        post: operations["landr_staff_upload_template_hero"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/landr-staff/templates/{slug}/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Landr Staff Publish Template
+         * @description Publish the template's current version to dev as an export PR.
+         *
+         *     The version decision lives in the dev workflow: when the staging version
+         *     already is the exported one the answer is ``state: "exported"`` (the UI
+         *     says "bump the version first"); nothing is auto-bumped here.
+         */
+        post: operations["landr_staff_publish_template"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/landr-staff/templates/{slug}/publish-status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Landr Staff Template Publish Status */
+        get: operations["landr_staff_template_publish_status"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -3637,6 +3742,40 @@ export interface paths {
         get: operations["public_get_invite_prefill"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/operator-invites/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Invite */
+        get: operations["get_invite"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/operator-invites/{token}/signup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Signup For Invite */
+        post: operations["signup_for_invite"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5243,6 +5382,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/invites/{token}/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Accept Invite */
+        post: operations["accept_invite"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/me/paused-memberships": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List My Paused Memberships
+         * @description The caller's own paused memberships with the operator's display name.
+         *
+         *     No membership dependency on purpose: a paused member must be able to ask
+         *     why they are locked out. Returns only their own rows and only the
+         *     operator's id/slug/name — nothing the pause hides.
+         */
+        get: operations["list_my_paused_memberships"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/me/profile": {
         parameters: {
             query?: never;
@@ -6442,6 +6622,26 @@ export interface paths {
          *     laxer check than its siblings.
          */
         patch: operations["staff_patch_participant_language"];
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/participants/{participant_id}/pickup-details": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Patch Participant Pickup Details
+         * @description Edit the pickup details of one participant (see the module docstring).
+         */
+        patch: operations["staff_patch_participant_pickup_details"];
         trace?: never;
     };
     "/api/staff/operators/{operator_id}/bookings/{booking_id}/payment-link": {
@@ -8084,6 +8284,65 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/invites": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Invites
+         * @description Open invites: pending plus lapsed (``expired``), newest first.
+         */
+        get: operations["list_invites"];
+        put?: never;
+        /** Create Invite */
+        post: operations["create_invite"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/invites/{invite_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Revoke Invite */
+        delete: operations["revoke_invite"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/invites/{invite_id}/resend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resend Invite
+         * @description Rotate the token, reset the expiry, send again. Also the one-click
+         *     re-invite for an ``expired`` row.
+         */
+        post: operations["resend_invite"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/location-role-types": {
         parameters: {
             query?: never;
@@ -8272,6 +8531,40 @@ export interface paths {
         head?: never;
         /** Update Membership */
         patch: operations["update_membership"];
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/memberships/{membership_id}/pause": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Pause Membership */
+        post: operations["pause_membership"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/memberships/{membership_id}/reactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reactivate Membership */
+        post: operations["reactivate_membership"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/staff/operators/{operator_id}/message-templates": {
@@ -12122,9 +12415,14 @@ export interface paths {
          *     The caller MUST have already inserted the comment via the Supabase REST API.
          *     This endpoint handles only the side-effecting notification dispatch.
          *
-         *     Auth:
-         *         Any authenticated user (operator or landr-staff).  Returns 401 if the
-         *         JWT is missing/invalid; returns 403 if the caller has no public.users row.
+         *     Auth (landr-wj3ez):
+         *         The caller must be a member of the ticket's operator or Landr staff,
+         *         and ``comment_id`` must be the caller's own comment on this ticket;
+         *         otherwise 404 (same as a missing ticket). 401 if the JWT is
+         *         missing/invalid; 403 if the caller has no public.users row.
+         *         Recipients outside the ticket's audience (staff-only for an internal
+         *         note) are dropped into ``skipped``. ``body`` in the request is
+         *         ignored: the notification carries the stored comment text.
          *
          *     Idempotency:
          *         Duplicate calls create duplicate bell records.  Callers SHOULD ensure a
@@ -14774,8 +15072,28 @@ export interface components {
             /** Rates */
             rates?: components["schemas"]["ContractRateIn"][];
         };
+        /** CreateInviteBody */
+        CreateInviteBody: {
+            /** Contact Id */
+            contact_id?: string | null;
+            /** Display Name */
+            display_name?: string | null;
+            /** Email */
+            email: string;
+            /** Locale */
+            locale?: string | null;
+            new_contact?: components["schemas"]["NewContact"] | null;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "owner" | "admin" | "staff" | "field" | "finance" | "readonly" | "performer" | "agent";
+        };
         /** CreateMembershipBody */
         CreateMembershipBody: {
+            /** Contact Id */
+            contact_id?: string | null;
+            new_contact?: components["schemas"]["NewContact"] | null;
             /** Permissions */
             permissions?: {
                 [key: string]: unknown;
@@ -14784,7 +15102,7 @@ export interface components {
              * Role
              * @enum {string}
              */
-            role: "owner" | "admin" | "staff" | "field" | "finance" | "readonly";
+            role: "owner" | "admin" | "staff" | "field" | "finance" | "readonly" | "performer" | "agent";
             /** User Id */
             user_id: string;
         };
@@ -16666,6 +16984,13 @@ export interface components {
             /** Seat Hold Expires At */
             seat_hold_expires_at: string;
         };
+        /** HeroOut */
+        HeroOut: {
+            /** Path */
+            path: string;
+            /** Url */
+            url: string | null;
+        };
         /** HostnameBranding */
         HostnameBranding: {
             /** Favicon Url */
@@ -17215,6 +17540,13 @@ export interface components {
             invite_url: string;
             /** Status */
             status: string;
+        };
+        /** InviteSignupBody */
+        InviteSignupBody: {
+            /** Password */
+            password: string;
+            /** Turnstile Token */
+            turnstile_token?: string | null;
         };
         /** InvoiceRow */
         InvoiceRow: {
@@ -17889,6 +18221,15 @@ export interface components {
          * @enum {string}
          */
         Need: "pickup_locations" | "staff_scheduling" | "resources_equipment" | "partners_hotels" | "multiple_languages" | "payments_online" | "invoicing" | "other";
+        /** NewContact */
+        NewContact: {
+            /** First Name */
+            first_name: string;
+            /** Last Name */
+            last_name?: string | null;
+            /** Phone */
+            phone?: string | null;
+        };
         /** NoShowIn */
         NoShowIn: {
             /**
@@ -17915,8 +18256,9 @@ export interface components {
          *     comment_id:          The UUID of the comment that was just posted.
          *     mentioned_user_ids:  public.users.id list of users explicitly @mentioned in
          *                          the comment body (already resolved by the client).
-         *     body:                A short excerpt of the comment body — included as the
-         *                          bell notification body so recipients see context.
+         *     body:                Accepted for client compatibility and IGNORED
+         *                          (landr-wj3ez): the bell carries the stored comment
+         *                          body, so a caller cannot put free text in it.
          */
         NotifyMentionsIn: {
             /**
@@ -18485,6 +18827,8 @@ export interface components {
             default_ui_locale?: string | null;
             /** Deposit Percent */
             deposit_percent?: number | null;
+            /** Field Staffing Window Days */
+            field_staffing_window_days?: number | null;
             /** First Day Of Week */
             first_day_of_week?: number | null;
             /** Group Discount Threshold */
@@ -19248,6 +19592,43 @@ export interface components {
             subject_id: string;
             /** Subject Type */
             subject_type: string;
+        };
+        /**
+         * PickupDetailsIn
+         * @description The allowlist. Every key is optional; an unknown key is a 422.
+         */
+        PickupDetailsIn: {
+            /** First Name */
+            first_name?: string | null;
+            /** Last Name */
+            last_name?: string | null;
+            /** Notes */
+            notes?: string | null;
+            /** Phone */
+            phone?: string | null;
+            /** Pickup Location Id */
+            pickup_location_id?: string | null;
+            /** Weight */
+            weight?: number | null;
+        };
+        /** PickupDetailsOut */
+        PickupDetailsOut: {
+            /** Changed */
+            changed?: string[];
+            /** First Name */
+            first_name?: string | null;
+            /** Last Name */
+            last_name?: string | null;
+            /** Notes */
+            notes?: string | null;
+            /** Participant Id */
+            participant_id: string;
+            /** Phone */
+            phone?: string | null;
+            /** Pickup Location Id */
+            pickup_location_id?: string | null;
+            /** Weight */
+            weight?: number | null;
         };
         /**
          * PilotSignupRequest
@@ -21773,6 +22154,11 @@ export interface components {
             color?: string | null;
             /** Contact Id */
             contact_id?: string | null;
+            /**
+             * Contact Phone
+             * @description landr-sa8hf.38: the linked contact's phone — THE phone of a resource that has a contact_id (its own phone-kind custom fields are ignored). Null when no contact is linked or the contact has no phone
+             */
+            contact_phone?: string | null;
             /** Created At */
             created_at: string;
             /**
@@ -23312,6 +23698,13 @@ export interface components {
              * @enum {string}
              */
             flow: "solo" | "company";
+            /**
+             * Hero Urls
+             * @default {}
+             */
+            hero_urls: {
+                [key: string]: string | null;
+            };
             /** Name */
             name: string | null;
             /** Onboarding Preset Key */
@@ -24035,6 +24428,33 @@ export interface components {
             /** Hero Url */
             hero_url?: string | null;
         };
+        /** TemplatePublishIn */
+        TemplatePublishIn: {
+            /** Slug */
+            slug: string;
+            /** Version */
+            version: number;
+        };
+        /** TemplatePublishOut */
+        TemplatePublishOut: {
+            /** Exported Version */
+            exported_version?: number | null;
+            /** Pr Url */
+            pr_url?: string | null;
+            /** Request Id */
+            request_id: string;
+            /** Run Url */
+            run_url?: string | null;
+            /** Slug */
+            slug: string;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "draft" | "dispatched" | "pr_open" | "exported";
+            /** Version */
+            version: number;
+        };
         /**
          * TermPair
          * @description landr-iqo7q.1 — one operators.terminology override: the singular
@@ -24446,7 +24866,7 @@ export interface components {
                 [key: string]: unknown;
             } | null;
             /** Role */
-            role?: ("owner" | "admin" | "staff" | "field" | "finance" | "readonly") | null;
+            role?: ("owner" | "admin" | "staff" | "field" | "finance" | "readonly" | "performer" | "agent") | null;
         };
         /** UpdateTermsChange */
         UpdateTermsChange: {
@@ -26359,6 +26779,80 @@ export interface operations {
                 "X-Release-Relay-Token"?: string | null;
             };
             path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    relay_template_publish: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Release-Relay-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TemplatePublishIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    relay_template_publish_status: {
+        parameters: {
+            query: {
+                version: number;
+            };
+            header?: {
+                "X-Release-Relay-Token"?: string | null;
+            };
+            path: {
+                slug: string;
+            };
             cookie?: never;
         };
         requestBody?: never;
@@ -28370,6 +28864,101 @@ export interface operations {
             };
         };
     };
+    landr_staff_upload_template_hero: {
+        parameters: {
+            query?: {
+                replaces?: string | null;
+            };
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HeroOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    landr_staff_publish_template: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TemplatePublishOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    landr_staff_template_publish_status: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TemplatePublishOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_staff_terms_changes: {
         parameters: {
             query?: never;
@@ -28734,7 +29323,10 @@ export interface operations {
     };
     get_config: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description The operator to act on. Required when the caller belongs to more than one operator (400 operator_id_required); optional otherwise. */
+                operator_id?: string | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -28750,6 +29342,15 @@ export interface operations {
                     "application/json": components["schemas"]["EmailSenderStatus"];
                 };
             };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
         };
     };
     get_eligibility: {
@@ -28757,6 +29358,8 @@ export interface operations {
             query: {
                 /** @description Root domain to classify, e.g. acme.com. */
                 domain: string;
+                /** @description The operator to act on. Required when the caller belongs to more than one operator (400 operator_id_required); optional otherwise. */
+                operator_id?: string | null;
             };
             header?: never;
             path?: never;
@@ -28786,7 +29389,10 @@ export interface operations {
     };
     setup: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description The operator to act on. Required when the caller belongs to more than one operator (400 operator_id_required); optional otherwise. */
+                operator_id?: string | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -28819,7 +29425,10 @@ export interface operations {
     };
     send_test_email: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description The operator to act on. Required when the caller belongs to more than one operator (400 operator_id_required); optional otherwise. */
+                operator_id?: string | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -28852,7 +29461,10 @@ export interface operations {
     };
     verify: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description The operator to act on. Required when the caller belongs to more than one operator (400 operator_id_required); optional otherwise. */
+                operator_id?: string | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -28866,6 +29478,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EmailSenderStatus"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -30431,6 +31052,76 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["InvitePrefillOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_invite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    signup_for_invite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InviteSignupBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */
@@ -32575,6 +33266,61 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    accept_invite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_my_paused_memberships: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    }[];
                 };
             };
         };
@@ -34728,6 +35474,43 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_patch_participant_pickup_details: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                booking_id: string;
+                participant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PickupDetailsIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PickupDetailsOut"];
                 };
             };
             /** @description Validation Error */
@@ -37673,6 +38456,144 @@ export interface operations {
             };
         };
     };
+    list_invites: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    }[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_invite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateInviteBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    revoke_invite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                invite_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resend_invite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                invite_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_role_types: {
         parameters: {
             query?: never;
@@ -38181,6 +39102,74 @@ export interface operations {
                 "application/json": components["schemas"]["UpdateMembershipBody"];
             };
         };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    pause_membership: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                membership_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reactivate_membership: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                membership_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {
