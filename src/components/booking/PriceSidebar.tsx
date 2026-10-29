@@ -35,7 +35,7 @@
 import { ALTERNATIVES_SLOT_ID } from '@/components/booking/alternativesSlot'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronUp, RefreshCw } from 'lucide-react'
-import type { EstimateSlotFields, Product } from '@/api/types'
+import type { EstimateSlotFields, Product, VoucherStatus } from '@/api/types'
 import { cn } from '@/lib/utils'
 import { deriveStayWindow, type RoomSelection } from './accommodationCalc'
 import type { AddonSelection } from './addonsState'
@@ -118,6 +118,19 @@ interface Props {
    */
   onCalculatedTotalChange?: (total: CalculatedTotal | null) => void
   /**
+   * The voucher code the customer typed on the details step (or arrived with
+   * via `?voucher=`). Priced by the estimate, so a valid code shows its saving
+   * here before submit; an invalid one shows `voucherNotApplicable`.
+   */
+  voucherCode?: string
+  /**
+   * Lifts the visible estimate's verdict on `voucherCode` (null when no code
+   * was sent or no estimate is on screen) so DetailsStep can show it inline
+   * and BookingForm can refuse to submit a rejected code unknowingly. Same
+   * lifting pattern as onUnPriceableChange.
+   */
+  onVoucherStatusChange?: (status: VoucherStatus | null) => void
+  /**
    * Products added on the review step ("Add more to this booking"). Each is
    * priced by its own estimate and folded into this panel's breakdown and
    * total, so every figure here covers ALL lines of the booking.
@@ -157,6 +170,8 @@ interface BookingOverviewBodyProps
    * only make sense then; a hotel-paid add-on alone (no room) has neither.
    */
   hasHotelRoom: boolean
+  /** The customer's voucher code did not apply: show the hint under the total. */
+  voucherRejected?: boolean
 }
 
 function BookingOverviewBody({
@@ -167,6 +182,7 @@ function BookingOverviewBody({
   selectedDays,
   accommodationCheckinOffsetDays,
   hasHotelRoom,
+  voucherRejected = false,
 }: BookingOverviewBodyProps) {
   const locale = browserLocale()
   if (!data && isLoading) {
@@ -410,6 +426,15 @@ function BookingOverviewBody({
           />
         </section>
       ) : null}
+      {voucherRejected ? (
+        <p
+          role="status"
+          className="text-xs text-destructive"
+          data-testid="price-sidebar-voucher-rejected"
+        >
+          {tr('voucherNotApplicable', locale)}
+        </p>
+      ) : null}
       {hotel.length > 0 ? (
         // landr-kat8: hotel rendered as a visually distinct pill/card
         // (border + tinted background) so the customer reads it as a
@@ -549,6 +574,8 @@ export default function PriceSidebar(props: Props) {
     debounceMs,
     onUnPriceableChange,
     onCalculatedTotalChange,
+    voucherCode,
+    onVoucherStatusChange,
     extraLines,
   } = props
 
@@ -589,6 +616,7 @@ export default function PriceSidebar(props: Props) {
     participantCount,
     addonLines,
     slot,
+    voucherCode,
     enabled: hasSelection,
     debounceMs,
   })
@@ -636,6 +664,16 @@ export default function PriceSidebar(props: Props) {
         (visible.data?.stay?.errors?.length ?? 0) > 0,
     )
   }, [visible.data, onUnPriceableChange])
+
+  // Report the voucher verdict up (see the prop doc). Null whenever there is
+  // no code in play, so clearing the field clears a stale rejection at once.
+  const voucherActive = (voucherCode?.trim() ?? '') !== ''
+  const voucherStatus: VoucherStatus | null = voucherActive
+    ? (visible.data?.voucher_status ?? null)
+    : null
+  useEffect(() => {
+    onVoucherStatusChange?.(voucherStatus)
+  }, [voucherStatus, onVoucherStatusChange])
 
   // landr-h0opd.3: report the calculated total up (see the prop doc). Keyed
   // on the two primitives so the parent's state only changes when the
@@ -774,6 +812,7 @@ export default function PriceSidebar(props: Props) {
             selectedDays={selectedDays}
             accommodationCheckinOffsetDays={product.accommodation_checkin_offset_days}
             hasHotelRoom={hasHotelRoom}
+            voucherRejected={voucherStatus === 'not_applicable'}
           />
         </div>
         {/* "Also available" panel of the date step portals in here. */}
@@ -901,6 +940,7 @@ export default function PriceSidebar(props: Props) {
             selectedDays={selectedDays}
             accommodationCheckinOffsetDays={product.accommodation_checkin_offset_days}
             hasHotelRoom={hasHotelRoom}
+            voucherRejected={voucherStatus === 'not_applicable'}
           />
           </div>
         ) : null}

@@ -7,7 +7,7 @@ import { demoCompanion, demoCustomer, isDemoMode } from '@/lib/demo'
 import { useStaffMode } from '@/lib/staffMode'
 import { Checkbox } from '@/components/ui/checkbox'
 import type { BookingSelection } from '@/components/booking/BookingForm'
-import type { Product, ServiceRole } from '@/api/types'
+import type { Product, ServiceRole, VoucherStatus } from '@/api/types'
 import { requestSubscriptionPerkOtp } from '@/api/client'
 import { browserLocale, pickLocalized } from '@/lib/locale'
 import { formatDayLabel } from '@/components/booking/dateLabel'
@@ -245,6 +245,24 @@ interface Props {
    */
   onMemberPerkOtpChange?: (code: string) => void
   /**
+   * Prior value of the optional voucher code: the `?voucher=` link param on a
+   * first visit, or what the customer already typed on a Back re-entry. The
+   * field is prefilled from it and stays editable.
+   */
+  initialVoucherCode?: string
+  /**
+   * Fires on every keystroke in the voucher code field (App.tsx lifts it so
+   * the price sidebar can preview the discount and BookingForm can send it).
+   * The field renders only when this is provided, and never in staff mode
+   * (staff bookings use their own endpoint and price controls).
+   */
+  onVoucherCodeChange?: (code: string) => void
+  /**
+   * The price estimate's verdict on the current code, lifted from PriceSidebar
+   * via App.tsx: shown inline under the field. null = nothing to say yet.
+   */
+  voucherStatus?: VoucherStatus | null
+  /**
    * landr-uuntm.3: the operator's ISO country — last link of the billing
    * country guess chain (geo -> browser locale -> this). Absent/null = skip.
    */
@@ -346,6 +364,9 @@ export function DetailsStep({
   onConfirm,
   onLiveParticipantsChange,
   onMemberPerkOtpChange,
+  initialVoucherCode,
+  onVoucherCodeChange,
+  voucherStatus = null,
   operatorCountry,
   prefillParticipantCount,
   inviteMode = false,
@@ -481,6 +502,14 @@ export function DetailsStep({
   const [memberPerkOtp, setMemberPerkOtpState] = useState<string>(
     () => initialMemberPerkOtp ?? '',
   )
+  // Optional voucher code, seeded from the link's ?voucher= (or a Back re-entry).
+  const [voucherCode, setVoucherCodeState] = useState<string>(
+    () => initialVoucherCode ?? '',
+  )
+  const updateVoucherCode = (raw: string) => {
+    setVoucherCodeState(raw)
+    onVoucherCodeChange?.(raw)
+  }
   // landr-de6ej: optional free-text comment, seeded from initialCustomerComment
   // on Back-restore / reload — same seeding pattern as memberPerkOtp above,
   // but this one round-trips through bookingDraft + sessionStorage.
@@ -1622,6 +1651,52 @@ export function DetailsStep({
               />
               <p className="mt-1 text-xs text-muted-foreground">
                 {tr('notAMemberOrNoCode', locale)}
+              </p>
+            </div>
+          ) : null}
+
+          {/* Optional voucher code. Prefilled from ?voucher=, editable, and
+              previewed by the price sidebar's estimate: the verdict below is
+              that estimate's, so it appears a moment after typing. The API
+              answers every code that does not apply with one status, so this
+              copy never says why. */}
+          {onVoucherCodeChange && !staff.active ? (
+            <div
+              className="rounded-lg border border-dashed bg-surface-raised p-3"
+              data-testid="voucher-code-section"
+            >
+              <Label htmlFor="voucher-code" className="text-xs">
+                {tr('voucherCodeLabel', locale)}
+              </Label>
+              <Input
+                id="voucher-code"
+                name="voucher_code"
+                data-testid="voucher-code-input"
+                maxLength={64}
+                autoComplete="off"
+                autoCapitalize="characters"
+                spellCheck={false}
+                aria-invalid={voucherStatus === 'not_applicable' ? true : undefined}
+                aria-describedby="voucher-code-note"
+                className="mt-1 max-w-[16rem]"
+                value={voucherCode}
+                onChange={(e) => updateVoucherCode(e.target.value)}
+              />
+              <p
+                id="voucher-code-note"
+                role="status"
+                data-testid="voucher-code-note"
+                className={
+                  voucherStatus === 'not_applicable'
+                    ? 'mt-1 text-xs text-destructive'
+                    : 'mt-1 text-xs text-muted-foreground'
+                }
+              >
+                {voucherStatus === 'not_applicable'
+                  ? tr('voucherNotApplicable', locale)
+                  : voucherStatus === 'applied'
+                    ? tr('voucherAppliedLabel', locale)
+                    : tr('voucherCodeHint', locale)}
               </p>
             </div>
           ) : null}

@@ -727,6 +727,10 @@ export const tr: Bundle = {
   multiDayDiscountLabel: 'Çok günlük indirim',
   streakDiscountLabel: 'Ardışık gün indirimi',
   voucherAppliedLabel: 'Kupon uygulandı',
+  voucherCodeLabel: 'Kupon kodu',
+  voucherCodeHint: 'İsteğe bağlı. Geçerliyse indirim fiyat özetinizde görünür.',
+  voucherNotApplicable: 'Bu kod bu rezervasyona uygulanamıyor. Kodu kontrol edin veya alanı boş bırakın.',
+  voucherFixBeforeConfirm: 'Devam etmek için kupon kodunu düzeltin veya silin.',
 
   calculatingEllipsis: 'Hesaplanıyor…',
   couldNotFetchPrice: 'Fiyat alınamadı — nihai toplam onay sırasında gösterilecektir.',

@@ -723,6 +723,10 @@ export const it: Bundle = {
   multiDayDiscountLabel: 'Sconto per più giorni',
   streakDiscountLabel: 'Sconto fedeltà',
   voucherAppliedLabel: 'Buono applicato',
+  voucherCodeLabel: 'Codice buono',
+  voucherCodeHint: 'Facoltativo. Se è valido, lo sconto compare nel riepilogo del prezzo.',
+  voucherNotApplicable: 'Questo codice non può essere applicato a questa prenotazione. Controllalo o svuota il campo.',
+  voucherFixBeforeConfirm: 'Correggi o cancella il codice del buono per continuare.',
 
   calculatingEllipsis: 'Calcolo in corso…',
   couldNotFetchPrice: 'Non siamo riusciti a ottenere il prezzo: vedrai il totale finale alla conferma.',

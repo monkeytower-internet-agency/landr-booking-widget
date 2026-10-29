@@ -723,6 +723,10 @@ export const es: Bundle = {
   multiDayDiscountLabel: 'Descuento por varios días',
   streakDiscountLabel: 'Descuento por racha',
   voucherAppliedLabel: 'Cupón aplicado',
+  voucherCodeLabel: 'Código de cupón',
+  voucherCodeHint: 'Opcional. Si es válido, el descuento aparecerá en el resumen del precio.',
+  voucherNotApplicable: 'Este código no se puede aplicar a esta reserva. Revísalo o vacía el campo.',
+  voucherFixBeforeConfirm: 'Corrige o borra el código de cupón para continuar.',
 
   calculatingEllipsis: 'Calculando…',
   couldNotFetchPrice: 'No hemos podido obtener el precio: verás el total final al confirmar.',
