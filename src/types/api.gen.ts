@@ -14093,10 +14093,24 @@ export interface components {
              */
             dry_run: boolean;
         };
+        /** BookingSessionIn */
+        BookingSessionIn: {
+            /**
+             * Mode
+             * @default staff
+             * @enum {string}
+             */
+            mode: "staff" | "agent";
+        };
         /** BookingSessionOut */
         BookingSessionOut: {
             /** Expires At */
             expires_at: number;
+            /**
+             * Mode
+             * @default staff
+             */
+            mode: string;
             /** Operator Id */
             operator_id: string;
             /** Powers */
@@ -34338,7 +34352,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["BookingSessionIn"] | null;
+            };
+        };
         responses: {
             /** @description Successful Response */
             201: {

@@ -3265,11 +3265,31 @@
         "title": "BookingProductsRemoveIn",
         "type": "object"
       },
+      "BookingSessionIn": {
+        "properties": {
+          "mode": {
+            "default": "staff",
+            "enum": [
+              "staff",
+              "agent"
+            ],
+            "title": "Mode",
+            "type": "string"
+          }
+        },
+        "title": "BookingSessionIn",
+        "type": "object"
+      },
       "BookingSessionOut": {
         "properties": {
           "expires_at": {
             "title": "Expires At",
             "type": "integer"
+          },
+          "mode": {
+            "default": "staff",
+            "title": "Mode",
+            "type": "string"
           },
           "operator_id": {
             "title": "Operator Id",
@@ -50371,6 +50391,23 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/BookingSessionIn"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
         "responses": {
           "201": {
             "content": {
