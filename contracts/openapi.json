@@ -35351,6 +35351,13 @@
       },
       "ValidationError": {
         "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
           "loc": {
             "items": {
               "anyOf": [
@@ -49723,7 +49730,7 @@
     },
     "/api/staff/operators/{operator_id}/agent-earnings": {
       "get": {
-        "description": "List agent_earnings rows for the operator, newest first.\n\nOptional filters: agent_user_id, status_filter (accrued|paid|reversed).\nRead-only \u2014 earnings accrue via triggers/jobs, not this API.",
+        "description": "List the operator's agent commission rows, newest first.\n\nSource: ``commissions WHERE recipient_kind='agent'`` (landr-xnbfe.4).\nOptional filters: agent_user_id, status_filter (accrued|paid|reversed).\nRead-only \u2014 earnings accrue via recipient_commission_drain, not this API.",
         "operationId": "list_agent_earnings",
         "parameters": [
           {
@@ -49823,7 +49830,7 @@
     },
     "/api/staff/operators/{operator_id}/agent-earnings/summary": {
       "get": {
-        "description": "Per-agent accrued/paid/reversed commission totals for the operator.\n\nAggregates agent_earnings.commission_amount grouped by agent_user_id\nand status. Returns one row per agent with the three status buckets\n(+ currency, which is uniform per agent in practice). Read-only.\n\nDone in-Python over the operator's earning rows rather than via a\nSQL GROUP BY because the supabase REST client doesn't expose\naggregate grouping; the row volume per operator is small (one row\nper agent\u00d7booking\u00d7day) and bounded by the same 1000-row guard.",
+        "description": "Per-agent accrued/paid/reversed commission totals for the operator.\n\nAggregates the agent commissions rows (``commissions WHERE\nrecipient_kind='agent'``, landr-xnbfe.4) by recipient_user_id\nand status. Returns one row per agent with the three status buckets\n(+ currency, which is uniform per agent in practice). Read-only.\n\nDone in-Python over the operator's earning rows rather than via a\nSQL GROUP BY because the supabase REST client doesn't expose\naggregate grouping; the row volume per operator is small (one row\nper agent\u00d7booking) and bounded by the same row guard.",
         "operationId": "agent_earnings_summary",
         "parameters": [
           {
