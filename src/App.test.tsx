@@ -6660,4 +6660,64 @@ describe('App', () => {
       }
     })
   })
+
+  // landr-nd4ar follow-up: the App-level wiring that derives the party size
+  // for the product list (knownPartySize) and the detail step
+  // (draftSeatsNeeded) from the booking draft.
+  describe('party-size wiring (knownPartySize / draftSeatsNeeded)', () => {
+    const stay = (overrides: Partial<Product> = {}) =>
+      makeProduct({
+        product_id: 'st-2',
+        slug: 'studio',
+        name: 'Studio',
+        product_kind: 'stay',
+        capacity_per_unit: 2,
+        ...overrides,
+      })
+
+    function seedProgress(step: unknown, bookingDraft: unknown) {
+      window.sessionStorage.setItem(
+        BOOKING_PROGRESS_STORAGE_KEY,
+        JSON.stringify({ step, bookingDraft }),
+      )
+    }
+
+    it('dims the 2-guest stay in the list once the party step answered 3', async () => {
+      mocks.listProducts.mockResolvedValue([
+        stay(),
+        stay({ product_id: 'st-5', slug: 'family', name: 'Family', capacity_per_unit: 5 }),
+      ])
+      // pick-product is not a restorable step: restore the detail step with the
+      // answered party in the draft, then go Back to the list (draft kept).
+      seedProgress({ name: 'product-detail', product: stay() }, { partySize: 3 })
+      render(<App />)
+      fireEvent.click(await screen.findByTestId('step-back-button'))
+      expect(
+        await screen.findByRole('button', { name: 'Studio, too small for 3' }),
+      ).toHaveClass('opacity-60')
+      expect(screen.getAllByTestId('too-small-hint')).toHaveLength(1)
+      expect(screen.getByRole('button', { name: 'Family' })).not.toHaveClass('opacity-60')
+    })
+
+    it('dims nothing while no party is known yet', async () => {
+      mocks.listProducts.mockResolvedValue([
+        stay(),
+        stay({ product_id: 'st-5', slug: 'family', name: 'Family', capacity_per_unit: 5 }),
+      ])
+      render(<App />)
+      await screen.findByText('Studio')
+      expect(screen.queryByTestId('too-small-hint')).not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Studio' })).not.toHaveClass('opacity-60')
+    })
+
+    it('shows the too-small hint on the detail step of a 2-guest stay for a party of 3', async () => {
+      const studio = stay()
+      mocks.listProducts.mockResolvedValue([studio])
+      seedProgress({ name: 'product-detail', product: studio }, { partySize: 3 })
+      render(<App />)
+      expect(await screen.findByTestId('product-detail-too-small')).toHaveTextContent(
+        'too small for 3',
+      )
+    })
+  })
 })
