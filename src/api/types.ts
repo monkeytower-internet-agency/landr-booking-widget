@@ -89,6 +89,10 @@ export interface ProductAlternative {
   currency?: string | null
   available_dates?: string[] | null
   windows?: AlternativeWindow[] | null
+  /** Stay alternatives only; when the API sends them the row shows a max-guests chip. */
+  product_kind?: ProductKind
+  capacity_per_unit?: number | null
+  max_party_size?: number | null
 }
 
 export interface FixedDateWindow {
