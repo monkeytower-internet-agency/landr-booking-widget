@@ -23166,6 +23166,12 @@ export interface components {
              */
             in_service_days: number;
             /**
+             * Paused
+             * @description landr-udhau.8: the linked team member is paused; in_service_days is 0, stored ranges untouched
+             * @default false
+             */
+            paused: boolean;
+            /**
              * Ranges
              * @description Rows overlapping the window
              */

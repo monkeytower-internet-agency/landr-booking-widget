@@ -30078,6 +30078,12 @@
             "title": "In Service Days",
             "type": "integer"
           },
+          "paused": {
+            "default": false,
+            "description": "landr-udhau.8: the linked team member is paused; in_service_days is 0, stored ranges untouched",
+            "title": "Paused",
+            "type": "boolean"
+          },
           "ranges": {
             "description": "Rows overlapping the window",
             "items": {
