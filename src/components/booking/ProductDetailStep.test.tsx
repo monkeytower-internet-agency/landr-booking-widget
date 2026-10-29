@@ -52,11 +52,22 @@ function renderStep(
     onBook = vi.fn(),
     onBack = vi.fn(),
     variant = 'summit' as Variant,
-  }: { onBook?: () => void; onBack?: () => void; variant?: Variant } = {},
+    partySize,
+  }: {
+    onBook?: () => void
+    onBack?: () => void
+    variant?: Variant
+    partySize?: number
+  } = {},
 ) {
   render(
     <VariantProvider value={variant}>
-      <ProductDetailStep product={product} onBook={onBook} onBack={onBack} />
+      <ProductDetailStep
+        product={product}
+        onBook={onBook}
+        onBack={onBack}
+        partySize={partySize}
+      />
     </VariantProvider>,
   )
   return { onBook, onBack }
@@ -454,5 +465,19 @@ describe('ProductDetailStep — next action + zen (landr-80ubl.2)', () => {
     expect(screen.getByTestId('next-action-cue')).toHaveTextContent(
       'Next: book this trip',
     )
+  })
+
+  it('shows the too-small hint for a stay that cannot take the party (landr-nd4ar)', () => {
+    const stay = makeProduct({ product_kind: 'stay', capacity_per_unit: 2 })
+    renderStep(stay, { partySize: 3 })
+    expect(screen.getByTestId('product-detail-too-small')).toHaveTextContent(
+      'too small for 3',
+    )
+  })
+
+  it('shows no too-small hint without a party size (landr-nd4ar)', () => {
+    const stay = makeProduct({ product_kind: 'stay', capacity_per_unit: 2 })
+    renderStep(stay)
+    expect(screen.queryByTestId('product-detail-too-small')).not.toBeInTheDocument()
   })
 })
