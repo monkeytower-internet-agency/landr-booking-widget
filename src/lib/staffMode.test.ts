@@ -55,6 +55,22 @@ describe('parseStaffSession', () => {
     expect(s.operatorId).toBe('op-uuid-from-url')
   })
 
+  it('reads narrowed and empty powers from the signed token (landr-xnbfe.21)', () => {
+    const mk = (powers: unknown) =>
+      btoa(JSON.stringify({ operator_id: 'op', powers }))
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=+$/, '') + '.sig'
+    expect(parseStaffSession(`?staff_session=${mk(['force_book', 'bogus'])}`).powers).toEqual(['force_book'])
+    expect(parseStaffSession(`?staff_session=${mk([])}`).powers).toEqual([])
+    const noClaim = btoa(JSON.stringify({ operator_id: 'op' })).replace(/=+$/, '') + '.sig'
+    expect(parseStaffSession(`?staff_session=${noClaim}`).powers).toEqual([
+      'force_book',
+      'price_override',
+      'skip_customer_email',
+    ])
+  })
+
   it('leaves operatorId null when the token payload is undecodable', () => {
     const s = parseStaffSession('?staff_session=not-a-real-token')
     expect(s.active).toBe(true)
