@@ -770,6 +770,10 @@ export type Bundle = {
   multiDayDiscountLabel: string
   streakDiscountLabel: string
   voucherAppliedLabel: string
+  voucherCodeLabel: string
+  voucherCodeHint: string
+  voucherNotApplicable: string
+  voucherFixBeforeConfirm: string
 
   // ---- PriceSidebar ----
   calculatingEllipsis: string
@@ -1699,6 +1703,10 @@ const en: Bundle = {
   multiDayDiscountLabel: 'Multi-day discount',
   streakDiscountLabel: 'Streak discount',
   voucherAppliedLabel: 'Voucher applied',
+  voucherCodeLabel: 'Voucher code',
+  voucherCodeHint: 'Optional. If it applies, the discount shows in your price summary.',
+  voucherNotApplicable: "This code can't be applied to this booking. Check it or clear the field.",
+  voucherFixBeforeConfirm: 'Fix or clear the voucher code to continue.',
 
   calculatingEllipsis: 'Calculating…',
   couldNotFetchPrice: "Couldn't fetch price — your final total will be shown at confirmation.",

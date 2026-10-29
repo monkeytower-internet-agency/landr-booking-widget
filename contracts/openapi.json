@@ -10353,6 +10353,18 @@
               }
             ],
             "title": "Slot Start Time"
+          },
+          "voucher_code": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Voucher Code"
           }
         },
         "title": "EstimateRequest",
@@ -10503,6 +10515,21 @@
             "default": false,
             "title": "Un Priceable",
             "type": "boolean"
+          },
+          "voucher_status": {
+            "anyOf": [
+              {
+                "enum": [
+                  "applied",
+                  "not_applicable"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Voucher Status"
           },
           "warnings": {
             "items": {
@@ -25496,16 +25523,17 @@
             "title": "Booking Channel",
             "type": "string"
           },
-          "campaign_id": {
+          "campaign_code": {
             "anyOf": [
               {
+                "maxLength": 64,
                 "type": "string"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Campaign Id"
+            "title": "Campaign Code"
           },
           "cancellation_deadline": {
             "title": "Cancellation Deadline",

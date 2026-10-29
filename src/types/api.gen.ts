@@ -16582,6 +16582,8 @@ export interface components {
             selected_days?: string[];
             /** Slot Start Time */
             slot_start_time?: string | null;
+            /** Voucher Code */
+            voucher_code?: string | null;
         };
         /**
          * EstimateResponse
@@ -16626,6 +16628,8 @@ export interface components {
              * @default false
              */
             un_priceable: boolean;
+            /** Voucher Status */
+            voucher_status?: ("applied" | "not_applicable") | null;
             /** Warnings */
             warnings?: string[];
         } & {
@@ -21615,8 +21619,8 @@ export interface components {
              * @constant
              */
             booking_channel: "public_website";
-            /** Campaign Id */
-            campaign_id?: string | null;
+            /** Campaign Code */
+            campaign_code?: string | null;
             /** Cancellation Deadline */
             cancellation_deadline: string;
             /** Companions */

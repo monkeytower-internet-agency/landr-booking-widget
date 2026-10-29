@@ -16,6 +16,7 @@ import type {
   ProductLine,
   SubmitBookingBody,
   SubmitBookingResponse,
+  VoucherStatus,
 } from '@/api/types'
 import {
   deriveStayWindow,
@@ -364,6 +365,23 @@ interface Props {
    * never a 4xx — so an empty/undefined value here is always safe.
    */
   memberPerkOtp?: string
+  /**
+   * The voucher code from DetailsStep's field (prefilled from `?voucher=`),
+   * sent as `voucher_code` when non-empty. Public bookings only.
+   */
+  voucherCode?: string
+  /**
+   * The estimate's verdict on `voucherCode`, lifted from PriceSidebar. While it
+   * is `not_applicable` the Confirm CTA is blocked, so a customer never submits
+   * a code the operator would flag without seeing that it did not apply.
+   */
+  voucherStatus?: VoucherStatus | null
+  /**
+   * The link's `?campaign=` code, sent as `campaign_code` when present. Invisible
+   * to the customer; the API resolves it to the operator's own campaign and
+   * ignores a code it does not recognise.
+   */
+  campaignCode?: string
   /**
    * landr-otml0.3: the raw `?invite=<token>` value, sent as `invite_token`
    * so the API can re-resolve it server-side and join this booking into the
@@ -960,6 +978,9 @@ export function BookingForm({
   customerCompletesForms,
   productFlow,
   memberPerkOtp,
+  voucherCode,
+  voucherStatus = null,
+  campaignCode,
   inviteToken,
   viaAlternativeOf,
   joinRef,
@@ -997,6 +1018,12 @@ export function BookingForm({
   // "Add more to this booking" is the public funnel's; a staff booking keeps
   // its single product (staff add lines on the booking afterwards).
   const setExtraLines = staff.active ? undefined : onExtraLinesChange
+  const sendsPublicCodes = !staff.active
+  // A code the estimate says does not apply blocks Confirm (see voucherStatus).
+  const voucherBlocked =
+    sendsPublicCodes &&
+    (voucherCode?.trim() ?? '') !== '' &&
+    voucherStatus === 'not_applicable'
   const crossSellLines = setExtraLines ? extraLines : []
   // An added product's guide language, custom forms and pickup point run
   // inline on its line below (AddMoreProducts) when the main flow did not
@@ -1345,6 +1372,10 @@ export function BookingForm({
       setServerError(UN_PRICEABLE_MESSAGE)
       return
     }
+    if (voucherBlocked) {
+      setServerError(tr('voucherFixBeforeConfirm', locale))
+      return
+    }
     if (extrasBlocked) {
       setServerError(tr('addMoreIncomplete', locale))
       return
@@ -1682,6 +1713,15 @@ export function BookingForm({
         // price, never a 4xx), so trimming here is purely payload hygiene.
         ...(memberPerkOtp && memberPerkOtp.trim() !== ''
           ? { member_perk_otp: memberPerkOtp.trim() }
+          : {}),
+        // Public bookings only (staff bookings go through their own endpoint):
+        // omitted when empty so a booking without a code or campaign link keeps
+        // the exact pre-voucher body.
+        ...(sendsPublicCodes && voucherCode && voucherCode.trim() !== ''
+          ? { voucher_code: voucherCode.trim() }
+          : {}),
+        ...(sendsPublicCodes && campaignCode && campaignCode.trim() !== ''
+          ? { campaign_code: campaignCode.trim() }
           : {}),
         // landr-de6ej: only sent when the customer actually typed a
         // comment — omitted (not even an empty string) so a booking with
@@ -2302,11 +2342,13 @@ export function BookingForm({
             entered). Both are hidden entirely for normal customers. */}
         <ContinueAction
           ready={
-            !submitting && !unPriceable && !overrideBlocked && !verificationBlocked && !extrasBlocked
+            !submitting && !unPriceable && !voucherBlocked && !overrideBlocked && !verificationBlocked && !extrasBlocked
           }
           reason={
             unPriceable
               ? UN_PRICEABLE_MESSAGE
+              : voucherBlocked
+              ? tr('voucherFixBeforeConfirm', locale)
               : extrasBlocked
               ? tr('addMoreIncomplete', locale)
               : verificationBlocked

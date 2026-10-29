@@ -733,6 +733,10 @@ export const de: Bundle = {
   multiDayDiscountLabel: 'Mehrtagesrabatt',
   streakDiscountLabel: 'Serienrabatt',
   voucherAppliedLabel: 'Gutschein eingelöst',
+  voucherCodeLabel: 'Gutscheincode',
+  voucherCodeHint: 'Optional. Wenn er passt, erscheint der Rabatt in Ihrer Preisübersicht.',
+  voucherNotApplicable: 'Dieser Code kann für diese Buchung nicht verwendet werden. Bitte prüfen Sie ihn oder leeren Sie das Feld.',
+  voucherFixBeforeConfirm: 'Bitte korrigieren oder leeren Sie den Gutscheincode, um fortzufahren.',
 
   calculatingEllipsis: 'Wird berechnet…',
   couldNotFetchPrice: 'Preis konnte nicht abgerufen werden — Ihr Endbetrag wird bei der Bestätigung angezeigt.',
