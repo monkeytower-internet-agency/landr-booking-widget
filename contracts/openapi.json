@@ -59708,6 +59708,56 @@
         ]
       }
     },
+    "/api/staff/operators/{operator_id}/memberships/pause-summary": {
+      "get": {
+        "description": "Latest pause event per membership of this operator (for the team-row\nbadge): {membership_id: {at, actor_name, actor_is_landr_staff}}.",
+        "operationId": "pause_summary",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Pause Summary",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Pause Summary",
+        "tags": [
+          "staff-memberships"
+        ]
+      }
+    },
     "/api/staff/operators/{operator_id}/memberships/{membership_id}": {
       "delete": {
         "operationId": "delete_membership",
@@ -59887,6 +59937,68 @@
           }
         ],
         "summary": "Pause Membership",
+        "tags": [
+          "staff-memberships"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/memberships/{membership_id}/pause-history": {
+      "get": {
+        "description": "Pause/reactivate events for one member, newest first. 404 when the\nmembership is not in this operator (no cross-tenant existence leak).",
+        "operationId": "pause_history",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "membership_id",
+            "required": true,
+            "schema": {
+              "title": "Membership Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "title": "Response Pause History",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Pause History",
         "tags": [
           "staff-memberships"
         ]
