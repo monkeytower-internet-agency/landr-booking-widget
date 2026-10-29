@@ -8586,6 +8586,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/memberships/pause-summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Pause Summary
+         * @description Latest pause event per membership of this operator (for the team-row
+         *     badge): {membership_id: {at, actor_name, actor_is_landr_staff}}.
+         */
+        get: operations["pause_summary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/memberships/{membership_id}": {
         parameters: {
             query?: never;
@@ -8621,6 +8642,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/memberships/{membership_id}/pause-history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Pause History
+         * @description Pause/reactivate events for one member, newest first. 404 when the
+         *     membership is not in this operator (no cross-tenant existence leak).
+         */
+        get: operations["pause_history"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/memberships/{membership_id}/reactivate": {
         parameters: {
             query?: never;
@@ -8633,6 +8675,40 @@ export interface paths {
         /** Reactivate Membership */
         post: operations["reactivate_membership"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/memberships/{membership_id}/works-as": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add Works As */
+        post: operations["add_works_as"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/memberships/{membership_id}/works-as/{resource_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove Works As */
+        delete: operations["remove_works_as"];
         options?: never;
         head?: never;
         patch?: never;
@@ -15233,6 +15309,8 @@ export interface components {
              * @enum {string}
              */
             role: "owner" | "admin" | "staff" | "field" | "finance" | "readonly" | "performer" | "agent";
+            /** Works As Resource Type Ids */
+            works_as_resource_type_ids?: string[];
         };
         /** CreateMembershipBody */
         CreateMembershipBody: {
@@ -23130,6 +23208,12 @@ export interface components {
              */
             in_service_days: number;
             /**
+             * Paused
+             * @description landr-udhau.8: the linked team member is paused; in_service_days is 0, stored ranges untouched
+             * @default false
+             */
+            paused: boolean;
+            /**
              * Ranges
              * @description Rows overlapping the window
              */
@@ -23997,6 +24081,11 @@ export interface components {
             double_booked: boolean;
             /** Name */
             name?: string | null;
+            /**
+             * Paused
+             * @default false
+             */
+            paused: boolean;
             /** Resource Id */
             resource_id: string;
             /** Resource Type Id */
@@ -25514,6 +25603,14 @@ export interface components {
             label?: string | null;
             /** Start Date */
             start_date?: string | null;
+        };
+        /** WorksAsBody */
+        WorksAsBody: {
+            /**
+             * Resource Type Id
+             * Format: uuid
+             */
+            resource_type_id: string;
         };
         /** YearBreakdown */
         YearBreakdown: {
@@ -39331,6 +39428,39 @@ export interface operations {
             };
         };
     };
+    pause_summary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     delete_membership: {
         parameters: {
             query?: never;
@@ -39437,6 +39567,40 @@ export interface operations {
             };
         };
     };
+    pause_history: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                membership_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    }[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     reactivate_membership: {
         parameters: {
             query?: never;
@@ -39444,6 +39608,79 @@ export interface operations {
             path: {
                 operator_id: string;
                 membership_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_works_as: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                membership_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorksAsBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_works_as: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                membership_id: string;
+                resource_id: string;
             };
             cookie?: never;
         };
