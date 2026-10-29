@@ -117,7 +117,11 @@ export function augmentStaffSubmit(
   // the forms staff did NOT submit that have required-when-visible fields, so
   // when every form was filled in now nothing is pending. Sending it
   // unconditionally also survives a reload that lost the in-memory choice.
-  staffBody.customer_completes_forms = true
+  // landr-9fdho: an agent session runs public semantics server-side, which
+  // drops this flag — don't send a control the server ignores.
+  if (extras.session.mode !== 'agent') {
+    staffBody.customer_completes_forms = true
+  }
 
   if (extras.priceOverride) {
     staffBody.override_gross_total = formatOverrideTotal(

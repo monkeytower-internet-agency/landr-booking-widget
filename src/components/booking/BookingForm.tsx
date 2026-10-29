@@ -1145,6 +1145,7 @@ export function BookingForm({
   const overlapEmail = booker.email.trim()
   const overlapEligible =
     staff.active &&
+    staff.mode !== 'agent' &&
     !!staff.operatorId &&
     !!staff.token &&
     !!overlapEmail &&
@@ -2188,7 +2189,9 @@ export function BookingForm({
 
         {/* Staff mode: custom forms the customer fills in themselves via their
             booking link. Never rendered without an active staff session. */}
-        {staff.active && (customerCompletesForms?.length ?? 0) > 0 ? (
+        {staff.active &&
+        staff.mode !== 'agent' &&
+        (customerCompletesForms?.length ?? 0) > 0 ? (
           <section
             data-testid="review-customer-completes"
             className="rounded-lg border bg-surface-raised p-3 text-sm shadow-elev-1"
@@ -2470,7 +2473,7 @@ export function BookingForm({
             ) : null
           }
           below={
-            staff.active ? (
+            staff.active && staff.mode !== 'agent' ? (
               <div className="flex items-center justify-end gap-3">
                 {overrideAmount.trim() !== '' ? (
                   <p

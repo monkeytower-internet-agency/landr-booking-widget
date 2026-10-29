@@ -5562,10 +5562,11 @@ export interface paths {
         };
         /**
          * List Agent Earnings
-         * @description List agent_earnings rows for the operator, newest first.
+         * @description List the operator's agent commission rows, newest first.
          *
+         *     Source: ``commissions WHERE recipient_kind='agent'`` (landr-xnbfe.4).
          *     Optional filters: agent_user_id, status_filter (accrued|paid|reversed).
-         *     Read-only — earnings accrue via triggers/jobs, not this API.
+         *     Read-only — earnings accrue via recipient_commission_drain, not this API.
          */
         get: operations["list_agent_earnings"];
         put?: never;
@@ -5587,14 +5588,15 @@ export interface paths {
          * Agent Earnings Summary
          * @description Per-agent accrued/paid/reversed commission totals for the operator.
          *
-         *     Aggregates agent_earnings.commission_amount grouped by agent_user_id
+         *     Aggregates the agent commissions rows (``commissions WHERE
+         *     recipient_kind='agent'``, landr-xnbfe.4) by recipient_user_id
          *     and status. Returns one row per agent with the three status buckets
          *     (+ currency, which is uniform per agent in practice). Read-only.
          *
          *     Done in-Python over the operator's earning rows rather than via a
          *     SQL GROUP BY because the supabase REST client doesn't expose
          *     aggregate grouping; the row volume per operator is small (one row
-         *     per agent×booking×day) and bounded by the same 1000-row guard.
+         *     per agent×booking) and bounded by the same row guard.
          */
         get: operations["agent_earnings_summary"];
         put?: never;
@@ -25282,6 +25284,10 @@ export interface components {
         };
         /** ValidationError */
         ValidationError: {
+            /** Context */
+            ctx?: Record<string, never>;
+            /** Input */
+            input?: unknown;
             /** Location */
             loc: (string | number)[];
             /** Message */

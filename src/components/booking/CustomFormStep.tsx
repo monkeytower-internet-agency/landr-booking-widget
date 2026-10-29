@@ -534,7 +534,8 @@ export function CustomFormStep({
   // draft that already holds answers means the operator filled it in earlier,
   // so it re-opens expanded. Without a staff session none of this is used.
   const staff = useStaffMode()
-  const staffDeferrable = staff.active && onCustomerCompletes !== undefined
+  const staffDeferrable =
+    staff.active && staff.mode !== 'agent' && onCustomerCompletes !== undefined
   const [fillNow, setFillNow] = useState(
     () => !!initialAnswers && Object.keys(initialAnswers).length > 0,
   )
