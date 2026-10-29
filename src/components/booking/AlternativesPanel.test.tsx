@@ -403,7 +403,7 @@ describe('AlternativesSection too-small dimming (landr-nd4ar)', () => {
     product_kind: 'stay',
     capacity_per_unit: 2,
   }
-  const renderPanel = async (party: number) => {
+  const renderPanel = async (party: number, onSelectAlternative = vi.fn()) => {
     const { AlternativesSection } = await import('./AlternativesPanel')
     render(
       <AlternativesSection
@@ -411,6 +411,7 @@ describe('AlternativesSection too-small dimming (landr-nd4ar)', () => {
         party={party}
         selectedDays={['2026-11-10']}
         alternatives={[stay]}
+        onSelectAlternative={onSelectAlternative}
       />,
     )
   }
@@ -420,6 +421,15 @@ describe('AlternativesSection too-small dimming (landr-nd4ar)', () => {
     const row = screen.getAllByTestId('alternative-row-small')[0]
     expect(row).toHaveClass('opacity-60')
     expect(screen.getAllByTestId('too-small-hint')[0]).toHaveTextContent('too small for 3')
+  })
+
+  it('keeps a dimmed row tappable', async () => {
+    const onSelectAlternative = vi.fn()
+    await renderPanel(3, onSelectAlternative)
+    const row = screen.getAllByTestId('alternative-row-small')[0]
+    expect(row).toHaveClass('opacity-60')
+    fireEvent.click(row)
+    expect(onSelectAlternative).toHaveBeenCalledTimes(1)
   })
 
   it('leaves the row alone when the party is unknown (0)', async () => {
