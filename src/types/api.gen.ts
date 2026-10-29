@@ -2875,6 +2875,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/operators/{operator_id}/emails/compose": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Send a free-form logged email to a booker or customer (operator-scoped) */
+        post: operations["compose_email"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/operators/{operator_id}/emails/dismiss-failed": {
         parameters: {
             query?: never;
@@ -15162,6 +15179,30 @@ export interface components {
             id: string;
             /** Operator Id */
             operator_id: string;
+        };
+        /** ComposeEmailBody */
+        ComposeEmailBody: {
+            /** Body Html */
+            body_html: string;
+            /** Body Text */
+            body_text?: string | null;
+            /** Booking Id */
+            booking_id?: string | null;
+            /** Contact Id */
+            contact_id?: string | null;
+            /** Subject */
+            subject: string;
+            /** To Address */
+            to_address?: string | null;
+        };
+        /** ComposeEmailResponse */
+        ComposeEmailResponse: {
+            /** Id */
+            id: string;
+            /** Sent Via */
+            sent_via: string;
+            /** Status */
+            status: string;
         };
         /** ConfirmBody */
         ConfirmBody: {
@@ -30000,6 +30041,41 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    compose_email: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ComposeEmailBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComposeEmailResponse"];
                 };
             };
             /** @description Validation Error */
