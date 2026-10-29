@@ -40,6 +40,14 @@ export const ALL_STAFF_POWERS: readonly StaffPower[] = [
   'skip_customer_email',
 ]
 
+/**
+ * landr-9fdho: which actor the session books as (signed into the token by the
+ * API, landr-xnbfe.1). `staff`: an operator member booking for a customer.
+ * `agent`: a sales agent booking for a client — the server runs public
+ * semantics and ignores the staff-only form controls.
+ */
+export type StaffSessionMode = 'staff' | 'agent'
+
 export interface StaffSession {
   /** Whether a staff session is active. When false the widget is 100% normal. */
   active: boolean
@@ -60,6 +68,8 @@ export interface StaffSession {
    * staff submit and falls back — see staffSubmitAdapter).
    */
   operatorId: string | null
+  /** landr-9fdho: the signed actor. Absent means 'staff'. */
+  mode?: StaffSessionMode
 }
 
 export const INACTIVE_STAFF_SESSION: StaffSession = {
@@ -104,6 +114,27 @@ export function operatorIdFromStaffToken(token: string): string | null {
   return null
 }
 
+/**
+ * landr-9fdho: read the signed `mode` claim from the token payload (same
+ * unverified peek as operatorIdFromStaffToken; the server is the authority).
+ * Anything but 'agent' is 'staff'.
+ */
+export function modeFromStaffToken(token: string): StaffSessionMode {
+  const dot = token.indexOf('.')
+  const payloadB64 = dot === -1 ? token : token.slice(0, dot)
+  try {
+    const b64 = payloadB64.replace(/-/g, '+').replace(/_/g, '/')
+    const pad = b64.length % 4 === 0 ? '' : '='.repeat(4 - (b64.length % 4))
+    const payload: unknown = JSON.parse(atob(b64 + pad))
+    if (payload && typeof payload === 'object') {
+      if ((payload as Record<string, unknown>).mode === 'agent') return 'agent'
+    }
+  } catch {
+    // Malformed — treat as staff.
+  }
+  return 'staff'
+}
+
 const STAFF_SESSION_PARAM = 'staff_session'
 
 /**
@@ -130,8 +161,10 @@ export function parseStaffSession(search: string): StaffSession {
   return {
     active: true,
     token,
-    powers: ALL_STAFF_POWERS,
+    // landr-9fdho: an agent session carries zero powers server-side.
+    powers: modeFromStaffToken(token) === 'agent' ? [] : ALL_STAFF_POWERS,
     operatorId: operatorIdFromStaffToken(token),
+    mode: modeFromStaffToken(token),
   }
 }
 
@@ -162,6 +195,8 @@ export interface StaffInitMessage {
    * an older dashboard still routes the staff submit correctly.
    */
   operator_id?: string
+  /** landr-9fdho: 'agent' for a sales-agent session. Absent: read from the token. */
+  mode?: StaffSessionMode
 }
 
 export const STAFF_INIT_MESSAGE_TYPE = 'landr:staff-init'
@@ -184,7 +219,11 @@ export function isStaffInitMessage(data: unknown): data is StaffInitMessage {
  * inject arbitrary strings, and an empty list is kept as no powers.
  */
 export function staffInitFromMessage(msg: StaffInitMessage): StaffSession {
-  const powers = Array.isArray(msg.powers)
+  const mode: StaffSessionMode =
+    msg.mode === 'agent' || msg.mode === 'staff'
+      ? msg.mode
+      : modeFromStaffToken(msg.token)
+  const powers = mode === 'agent' ? [] : Array.isArray(msg.powers)
     ? msg.powers.filter((p): p is StaffPower =>
         ALL_STAFF_POWERS.includes(p as StaffPower),
       )
@@ -196,7 +235,7 @@ export function staffInitFromMessage(msg: StaffInitMessage): StaffSession {
     typeof msg.operator_id === 'string' && msg.operator_id.length > 0
       ? msg.operator_id
       : operatorIdFromStaffToken(msg.token)
-  return { active: true, token: msg.token, powers, operatorId }
+  return { active: true, token: msg.token, powers, operatorId, mode }
 }
 
 /**
