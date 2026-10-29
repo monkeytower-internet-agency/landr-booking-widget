@@ -135,6 +135,33 @@ export function modeFromStaffToken(token: string): StaffSessionMode {
   return 'staff'
 }
 
+/**
+ * landr-xnbfe.21: read the signed `powers` claim from the token payload (same
+ * unverified peek as the other claims; the server stays the authority).
+ * Returns null when the claim is absent/malformed (caller keeps the legacy
+ * "all on" default); an empty array means no powers. Unknown codes dropped.
+ */
+export function powersFromStaffToken(token: string): readonly StaffPower[] | null {
+  const dot = token.indexOf('.')
+  const payloadB64 = dot === -1 ? token : token.slice(0, dot)
+  try {
+    const b64 = payloadB64.replace(/-/g, '+').replace(/_/g, '/')
+    const pad = b64.length % 4 === 0 ? '' : '='.repeat(4 - (b64.length % 4))
+    const payload: unknown = JSON.parse(atob(b64 + pad))
+    if (payload && typeof payload === 'object') {
+      const powers = (payload as Record<string, unknown>).powers
+      if (Array.isArray(powers)) {
+        return powers.filter((p): p is StaffPower =>
+          ALL_STAFF_POWERS.includes(p as StaffPower),
+        )
+      }
+    }
+  } catch {
+    // Malformed — no claim.
+  }
+  return null
+}
+
 const STAFF_SESSION_PARAM = 'staff_session'
 
 /**
@@ -142,13 +169,9 @@ const STAFF_SESSION_PARAM = 'staff_session'
  * takes the raw search string so it is testable without a window. An empty /
  * missing token yields the inactive session (the byte-identical normal path).
  *
- * Powers are intentionally NOT encoded in the URL: the token is opaque to the
- * widget and the server is the authority. We surface ALL_STAFF_POWERS so every
- * affordance is available client-side; the server enforces the real claim set
- * (and rejects any power the signed token doesn't actually carry). When the
- * dashboard later mints a token with a narrower claim list it can pass the
- * powers via the postMessage init (see staffInitFromMessage) to hide
- * affordances the operator isn't allowed to use.
+ * Powers and mode are read from the signed token payload (unverified peek;
+ * the server is the authority), so URL entry and postMessage agree. A token
+ * without a powers claim falls back to ALL_STAFF_POWERS.
  */
 export function parseStaffSession(search: string): StaffSession {
   const params = new URLSearchParams(
@@ -162,7 +185,11 @@ export function parseStaffSession(search: string): StaffSession {
     active: true,
     token,
     // landr-9fdho: an agent session carries zero powers server-side.
-    powers: modeFromStaffToken(token) === 'agent' ? [] : ALL_STAFF_POWERS,
+    // landr-xnbfe.21: powers come from the signed claim (same as postMessage).
+    powers:
+      modeFromStaffToken(token) === 'agent'
+        ? []
+        : (powersFromStaffToken(token) ?? ALL_STAFF_POWERS),
     operatorId: operatorIdFromStaffToken(token),
     mode: modeFromStaffToken(token),
   }
@@ -227,7 +254,7 @@ export function staffInitFromMessage(msg: StaffInitMessage): StaffSession {
     ? msg.powers.filter((p): p is StaffPower =>
         ALL_STAFF_POWERS.includes(p as StaffPower),
       )
-    : ALL_STAFF_POWERS
+    : (powersFromStaffToken(msg.token) ?? ALL_STAFF_POWERS)
   // Prefer the explicit operator_id the dashboard sends; fall back to decoding
   // it from the token payload so an older dashboard (no operator_id field) and
   // the URL-param path both resolve the operator for the staff submit route.
