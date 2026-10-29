@@ -6314,6 +6314,7 @@
           "booking_id": {
             "anyOf": [
               {
+                "format": "uuid",
                 "type": "string"
               },
               {
@@ -6325,6 +6326,7 @@
           "contact_id": {
             "anyOf": [
               {
+                "format": "uuid",
                 "type": "string"
               },
               {
