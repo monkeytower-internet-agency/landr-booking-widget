@@ -363,3 +363,68 @@ describe('dot day wording', () => {
     expect(await label(21)).toContain('fully booked, other activities available')
   })
 })
+
+describe('AlternativesSection max-guests chip (landr-kb7mh)', () => {
+  it('shows the chip on a stay alternative only', async () => {
+    const { AlternativesSection } = await import('./AlternativesPanel')
+    const mk = (id: string, extra: Partial<ProductAlternative>): ProductAlternative => ({
+      product_id: id,
+      slug: id,
+      name: id,
+      service_time_shape: 'single_date',
+      available_dates: ['2026-11-10'],
+      windows: null,
+      ...extra,
+    })
+    render(
+      <AlternativesSection
+        productId="p"
+        selectedDays={['2026-11-10']}
+        alternatives={[
+          mk('loft', { product_kind: 'stay', capacity_per_unit: 4 }),
+          mk('tour', { product_kind: 'service', capacity_per_unit: 4 }),
+        ]}
+      />,
+    )
+    expect(screen.getAllByTestId('max-guests-chip')[0]).toHaveTextContent('max. 4 guests')
+    expect(screen.getAllByTestId('alternative-row-loft').length).toBeGreaterThan(0)
+    expect(screen.getAllByTestId('max-guests-chip').length).toBe(1)
+  })
+})
+
+describe('AlternativesSection too-small dimming (landr-nd4ar)', () => {
+  const stay: ProductAlternative = {
+    product_id: 'small',
+    slug: 'small',
+    name: 'small',
+    service_time_shape: 'single_date',
+    available_dates: ['2026-11-10'],
+    windows: null,
+    product_kind: 'stay',
+    capacity_per_unit: 2,
+  }
+  const renderPanel = async (party: number) => {
+    const { AlternativesSection } = await import('./AlternativesPanel')
+    render(
+      <AlternativesSection
+        productId="p"
+        party={party}
+        selectedDays={['2026-11-10']}
+        alternatives={[stay]}
+      />,
+    )
+  }
+
+  it('dims a stay row and shows the hint when the party exceeds capacity', async () => {
+    await renderPanel(3)
+    const row = screen.getAllByTestId('alternative-row-small')[0]
+    expect(row).toHaveClass('opacity-60')
+    expect(screen.getAllByTestId('too-small-hint')[0]).toHaveTextContent('too small for 3')
+  })
+
+  it('leaves the row alone when the party is unknown (0)', async () => {
+    await renderPanel(0)
+    expect(screen.getAllByTestId('alternative-row-small')[0]).not.toHaveClass('opacity-60')
+    expect(screen.queryByTestId('too-small-hint')).toBeNull()
+  })
+})

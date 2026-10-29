@@ -36,6 +36,7 @@ import { formatPriceFrom } from '@/components/booking/detail/priceFromLabel'
 import { priceNoteItems } from '@/components/booking/detail/priceNotes'
 import { DescribedLabel } from '@/components/booking/DescribedLabel'
 import { tr } from '@/lib/strings'
+import { tooSmallForParty } from '@/components/booking/browse/productCapacity'
 import { NextAction } from '@/components/booking/NextAction'
 
 export interface ProductDetailStepProps {
@@ -49,6 +50,8 @@ export interface ProductDetailStepProps {
    * or a scoped group).
    */
   onBack?: () => void
+  /** Party size when known: a too-small stay says so under the title. */
+  partySize?: number
 }
 
 /**
@@ -78,6 +81,7 @@ export function ProductDetailStep({
   product,
   onBook,
   onBack,
+  partySize,
 }: ProductDetailStepProps) {
   const { variant, tokens } = useVariant()
   const locale = browserLocale()
@@ -150,6 +154,15 @@ export function ProductDetailStep({
         >
           {name}
         </h2>
+      ) : null}
+
+      {tooSmallForParty(product, partySize) ? (
+        <p
+          className="text-sm font-medium text-muted-foreground"
+          data-testid="product-detail-too-small"
+        >
+          {tr('tooSmallForParty', locale).replace('{n}', String(partySize))}
+        </p>
       ) : null}
 
       <ProductFacts product={product} locale={locale} />

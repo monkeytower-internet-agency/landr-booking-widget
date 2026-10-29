@@ -301,6 +301,28 @@ describe('demo mode: stay, pass and verification templates (landr-m6tp4.46)', ()
     })
   })
 
+  it('adds the weekend surcharge for Fri/Sat nights of a stay', async () => {
+    const weekendRule = {
+      rule_kind: 'weekday_adjustment', sort_order: 30,
+      params: { weekdays: [5, 6], adjustment: 10, adjustment_type: 'percent' },
+    }
+    const base = STAY_CATALOGUE.products[0]!
+    catalogue = {
+      ...STAY_CATALOGUE,
+      products: [{ ...base, pricing: { currency: 'EUR', rules: [weekendRule] } }],
+    }
+    window.history.replaceState({}, '', '/?demo=apartment')
+    resetDemoTemplateCache()
+    const [studio] = await listProducts('demo-apartment')
+    // 2099-03-06 = Fri, 03-07 = Sat, 03-08 = Sun: two weekend nights of three.
+    const est = await estimateBookingPrice('demo-apartment', studio.product_id, {
+      selected_days: ['2099-03-06', '2099-03-07', '2099-03-08'], participants_count: 2, addon_lines: [],
+    })
+    // 3 x 85 = 255, +10% x 2/3 = 17.00, + 40 cleaning = 312.00
+    expect(est.grand_total).toBe('312.00')
+    expect(est.surcharges?.[0]).toMatchObject({ amount: '17.00' })
+  })
+
   it('reports the stay rules a range breaks, so checkout is blocked as in production', async () => {
     const short = await stayEstimate(['2099-03-01'])
     expect(short.est.stay?.errors).toEqual([{ code: 'below_min_nights' }])

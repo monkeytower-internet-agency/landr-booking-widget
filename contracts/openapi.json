@@ -3265,11 +3265,31 @@
         "title": "BookingProductsRemoveIn",
         "type": "object"
       },
+      "BookingSessionIn": {
+        "properties": {
+          "mode": {
+            "default": "staff",
+            "enum": [
+              "staff",
+              "agent"
+            ],
+            "title": "Mode",
+            "type": "string"
+          }
+        },
+        "title": "BookingSessionIn",
+        "type": "object"
+      },
       "BookingSessionOut": {
         "properties": {
           "expires_at": {
             "title": "Expires At",
             "type": "integer"
+          },
+          "mode": {
+            "default": "staff",
+            "title": "Mode",
+            "type": "string"
           },
           "operator_id": {
             "title": "Operator Id",
@@ -6294,6 +6314,7 @@
           "booking_id": {
             "anyOf": [
               {
+                "format": "uuid",
                 "type": "string"
               },
               {
@@ -6305,6 +6326,7 @@
           "contact_id": {
             "anyOf": [
               {
+                "format": "uuid",
                 "type": "string"
               },
               {
@@ -6933,18 +6955,50 @@
             "title": "Provider Id"
           },
           "role": {
-            "enum": [
-              "owner",
-              "admin",
-              "staff",
-              "field",
-              "finance",
-              "readonly",
-              "performer",
-              "agent"
+            "anyOf": [
+              {
+                "enum": [
+                  "owner",
+                  "admin",
+                  "staff",
+                  "field",
+                  "finance",
+                  "readonly",
+                  "performer",
+                  "agent"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
             ],
-            "title": "Role",
-            "type": "string"
+            "title": "Role"
+          },
+          "roles": {
+            "anyOf": [
+              {
+                "items": {
+                  "enum": [
+                    "owner",
+                    "admin",
+                    "staff",
+                    "field",
+                    "finance",
+                    "readonly",
+                    "performer",
+                    "agent"
+                  ],
+                  "type": "string"
+                },
+                "maxItems": 8,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Roles"
           },
           "works_as_resource_type_ids": {
             "items": {
@@ -6957,8 +7011,7 @@
           }
         },
         "required": [
-          "email",
-          "role"
+          "email"
         ],
         "title": "CreateInviteBody",
         "type": "object"
@@ -25608,6 +25661,18 @@
       },
       "PublicSubmitBookingIn": {
         "properties": {
+          "agent_token": {
+            "anyOf": [
+              {
+                "maxLength": 512,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Token"
+          },
           "booking_channel": {
             "const": "public_website",
             "default": "public_website",
@@ -26201,6 +26266,35 @@
           "created_at"
         ],
         "title": "ReferenceLookupOut",
+        "type": "object"
+      },
+      "ReferralLinkOut": {
+        "properties": {
+          "active": {
+            "title": "Active",
+            "type": "boolean"
+          },
+          "rotated_at": {
+            "format": "date-time",
+            "title": "Rotated At",
+            "type": "string"
+          },
+          "token": {
+            "title": "Token",
+            "type": "string"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "url",
+          "token",
+          "rotated_at",
+          "active"
+        ],
+        "title": "ReferralLinkOut",
         "type": "object"
       },
       "RefundIn": {
@@ -32903,6 +32997,18 @@
             ],
             "title": "Approval Outcome"
           },
+          "attribution": {
+            "anyOf": [
+              {
+                "const": "agent",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attribution"
+          },
           "booking_id": {
             "title": "Booking Id",
             "type": "string"
@@ -34988,6 +35094,31 @@
               }
             ],
             "title": "Role"
+          },
+          "roles": {
+            "anyOf": [
+              {
+                "items": {
+                  "enum": [
+                    "owner",
+                    "admin",
+                    "staff",
+                    "field",
+                    "finance",
+                    "readonly",
+                    "performer",
+                    "agent"
+                  ],
+                  "type": "string"
+                },
+                "maxItems": 8,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Roles"
           }
         },
         "title": "UpdateMembershipBody",
@@ -49478,6 +49609,118 @@
         ]
       }
     },
+    "/api/staff/operators/{operator_id}/agent-contracts/{contract_id}/referral-link": {
+      "get": {
+        "operationId": "get_referral_link",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contract_id",
+            "required": true,
+            "schema": {
+              "title": "Contract Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReferralLinkOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Referral Link",
+        "tags": [
+          "staff-agent-referral"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/agent-contracts/{contract_id}/referral-link/rotate": {
+      "post": {
+        "operationId": "rotate_referral_link",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contract_id",
+            "required": true,
+            "schema": {
+              "title": "Contract Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReferralLinkOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Rotate Referral Link",
+        "tags": [
+          "staff-agent-referral"
+        ]
+      }
+    },
     "/api/staff/operators/{operator_id}/agent-earnings": {
       "get": {
         "description": "List agent_earnings rows for the operator, newest first.\n\nOptional filters: agent_user_id, status_filter (accrued|paid|reversed).\nRead-only \u2014 earnings accrue via triggers/jobs, not this API.",
@@ -50315,6 +50558,23 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/BookingSessionIn"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
         "responses": {
           "201": {
             "content": {

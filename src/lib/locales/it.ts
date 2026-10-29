@@ -682,6 +682,8 @@ export const it: Bundle = {
   alternativesHeadingDays: 'Disponibile anche in questi giorni',
   alternativesHeadingCourses: 'Iniziano anche a {month}',
   alternativesHeadingAny: 'Disponibile anche',
+  maxGuestsChip: 'max. {n} ospiti',
+  tooSmallForParty: 'troppo piccolo per {n}',
   alternativesStartsTemplate: 'Inizia il {date}',
   altDayAria: 'al completo, altre attività disponibili',
   altDayNotOfferedAria: 'non disponibile, altre attività disponibili',

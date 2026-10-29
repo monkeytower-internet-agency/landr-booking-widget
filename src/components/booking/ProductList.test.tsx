@@ -535,3 +535,47 @@ describe('ProductList — visible loading state (landr-wwoap)', () => {
     window.localStorage.removeItem(VIEW_MODE_STORAGE_KEY)
   })
 })
+
+describe('ProductList — max guests chip + dimming (landr-kb7mh)', () => {
+  beforeEach(() => {
+    mocks.showDateModelDetail.mockReturnValue(false)
+    mocks.listProducts.mockResolvedValue([
+      makeProduct({ product_id: 's2', slug: 's2', name: 'Studio', product_kind: 'stay', capacity_per_unit: 2 }),
+      makeProduct({ product_id: 's5', slug: 's5', name: 'Family', product_kind: 'stay', capacity_per_unit: 5 }),
+      makeProduct({ product_id: 'h6', slug: 'h6', name: 'Suite', product_kind: 'hotel_room', capacity_per_unit: 6, max_party_size: 4 }),
+      makeProduct({ product_id: 'sv', slug: 'sv', name: 'Tour', product_kind: 'service', capacity_per_unit: 2 }),
+      makeProduct({ product_id: 'nc', slug: 'nc', name: 'Unknown', product_kind: 'stay', capacity_per_unit: null }),
+    ])
+  })
+  afterEach(() => vi.clearAllMocks())
+
+  it('shows the chip on stay/hotel_room with capacity only, min with max_party_size', async () => {
+    render(<ProductList operatorToken="tok" onSelect={vi.fn()} />)
+    await screen.findByText('Studio')
+    const chips = screen.getAllByTestId('max-guests-chip').map((c) => c.textContent)
+    expect(chips).toEqual(['max. 2 guests', 'max. 5 guests', 'max. 4 guests'])
+    expect(screen.queryByTestId('too-small-hint')).not.toBeInTheDocument()
+  })
+
+  it('dims too-small stays at party 3 but keeps them tappable', async () => {
+    const onSelect = vi.fn()
+    render(<ProductList operatorToken="tok" partySize={3} onSelect={onSelect} />)
+    await screen.findByText('Studio')
+    expect(screen.getAllByTestId('too-small-hint')).toHaveLength(1)
+    const card = screen.getByRole('button', { name: 'Studio, too small for 3' })
+    expect(card).toHaveClass('opacity-60')
+    expect(card).toHaveAttribute('aria-disabled', 'false')
+    fireEvent.click(card)
+    expect(onSelect).toHaveBeenCalledTimes(1)
+    expect(screen.getByRole('button', { name: 'Family' })).not.toHaveClass('opacity-60')
+  })
+
+  it('dims against max_party_size when lower than capacity (party 5, list view)', async () => {
+    window.localStorage.setItem(VIEW_MODE_STORAGE_KEY, 'list')
+    render(<ProductList operatorToken="tok" partySize={5} onSelect={vi.fn()} />)
+    await screen.findByText('Studio')
+    expect(screen.getByRole('button', { name: 'Suite, too small for 5' })).toHaveClass('opacity-60')
+    expect(screen.getByRole('button', { name: 'Family' })).not.toHaveClass('opacity-60')
+    window.localStorage.removeItem(VIEW_MODE_STORAGE_KEY)
+  })
+})

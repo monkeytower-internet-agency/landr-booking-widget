@@ -686,6 +686,8 @@ export const tr: Bundle = {
   alternativesHeadingDays: 'Bu günlerde de müsait',
   alternativesHeadingCourses: '{month} ayında başlayanlar',
   alternativesHeadingAny: 'Ayrıca müsait',
+  maxGuestsChip: 'en fazla {n} misafir',
+  tooSmallForParty: '{n} kişi için çok küçük',
   alternativesStartsTemplate: 'Başlangıç: {date}',
   altDayAria: 'dolu, diğer etkinlikler müsait',
   altDayNotOfferedAria: 'sunulmuyor, diğer etkinlikler müsait',

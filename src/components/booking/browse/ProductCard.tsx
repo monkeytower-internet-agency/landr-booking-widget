@@ -34,11 +34,15 @@ import {
   thumbAlt,
 } from './productCardData'
 import { LanguagesChip } from './LanguagesChip'
+import { MaxGuestsChip } from './MaxGuestsChip'
+import { stayMaxGuests, tooSmallForParty } from './productCapacity'
 
 interface Props {
   product: Product
   locale: string
   showDateModel: boolean
+  /** Party size once known; too-small stays are dimmed (still tappable). */
+  party?: number
   onSelect: (product: Product) => void
 }
 
@@ -55,7 +59,7 @@ function Chip({ children, radius }: { children: ReactNode; radius: string }) {
   )
 }
 
-export function ProductCard({ product, locale, showDateModel, onSelect }: Props) {
+export function ProductCard({ product, locale, showDateModel, party, onSelect }: Props) {
   const { tokens } = useVariant()
   const name = productName(product, locale)
   const description = productShortDescription(product, locale)
@@ -64,6 +68,8 @@ export function ProductCard({ product, locale, showDateModel, onSelect }: Props)
   // landr-pv2r1: guide-languages chip (null for any-language / unset).
   const languages = productLanguagesChip(product, locale)
   const price = productPriceLabel(product, locale)
+  const maxGuests = stayMaxGuests(product)
+  const tooSmall = tooSmallForParty(product, party)
   const isDraft = product.is_publicly_listed === false
 
   const activate = () => onSelect(product)
@@ -72,7 +78,12 @@ export function ProductCard({ product, locale, showDateModel, onSelect }: Props)
     <div
       role="button"
       tabIndex={0}
-      aria-label={name}
+      aria-label={
+        tooSmall
+          ? `${name}, ${tr('tooSmallForParty', locale).replace('{n}', String(party))}`
+          : name
+      }
+      aria-disabled={false}
       data-testid={`product-card-${product.slug}`}
       onClick={activate}
       onKeyDown={(e) => {
@@ -88,6 +99,7 @@ export function ProductCard({ product, locale, showDateModel, onSelect }: Props)
         tokens.focusRing,
         tokens.cardRadius,
         tokens.cardShadow,
+        tooSmall && 'opacity-60',
       )}
     >
       {/* 4:3 image: uploaded thumb, else designed ProductArt fallback. */}
@@ -126,14 +138,26 @@ export function ProductCard({ product, locale, showDateModel, onSelect }: Props)
           </p>
         ) : null}
 
-        {meta || kind || languages ? (
+        {meta || kind || languages || maxGuests !== null ? (
           <div className="flex flex-wrap items-center gap-1.5">
             {meta ? <Chip radius={tokens.chipRadius}>{meta}</Chip> : null}
             {kind ? <Chip radius={tokens.chipRadius}>{kind}</Chip> : null}
+            {maxGuests !== null ? (
+              <MaxGuestsChip max={maxGuests} locale={locale} radius={tokens.chipRadius} />
+            ) : null}
             {languages ? (
               <LanguagesChip chip={languages} radius={tokens.chipRadius} />
             ) : null}
           </div>
+        ) : null}
+
+        {tooSmall ? (
+          <p
+            className="text-xs font-medium text-muted-foreground"
+            data-testid="too-small-hint"
+          >
+            {tr('tooSmallForParty', locale).replace('{n}', String(party))}
+          </p>
         ) : null}
 
         {price ? (

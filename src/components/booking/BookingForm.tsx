@@ -383,6 +383,12 @@ interface Props {
    */
   campaignCode?: string
   /**
+   * The sales agent's referral token (`?a=` on the link, remembered for a few
+   * days), sent as `agent_token` on public bookings. The API checks it against
+   * the operator's live agents; the customer never sees it.
+   */
+  agentToken?: string
+  /**
    * landr-otml0.3: the raw `?invite=<token>` value, sent as `invite_token`
    * so the API can re-resolve it server-side and join this booking into the
    * host's group. Omitted for every non-invite booking, and for an invite
@@ -981,6 +987,7 @@ export function BookingForm({
   voucherCode,
   voucherStatus = null,
   campaignCode,
+  agentToken,
   inviteToken,
   viaAlternativeOf,
   joinRef,
@@ -1722,6 +1729,9 @@ export function BookingForm({
           : {}),
         ...(sendsPublicCodes && campaignCode && campaignCode.trim() !== ''
           ? { campaign_code: campaignCode.trim() }
+          : {}),
+        ...(sendsPublicCodes && agentToken && agentToken.trim() !== ''
+          ? { agent_token: agentToken.trim() }
           : {}),
         // landr-de6ej: only sent when the customer actually typed a
         // comment — omitted (not even an empty string) so a booking with

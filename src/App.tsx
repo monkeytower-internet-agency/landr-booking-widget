@@ -151,6 +151,7 @@ import {
   readStoredProgress,
   writeStoredProgress,
 } from './bookingPersistence'
+import { resolveAgentToken, sanitizeAgentToken, writeStoredAgentToken } from '@/lib/agentReferral'
 import { detectRoute, invitePathToken, startsAtDates } from './detectRoute'
 import { LandingPage } from '@/components/booking/LandingPage'
 import { TierBadge } from '@/components/TierBadge'
@@ -196,6 +197,7 @@ function readQueryParams() {
       contactPageToken: null as string | null,
       voucher: null as string | null,
       campaign: null as string | null,
+      agent: null as string | null,
       startAtDates: false,
     }
   }
@@ -227,6 +229,10 @@ function readQueryParams() {
     // campaign is invisible to the customer and resolved server-side.
     voucher: params.get('voucher')?.trim() || null,
     campaign: params.get('campaign')?.trim() || null,
+    // `?a=<token>` from a sales agent's referral link / QR. Remembered in
+    // first-party storage (lib/agentReferral) and sent as `agent_token` on
+    // submit; the API validates it, an unknown one is ignored.
+    agent: sanitizeAgentToken(params.get('a')),
     // landr-7zc5.3: operator preview_token — when present the products
     // fetch uses the preview path which returns drafts too. Absent in
     // normal customer-facing embed URLs (published-only behaviour).
@@ -428,6 +434,7 @@ function BookingFlowApp() {
     contactPageToken,
     voucher: queryVoucher,
     campaign: queryCampaign,
+    agent: queryAgent,
     startAtDates,
   } = useMemo(() => readQueryParams(), [])
   // landr-5lrov: an invite link (`/i/<token>`) carries NO `?w=` — the widget
@@ -437,6 +444,12 @@ function BookingFlowApp() {
   // entry point, where `?w=` is present from the first render.
   const [bootstrapToken, setBootstrapToken] = useState<string | null>(null)
   const token = queryToken ?? bootstrapToken
+  // A fresh `?a=` replaces any stored agent token (last click wins); otherwise
+  // a scan from the last few days still counts. See lib/agentReferral.
+  const agentToken = useMemo(() => resolveAgentToken(token, queryAgent), [token, queryAgent])
+  useEffect(() => {
+    if (token && queryAgent) writeStoredAgentToken(token, queryAgent)
+  }, [token, queryAgent])
   // landr-zeg4u.1: ensureProductFlow (below) is a useCallback([]) — the ref
   // lets it read the CURRENT token on every call instead of the null it
   // closed over at first render for an invite link (`/i/<token>`, no `?w=`),
@@ -597,6 +610,13 @@ function BookingFlowApp() {
     if (committed !== undefined && participantsFirstFor(product)) return committed
     return bookingDraft.partySize ?? committed
   }
+  // landr-kb7mh: party known before a product is chosen (no product-specific
+  // invite hold applies yet): the stepper value, else the entered roster.
+  const knownPartySize =
+    bookingDraft.partySize ??
+    (bookingDraft.participants && bookingDraft.participants.length > 0
+      ? seatsNeeded(bookingDraft.participants.length, bookingDraft.companions, undefined)
+      : undefined)
   const onPartySizeChange = useCallback(
     (partySize: number) => mergeDraft({ partySize }),
     [mergeDraft],
@@ -2392,6 +2412,8 @@ function BookingFlowApp() {
             // Ignored when a single-product deep link is in play (the deep
             // link always renders its product, sold-out or not).
             showSoldOut={showSoldOut}
+            // landr-kb7mh: dim stays too small for a party that is already known.
+            partySize={knownPartySize}
             // landr-d8rg.4: card click → product-detail step (not directly
             // to pick-selection). The groups context is threaded through so
             // the detail page's Back button can return to the scoped list.
@@ -2429,6 +2451,7 @@ function BookingFlowApp() {
               return (
                 <ProductDetailStep
                   product={step.product}
+                  partySize={draftSeatsNeeded(step.product)}
                   // landr-rmcsu.6: dates, or participants when the operator's
                   // flow (fetched on this page) runs them first.
                   onBook={() =>
@@ -3610,6 +3633,7 @@ function BookingFlowApp() {
             voucherCode={voucherCode}
             voucherStatus={voucherStatus}
             campaignCode={queryCampaign ?? undefined}
+            agentToken={agentToken ?? undefined}
             // landr-otml0.3: the raw invite token (re-resolved server-side)
             // — only sent when the invite actually resolved to a prefill;
             // an expired/invalid link that fell back to the plain wizard
