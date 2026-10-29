@@ -5474,7 +5474,7 @@ export interface paths {
          *     Responses: 201 `{operator_id, slug}`; 422 `invalid_slug` /
          *     `unknown_preset_key` (+ suggestions on the former); 409 `slug_taken` +
          *     suggestions; 403 `not_a_member` (no `public.users` row); 403
-         *     `free_tier_limit` (no paid operator owned, landr-981dz); 429
+         *     `free_tier_limit` (owns live operators, none paid, landr-981dz); 429
          *     `rate_limited` (5/user/day).
          */
         post: operations["create_operator"];
