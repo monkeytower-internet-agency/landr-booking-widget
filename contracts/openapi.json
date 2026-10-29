@@ -49440,7 +49440,7 @@
     },
     "/api/staff/operators": {
       "post": {
-        "description": "Create an additional FREE-tier operator owned by the caller.\n\nResponses: 201 `{operator_id, slug}`; 422 `invalid_slug` /\n`unknown_preset_key` (+ suggestions on the former); 409 `slug_taken` +\nsuggestions; 403 `not_a_member` (no `public.users` row); 403\n`free_tier_limit` (no paid operator owned, landr-981dz); 429\n`rate_limited` (5/user/day).",
+        "description": "Create an additional FREE-tier operator owned by the caller.\n\nResponses: 201 `{operator_id, slug}`; 422 `invalid_slug` /\n`unknown_preset_key` (+ suggestions on the former); 409 `slug_taken` +\nsuggestions; 403 `not_a_member` (no `public.users` row); 403\n`free_tier_limit` (owns live operators, none paid, landr-981dz); 429\n`rate_limited` (5/user/day).",
         "operationId": "create_operator",
         "requestBody": {
           "content": {
