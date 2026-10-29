@@ -6854,6 +6854,15 @@
             ],
             "title": "Role",
             "type": "string"
+          },
+          "works_as_resource_type_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 20,
+            "title": "Works As Resource Type Ids",
+            "type": "array"
           }
         },
         "required": [
@@ -32335,6 +32344,11 @@
             ],
             "title": "Name"
           },
+          "paused": {
+            "default": false,
+            "title": "Paused",
+            "type": "boolean"
+          },
           "resource_id": {
             "title": "Resource Id",
             "type": "string"
@@ -35853,6 +35867,20 @@
           }
         },
         "title": "WindowPatch",
+        "type": "object"
+      },
+      "WorksAsBody": {
+        "properties": {
+          "resource_type_id": {
+            "format": "uuid",
+            "title": "Resource Type Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "resource_type_id"
+        ],
+        "title": "WorksAsBody",
         "type": "object"
       },
       "YearBreakdown": {
@@ -59911,6 +59939,141 @@
           }
         ],
         "summary": "Reactivate Membership",
+        "tags": [
+          "staff-memberships"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/memberships/{membership_id}/works-as": {
+      "post": {
+        "operationId": "add_works_as",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "membership_id",
+            "required": true,
+            "schema": {
+              "title": "Membership Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorksAsBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Add Works As",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Add Works As",
+        "tags": [
+          "staff-memberships"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/memberships/{membership_id}/works-as/{resource_id}": {
+      "delete": {
+        "operationId": "remove_works_as",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "membership_id",
+            "required": true,
+            "schema": {
+              "title": "Membership Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "resource_id",
+            "required": true,
+            "schema": {
+              "title": "Resource Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Remove Works As",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Remove Works As",
         "tags": [
           "staff-memberships"
         ]
