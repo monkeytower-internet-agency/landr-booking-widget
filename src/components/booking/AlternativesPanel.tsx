@@ -15,7 +15,7 @@ import { useProductAlternatives } from '@/components/booking/useProductAlternati
 import { browserLocale, pickLocalized } from '@/lib/locale'
 import { tr } from '@/lib/strings'
 import { MaxGuestsChip } from '@/components/booking/browse/MaxGuestsChip'
-import { stayMaxGuests } from '@/components/booking/browse/productCapacity'
+import { stayMaxGuests, tooSmallForParty } from '@/components/booking/browse/productCapacity'
 import { useVariant } from '@/lib/variant'
 import { cn } from '@/lib/utils'
 
@@ -44,6 +44,7 @@ function PanelRows({
   onSelect,
   layout,
   pickedDay,
+  partySize,
 }: {
   rows: AlternativeRow[]
   heading: string
@@ -51,6 +52,8 @@ function PanelRows({
   layout: 'strip' | 'list'
   /** First day picked on the date step; carried by rows that carry no date of their own. */
   pickedDay?: string
+  /** Known party size; rows no unit of which can take it are dimmed with a hint. */
+  partySize?: number
 }) {
   const { tokens } = useVariant()
   const locale = browserLocale()
@@ -82,12 +85,15 @@ function PanelRows({
               )
             : null
           const maxGuests = stayMaxGuests(alt)
+          const tooSmall = tooSmallForParty(alt, partySize)
+          const tooSmallText = tr('tooSmallForParty', locale).replace('{n}', String(partySize))
           const label = [
             name,
             starts,
             maxGuests !== null
               ? tr('maxGuestsChip', locale).replace('{n}', String(maxGuests))
               : null,
+            tooSmall ? tooSmallText : null,
             price,
           ]
             .filter(Boolean)
@@ -108,6 +114,7 @@ function PanelRows({
                 className={cn(
                   'tap-44 flex w-full items-center gap-3 border border-border bg-surface-raised p-2 text-left transition-colors hover:border-primary/40',
                   layout === 'strip' ? 'min-w-56' : null,
+                  tooSmall && 'opacity-60',
                   tokens.optionCardRadius,
                   tokens.focusRing,
                 )}
@@ -129,6 +136,14 @@ function PanelRows({
                     {maxGuests !== null ? (
                       <span className="mt-0.5">
                         <MaxGuestsChip max={maxGuests} locale={locale} />
+                      </span>
+                    ) : null}
+                    {tooSmall ? (
+                      <span
+                        className="text-xs font-medium text-muted-foreground"
+                        data-testid="too-small-hint"
+                      >
+                        {tooSmallText}
                       </span>
                     ) : null}
                   </span>
@@ -154,6 +169,7 @@ function PanelBody({
   testId,
   className,
   pickedDay,
+  partySize,
 }: {
   groups: { heading: string; rows: AlternativeRow[] }[]
   onSelect?: AlternativeSelectHandler
@@ -161,6 +177,7 @@ function PanelBody({
   testId: string
   className?: string
   pickedDay?: string
+  partySize?: number
 }) {
   return (
     <section
@@ -178,6 +195,7 @@ function PanelBody({
           onSelect={onSelect}
           layout={layout}
           pickedDay={pickedDay}
+          partySize={partySize}
         />
       ))}
     </section>
@@ -271,6 +289,7 @@ export function AlternativesSection({
         groups={groups}
         onSelect={onSelectAlternative}
         pickedDay={selectedDays[0]}
+        partySize={party}
         layout="strip"
         testId="alternatives-panel-mobile"
         className={slot ? 'md:hidden' : undefined}
@@ -281,6 +300,7 @@ export function AlternativesSection({
               groups={groups}
               onSelect={onSelectAlternative}
               pickedDay={selectedDays[0]}
+              partySize={party}
               layout="list"
               testId="alternatives-panel-desktop"
             />,
