@@ -6271,6 +6271,97 @@
         "title": "CompanyInquiryOut",
         "type": "object"
       },
+      "ComposeEmailBody": {
+        "properties": {
+          "body_html": {
+            "maxLength": 1000000,
+            "minLength": 1,
+            "title": "Body Html",
+            "type": "string"
+          },
+          "body_text": {
+            "anyOf": [
+              {
+                "maxLength": 500000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Body Text"
+          },
+          "booking_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Booking Id"
+          },
+          "contact_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contact Id"
+          },
+          "subject": {
+            "maxLength": 998,
+            "minLength": 1,
+            "title": "Subject",
+            "type": "string"
+          },
+          "to_address": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To Address"
+          }
+        },
+        "required": [
+          "subject",
+          "body_html"
+        ],
+        "title": "ComposeEmailBody",
+        "type": "object"
+      },
+      "ComposeEmailResponse": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "sent_via": {
+            "title": "Sent Via",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "sent_via"
+        ],
+        "title": "ComposeEmailResponse",
+        "type": "object"
+      },
       "ConfirmBody": {
         "properties": {
           "confirm_name": {
@@ -10353,6 +10444,18 @@
               }
             ],
             "title": "Slot Start Time"
+          },
+          "voucher_code": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Voucher Code"
           }
         },
         "title": "EstimateRequest",
@@ -10503,6 +10606,21 @@
             "default": false,
             "title": "Un Priceable",
             "type": "boolean"
+          },
+          "voucher_status": {
+            "anyOf": [
+              {
+                "enum": [
+                  "applied",
+                  "not_applicable"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Voucher Status"
           },
           "warnings": {
             "items": {
@@ -25496,16 +25614,17 @@
             "title": "Booking Channel",
             "type": "string"
           },
-          "campaign_id": {
+          "campaign_code": {
             "anyOf": [
               {
+                "maxLength": 64,
                 "type": "string"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Campaign Id"
+            "title": "Campaign Code"
           },
           "cancellation_deadline": {
             "title": "Cancellation Deadline",
@@ -43448,6 +43567,63 @@
         "summary": "Acknowledge Terms Change",
         "tags": [
           "operator-terms-changes"
+        ]
+      }
+    },
+    "/api/operators/{operator_id}/emails/compose": {
+      "post": {
+        "operationId": "compose_email",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ComposeEmailBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComposeEmailResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Send a free-form logged email to a booker or customer (operator-scoped)",
+        "tags": [
+          "staff-emails-compose"
         ]
       }
     },

@@ -1,5 +1,5 @@
 import { fillBillingFields } from '@/test/fillBilling'
-import { useState } from 'react'
+import { useState, type ComponentProps } from 'react'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
@@ -2457,7 +2457,7 @@ describe('DetailsStep — billing address (landr-uuntm.3)', () => {
   }
   afterEach(() => vi.unstubAllGlobals())
 
-  function renderStep(props: Partial<React.ComponentProps<typeof DetailsStep>> = {}) {
+  function renderStep(props: Partial<ComponentProps<typeof DetailsStep>> = {}) {
     const onConfirm = vi.fn()
     render(
       <DetailsStep
@@ -3303,5 +3303,81 @@ describe('DetailsStep — companion arranges own accommodation (landr-qw2v8.2)',
     } finally {
       vi.unstubAllGlobals()
     }
+  })
+})
+
+// Voucher code field: prefilled from the link's ?voucher=, editable, lifted live,
+// and annotated with the price estimate's verdict.
+describe('DetailsStep — voucher code field', () => {
+  function renderVoucher(props: Partial<ComponentProps<typeof DetailsStep>> = {}) {
+    const onVoucherCodeChange = vi.fn()
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+        onVoucherCodeChange={onVoucherCodeChange}
+        {...props}
+      />,
+    )
+    return { onVoucherCodeChange }
+  }
+
+  it('renders an empty, optional field with the hint', () => {
+    renderVoucher()
+    expect(screen.getByLabelText('Voucher code')).toHaveValue('')
+    expect(screen.getByTestId('voucher-code-note')).toHaveTextContent(/optional/i)
+  })
+
+  it('prefills from the URL-supplied code and stays editable', () => {
+    const { onVoucherCodeChange } = renderVoucher({ initialVoucherCode: 'EARLYBIRD' })
+    const input = screen.getByTestId('voucher-code-input')
+    expect(input).toHaveValue('EARLYBIRD')
+    fireEvent.change(input, { target: { value: 'SPRING' } })
+    expect(input).toHaveValue('SPRING')
+    expect(onVoucherCodeChange).toHaveBeenLastCalledWith('SPRING')
+  })
+
+  it('shows the estimate verdict inline', () => {
+    renderVoucher({ initialVoucherCode: 'NOPE', voucherStatus: 'not_applicable' })
+    expect(screen.getByTestId('voucher-code-input')).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getByTestId('voucher-code-note')).toHaveTextContent(
+      "This code can't be applied to this booking.",
+    )
+  })
+
+  it('confirms an applied code', () => {
+    renderVoucher({ initialVoucherCode: 'EARLYBIRD', voucherStatus: 'applied' })
+    expect(screen.getByTestId('voucher-code-note')).toHaveTextContent('Voucher applied')
+  })
+
+  it('is not rendered for callers that do not handle voucher codes', () => {
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    )
+    expect(screen.queryByTestId('voucher-code-section')).not.toBeInTheDocument()
+  })
+
+  it('is hidden in staff mode', () => {
+    render(
+      <StaffModeProvider
+        value={{ active: true, token: 't.o.k', powers: [], operatorId: 'op-1' }}
+      >
+        <DetailsStep
+          product={makeProduct()}
+          selection={DAYS_SELECTION}
+          onBack={vi.fn()}
+          onConfirm={vi.fn()}
+          onVoucherCodeChange={vi.fn()}
+        />
+      </StaffModeProvider>,
+    )
+    expect(screen.queryByTestId('voucher-code-section')).not.toBeInTheDocument()
   })
 })

@@ -1261,7 +1261,13 @@ export interface SubmitBookingBody {
   customer_preferred_locale?: string | null
   cancellation_deadline: string
   voucher_code?: string | null
-  campaign_id?: string | null
+  /**
+   * The campaign / referral CODE from the link's `?campaign=` param. The API
+   * resolves it to the operator's own live campaign and ignores anything it
+   * does not recognise; the customer never sees it. (A raw `campaign_id` is no
+   * longer accepted on the public path.)
+   */
+  campaign_code?: string | null
   /** Product the guest switched away from via the alternatives panel (hint; API validates). */
   via_alternative_of?: string | null
   /**
@@ -2039,7 +2045,20 @@ export interface EstimateRequestBody {
    */
   product_availability_id?: string
   slot_start_time?: string
+  /**
+   * A voucher code to preview against the main product line. Sent only when
+   * the customer typed (or arrived with) one; the estimate never consumes it.
+   */
+  voucher_code?: string
 }
+
+/**
+ * Verdict on the voucher code an estimate carried. The API deliberately
+ * collapses every reason a code fails (unknown, inactive, expired, exhausted,
+ * wrong product) into the single `not_applicable` so the endpoint is no
+ * code-guessing oracle.
+ */
+export type VoucherStatus = 'applied' | 'not_applicable'
 
 /** landr-k9pji.25: the slot half of an estimate request (see EstimateRequestBody). */
 export type EstimateSlotFields = Pick<EstimateRequestBody, 'product_availability_id' | 'slot_start_time'>
@@ -2170,6 +2189,11 @@ export interface EstimateResponse {
    * codes the submit refuses with). Checkout is blocked while errors exist.
    */
   stay?: StayEstimate | null
+  /**
+   * Verdict on `voucher_code` from the request; null/absent when the request
+   * carried no code (or the API predates vouchers in the estimate).
+   */
+  voucher_status?: VoucherStatus | null
 }
 
 // ─── Hotel room-request reply loop (landr-em0r / landr-em0r.9) ──────────────

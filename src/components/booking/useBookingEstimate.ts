@@ -46,6 +46,12 @@ export interface UseBookingEstimateArgs {
   addonLines: EstimateAddonLine[]
   /** landr-k9pji.25: the picked slot of the main product (start-time prices). */
   slot?: EstimateSlotFields
+  /**
+   * The voucher code to preview against the main line. Trimmed here; an empty
+   * value sends no `voucher_code` at all, so a booking without one keeps the
+   * exact request body it always had.
+   */
+  voucherCode?: string
   enabled?: boolean
   /** Debounce in ms (default 300). */
   debounceMs?: number
@@ -84,9 +90,11 @@ export function useBookingEstimate(
     participantCount,
     addonLines,
     slot,
+    voucherCode,
     enabled = true,
     debounceMs = 300,
   } = args
+  const voucher = voucherCode?.trim() ?? ''
   const availabilityId = slot?.product_availability_id
   const slotStartTime = slot?.slot_start_time
 
@@ -109,8 +117,9 @@ export function useBookingEstimate(
       locale: apiLocale(browserLocale()),
       ...(availabilityId ? { product_availability_id: availabilityId } : {}),
       ...(slotStartTime ? { slot_start_time: slotStartTime } : {}),
+      ...(voucher ? { voucher_code: voucher } : {}),
     }),
-    [selectedDays, participantCount, addonLines, availabilityId, slotStartTime],
+    [selectedDays, participantCount, addonLines, availabilityId, slotStartTime, voucher],
   )
 
   const liveKey = useMemo(
