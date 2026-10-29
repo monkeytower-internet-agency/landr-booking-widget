@@ -2188,7 +2188,9 @@ export function BookingForm({
 
         {/* Staff mode: custom forms the customer fills in themselves via their
             booking link. Never rendered without an active staff session. */}
-        {staff.active && (customerCompletesForms?.length ?? 0) > 0 ? (
+        {staff.active &&
+        staff.mode !== 'agent' &&
+        (customerCompletesForms?.length ?? 0) > 0 ? (
           <section
             data-testid="review-customer-completes"
             className="rounded-lg border bg-surface-raised p-3 text-sm shadow-elev-1"

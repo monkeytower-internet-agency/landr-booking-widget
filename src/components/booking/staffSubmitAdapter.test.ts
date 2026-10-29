@@ -150,3 +150,24 @@ describe('augmentStaffSubmit — customer completes forms', () => {
     expect(out).not.toHaveProperty('customer_completes_forms')
   })
 })
+
+describe('augmentStaffSubmit — agent mode (landr-9fdho)', () => {
+  const agentSession: StaffSession = { ...activeSession, powers: [], mode: 'agent' }
+
+  it('keeps per-participant language and omits customer_completes_forms', () => {
+    const body = baseBody()
+    body.participants = [
+      { first_name: 'Ada', service_role_code: 'participant', language: 'de' },
+      { first_name: 'Bo', service_role_code: 'participant', language: 'en' },
+    ]
+    const out = augmentStaffSubmit(body, { session: agentSession, forced: false }) as StaffSubmitBody
+    expect(out.staff_session).toBe('staff.signed.token')
+    expect(out.participants.map((p) => p.language)).toEqual(['de', 'en'])
+    expect(out).not.toHaveProperty('customer_completes_forms')
+  })
+
+  it('still sends customer_completes_forms for a staff session', () => {
+    const out = augmentStaffSubmit(baseBody(), { session: activeSession, forced: false }) as StaffSubmitBody
+    expect(out.customer_completes_forms).toBe(true)
+  })
+})

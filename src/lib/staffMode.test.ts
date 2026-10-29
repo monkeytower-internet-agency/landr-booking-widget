@@ -91,6 +91,7 @@ describe('staffInitFromMessage', () => {
       token: 't',
       powers: ALL_STAFF_POWERS,
       operatorId: null,
+      mode: 'staff',
     })
   })
 
@@ -198,5 +199,19 @@ describe('resolveParentTargetOrigin', () => {
 
   it('falls back to a real allow-listed origin', () => {
     expect(STAFF_ORIGIN_ALLOWLIST).toContain(resolveParentTargetOrigin())
+  })
+})
+
+describe('session mode (landr-9fdho)', () => {
+  const tok = (payload: object) => `${btoa(JSON.stringify(payload))}.sig`
+
+  it('reads agent mode from the token and defaults to staff', () => {
+    expect(parseStaffSession(`?staff_session=${tok({ operator_id: 'o', mode: 'agent' })}`).mode).toBe('agent')
+    expect(parseStaffSession(`?staff_session=${tok({ operator_id: 'o' })}`).mode).toBe('staff')
+  })
+
+  it('prefers the init message mode', () => {
+    const s = staffInitFromMessage({ type: 'landr:staff-init', token: tok({ operator_id: 'o' }), mode: 'agent' })
+    expect(s.mode).toBe('agent')
   })
 })
