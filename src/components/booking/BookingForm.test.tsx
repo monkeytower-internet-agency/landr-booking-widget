@@ -876,6 +876,19 @@ beforeEach(() => {
       expect(body).not.toHaveProperty('campaign_id')
     })
 
+    it('carries the referral link token as agent_token', async () => {
+      const submitMock = vi.mocked(submitBooking)
+      submitMock.mockResolvedValue({ booking_id: 'b-v-3', semantic_state: 'pending' })
+      renderForm({ agentToken: ' agent-link-token ' })
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+      })
+      await waitFor(() => expect(submitMock).toHaveBeenCalledTimes(1))
+      const body = submitMock.mock.calls[0]![0]
+      expect(body.agent_token).toBe('agent-link-token')
+      expect(body).not.toHaveProperty('booking_channel', 'agent_qr_self_serve')
+    })
+
     it('omits both keys when no code is present', async () => {
       const submitMock = vi.mocked(submitBooking)
       submitMock.mockResolvedValue({ booking_id: 'b-v-2', semantic_state: 'pending' })
@@ -887,6 +900,7 @@ beforeEach(() => {
       const body = submitMock.mock.calls[0]![0]
       expect(body).not.toHaveProperty('voucher_code')
       expect(body).not.toHaveProperty('campaign_code')
+      expect(body).not.toHaveProperty('agent_token')
     })
 
     it('blocks submit while the estimate says the code does not apply', async () => {

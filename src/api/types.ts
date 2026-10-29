@@ -1268,6 +1268,12 @@ export interface SubmitBookingBody {
    * longer accepted on the public path.)
    */
   campaign_code?: string | null
+  /**
+   * The sales agent's referral token from the link's `?a=` param. The API
+   * resolves it to a live agent of this operator and credits the booking to
+   * them; an unknown, stale or foreign token is ignored.
+   */
+  agent_token?: string | null
   /** Product the guest switched away from via the alternatives panel (hint; API validates). */
   via_alternative_of?: string | null
   /**
@@ -1538,6 +1544,8 @@ export interface SubmitBookingResponse {
   stage?: CustomerStageLabel
   /** Approval-engine outcome, e.g. 'auto_approved'. */
   approval_outcome?: string
+  /** 'agent' when the booking was credited to a sales agent via their link. */
+  attribution?: 'agent' | null
   /**
    * landr-5oox.6/E1b: true when a Stripe payment link was generated and
    * sent for this (auto-approved) booking. Optional so the widget tolerates
