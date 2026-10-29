@@ -161,7 +161,8 @@ export function parseStaffSession(search: string): StaffSession {
   return {
     active: true,
     token,
-    powers: ALL_STAFF_POWERS,
+    // landr-9fdho: an agent session carries zero powers server-side.
+    powers: modeFromStaffToken(token) === 'agent' ? [] : ALL_STAFF_POWERS,
     operatorId: operatorIdFromStaffToken(token),
     mode: modeFromStaffToken(token),
   }
@@ -218,7 +219,11 @@ export function isStaffInitMessage(data: unknown): data is StaffInitMessage {
  * inject arbitrary strings, and an empty list is kept as no powers.
  */
 export function staffInitFromMessage(msg: StaffInitMessage): StaffSession {
-  const powers = Array.isArray(msg.powers)
+  const mode: StaffSessionMode =
+    msg.mode === 'agent' || msg.mode === 'staff'
+      ? msg.mode
+      : modeFromStaffToken(msg.token)
+  const powers = mode === 'agent' ? [] : Array.isArray(msg.powers)
     ? msg.powers.filter((p): p is StaffPower =>
         ALL_STAFF_POWERS.includes(p as StaffPower),
       )
@@ -230,10 +235,6 @@ export function staffInitFromMessage(msg: StaffInitMessage): StaffSession {
     typeof msg.operator_id === 'string' && msg.operator_id.length > 0
       ? msg.operator_id
       : operatorIdFromStaffToken(msg.token)
-  const mode: StaffSessionMode =
-    msg.mode === 'agent' || msg.mode === 'staff'
-      ? msg.mode
-      : modeFromStaffToken(msg.token)
   return { active: true, token: msg.token, powers, operatorId, mode }
 }
 

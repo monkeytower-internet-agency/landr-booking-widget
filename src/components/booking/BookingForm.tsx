@@ -1145,6 +1145,7 @@ export function BookingForm({
   const overlapEmail = booker.email.trim()
   const overlapEligible =
     staff.active &&
+    staff.mode !== 'agent' &&
     !!staff.operatorId &&
     !!staff.token &&
     !!overlapEmail &&
@@ -2472,7 +2473,7 @@ export function BookingForm({
             ) : null
           }
           below={
-            staff.active ? (
+            staff.active && staff.mode !== 'agent' ? (
               <div className="flex items-center justify-end gap-3">
                 {overrideAmount.trim() !== '' ? (
                   <p
