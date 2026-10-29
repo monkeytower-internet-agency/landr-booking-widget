@@ -15226,6 +15226,8 @@ export interface components {
             /** Locale */
             locale?: string | null;
             new_contact?: components["schemas"]["NewContact"] | null;
+            /** Provider Id */
+            provider_id?: string | null;
             /**
              * Role
              * @enum {string}

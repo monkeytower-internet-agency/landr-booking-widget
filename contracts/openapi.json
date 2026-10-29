@@ -6829,6 +6829,18 @@
               }
             ]
           },
+          "provider_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Id"
+          },
           "role": {
             "enum": [
               "owner",
