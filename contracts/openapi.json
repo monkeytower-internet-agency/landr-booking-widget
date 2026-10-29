@@ -25661,6 +25661,18 @@
       },
       "PublicSubmitBookingIn": {
         "properties": {
+          "agent_token": {
+            "anyOf": [
+              {
+                "maxLength": 512,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Token"
+          },
           "booking_channel": {
             "const": "public_website",
             "default": "public_website",
@@ -26254,6 +26266,35 @@
           "created_at"
         ],
         "title": "ReferenceLookupOut",
+        "type": "object"
+      },
+      "ReferralLinkOut": {
+        "properties": {
+          "active": {
+            "title": "Active",
+            "type": "boolean"
+          },
+          "rotated_at": {
+            "format": "date-time",
+            "title": "Rotated At",
+            "type": "string"
+          },
+          "token": {
+            "title": "Token",
+            "type": "string"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "url",
+          "token",
+          "rotated_at",
+          "active"
+        ],
+        "title": "ReferralLinkOut",
         "type": "object"
       },
       "RefundIn": {
@@ -32955,6 +32996,18 @@
               }
             ],
             "title": "Approval Outcome"
+          },
+          "attribution": {
+            "anyOf": [
+              {
+                "const": "agent",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attribution"
           },
           "booking_id": {
             "title": "Booking Id",
@@ -49553,6 +49606,118 @@
         "summary": "Patch Operator",
         "tags": [
           "staff-operator"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/agent-contracts/{contract_id}/referral-link": {
+      "get": {
+        "operationId": "get_referral_link",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contract_id",
+            "required": true,
+            "schema": {
+              "title": "Contract Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReferralLinkOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Referral Link",
+        "tags": [
+          "staff-agent-referral"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/agent-contracts/{contract_id}/referral-link/rotate": {
+      "post": {
+        "operationId": "rotate_referral_link",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contract_id",
+            "required": true,
+            "schema": {
+              "title": "Contract Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReferralLinkOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Rotate Referral Link",
+        "tags": [
+          "staff-agent-referral"
         ]
       }
     },
