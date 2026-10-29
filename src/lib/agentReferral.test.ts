@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import {
   AGENT_ATTRIBUTION_WINDOW_MS,
   readStoredAgentToken,
+  sanitizeAgentToken,
   resolveAgentToken,
   writeStoredAgentToken,
 } from './agentReferral'
@@ -36,5 +37,27 @@ describe('agent referral storage', () => {
     writeStoredAgentToken('w1', 'old', 1_000)
     expect(resolveAgentToken('w1', 'new', 2_000)).toBe('new')
     expect(resolveAgentToken('w1', null, 2_000)).toBe('old')
+  })
+
+  it('drops a malformed ?a= before storing or sending it', () => {
+    expect(sanitizeAgentToken('x'.repeat(65))).toBeNull()
+    expect(sanitizeAgentToken('has space')).toBeNull()
+    expect(sanitizeAgentToken('<script>')).toBeNull()
+    expect(sanitizeAgentToken('  ')).toBeNull()
+    expect(sanitizeAgentToken(' good_Token-1 ')).toBe('good_Token-1')
+    writeStoredAgentToken('w1', 'bad token', 1_000)
+    expect(window.localStorage.getItem('landr-widget-agent-ref.v1')).toBeNull()
+    // a bad ?a= falls back to a good stored token
+    writeStoredAgentToken('w1', 'good', 1_000)
+    expect(resolveAgentToken('w1', 'x'.repeat(100), 2_000)).toBe('good')
+  })
+
+  it('clears a bad value stored by an earlier build', () => {
+    window.localStorage.setItem(
+      'landr-widget-agent-ref.v1',
+      JSON.stringify({ w: 'w1', a: 'x'.repeat(100), at: 1_000 }),
+    )
+    expect(readStoredAgentToken('w1', 2_000)).toBeNull()
+    expect(window.localStorage.getItem('landr-widget-agent-ref.v1')).toBeNull()
   })
 })

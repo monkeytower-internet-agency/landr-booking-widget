@@ -18,6 +18,15 @@ export const AGENT_ATTRIBUTION_WINDOW_MS = 7 * 24 * 60 * 60 * 1000
 
 export const AGENT_STORAGE_KEY = 'landr-widget-agent-ref.v1'
 
+/** What the API accepts: 1-64 url-safe characters. Anything else is dropped. */
+const AGENT_TOKEN_RE = /^[A-Za-z0-9_-]{1,64}$/
+
+/** The trimmed token, or null when it is not a well-formed agent token. */
+export function sanitizeAgentToken(value: string | null | undefined): string | null {
+  const v = (value ?? '').trim()
+  return AGENT_TOKEN_RE.test(v) ? v : null
+}
+
 interface StoredAgentRef {
   /** Widget token the link was opened for: a token never crosses operators. */
   w: string
@@ -31,6 +40,7 @@ export function writeStoredAgentToken(
   agentToken: string,
   now: number = Date.now(),
 ): void {
+  if (!sanitizeAgentToken(agentToken)) return
   try {
     const value: StoredAgentRef = { w: widgetToken, a: agentToken, at: now }
     window.localStorage.setItem(AGENT_STORAGE_KEY, JSON.stringify(value))
@@ -52,9 +62,13 @@ export function readStoredAgentToken(
       !parsed ||
       parsed.w !== widgetToken ||
       typeof parsed.a !== 'string' ||
-      parsed.a === '' ||
       typeof parsed.at !== 'number'
     ) {
+      return null
+    }
+    if (!sanitizeAgentToken(parsed.a)) {
+      // A bad value stored by an earlier build: drop it so it is never sent.
+      window.localStorage.removeItem(AGENT_STORAGE_KEY)
       return null
     }
     if (now - parsed.at > AGENT_ATTRIBUTION_WINDOW_MS || parsed.at > now) return null
@@ -70,5 +84,5 @@ export function resolveAgentToken(
   fromUrl: string | null,
   now: number = Date.now(),
 ): string | null {
-  return fromUrl ?? readStoredAgentToken(widgetToken, now)
+  return sanitizeAgentToken(fromUrl) ?? readStoredAgentToken(widgetToken, now)
 }

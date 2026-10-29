@@ -151,7 +151,7 @@ import {
   readStoredProgress,
   writeStoredProgress,
 } from './bookingPersistence'
-import { resolveAgentToken, writeStoredAgentToken } from '@/lib/agentReferral'
+import { resolveAgentToken, sanitizeAgentToken, writeStoredAgentToken } from '@/lib/agentReferral'
 import { detectRoute, invitePathToken, startsAtDates } from './detectRoute'
 import { LandingPage } from '@/components/booking/LandingPage'
 import { TierBadge } from '@/components/TierBadge'
@@ -232,7 +232,7 @@ function readQueryParams() {
     // `?a=<token>` from a sales agent's referral link / QR. Remembered in
     // first-party storage (lib/agentReferral) and sent as `agent_token` on
     // submit; the API validates it, an unknown one is ignored.
-    agent: params.get('a')?.trim() || null,
+    agent: sanitizeAgentToken(params.get('a')),
     // landr-7zc5.3: operator preview_token — when present the products
     // fetch uses the preview path which returns drafts too. Absent in
     // normal customer-facing embed URLs (published-only behaviour).
