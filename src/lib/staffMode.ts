@@ -27,9 +27,10 @@ import { createContext, useContext } from 'react'
  * `powers:[force_book, price_override, skip_customer_email]` claim list. The
  * widget reads these to decide which affordances to surface; the server is the
  * real authority (a token without `force_book` cannot force-book even if the
- * widget rendered the button). Absent / unknown powers default to "all on" so
- * an older mint endpoint can never silently hide an affordance — the server
- * still rejects anything the token doesn't actually authorise.
+ * widget rendered the button). ABSENT powers default to "all on" so an older
+ * mint endpoint can never silently hide an affordance — the server still
+ * rejects anything the token doesn't actually authorise. An EMPTY list means
+ * exactly that: no powers (an agent-mode session books like a customer).
  */
 export type StaffPower = 'force_book' | 'price_override' | 'skip_customer_email'
 
@@ -180,15 +181,14 @@ export function isStaffInitMessage(data: unknown): data is StaffInitMessage {
  * Build a StaffSession from a verified staff-init message. Powers default to
  * ALL_STAFF_POWERS when the parent omits them (same rationale as the URL path);
  * when supplied, only valid power codes are kept so a malformed parent can't
- * inject arbitrary strings.
+ * inject arbitrary strings, and an empty list is kept as no powers.
  */
 export function staffInitFromMessage(msg: StaffInitMessage): StaffSession {
-  const powers =
-    Array.isArray(msg.powers) && msg.powers.length > 0
-      ? msg.powers.filter((p): p is StaffPower =>
-          ALL_STAFF_POWERS.includes(p as StaffPower),
-        )
-      : ALL_STAFF_POWERS
+  const powers = Array.isArray(msg.powers)
+    ? msg.powers.filter((p): p is StaffPower =>
+        ALL_STAFF_POWERS.includes(p as StaffPower),
+      )
+    : ALL_STAFF_POWERS
   // Prefer the explicit operator_id the dashboard sends; fall back to decoding
   // it from the token payload so an older dashboard (no operator_id field) and
   // the URL-param path both resolve the operator for the staff submit route.
