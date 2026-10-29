@@ -747,14 +747,25 @@ export function demoEstimate(
     const nights = [...new Set(body.selected_days)].sort()
     const config = hit.product.stay ?? null
     const fee = (config?.cleaning_fee_cents ?? 0) / 100
-    const lineTotal = hit.price * nights.length + fee
+    // Weekday rules (the weekend surcharge) evaluate per night, as the real estimate does.
+    const cat = template.catalogue?.products.find((c) => c.slug === hit.product.slug)
+    const rules = adjustmentRules(cat?.pricing?.rules)
+    const unitBase = rules.length ? Number(hit.product.price_per_unit ?? hit.price) || hit.price : hit.price
+    const adjustments = demoAdjustments(cat?.pricing?.rules, nights, null, null, unitBase * nights.length, lang)
+    const adjusted = unitBase * nights.length + adjustments.reduce((n, a) => n + a.amount, 0)
+    const lineTotal = adjusted + fee
     totals.operator += lineTotal
+    for (const a of adjustments) {
+      const amount = money(Math.abs(a.amount))
+      if (a.amount > 0) surcharges.push({ kind: 'surcharge', label: a.label, amount })
+      else if (a.amount < 0) savings.push({ kind: 'discount', label: a.label, amount })
+    }
     lines.push({
       product_id: id,
       label: pickLocalized(hit.product.name, hit.product.name_localized, lang),
       qty: 1,
       units: nights.length,
-      unit_price: hit.price.toFixed(2),
+      unit_price: (adjusted / Math.max(1, nights.length)).toFixed(2),
       line_total: lineTotal.toFixed(2),
       paid_to: 'operator',
       ...(fee > 0 ? { cleaning_fee: fee.toFixed(2) } : {}),
