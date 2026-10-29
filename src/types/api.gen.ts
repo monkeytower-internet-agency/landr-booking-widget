@@ -15345,11 +15345,10 @@ export interface components {
             new_contact?: components["schemas"]["NewContact"] | null;
             /** Provider Id */
             provider_id?: string | null;
-            /**
-             * Role
-             * @enum {string}
-             */
-            role: "owner" | "admin" | "staff" | "field" | "finance" | "readonly" | "performer" | "agent";
+            /** Role */
+            role?: ("owner" | "admin" | "staff" | "field" | "finance" | "readonly" | "performer" | "agent") | null;
+            /** Roles */
+            roles?: ("owner" | "admin" | "staff" | "field" | "finance" | "readonly" | "performer" | "agent")[] | null;
             /** Works As Resource Type Ids */
             works_as_resource_type_ids?: string[];
         };
@@ -25146,6 +25145,8 @@ export interface components {
             } | null;
             /** Role */
             role?: ("owner" | "admin" | "staff" | "field" | "finance" | "readonly" | "performer" | "agent") | null;
+            /** Roles */
+            roles?: ("owner" | "admin" | "staff" | "field" | "finance" | "readonly" | "performer" | "agent")[] | null;
         };
         /** UpdateTermsChange */
         UpdateTermsChange: {
