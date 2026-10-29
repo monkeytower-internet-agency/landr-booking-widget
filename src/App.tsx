@@ -610,6 +610,13 @@ function BookingFlowApp() {
     if (committed !== undefined && participantsFirstFor(product)) return committed
     return bookingDraft.partySize ?? committed
   }
+  // landr-kb7mh: party known before a product is chosen (no product-specific
+  // invite hold applies yet): the stepper value, else the entered roster.
+  const knownPartySize =
+    bookingDraft.partySize ??
+    (bookingDraft.participants && bookingDraft.participants.length > 0
+      ? seatsNeeded(bookingDraft.participants.length, bookingDraft.companions, undefined)
+      : undefined)
   const onPartySizeChange = useCallback(
     (partySize: number) => mergeDraft({ partySize }),
     [mergeDraft],
@@ -2405,6 +2412,8 @@ function BookingFlowApp() {
             // Ignored when a single-product deep link is in play (the deep
             // link always renders its product, sold-out or not).
             showSoldOut={showSoldOut}
+            // landr-kb7mh: dim stays too small for a party that is already known.
+            partySize={knownPartySize}
             // landr-d8rg.4: card click → product-detail step (not directly
             // to pick-selection). The groups context is threaded through so
             // the detail page's Back button can return to the scoped list.
@@ -2442,6 +2451,7 @@ function BookingFlowApp() {
               return (
                 <ProductDetailStep
                   product={step.product}
+                  partySize={draftSeatsNeeded(step.product)}
                   // landr-rmcsu.6: dates, or participants when the operator's
                   // flow (fetched on this page) runs them first.
                   onBook={() =>

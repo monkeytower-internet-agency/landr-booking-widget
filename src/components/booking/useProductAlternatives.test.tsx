@@ -111,3 +111,16 @@ describe('useProductAlternatives stale-while-revalidate', () => {
     expect(result.current).toBeNull()
   })
 })
+
+describe('stay max-guests rule (landr-kb7mh)', () => {
+  it('chip number is min(capacity, max_party_size); none for services or unknown', async () => {
+    const { stayMaxGuests, tooSmallForParty } = await import('./browse/productCapacity')
+    expect(stayMaxGuests({ product_kind: 'stay', capacity_per_unit: 4 })).toBe(4)
+    expect(stayMaxGuests({ product_kind: 'hotel_room', capacity_per_unit: 6, max_party_size: 4 })).toBe(4)
+    expect(stayMaxGuests({ product_kind: 'service', capacity_per_unit: 4 })).toBeNull()
+    expect(stayMaxGuests({ product_kind: 'stay', capacity_per_unit: null })).toBeNull()
+    expect(tooSmallForParty({ product_kind: 'stay', capacity_per_unit: 2 }, 3)).toBe(true)
+    expect(tooSmallForParty({ product_kind: 'stay', capacity_per_unit: 2 }, 0)).toBe(false)
+    expect(tooSmallForParty({ product_kind: 'stay', capacity_per_unit: 2 }, undefined)).toBe(false)
+  })
+})

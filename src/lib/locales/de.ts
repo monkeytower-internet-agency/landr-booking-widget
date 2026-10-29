@@ -691,6 +691,8 @@ export const de: Bundle = {
   alternativesHeadingDays: 'Auch verfügbar an diesen Tagen',
   alternativesHeadingCourses: 'Starten auch im {month}',
   alternativesHeadingAny: 'Auch verfügbar',
+  maxGuestsChip: 'max. {n} Gäste',
+  tooSmallForParty: 'zu klein für {n}',
   alternativesStartsTemplate: 'Start: {date}',
   altDayAria: 'ausgebucht, andere Aktivitäten verfügbar',
   altDayNotOfferedAria: 'nicht im Angebot, andere Aktivitäten verfügbar',

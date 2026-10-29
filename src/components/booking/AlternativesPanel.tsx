@@ -14,6 +14,8 @@ import { formatMoney } from '@/components/booking/priceSidebarHelpers'
 import { useProductAlternatives } from '@/components/booking/useProductAlternatives'
 import { browserLocale, pickLocalized } from '@/lib/locale'
 import { tr } from '@/lib/strings'
+import { MaxGuestsChip } from '@/components/booking/browse/MaxGuestsChip'
+import { stayMaxGuests } from '@/components/booking/browse/productCapacity'
 import { useVariant } from '@/lib/variant'
 import { cn } from '@/lib/utils'
 
@@ -79,7 +81,17 @@ function PanelRows({
                 formatDayLabel(row.startDate, locale),
               )
             : null
-          const label = [name, starts, price].filter(Boolean).join(', ')
+          const maxGuests = stayMaxGuests(alt)
+          const label = [
+            name,
+            starts,
+            maxGuests !== null
+              ? tr('maxGuestsChip', locale).replace('{n}', String(maxGuests))
+              : null,
+            price,
+          ]
+            .filter(Boolean)
+            .join(', ')
           return (
             <li key={row.key} className={layout === 'strip' ? 'shrink-0' : undefined}>
               <button
@@ -113,6 +125,11 @@ function PanelRows({
                     <span className="truncate text-sm font-medium">{name}</span>
                     {starts ? (
                       <span className="text-xs text-muted-foreground">{starts}</span>
+                    ) : null}
+                    {maxGuests !== null ? (
+                      <span className="mt-0.5">
+                        <MaxGuestsChip max={maxGuests} locale={locale} />
+                      </span>
                     ) : null}
                   </span>
                   {price ? (

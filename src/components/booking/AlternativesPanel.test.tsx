@@ -363,3 +363,31 @@ describe('dot day wording', () => {
     expect(await label(21)).toContain('fully booked, other activities available')
   })
 })
+
+describe('AlternativesSection max-guests chip (landr-kb7mh)', () => {
+  it('shows the chip on a stay alternative only', async () => {
+    const { AlternativesSection } = await import('./AlternativesPanel')
+    const mk = (id: string, extra: Partial<ProductAlternative>): ProductAlternative => ({
+      product_id: id,
+      slug: id,
+      name: id,
+      service_time_shape: 'single_date',
+      available_dates: ['2026-11-10'],
+      windows: null,
+      ...extra,
+    })
+    render(
+      <AlternativesSection
+        productId="p"
+        selectedDays={['2026-11-10']}
+        alternatives={[
+          mk('loft', { product_kind: 'stay', capacity_per_unit: 4 }),
+          mk('tour', { product_kind: 'service', capacity_per_unit: 4 }),
+        ]}
+      />,
+    )
+    expect(screen.getAllByTestId('max-guests-chip')[0]).toHaveTextContent('max. 4 guests')
+    expect(screen.getAllByTestId('alternative-row-loft').length).toBeGreaterThan(0)
+    expect(screen.getAllByTestId('max-guests-chip').length).toBe(1)
+  })
+})

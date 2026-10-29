@@ -727,6 +727,8 @@ export type Bundle = {
   alternativesHeadingDays: string
   alternativesHeadingCourses: string
   alternativesHeadingAny: string
+  maxGuestsChip: string
+  tooSmallForParty: string
   alternativesStartsTemplate: string
   altDayAria: string
   altDayNotOfferedAria: string
@@ -1662,6 +1664,8 @@ const en: Bundle = {
   alternativesHeadingDays: 'Also available on these days',
   alternativesHeadingCourses: 'Also starting in {month}',
   alternativesHeadingAny: 'Also available',
+  maxGuestsChip: 'max. {n} guests',
+  tooSmallForParty: 'too small for {n}',
   alternativesStartsTemplate: 'Starts {date}',
   altDayAria: 'fully booked, other activities available',
   altDayNotOfferedAria: 'not offered, other activities available',
