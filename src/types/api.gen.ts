@@ -5519,6 +5519,40 @@ export interface paths {
         patch: operations["patch_operator"];
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/agent-contracts/{contract_id}/referral-link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Referral Link */
+        get: operations["get_referral_link"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/agent-contracts/{contract_id}/referral-link/rotate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Rotate Referral Link */
+        post: operations["rotate_referral_link"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/agent-earnings": {
         parameters: {
             query?: never;
@@ -21667,6 +21701,8 @@ export interface components {
         };
         /** PublicSubmitBookingIn */
         PublicSubmitBookingIn: {
+            /** Agent Token */
+            agent_token?: string | null;
             /**
              * Booking Channel
              * @default public_website
@@ -21850,6 +21886,20 @@ export interface components {
             masked_name: string;
             /** Reference */
             reference: string;
+        };
+        /** ReferralLinkOut */
+        ReferralLinkOut: {
+            /** Active */
+            active: boolean;
+            /**
+             * Rotated At
+             * Format: date-time
+             */
+            rotated_at: string;
+            /** Token */
+            token: string;
+            /** Url */
+            url: string;
         };
         /** RefundIn */
         RefundIn: {
@@ -24303,6 +24353,8 @@ export interface components {
         SubmitBookingResponse: {
             /** Approval Outcome */
             approval_outcome?: string | null;
+            /** Attribution */
+            attribution?: "agent" | null;
             /** Booking Id */
             booking_id: string;
             calendar_event?: components["schemas"]["BookingCalendarEvent"] | null;
@@ -33846,6 +33898,70 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_referral_link: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                contract_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReferralLinkOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    rotate_referral_link: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                contract_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReferralLinkOut"];
                 };
             };
             /** @description Validation Error */
