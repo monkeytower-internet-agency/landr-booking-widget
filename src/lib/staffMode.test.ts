@@ -104,6 +104,26 @@ describe('staffInitFromMessage', () => {
     expect(s.powers).toEqual(['force_book', 'price_override'])
   })
 
+  it('keeps an empty powers list as no powers (agent-mode session)', () => {
+    const s = staffInitFromMessage({
+      type: 'landr:staff-init',
+      token: 't',
+      powers: [],
+    })
+    expect(s.active).toBe(true)
+    expect(s.powers).toEqual([])
+  })
+
+  it('treats a list of only unknown codes as no powers', () => {
+    const s = staffInitFromMessage({
+      type: 'landr:staff-init',
+      token: 't',
+      // @ts-expect-error — deliberately bogus codes only
+      powers: ['nope'],
+    })
+    expect(s.powers).toEqual([])
+  })
+
   it('prefers the explicit operator_id from the message (aoak.4)', () => {
     const s = staffInitFromMessage({
       type: 'landr:staff-init',
