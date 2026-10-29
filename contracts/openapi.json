@@ -6933,18 +6933,50 @@
             "title": "Provider Id"
           },
           "role": {
-            "enum": [
-              "owner",
-              "admin",
-              "staff",
-              "field",
-              "finance",
-              "readonly",
-              "performer",
-              "agent"
+            "anyOf": [
+              {
+                "enum": [
+                  "owner",
+                  "admin",
+                  "staff",
+                  "field",
+                  "finance",
+                  "readonly",
+                  "performer",
+                  "agent"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
             ],
-            "title": "Role",
-            "type": "string"
+            "title": "Role"
+          },
+          "roles": {
+            "anyOf": [
+              {
+                "items": {
+                  "enum": [
+                    "owner",
+                    "admin",
+                    "staff",
+                    "field",
+                    "finance",
+                    "readonly",
+                    "performer",
+                    "agent"
+                  ],
+                  "type": "string"
+                },
+                "maxItems": 8,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Roles"
           },
           "works_as_resource_type_ids": {
             "items": {
@@ -6957,8 +6989,7 @@
           }
         },
         "required": [
-          "email",
-          "role"
+          "email"
         ],
         "title": "CreateInviteBody",
         "type": "object"
@@ -34988,6 +35019,31 @@
               }
             ],
             "title": "Role"
+          },
+          "roles": {
+            "anyOf": [
+              {
+                "items": {
+                  "enum": [
+                    "owner",
+                    "admin",
+                    "staff",
+                    "field",
+                    "finance",
+                    "readonly",
+                    "performer",
+                    "agent"
+                  ],
+                  "type": "string"
+                },
+                "maxItems": 8,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Roles"
           }
         },
         "title": "UpdateMembershipBody",
