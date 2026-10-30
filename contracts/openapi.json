@@ -22388,6 +22388,14 @@
             ],
             "title": "Name Localized"
           },
+          "pool_ids": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Pool Ids",
+            "type": "array"
+          },
           "price_per_unit": {
             "anyOf": [
               {
@@ -22433,6 +22441,22 @@
               }
             ],
             "title": "Stock Remaining"
+          },
+          "stock_scope": {
+            "anyOf": [
+              {
+                "enum": [
+                  "unit",
+                  "place",
+                  "type"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stock Scope"
           },
           "stock_unit_label": {
             "anyOf": [
@@ -22492,6 +22516,17 @@
             ],
             "title": "Available Dates"
           },
+          "capacity_per_unit": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Capacity Per Unit"
+          },
           "currency": {
             "anyOf": [
               {
@@ -22502,6 +22537,17 @@
               }
             ],
             "title": "Currency"
+          },
+          "max_party_size": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Party Size"
           },
           "name": {
             "title": "Name",
@@ -22534,6 +22580,17 @@
           "product_id": {
             "title": "Product Id",
             "type": "string"
+          },
+          "product_kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Kind"
           },
           "service_time_shape": {
             "enum": [
