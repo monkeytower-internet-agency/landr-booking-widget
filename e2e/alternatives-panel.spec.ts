@@ -38,7 +38,10 @@ const productB = {
 /** Open days (from tomorrow) for product `id`; every day is open. */
 function openDays(from: number, to: number) {
   const slots = []
-  const start = Math.max(from, Date.now() + DAY_MS)
+  // Whole UTC days only: a time-of-day on `start` would push it past a
+  // midnight-aligned `to` and drop the day, which flaked right after 00:00 UTC.
+  const tomorrow = Date.parse(iso(new Date(Date.now() + DAY_MS)))
+  const start = Math.max(from, tomorrow)
   for (let t = start; t <= to; t += DAY_MS) {
     slots.push({
       availability_id: `a-${t}`,
