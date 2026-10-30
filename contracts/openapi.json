@@ -4719,6 +4719,19 @@
         "title": "CancellationNoticesIn",
         "type": "object"
       },
+      "CapabilityKey": {
+        "properties": {
+          "key": {
+            "title": "Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key"
+        ],
+        "title": "CapabilityKey",
+        "type": "object"
+      },
       "CatalogueAddon": {
         "description": "One add-on linked to a product, keyed by the add-on's slug\n(landr-ac47r.1). ``paid_to`` is who keeps the money: ``performer`` = the\nperson delivering it (the tandem pilot's video package, 100 % theirs),\n``operator`` = the operator's invoice, ``hotel`` = paid at check-in.",
         "properties": {
@@ -12288,6 +12301,34 @@
           "url"
         ],
         "title": "HeroOut",
+        "type": "object"
+      },
+      "HiddenRolesBody": {
+        "additionalProperties": false,
+        "properties": {
+          "roles": {
+            "items": {
+              "enum": [
+                "owner",
+                "admin",
+                "staff",
+                "field",
+                "finance",
+                "readonly",
+                "performer",
+                "agent"
+              ],
+              "type": "string"
+            },
+            "maxItems": 8,
+            "title": "Roles",
+            "type": "array"
+          }
+        },
+        "required": [
+          "roles"
+        ],
+        "title": "HiddenRolesBody",
         "type": "object"
       },
       "HostnameBranding": {
@@ -29700,6 +29741,85 @@
           "generated_at"
         ],
         "title": "RevenueOverview",
+        "type": "object"
+      },
+      "RoleCapabilityLevel": {
+        "properties": {
+          "level": {
+            "enum": [
+              "full",
+              "partial",
+              "none"
+            ],
+            "title": "Level",
+            "type": "string"
+          },
+          "note_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note Key"
+          }
+        },
+        "required": [
+          "level"
+        ],
+        "title": "RoleCapabilityLevel",
+        "type": "object"
+      },
+      "RoleCatalogue": {
+        "properties": {
+          "capabilities": {
+            "items": {
+              "$ref": "#/components/schemas/CapabilityKey"
+            },
+            "title": "Capabilities",
+            "type": "array"
+          },
+          "field_staffing_window_days": {
+            "title": "Field Staffing Window Days",
+            "type": "integer"
+          },
+          "roles": {
+            "items": {
+              "$ref": "#/components/schemas/RoleCatalogueEntry"
+            },
+            "title": "Roles",
+            "type": "array"
+          }
+        },
+        "required": [
+          "capabilities",
+          "roles",
+          "field_staffing_window_days"
+        ],
+        "title": "RoleCatalogue",
+        "type": "object"
+      },
+      "RoleCatalogueEntry": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "levels": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/RoleCapabilityLevel"
+            },
+            "title": "Levels",
+            "type": "object"
+          }
+        },
+        "required": [
+          "code",
+          "levels"
+        ],
+        "title": "RoleCatalogueEntry",
         "type": "object"
       },
       "RollForwardConditionShiftOut": {
@@ -57528,6 +57648,65 @@
         ]
       }
     },
+    "/api/staff/operators/{operator_id}/hidden-roles": {
+      "put": {
+        "operationId": "put_hidden_roles",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HiddenRolesBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Put Hidden Roles",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Put Hidden Roles",
+        "tags": [
+          "staff-operator-hidden-roles"
+        ]
+      }
+    },
     "/api/staff/operators/{operator_id}/holded/invoices": {
       "get": {
         "description": "Status table over this operator's Holded sync-log rows + bucket summary.\n\nThe summary always reflects ALL of this operator's Holded rows (so the\ndashboard tab badges are correct); ``bucket``/``limit``/``offset`` page\nonly the ``rows`` payload.",
@@ -71647,6 +71826,53 @@
         "summary": "Resume",
         "tags": [
           "operator-pause"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/roles": {
+      "get": {
+        "operationId": "get_role_catalogue",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoleCatalogue"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Role Catalogue",
+        "tags": [
+          "staff-operator-roles"
         ]
       }
     },
