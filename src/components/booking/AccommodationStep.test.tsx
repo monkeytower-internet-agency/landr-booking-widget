@@ -3476,3 +3476,95 @@ describe('AccommodationStep add-on stock fetch (landr-c88o5)', () => {
     expect(mocks.getProductAddons.mock.calls.length).toBeGreaterThan(callsBefore)
   })
 })
+
+// landr-h8n0k: stock claims are subtracted across the whole cart.
+describe('AccommodationStep pool-aware cart subtraction (landr-h8n0k)', () => {
+  const pooled = (
+    id: string,
+    kind: ProductAddon['product_kind'],
+    stock = 2,
+  ): ProductAddon => ({
+    product_addon_id: `pa-${id}`,
+    addon_product_id: id,
+    name: id,
+    name_localized: null,
+    is_required: false,
+    min_qty: 0,
+    max_qty: 5,
+    sort_order: 10,
+    price_per_unit: 10,
+    currency: 'EUR',
+    product_kind: kind,
+    available: true,
+    stock_scope: 'type',
+    pool_ids: ['pool-a'],
+    stock_remaining: stock,
+  })
+
+  it('caps a second room at stock minus what the first room picked', async () => {
+    mocks.getAvailability.mockResolvedValue([])
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([
+      makeRoom('room-a', 'Room A', 49),
+      makeRoom('room-b', 'Room B', 49),
+    ])
+    mocks.getProductAddons.mockImplementation(async (id: string) =>
+      id === 'room-a' || id === 'room-b' ? [pooled('bike', 'service')] : [],
+    )
+    render(
+      <AccommodationStep
+        product={makeService('mandatory')}
+        selectedDays={['2026-06-10']}
+        operatorToken="para42"
+        participantCount={2}
+        onConfirm={vi.fn()}
+        onBack={vi.fn()}
+        initialHotelLocationId="hotel-a"
+        initialRooms={[
+          { productId: 'room-a', quantity: 1 },
+          { productId: 'room-b', quantity: 1 },
+        ]}
+        initialPerRoomAddons={{ 'room-a': { bike: 1 } }}
+        initialMode="package"
+      />,
+    )
+    await waitFor(() =>
+      expect(screen.getAllByTestId('addon-stock-left-bike')).toHaveLength(2),
+    )
+    const hints = screen
+      .getAllByTestId('addon-stock-left-bike')
+      .map((h) => h.textContent)
+    expect(hints.some((t) => /Only 1 left/.test(t ?? ''))).toBe(true)
+  })
+
+  it('caps the stay-flow service add-on by what a room add-on claims', async () => {
+    mocks.getAvailability.mockResolvedValue([])
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([
+      makeRoom('room-a', 'Room A', 49),
+    ])
+    mocks.getProductAddons.mockImplementation(async (id: string) => {
+      if (id === 'room-a') return [pooled('bike', 'service')]
+      return [pooled('kayak', 'service')]
+    })
+    render(
+      <AccommodationStep
+        product={makeService('mandatory')}
+        selectedDays={['2026-06-10']}
+        operatorToken="para42"
+        participantCount={2}
+        onConfirm={vi.fn()}
+        onBack={vi.fn()}
+        initialHotelLocationId="hotel-a"
+        initialRooms={[{ productId: 'room-a', quantity: 1 }]}
+        initialPerRoomAddons={{ 'room-a': { bike: 1 } }}
+        initialMode="package"
+      />,
+    )
+    await waitFor(() =>
+      expect(screen.getByTestId('addon-stock-left-kayak')).toHaveTextContent(
+        /Only 1 left/,
+      ),
+    )
+  })
+})

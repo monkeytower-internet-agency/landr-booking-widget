@@ -721,6 +721,22 @@ describe('AddonsList parent-aware stock (landr-c88o5)', () => {
     expect(onChange).toHaveBeenCalledWith({ vest: 1 })
   })
 
+  it('greys out an add-on whose pool is fully claimed elsewhere (landr-h8n0k)', () => {
+    render(
+      <AddonsList
+        addons={[vest({ stock_remaining: 2 })]}
+        selection={{}}
+        onChange={vi.fn()}
+        expectedQty={1}
+        claimedElsewhere={{ vest: 2 }}
+      />,
+    )
+    expect(plus()).toBeDisabled()
+    expect(screen.getByTestId('addon-sold-out-vest')).toBeInTheDocument()
+    expect(screen.queryByTestId('addon-stock-left-vest')).toBeNull()
+    expect(screen.queryByText(/only 0/i)).toBeNull()
+  })
+
   it('pooledQtyElsewhere only counts same add-on lines with intersecting pools', () => {
     const a = vest()
     expect(
