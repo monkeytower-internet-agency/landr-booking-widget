@@ -3265,31 +3265,11 @@
         "title": "BookingProductsRemoveIn",
         "type": "object"
       },
-      "BookingSessionIn": {
-        "properties": {
-          "mode": {
-            "default": "staff",
-            "enum": [
-              "staff",
-              "agent"
-            ],
-            "title": "Mode",
-            "type": "string"
-          }
-        },
-        "title": "BookingSessionIn",
-        "type": "object"
-      },
       "BookingSessionOut": {
         "properties": {
           "expires_at": {
             "title": "Expires At",
             "type": "integer"
-          },
-          "mode": {
-            "default": "staff",
-            "title": "Mode",
-            "type": "string"
           },
           "operator_id": {
             "title": "Operator Id",
@@ -4717,19 +4697,6 @@
           }
         },
         "title": "CancellationNoticesIn",
-        "type": "object"
-      },
-      "CapabilityKey": {
-        "properties": {
-          "key": {
-            "title": "Key",
-            "type": "string"
-          }
-        },
-        "required": [
-          "key"
-        ],
-        "title": "CapabilityKey",
         "type": "object"
       },
       "CatalogueAddon": {
@@ -6304,99 +6271,6 @@
         "title": "CompanyInquiryOut",
         "type": "object"
       },
-      "ComposeEmailBody": {
-        "properties": {
-          "body_html": {
-            "maxLength": 1000000,
-            "minLength": 1,
-            "title": "Body Html",
-            "type": "string"
-          },
-          "body_text": {
-            "anyOf": [
-              {
-                "maxLength": 500000,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Body Text"
-          },
-          "booking_id": {
-            "anyOf": [
-              {
-                "format": "uuid",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Booking Id"
-          },
-          "contact_id": {
-            "anyOf": [
-              {
-                "format": "uuid",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Contact Id"
-          },
-          "subject": {
-            "maxLength": 998,
-            "minLength": 1,
-            "title": "Subject",
-            "type": "string"
-          },
-          "to_address": {
-            "anyOf": [
-              {
-                "maxLength": 2000,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "To Address"
-          }
-        },
-        "required": [
-          "subject",
-          "body_html"
-        ],
-        "title": "ComposeEmailBody",
-        "type": "object"
-      },
-      "ComposeEmailResponse": {
-        "properties": {
-          "id": {
-            "title": "Id",
-            "type": "string"
-          },
-          "sent_via": {
-            "title": "Sent Via",
-            "type": "string"
-          },
-          "status": {
-            "title": "Status",
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "status",
-          "sent_via"
-        ],
-        "title": "ComposeEmailResponse",
-        "type": "object"
-      },
       "ConfirmBody": {
         "properties": {
           "confirm_name": {
@@ -6490,268 +6364,6 @@
           "payment_link_pending"
         ],
         "title": "ConfirmationStatusResponse",
-        "type": "object"
-      },
-      "ContractOut": {
-        "properties": {
-          "accepted_at": {
-            "anyOf": [
-              {
-                "format": "date-time",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Accepted At"
-          },
-          "commission_scheme_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Commission Scheme Id"
-          },
-          "created_at": {
-            "format": "date-time",
-            "title": "Created At",
-            "type": "string"
-          },
-          "currency": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Currency"
-          },
-          "ended_at": {
-            "anyOf": [
-              {
-                "format": "date-time",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Ended At"
-          },
-          "id": {
-            "title": "Id",
-            "type": "string"
-          },
-          "invite_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Invite Id"
-          },
-          "kind": {
-            "enum": [
-              "provider",
-              "agent"
-            ],
-            "title": "Kind",
-            "type": "string"
-          },
-          "notes": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Notes"
-          },
-          "operator_id": {
-            "title": "Operator Id",
-            "type": "string"
-          },
-          "provider_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Provider Id"
-          },
-          "rate_kind": {
-            "enum": [
-              "scheme",
-              "percent",
-              "flat_per_booking",
-              "flat_per_day"
-            ],
-            "title": "Rate Kind",
-            "type": "string"
-          },
-          "rate_value": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Rate Value"
-          },
-          "status": {
-            "enum": [
-              "invited",
-              "accepted",
-              "ended"
-            ],
-            "title": "Status",
-            "type": "string"
-          },
-          "updated_at": {
-            "format": "date-time",
-            "title": "Updated At",
-            "type": "string"
-          },
-          "user_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "User Id"
-          },
-          "valid_from": {
-            "format": "date",
-            "title": "Valid From",
-            "type": "string"
-          },
-          "valid_to": {
-            "anyOf": [
-              {
-                "format": "date",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Valid To"
-          }
-        },
-        "required": [
-          "kind",
-          "id",
-          "operator_id",
-          "rate_kind",
-          "valid_from",
-          "status",
-          "created_at",
-          "updated_at"
-        ],
-        "title": "ContractOut",
-        "type": "object"
-      },
-      "ContractPatch": {
-        "additionalProperties": false,
-        "properties": {
-          "commission_scheme_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Commission Scheme Id"
-          },
-          "currency": {
-            "anyOf": [
-              {
-                "pattern": "^[A-Za-z]{3}$",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Currency"
-          },
-          "notes": {
-            "anyOf": [
-              {
-                "maxLength": 4000,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Notes"
-          },
-          "rate_kind": {
-            "anyOf": [
-              {
-                "enum": [
-                  "scheme",
-                  "percent",
-                  "flat_per_booking",
-                  "flat_per_day"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Rate Kind"
-          },
-          "rate_value": {
-            "anyOf": [
-              {
-                "minimum": 0.0,
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Rate Value"
-          },
-          "valid_to": {
-            "anyOf": [
-              {
-                "format": "date",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Valid To"
-          }
-        },
-        "title": "ContractPatch",
         "type": "object"
       },
       "ContractRateIn": {
@@ -6955,76 +6567,24 @@
               }
             ]
           },
-          "provider_id": {
-            "anyOf": [
-              {
-                "format": "uuid",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Provider Id"
-          },
           "role": {
-            "anyOf": [
-              {
-                "enum": [
-                  "owner",
-                  "admin",
-                  "staff",
-                  "field",
-                  "finance",
-                  "readonly",
-                  "performer",
-                  "agent"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
+            "enum": [
+              "owner",
+              "admin",
+              "staff",
+              "field",
+              "finance",
+              "readonly",
+              "performer",
+              "agent"
             ],
-            "title": "Role"
-          },
-          "roles": {
-            "anyOf": [
-              {
-                "items": {
-                  "enum": [
-                    "owner",
-                    "admin",
-                    "staff",
-                    "field",
-                    "finance",
-                    "readonly",
-                    "performer",
-                    "agent"
-                  ],
-                  "type": "string"
-                },
-                "maxItems": 8,
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Roles"
-          },
-          "works_as_resource_type_ids": {
-            "items": {
-              "format": "uuid",
-              "type": "string"
-            },
-            "maxItems": 20,
-            "title": "Works As Resource Type Ids",
-            "type": "array"
+            "title": "Role",
+            "type": "string"
           }
         },
         "required": [
-          "email"
+          "email",
+          "role"
         ],
         "title": "CreateInviteBody",
         "type": "object"
@@ -10510,18 +10070,6 @@
               }
             ],
             "title": "Slot Start Time"
-          },
-          "voucher_code": {
-            "anyOf": [
-              {
-                "maxLength": 64,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Voucher Code"
           }
         },
         "title": "EstimateRequest",
@@ -10672,21 +10220,6 @@
             "default": false,
             "title": "Un Priceable",
             "type": "boolean"
-          },
-          "voucher_status": {
-            "anyOf": [
-              {
-                "enum": [
-                  "applied",
-                  "not_applicable"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Voucher Status"
           },
           "warnings": {
             "items": {
@@ -12301,34 +11834,6 @@
           "url"
         ],
         "title": "HeroOut",
-        "type": "object"
-      },
-      "HiddenRolesBody": {
-        "additionalProperties": false,
-        "properties": {
-          "roles": {
-            "items": {
-              "enum": [
-                "owner",
-                "admin",
-                "staff",
-                "field",
-                "finance",
-                "readonly",
-                "performer",
-                "agent"
-              ],
-              "type": "string"
-            },
-            "maxItems": 8,
-            "title": "Roles",
-            "type": "array"
-          }
-        },
-        "required": [
-          "roles"
-        ],
-        "title": "HiddenRolesBody",
         "type": "object"
       },
       "HostnameBranding": {
@@ -22429,14 +21934,6 @@
             ],
             "title": "Name Localized"
           },
-          "pool_ids": {
-            "default": [],
-            "items": {
-              "type": "string"
-            },
-            "title": "Pool Ids",
-            "type": "array"
-          },
           "price_per_unit": {
             "anyOf": [
               {
@@ -22482,22 +21979,6 @@
               }
             ],
             "title": "Stock Remaining"
-          },
-          "stock_scope": {
-            "anyOf": [
-              {
-                "enum": [
-                  "unit",
-                  "place",
-                  "type"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Stock Scope"
           },
           "stock_unit_label": {
             "anyOf": [
@@ -22557,17 +22038,6 @@
             ],
             "title": "Available Dates"
           },
-          "capacity_per_unit": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Capacity Per Unit"
-          },
           "currency": {
             "anyOf": [
               {
@@ -22578,17 +22048,6 @@
               }
             ],
             "title": "Currency"
-          },
-          "max_party_size": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Max Party Size"
           },
           "name": {
             "title": "Name",
@@ -22621,17 +22080,6 @@
           "product_id": {
             "title": "Product Id",
             "type": "string"
-          },
-          "product_kind": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Product Kind"
           },
           "service_time_shape": {
             "enum": [
@@ -25759,35 +25207,22 @@
       },
       "PublicSubmitBookingIn": {
         "properties": {
-          "agent_token": {
-            "anyOf": [
-              {
-                "maxLength": 512,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Agent Token"
-          },
           "booking_channel": {
             "const": "public_website",
             "default": "public_website",
             "title": "Booking Channel",
             "type": "string"
           },
-          "campaign_code": {
+          "campaign_id": {
             "anyOf": [
               {
-                "maxLength": 64,
                 "type": "string"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Campaign Code"
+            "title": "Campaign Id"
           },
           "cancellation_deadline": {
             "title": "Cancellation Deadline",
@@ -26364,35 +25799,6 @@
           "created_at"
         ],
         "title": "ReferenceLookupOut",
-        "type": "object"
-      },
-      "ReferralLinkOut": {
-        "properties": {
-          "active": {
-            "title": "Active",
-            "type": "boolean"
-          },
-          "rotated_at": {
-            "format": "date-time",
-            "title": "Rotated At",
-            "type": "string"
-          },
-          "token": {
-            "title": "Token",
-            "type": "string"
-          },
-          "url": {
-            "title": "Url",
-            "type": "string"
-          }
-        },
-        "required": [
-          "url",
-          "token",
-          "rotated_at",
-          "active"
-        ],
-        "title": "ReferralLinkOut",
         "type": "object"
       },
       "RefundIn": {
@@ -29743,85 +29149,6 @@
         "title": "RevenueOverview",
         "type": "object"
       },
-      "RoleCapabilityLevel": {
-        "properties": {
-          "level": {
-            "enum": [
-              "full",
-              "partial",
-              "none"
-            ],
-            "title": "Level",
-            "type": "string"
-          },
-          "note_key": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Note Key"
-          }
-        },
-        "required": [
-          "level"
-        ],
-        "title": "RoleCapabilityLevel",
-        "type": "object"
-      },
-      "RoleCatalogue": {
-        "properties": {
-          "capabilities": {
-            "items": {
-              "$ref": "#/components/schemas/CapabilityKey"
-            },
-            "title": "Capabilities",
-            "type": "array"
-          },
-          "field_staffing_window_days": {
-            "title": "Field Staffing Window Days",
-            "type": "integer"
-          },
-          "roles": {
-            "items": {
-              "$ref": "#/components/schemas/RoleCatalogueEntry"
-            },
-            "title": "Roles",
-            "type": "array"
-          }
-        },
-        "required": [
-          "capabilities",
-          "roles",
-          "field_staffing_window_days"
-        ],
-        "title": "RoleCatalogue",
-        "type": "object"
-      },
-      "RoleCatalogueEntry": {
-        "properties": {
-          "code": {
-            "title": "Code",
-            "type": "string"
-          },
-          "levels": {
-            "additionalProperties": {
-              "$ref": "#/components/schemas/RoleCapabilityLevel"
-            },
-            "title": "Levels",
-            "type": "object"
-          }
-        },
-        "required": [
-          "code",
-          "levels"
-        ],
-        "title": "RoleCatalogueEntry",
-        "type": "object"
-      },
       "RollForwardConditionShiftOut": {
         "properties": {
           "after": {
@@ -30467,12 +29794,6 @@
             "description": "Count of in-service days inside the window",
             "title": "In Service Days",
             "type": "integer"
-          },
-          "paused": {
-            "default": false,
-            "description": "landr-udhau.8: the linked team member is paused; in_service_days is 0, stored ranges untouched",
-            "title": "Paused",
-            "type": "boolean"
           },
           "ranges": {
             "description": "Rows overlapping the window",
@@ -32740,11 +32061,6 @@
             ],
             "title": "Name"
           },
-          "paused": {
-            "default": false,
-            "title": "Paused",
-            "type": "boolean"
-          },
           "resource_id": {
             "title": "Resource Id",
             "type": "string"
@@ -33173,18 +32489,6 @@
               }
             ],
             "title": "Approval Outcome"
-          },
-          "attribution": {
-            "anyOf": [
-              {
-                "const": "agent",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Attribution"
           },
           "booking_id": {
             "title": "Booking Id",
@@ -35271,31 +34575,6 @@
               }
             ],
             "title": "Role"
-          },
-          "roles": {
-            "anyOf": [
-              {
-                "items": {
-                  "enum": [
-                    "owner",
-                    "admin",
-                    "staff",
-                    "field",
-                    "finance",
-                    "readonly",
-                    "performer",
-                    "agent"
-                  ],
-                  "type": "string"
-                },
-                "maxItems": 8,
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Roles"
           }
         },
         "title": "UpdateMembershipBody",
@@ -35528,13 +34807,6 @@
       },
       "ValidationError": {
         "properties": {
-          "ctx": {
-            "title": "Context",
-            "type": "object"
-          },
-          "input": {
-            "title": "Input"
-          },
           "loc": {
             "items": {
               "anyOf": [
@@ -36307,20 +35579,6 @@
           }
         },
         "title": "WindowPatch",
-        "type": "object"
-      },
-      "WorksAsBody": {
-        "properties": {
-          "resource_type_id": {
-            "format": "uuid",
-            "title": "Resource Type Id",
-            "type": "string"
-          }
-        },
-        "required": [
-          "resource_type_id"
-        ],
-        "title": "WorksAsBody",
         "type": "object"
       },
       "YearBreakdown": {
@@ -43885,63 +43143,6 @@
         ]
       }
     },
-    "/api/operators/{operator_id}/emails/compose": {
-      "post": {
-        "operationId": "compose_email",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "operator_id",
-            "required": true,
-            "schema": {
-              "title": "Operator Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ComposeEmailBody"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ComposeEmailResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Send a free-form logged email to a booker or customer (operator-scoped)",
-        "tags": [
-          "staff-emails-compose"
-        ]
-      }
-    },
     "/api/operators/{operator_id}/emails/dismiss-failed": {
       "post": {
         "operationId": "dismiss_failed_emails",
@@ -49617,7 +48818,7 @@
     },
     "/api/staff/operators": {
       "post": {
-        "description": "Create an additional FREE-tier operator owned by the caller.\n\nResponses: 201 `{operator_id, slug}`; 422 `invalid_slug` /\n`unknown_preset_key` (+ suggestions on the former); 409 `slug_taken` +\nsuggestions; 403 `not_a_member` (no `public.users` row); 403\n`free_tier_limit` (owns live operators, none paid, landr-981dz); 429\n`rate_limited` (5/user/day).",
+        "description": "Create an additional FREE-tier operator owned by the caller.\n\nResponses: 201 `{operator_id, slug}`; 422 `invalid_slug` /\n`unknown_preset_key` (+ suggestions on the former); 409 `slug_taken` +\nsuggestions; 403 `not_a_member` (no `public.users` row); 403\n`free_tier_limit` (no paid operator owned, landr-981dz); 429\n`rate_limited` (5/user/day).",
         "operationId": "create_operator",
         "requestBody": {
           "content": {
@@ -49793,121 +48994,9 @@
         ]
       }
     },
-    "/api/staff/operators/{operator_id}/agent-contracts/{contract_id}/referral-link": {
-      "get": {
-        "operationId": "get_referral_link",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "operator_id",
-            "required": true,
-            "schema": {
-              "title": "Operator Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "contract_id",
-            "required": true,
-            "schema": {
-              "title": "Contract Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ReferralLinkOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Get Referral Link",
-        "tags": [
-          "staff-agent-referral"
-        ]
-      }
-    },
-    "/api/staff/operators/{operator_id}/agent-contracts/{contract_id}/referral-link/rotate": {
-      "post": {
-        "operationId": "rotate_referral_link",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "operator_id",
-            "required": true,
-            "schema": {
-              "title": "Operator Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "contract_id",
-            "required": true,
-            "schema": {
-              "title": "Contract Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ReferralLinkOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Rotate Referral Link",
-        "tags": [
-          "staff-agent-referral"
-        ]
-      }
-    },
     "/api/staff/operators/{operator_id}/agent-earnings": {
       "get": {
-        "description": "List the operator's agent commission rows, newest first.\n\nSource: ``commissions WHERE recipient_kind='agent'`` (landr-xnbfe.4).\nOptional filters: agent_user_id, status_filter (accrued|paid|reversed).\nRead-only \u2014 earnings accrue via recipient_commission_drain, not this API.",
+        "description": "List agent_earnings rows for the operator, newest first.\n\nOptional filters: agent_user_id, status_filter (accrued|paid|reversed).\nRead-only \u2014 earnings accrue via triggers/jobs, not this API.",
         "operationId": "list_agent_earnings",
         "parameters": [
           {
@@ -50007,7 +49096,7 @@
     },
     "/api/staff/operators/{operator_id}/agent-earnings/summary": {
       "get": {
-        "description": "Per-agent accrued/paid/reversed commission totals for the operator.\n\nAggregates the agent commissions rows (``commissions WHERE\nrecipient_kind='agent'``, landr-xnbfe.4) by recipient_user_id\nand status. Returns one row per agent with the three status buckets\n(+ currency, which is uniform per agent in practice). Read-only.\n\nDone in-Python over the operator's earning rows rather than via a\nSQL GROUP BY because the supabase REST client doesn't expose\naggregate grouping; the row volume per operator is small (one row\nper agent\u00d7booking) and bounded by the same row guard.",
+        "description": "Per-agent accrued/paid/reversed commission totals for the operator.\n\nAggregates agent_earnings.commission_amount grouped by agent_user_id\nand status. Returns one row per agent with the three status buckets\n(+ currency, which is uniform per agent in practice). Read-only.\n\nDone in-Python over the operator's earning rows rather than via a\nSQL GROUP BY because the supabase REST client doesn't expose\naggregate grouping; the row volume per operator is small (one row\nper agent\u00d7booking\u00d7day) and bounded by the same 1000-row guard.",
         "operationId": "agent_earnings_summary",
         "parameters": [
           {
@@ -50742,23 +49831,6 @@
             }
           }
         ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "anyOf": [
-                  {
-                    "$ref": "#/components/schemas/BookingSessionIn"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ],
-                "title": "Body"
-              }
-            }
-          }
-        },
         "responses": {
           "201": {
             "content": {
@@ -56633,272 +55705,6 @@
         ]
       }
     },
-    "/api/staff/operators/{operator_id}/contracts": {
-      "get": {
-        "operationId": "list_contracts",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "operator_id",
-            "required": true,
-            "schema": {
-              "title": "Operator Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "kind",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "enum": [
-                    "provider",
-                    "agent"
-                  ],
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Kind"
-            }
-          },
-          {
-            "in": "query",
-            "name": "status",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "enum": [
-                    "invited",
-                    "accepted",
-                    "ended"
-                  ],
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Status"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/ContractOut"
-                  },
-                  "title": "Response List Contracts",
-                  "type": "array"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "List Contracts",
-        "tags": [
-          "staff-contracts"
-        ]
-      }
-    },
-    "/api/staff/operators/{operator_id}/contracts/me": {
-      "get": {
-        "description": "The caller's own live contracts at this operator (any role).",
-        "operationId": "my_contracts",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "operator_id",
-            "required": true,
-            "schema": {
-              "title": "Operator Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/ContractOut"
-                  },
-                  "title": "Response My Contracts",
-                  "type": "array"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "My Contracts",
-        "tags": [
-          "staff-contracts"
-        ]
-      }
-    },
-    "/api/staff/operators/{operator_id}/contracts/{contract_id}": {
-      "patch": {
-        "operationId": "patch_contract",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "operator_id",
-            "required": true,
-            "schema": {
-              "title": "Operator Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "contract_id",
-            "required": true,
-            "schema": {
-              "title": "Contract Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ContractPatch"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ContractOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Patch Contract",
-        "tags": [
-          "staff-contracts"
-        ]
-      }
-    },
-    "/api/staff/operators/{operator_id}/contracts/{contract_id}/end": {
-      "post": {
-        "operationId": "end_contract",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "operator_id",
-            "required": true,
-            "schema": {
-              "title": "Operator Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "contract_id",
-            "required": true,
-            "schema": {
-              "title": "Contract Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ContractOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "End Contract",
-        "tags": [
-          "staff-contracts"
-        ]
-      }
-    },
     "/api/staff/operators/{operator_id}/day-manifest": {
       "get": {
         "operationId": "staff_day_manifest",
@@ -57645,65 +56451,6 @@
         "summary": "Preview Template",
         "tags": [
           "staff-email-templates"
-        ]
-      }
-    },
-    "/api/staff/operators/{operator_id}/hidden-roles": {
-      "put": {
-        "operationId": "put_hidden_roles",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "operator_id",
-            "required": true,
-            "schema": {
-              "title": "Operator Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/HiddenRolesBody"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Put Hidden Roles",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Put Hidden Roles",
-        "tags": [
-          "staff-operator-hidden-roles"
         ]
       }
     },
@@ -60387,56 +59134,6 @@
         ]
       }
     },
-    "/api/staff/operators/{operator_id}/memberships/pause-summary": {
-      "get": {
-        "description": "Latest pause event per membership of this operator (for the team-row\nbadge): {membership_id: {at, actor_name, actor_is_landr_staff}}.",
-        "operationId": "pause_summary",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "operator_id",
-            "required": true,
-            "schema": {
-              "title": "Operator Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Pause Summary",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Pause Summary",
-        "tags": [
-          "staff-memberships"
-        ]
-      }
-    },
     "/api/staff/operators/{operator_id}/memberships/{membership_id}": {
       "delete": {
         "operationId": "delete_membership",
@@ -60621,68 +59318,6 @@
         ]
       }
     },
-    "/api/staff/operators/{operator_id}/memberships/{membership_id}/pause-history": {
-      "get": {
-        "description": "Pause/reactivate events for one member, newest first. 404 when the\nmembership is not in this operator (no cross-tenant existence leak).",
-        "operationId": "pause_history",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "operator_id",
-            "required": true,
-            "schema": {
-              "title": "Operator Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "membership_id",
-            "required": true,
-            "schema": {
-              "title": "Membership Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "additionalProperties": true,
-                    "type": "object"
-                  },
-                  "title": "Response Pause History",
-                  "type": "array"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Pause History",
-        "tags": [
-          "staff-memberships"
-        ]
-      }
-    },
     "/api/staff/operators/{operator_id}/memberships/{membership_id}/reactivate": {
       "post": {
         "operationId": "reactivate_membership",
@@ -60736,141 +59371,6 @@
           }
         ],
         "summary": "Reactivate Membership",
-        "tags": [
-          "staff-memberships"
-        ]
-      }
-    },
-    "/api/staff/operators/{operator_id}/memberships/{membership_id}/works-as": {
-      "post": {
-        "operationId": "add_works_as",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "operator_id",
-            "required": true,
-            "schema": {
-              "title": "Operator Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "membership_id",
-            "required": true,
-            "schema": {
-              "title": "Membership Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/WorksAsBody"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Add Works As",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Add Works As",
-        "tags": [
-          "staff-memberships"
-        ]
-      }
-    },
-    "/api/staff/operators/{operator_id}/memberships/{membership_id}/works-as/{resource_id}": {
-      "delete": {
-        "operationId": "remove_works_as",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "operator_id",
-            "required": true,
-            "schema": {
-              "title": "Operator Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "membership_id",
-            "required": true,
-            "schema": {
-              "title": "Membership Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "resource_id",
-            "required": true,
-            "schema": {
-              "title": "Resource Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Remove Works As",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Remove Works As",
         "tags": [
           "staff-memberships"
         ]
@@ -71826,53 +70326,6 @@
         "summary": "Resume",
         "tags": [
           "operator-pause"
-        ]
-      }
-    },
-    "/api/staff/operators/{operator_id}/roles": {
-      "get": {
-        "operationId": "get_role_catalogue",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "operator_id",
-            "required": true,
-            "schema": {
-              "title": "Operator Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RoleCatalogue"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Get Role Catalogue",
-        "tags": [
-          "staff-operator-roles"
         ]
       }
     },
