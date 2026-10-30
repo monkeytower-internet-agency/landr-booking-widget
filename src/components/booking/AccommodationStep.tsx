@@ -29,6 +29,7 @@ import {
   clampBreakfastMap,
   sharedDoubleOccupancyStatus,
   deriveStayWindow,
+  stayNightIsos,
   expandRoomUnits,
   flattenPerRoomAddons,
   formatCurrency,
@@ -59,6 +60,7 @@ import {
   clampAddonQty,
   defaultAddonQty,
   isAddonSoldOut,
+  pooledQtyElsewhere,
   requiredAddonError,
   selectionToLines,
   withoutSoldOut,
@@ -813,6 +815,14 @@ export function AccommodationStep({
   // catalogue per hotel is tiny in practice (≤ ~5 rows) so the cost is
   // negligible. Per-room failures are swallowed — the room remains
   // bookable, just without its add-on row.
+  // landr-c88o5: the stay's nights (check-in inclusive, check-out exclusive)
+  // go along so each room's add-on stock is judged over the nights actually
+  // booked, and a date change refetches it.
+  const roomNightsKey = stayNightIsos(
+    selectedDays,
+    product.accommodation_checkin_offset_days,
+  ).join(',')
+  const roomStockNights = roomNightsKey ? roomNightsKey.split(',') : []
   useEffect(() => {
     if (!rooms || rooms.length === 0) return
     let cancelled = false
@@ -821,7 +831,12 @@ export function AccommodationStep({
       await Promise.all(
         rooms.map(async (room) => {
           try {
-            next[room.product_id] = await getProductAddons(room.product_id)
+            next[room.product_id] = await getProductAddons(
+              room.product_id,
+              roomStockNights.length > 0 && participantCount
+                ? { selectedDays: roomStockNights, participants: participantCount }
+                : undefined,
+            )
           } catch {
             next[room.product_id] = []
           }
@@ -833,7 +848,9 @@ export function AccommodationStep({
     return () => {
       cancelled = true
     }
-  }, [rooms])
+    // roomStockNights is derived from roomNightsKey, which carries its value.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rooms, roomNightsKey, participantCount])
 
   // landr-yybu / landr-yf0n / landr-gb2f.5: back-nav add-on seeding.
   // Once the per-room catalogue resolves AND we have initial add-on data,
@@ -1010,6 +1027,37 @@ export function AccommodationStep({
     [serviceAddons, roomAddonProductIds],
   )
   const serviceAddonCatalogueReady = serviceAddons !== null
+  // landr-h8n0k: ONE cart-level view of what every picked add-on line (all
+  // rooms + the stay-flow service add-ons) claims from its stock pools. Each
+  // list gets the cart minus its own picks, per add-on, so a pool shared by a
+  // room add-on and a service add-on (or two rooms) is capped consistently.
+  const claimedForList = (
+    list: readonly ProductAddon[],
+    skip: { roomId?: string; service?: boolean },
+  ): Record<string, number> => {
+    const others: { addon: ProductAddon; qty: number }[] = []
+    for (const [otherId, roomList] of Object.entries(addonsByRoom)) {
+      if (otherId === skip.roomId) continue
+      for (const a of roomList) {
+        const qty = addonSelection[otherId]?.[a.addon_product_id] ?? 0
+        if (qty > 0) others.push({ addon: a, qty })
+      }
+    }
+    if (!skip.service) {
+      for (const a of visibleServiceAddons) {
+        const qty = serviceAddonSelection[a.addon_product_id] ?? 0
+        if (qty > 0) others.push({ addon: a, qty })
+      }
+    }
+    const out: Record<string, number> = {}
+    for (const a of list) {
+      const n = pooledQtyElsewhere(a, others, true)
+      if (n > 0) out[a.addon_product_id] = n
+    }
+    return out
+  }
+  const claimedByOtherRooms = (roomId: string): Record<string, number> =>
+    claimedForList(addonsByRoom[roomId] ?? [], { roomId })
   const unmetRequiredServiceAddon = useMemo(() => {
     for (const a of visibleServiceAddons) {
       const qty = serviceAddonSelection[a.addon_product_id] ?? 0
@@ -2255,6 +2303,7 @@ export function AccommodationStep({
                       // landr-yybu: room-linked add-ons are hard-capped at the
                       // room's occupancy (incl single-occupancy rooms → cap 1).
                       occupancyLimited
+                      claimedElsewhere={claimedByOtherRooms(room.product_id)}
                       heading={tr('addonsTitle', locale)}
                     />
                   ) : null}
@@ -2432,6 +2481,9 @@ export function AccommodationStep({
               }}
               expectedQty={1}
               participantCount={participantCount}
+              claimedElsewhere={claimedForList(visibleServiceAddons, {
+                service: true,
+              })}
             />
           </fieldset>
         ) : null}

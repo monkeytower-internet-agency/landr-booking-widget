@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import type { ProductAddon } from '@/api/types'
 import { AddonsList } from './AddonsList'
+import { pooledQtyElsewhere } from './addonsState'
 
 function makeAddon(overrides: Partial<ProductAddon> = {}): ProductAddon {
   return {
@@ -647,5 +648,103 @@ describe('AddonsList quantity rule (landr-hzovu.2)', () => {
     )
     fireEvent.click(plus())
     expect(onChange).not.toHaveBeenCalled()
+  })
+})
+
+// landr-c88o5 — stock cap with low-stock hint, sold-out reason, shared pools.
+describe('AddonsList parent-aware stock (landr-c88o5)', () => {
+  const vest = (overrides: Partial<ProductAddon> = {}) =>
+    makeAddon({
+      addon_product_id: 'vest',
+      name: 'Vest rental',
+      product_kind: 'service',
+      max_qty: 5,
+      available: true,
+      stock_scope: 'type',
+      pool_ids: ['pool-a'],
+      ...overrides,
+    })
+  const plus = () => screen.getByRole('button', { name: /Increase/ })
+
+  it('caps at 2 and shows the "only 2 left" hint without selecting anything', () => {
+    render(
+      <AddonsList addons={[vest({ stock_remaining: 2 })]} selection={{ vest: 2 }} onChange={vi.fn()} expectedQty={1} />,
+    )
+    expect(plus()).toBeDisabled()
+    expect(screen.getByTestId('addon-stock-left-vest')).toHaveTextContent(/Only 2 left/)
+  })
+
+  it('shows the hint below the cap while stock is low', () => {
+    render(
+      <AddonsList addons={[vest({ stock_remaining: 2 })]} selection={{}} onChange={vi.fn()} expectedQty={1} />,
+    )
+    expect(plus()).not.toBeDisabled()
+    expect(screen.getByTestId('addon-stock-left-vest')).toBeInTheDocument()
+  })
+
+  it('caps at 5 with no hint when plenty is left', () => {
+    render(
+      <AddonsList addons={[vest({ stock_remaining: 9 })]} selection={{ vest: 5 }} onChange={vi.fn()} expectedQty={1} />,
+    )
+    expect(plus()).toBeDisabled()
+    expect(screen.queryByTestId('addon-stock-left-vest')).toBeNull()
+  })
+
+  it('greys out a sold-out add-on with the reason', () => {
+    render(
+      <AddonsList
+        addons={[vest({ available: false, unavailable_reason: 'sold_out', stock_remaining: 0 })]}
+        selection={{}}
+        onChange={vi.fn()}
+        expectedQty={1}
+      />,
+    )
+    expect(plus()).toBeDisabled()
+    expect(screen.getByTestId('addon-sold-out-vest')).toBeInTheDocument()
+    expect(screen.queryByTestId('addon-stock-left-vest')).toBeNull()
+  })
+
+  it('subtracts what another stay sharing the pool already holds', () => {
+    // Two stays draw from pool-a with 4 left; stay B holds 3 -> stay A sees 1.
+    const onChange = vi.fn()
+    render(
+      <AddonsList
+        addons={[vest({ stock_remaining: 4 })]}
+        selection={{}}
+        onChange={onChange}
+        expectedQty={1}
+        claimedElsewhere={{ vest: 3 }}
+      />,
+    )
+    expect(screen.getByTestId('addon-stock-left-vest')).toHaveTextContent(/Only 1 left/)
+    fireEvent.click(plus())
+    expect(onChange).toHaveBeenCalledWith({ vest: 1 })
+  })
+
+  it('greys out an add-on whose pool is fully claimed elsewhere (landr-h8n0k)', () => {
+    render(
+      <AddonsList
+        addons={[vest({ stock_remaining: 2 })]}
+        selection={{}}
+        onChange={vi.fn()}
+        expectedQty={1}
+        claimedElsewhere={{ vest: 2 }}
+      />,
+    )
+    expect(plus()).toBeDisabled()
+    expect(screen.getByTestId('addon-sold-out-vest')).toBeInTheDocument()
+    expect(screen.queryByTestId('addon-stock-left-vest')).toBeNull()
+    expect(screen.queryByText(/only 0/i)).toBeNull()
+  })
+
+  it('pooledQtyElsewhere only counts same add-on lines with intersecting pools', () => {
+    const a = vest()
+    expect(
+      pooledQtyElsewhere(a, [
+        { addon: vest({ pool_ids: ['pool-a', 'pool-b'] }), qty: 2 },
+        { addon: vest({ pool_ids: ['pool-z'] }), qty: 4 },
+        { addon: vest({ addon_product_id: 'other' }), qty: 7 },
+      ]),
+    ).toBe(2)
   })
 })
