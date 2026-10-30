@@ -3505,8 +3505,8 @@ describe('AccommodationStep pool-aware cart subtraction (landr-h8n0k)', () => {
     mocks.getAvailability.mockResolvedValue([])
     mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
     mocks.getHotelRoomsForHotel.mockResolvedValue([
-      makeRoom('room-a', 'Room A', 49),
-      makeRoom('room-b', 'Room B', 49),
+      makeRoom('room-a', 'Room A', 49, 2),
+      makeRoom('room-b', 'Room B', 49, 2),
     ])
     mocks.getProductAddons.mockImplementation(async (id: string) =>
       id === 'room-a' || id === 'room-b' ? [pooled('bike', 'service')] : [],
@@ -3516,7 +3516,7 @@ describe('AccommodationStep pool-aware cart subtraction (landr-h8n0k)', () => {
         product={makeService('mandatory')}
         selectedDays={['2026-06-10']}
         operatorToken="para42"
-        participantCount={2}
+        participantCount={4}
         onConfirm={vi.fn()}
         onBack={vi.fn()}
         initialHotelLocationId="hotel-a"
@@ -3531,10 +3531,22 @@ describe('AccommodationStep pool-aware cart subtraction (landr-h8n0k)', () => {
     await waitFor(() =>
       expect(screen.getAllByTestId('addon-stock-left-bike')).toHaveLength(2),
     )
-    const hints = screen
-      .getAllByTestId('addon-stock-left-bike')
-      .map((h) => h.textContent)
-    expect(hints.some((t) => /Only 1 left/.test(t ?? ''))).toBe(true)
+    const roomA = within(screen.getByTestId('room-card-room-a'))
+    const roomB = within(screen.getByTestId('room-card-room-b'))
+    // Room B holds nothing: the pool has 2, room A claims 1 -> cap 1.
+    expect(roomB.getByTestId('addon-stock-left-bike')).toHaveTextContent(
+      /Only 1 left/,
+    )
+    // Room A's own pick is not subtracted from its own cap: still 2 left.
+    expect(roomA.getByTestId('addon-stock-left-bike')).toHaveTextContent(
+      /Only 2 left/,
+    )
+    expect(roomA.getByRole('button', { name: /Increase bike quantity/i })).not.toBeDisabled()
+    // Room B can take its one unit, then is capped.
+    fireEvent.click(roomB.getByRole('button', { name: /Increase bike quantity/i }))
+    await waitFor(() =>
+      expect(roomB.getByRole('button', { name: /Increase bike quantity/i })).toBeDisabled(),
+    )
   })
 
   it('caps the stay-flow service add-on by what a room add-on claims', async () => {
