@@ -727,6 +727,8 @@ export type Bundle = {
   alternativesHeadingDays: string
   alternativesHeadingCourses: string
   alternativesHeadingAny: string
+  maxGuestsChip: string
+  tooSmallForParty: string
   alternativesStartsTemplate: string
   altDayAria: string
   altDayNotOfferedAria: string
@@ -770,6 +772,10 @@ export type Bundle = {
   multiDayDiscountLabel: string
   streakDiscountLabel: string
   voucherAppliedLabel: string
+  voucherCodeLabel: string
+  voucherCodeHint: string
+  voucherNotApplicable: string
+  voucherFixBeforeConfirm: string
 
   // ---- PriceSidebar ----
   calculatingEllipsis: string
@@ -1658,6 +1664,8 @@ const en: Bundle = {
   alternativesHeadingDays: 'Also available on these days',
   alternativesHeadingCourses: 'Also starting in {month}',
   alternativesHeadingAny: 'Also available',
+  maxGuestsChip: 'max. {n} guests',
+  tooSmallForParty: 'too small for {n}',
   alternativesStartsTemplate: 'Starts {date}',
   altDayAria: 'fully booked, other activities available',
   altDayNotOfferedAria: 'not offered, other activities available',
@@ -1699,6 +1707,10 @@ const en: Bundle = {
   multiDayDiscountLabel: 'Multi-day discount',
   streakDiscountLabel: 'Streak discount',
   voucherAppliedLabel: 'Voucher applied',
+  voucherCodeLabel: 'Voucher code',
+  voucherCodeHint: 'Optional. If it applies, the discount shows in your price summary.',
+  voucherNotApplicable: "This code can't be applied to this booking. Check it or clear the field.",
+  voucherFixBeforeConfirm: 'Fix or clear the voucher code to continue.',
 
   calculatingEllipsis: 'Calculating…',
   couldNotFetchPrice: "Couldn't fetch price — your final total will be shown at confirmation.",

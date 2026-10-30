@@ -55,6 +55,22 @@ describe('parseStaffSession', () => {
     expect(s.operatorId).toBe('op-uuid-from-url')
   })
 
+  it('reads narrowed and empty powers from the signed token (landr-xnbfe.21)', () => {
+    const mk = (powers: unknown) =>
+      btoa(JSON.stringify({ operator_id: 'op', powers }))
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=+$/, '') + '.sig'
+    expect(parseStaffSession(`?staff_session=${mk(['force_book', 'bogus'])}`).powers).toEqual(['force_book'])
+    expect(parseStaffSession(`?staff_session=${mk([])}`).powers).toEqual([])
+    const noClaim = btoa(JSON.stringify({ operator_id: 'op' })).replace(/=+$/, '') + '.sig'
+    expect(parseStaffSession(`?staff_session=${noClaim}`).powers).toEqual([
+      'force_book',
+      'price_override',
+      'skip_customer_email',
+    ])
+  })
+
   it('leaves operatorId null when the token payload is undecodable', () => {
     const s = parseStaffSession('?staff_session=not-a-real-token')
     expect(s.active).toBe(true)
@@ -91,6 +107,7 @@ describe('staffInitFromMessage', () => {
       token: 't',
       powers: ALL_STAFF_POWERS,
       operatorId: null,
+      mode: 'staff',
     })
   })
 
@@ -102,6 +119,26 @@ describe('staffInitFromMessage', () => {
       powers: ['force_book', 'nope', 'price_override'],
     })
     expect(s.powers).toEqual(['force_book', 'price_override'])
+  })
+
+  it('keeps an empty powers list as no powers (agent-mode session)', () => {
+    const s = staffInitFromMessage({
+      type: 'landr:staff-init',
+      token: 't',
+      powers: [],
+    })
+    expect(s.active).toBe(true)
+    expect(s.powers).toEqual([])
+  })
+
+  it('treats a list of only unknown codes as no powers', () => {
+    const s = staffInitFromMessage({
+      type: 'landr:staff-init',
+      token: 't',
+      // @ts-expect-error — deliberately bogus codes only
+      powers: ['nope'],
+    })
+    expect(s.powers).toEqual([])
   })
 
   it('prefers the explicit operator_id from the message (aoak.4)', () => {
@@ -178,5 +215,19 @@ describe('resolveParentTargetOrigin', () => {
 
   it('falls back to a real allow-listed origin', () => {
     expect(STAFF_ORIGIN_ALLOWLIST).toContain(resolveParentTargetOrigin())
+  })
+})
+
+describe('session mode (landr-9fdho)', () => {
+  const tok = (payload: object) => `${btoa(JSON.stringify(payload))}.sig`
+
+  it('reads agent mode from the token and defaults to staff', () => {
+    expect(parseStaffSession(`?staff_session=${tok({ operator_id: 'o', mode: 'agent' })}`).mode).toBe('agent')
+    expect(parseStaffSession(`?staff_session=${tok({ operator_id: 'o' })}`).mode).toBe('staff')
+  })
+
+  it('prefers the init message mode', () => {
+    const s = staffInitFromMessage({ type: 'landr:staff-init', token: tok({ operator_id: 'o' }), mode: 'agent' })
+    expect(s.mode).toBe('agent')
   })
 })

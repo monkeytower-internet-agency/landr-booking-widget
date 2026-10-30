@@ -89,6 +89,10 @@ export interface ProductAlternative {
   currency?: string | null
   available_dates?: string[] | null
   windows?: AlternativeWindow[] | null
+  /** Stay alternatives only; when the API sends them the row shows a max-guests chip. */
+  product_kind?: ProductKind | null
+  capacity_per_unit?: number | null
+  max_party_size?: number | null
 }
 
 export interface FixedDateWindow {
@@ -906,6 +910,16 @@ export interface ProductAddon {
    * stops there; null/absent = nothing limits it.
    */
   stock_remaining?: number | null
+  /**
+   * landr-c88o5: what the stock is counted over — one unit, one place (a
+   * pooled resource) or a whole resource type. null/absent = not stock-limited.
+   */
+  stock_scope?: 'unit' | 'place' | 'type' | null
+  /**
+   * landr-c88o5: ids of the stock pools this add-on draws from. Two cart
+   * lines of the same add-on whose pool_ids intersect share one stock.
+   */
+  pool_ids?: string[]
   /** landr-lmudr.19: the operator's word for one unit ("raft") for 'unit_taken'. */
   stock_unit_label?: string | null
   /**
@@ -1261,7 +1275,19 @@ export interface SubmitBookingBody {
   customer_preferred_locale?: string | null
   cancellation_deadline: string
   voucher_code?: string | null
-  campaign_id?: string | null
+  /**
+   * The campaign / referral CODE from the link's `?campaign=` param. The API
+   * resolves it to the operator's own live campaign and ignores anything it
+   * does not recognise; the customer never sees it. (A raw `campaign_id` is no
+   * longer accepted on the public path.)
+   */
+  campaign_code?: string | null
+  /**
+   * The sales agent's referral token from the link's `?a=` param. The API
+   * resolves it to a live agent of this operator and credits the booking to
+   * them; an unknown, stale or foreign token is ignored.
+   */
+  agent_token?: string | null
   /** Product the guest switched away from via the alternatives panel (hint; API validates). */
   via_alternative_of?: string | null
   /**
@@ -1532,6 +1558,8 @@ export interface SubmitBookingResponse {
   stage?: CustomerStageLabel
   /** Approval-engine outcome, e.g. 'auto_approved'. */
   approval_outcome?: string
+  /** 'agent' when the booking was credited to a sales agent via their link. */
+  attribution?: 'agent' | null
   /**
    * landr-5oox.6/E1b: true when a Stripe payment link was generated and
    * sent for this (auto-approved) booking. Optional so the widget tolerates
@@ -2039,7 +2067,20 @@ export interface EstimateRequestBody {
    */
   product_availability_id?: string
   slot_start_time?: string
+  /**
+   * A voucher code to preview against the main product line. Sent only when
+   * the customer typed (or arrived with) one; the estimate never consumes it.
+   */
+  voucher_code?: string
 }
+
+/**
+ * Verdict on the voucher code an estimate carried. The API deliberately
+ * collapses every reason a code fails (unknown, inactive, expired, exhausted,
+ * wrong product) into the single `not_applicable` so the endpoint is no
+ * code-guessing oracle.
+ */
+export type VoucherStatus = 'applied' | 'not_applicable'
 
 /** landr-k9pji.25: the slot half of an estimate request (see EstimateRequestBody). */
 export type EstimateSlotFields = Pick<EstimateRequestBody, 'product_availability_id' | 'slot_start_time'>
@@ -2170,6 +2211,11 @@ export interface EstimateResponse {
    * codes the submit refuses with). Checkout is blocked while errors exist.
    */
   stay?: StayEstimate | null
+  /**
+   * Verdict on `voucher_code` from the request; null/absent when the request
+   * carried no code (or the API predates vouchers in the estimate).
+   */
+  voucher_status?: VoucherStatus | null
 }
 
 // ─── Hotel room-request reply loop (landr-em0r / landr-em0r.9) ──────────────

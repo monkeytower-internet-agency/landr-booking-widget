@@ -14,7 +14,12 @@ import type { StaffSubmitBody } from './staffSubmitAdapter'
 import { HttpError, submitBooking, submitStaffBooking } from '@/api/client'
 import type { BookerDetails, ParticipantDetails } from './detailsTypes'
 import { StaffModeProvider } from '@/lib/staffMode.tsx'
-import { ALL_STAFF_POWERS, type StaffSession } from '@/lib/staffMode'
+import {
+  ALL_STAFF_POWERS,
+  parseStaffSession,
+  staffInitFromMessage,
+  type StaffSession,
+} from '@/lib/staffMode'
 
 vi.mock('@/api/client', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/api/client')>()
@@ -648,5 +653,35 @@ describe('BookingForm — staff mode', () => {
       expect(err).toHaveTextContent('Weight is required')
       expect(err).not.toHaveTextContent('weight is required.')
     })
+  })
+})
+
+// landr-9fdho: agent sessions carry zero powers — built via the REAL parse
+// paths (token claim, init message), not a hand-made session literal.
+describe('BookingForm — agent session shows no staff-only controls', () => {
+  const agentToken = `${btoa(JSON.stringify({ operator_id: 'op-1', mode: 'agent' }))}.sig`
+  const sessions: Array<[string, StaffSession]> = [
+    ['URL token', parseStaffSession(`?staff_session=${agentToken}`)],
+    [
+      'init message',
+      staffInitFromMessage({
+        type: 'landr:staff-init',
+        token: agentToken,
+        mode: 'agent',
+        powers: ['force_book', 'price_override', 'skip_customer_email'],
+      }),
+    ],
+  ]
+
+  it.each(sessions)('%s: powers are empty', (_n, session) => {
+    expect(session.mode).toBe('agent')
+    expect(session.powers).toEqual([])
+  })
+
+  it.each(sessions)('%s: no override / offer / forced controls render', (_n, session) => {
+    renderForm(FORCED_DAYS, true, vi.fn(), session)
+    expect(screen.queryByTestId('staff-price-override')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('review-build-offer-btn')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('review-overlap-warning')).not.toBeInTheDocument()
   })
 })

@@ -27,9 +27,10 @@ import { createContext, useContext } from 'react'
  * `powers:[force_book, price_override, skip_customer_email]` claim list. The
  * widget reads these to decide which affordances to surface; the server is the
  * real authority (a token without `force_book` cannot force-book even if the
- * widget rendered the button). Absent / unknown powers default to "all on" so
- * an older mint endpoint can never silently hide an affordance — the server
- * still rejects anything the token doesn't actually authorise.
+ * widget rendered the button). ABSENT powers default to "all on" so an older
+ * mint endpoint can never silently hide an affordance — the server still
+ * rejects anything the token doesn't actually authorise. An EMPTY list means
+ * exactly that: no powers (an agent-mode session books like a customer).
  */
 export type StaffPower = 'force_book' | 'price_override' | 'skip_customer_email'
 
@@ -38,6 +39,14 @@ export const ALL_STAFF_POWERS: readonly StaffPower[] = [
   'price_override',
   'skip_customer_email',
 ]
+
+/**
+ * landr-9fdho: which actor the session books as (signed into the token by the
+ * API, landr-xnbfe.1). `staff`: an operator member booking for a customer.
+ * `agent`: a sales agent booking for a client — the server runs public
+ * semantics and ignores the staff-only form controls.
+ */
+export type StaffSessionMode = 'staff' | 'agent'
 
 export interface StaffSession {
   /** Whether a staff session is active. When false the widget is 100% normal. */
@@ -59,6 +68,8 @@ export interface StaffSession {
    * staff submit and falls back — see staffSubmitAdapter).
    */
   operatorId: string | null
+  /** landr-9fdho: the signed actor. Absent means 'staff'. */
+  mode?: StaffSessionMode
 }
 
 export const INACTIVE_STAFF_SESSION: StaffSession = {
@@ -103,6 +114,54 @@ export function operatorIdFromStaffToken(token: string): string | null {
   return null
 }
 
+/**
+ * landr-9fdho: read the signed `mode` claim from the token payload (same
+ * unverified peek as operatorIdFromStaffToken; the server is the authority).
+ * Anything but 'agent' is 'staff'.
+ */
+export function modeFromStaffToken(token: string): StaffSessionMode {
+  const dot = token.indexOf('.')
+  const payloadB64 = dot === -1 ? token : token.slice(0, dot)
+  try {
+    const b64 = payloadB64.replace(/-/g, '+').replace(/_/g, '/')
+    const pad = b64.length % 4 === 0 ? '' : '='.repeat(4 - (b64.length % 4))
+    const payload: unknown = JSON.parse(atob(b64 + pad))
+    if (payload && typeof payload === 'object') {
+      if ((payload as Record<string, unknown>).mode === 'agent') return 'agent'
+    }
+  } catch {
+    // Malformed — treat as staff.
+  }
+  return 'staff'
+}
+
+/**
+ * landr-xnbfe.21: read the signed `powers` claim from the token payload (same
+ * unverified peek as the other claims; the server stays the authority).
+ * Returns null when the claim is absent/malformed (caller keeps the legacy
+ * "all on" default); an empty array means no powers. Unknown codes dropped.
+ */
+export function powersFromStaffToken(token: string): readonly StaffPower[] | null {
+  const dot = token.indexOf('.')
+  const payloadB64 = dot === -1 ? token : token.slice(0, dot)
+  try {
+    const b64 = payloadB64.replace(/-/g, '+').replace(/_/g, '/')
+    const pad = b64.length % 4 === 0 ? '' : '='.repeat(4 - (b64.length % 4))
+    const payload: unknown = JSON.parse(atob(b64 + pad))
+    if (payload && typeof payload === 'object') {
+      const powers = (payload as Record<string, unknown>).powers
+      if (Array.isArray(powers)) {
+        return powers.filter((p): p is StaffPower =>
+          ALL_STAFF_POWERS.includes(p as StaffPower),
+        )
+      }
+    }
+  } catch {
+    // Malformed — no claim.
+  }
+  return null
+}
+
 const STAFF_SESSION_PARAM = 'staff_session'
 
 /**
@@ -110,13 +169,9 @@ const STAFF_SESSION_PARAM = 'staff_session'
  * takes the raw search string so it is testable without a window. An empty /
  * missing token yields the inactive session (the byte-identical normal path).
  *
- * Powers are intentionally NOT encoded in the URL: the token is opaque to the
- * widget and the server is the authority. We surface ALL_STAFF_POWERS so every
- * affordance is available client-side; the server enforces the real claim set
- * (and rejects any power the signed token doesn't actually carry). When the
- * dashboard later mints a token with a narrower claim list it can pass the
- * powers via the postMessage init (see staffInitFromMessage) to hide
- * affordances the operator isn't allowed to use.
+ * Powers and mode are read from the signed token payload (unverified peek;
+ * the server is the authority), so URL entry and postMessage agree. A token
+ * without a powers claim falls back to ALL_STAFF_POWERS.
  */
 export function parseStaffSession(search: string): StaffSession {
   const params = new URLSearchParams(
@@ -129,8 +184,14 @@ export function parseStaffSession(search: string): StaffSession {
   return {
     active: true,
     token,
-    powers: ALL_STAFF_POWERS,
+    // landr-9fdho: an agent session carries zero powers server-side.
+    // landr-xnbfe.21: powers come from the signed claim (same as postMessage).
+    powers:
+      modeFromStaffToken(token) === 'agent'
+        ? []
+        : (powersFromStaffToken(token) ?? ALL_STAFF_POWERS),
     operatorId: operatorIdFromStaffToken(token),
+    mode: modeFromStaffToken(token),
   }
 }
 
@@ -161,6 +222,8 @@ export interface StaffInitMessage {
    * an older dashboard still routes the staff submit correctly.
    */
   operator_id?: string
+  /** landr-9fdho: 'agent' for a sales-agent session. Absent: read from the token. */
+  mode?: StaffSessionMode
 }
 
 export const STAFF_INIT_MESSAGE_TYPE = 'landr:staff-init'
@@ -180,15 +243,18 @@ export function isStaffInitMessage(data: unknown): data is StaffInitMessage {
  * Build a StaffSession from a verified staff-init message. Powers default to
  * ALL_STAFF_POWERS when the parent omits them (same rationale as the URL path);
  * when supplied, only valid power codes are kept so a malformed parent can't
- * inject arbitrary strings.
+ * inject arbitrary strings, and an empty list is kept as no powers.
  */
 export function staffInitFromMessage(msg: StaffInitMessage): StaffSession {
-  const powers =
-    Array.isArray(msg.powers) && msg.powers.length > 0
-      ? msg.powers.filter((p): p is StaffPower =>
-          ALL_STAFF_POWERS.includes(p as StaffPower),
-        )
-      : ALL_STAFF_POWERS
+  const mode: StaffSessionMode =
+    msg.mode === 'agent' || msg.mode === 'staff'
+      ? msg.mode
+      : modeFromStaffToken(msg.token)
+  const powers = mode === 'agent' ? [] : Array.isArray(msg.powers)
+    ? msg.powers.filter((p): p is StaffPower =>
+        ALL_STAFF_POWERS.includes(p as StaffPower),
+      )
+    : (powersFromStaffToken(msg.token) ?? ALL_STAFF_POWERS)
   // Prefer the explicit operator_id the dashboard sends; fall back to decoding
   // it from the token payload so an older dashboard (no operator_id field) and
   // the URL-param path both resolve the operator for the staff submit route.
@@ -196,7 +262,7 @@ export function staffInitFromMessage(msg: StaffInitMessage): StaffSession {
     typeof msg.operator_id === 'string' && msg.operator_id.length > 0
       ? msg.operator_id
       : operatorIdFromStaffToken(msg.token)
-  return { active: true, token: msg.token, powers, operatorId }
+  return { active: true, token: msg.token, powers, operatorId, mode }
 }
 
 /**

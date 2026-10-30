@@ -44,6 +44,8 @@ interface Props {
    * given embed into showing them.
    */
   showSoldOut?: boolean
+  /** Party size when already known (party step before product pick, or a changed party). */
+  partySize?: number
   onSelect: (product: Product) => void
   /**
    * landr-7jgo: a single-product deep link (?product=<slug>) that resolved to
@@ -66,6 +68,7 @@ export function ProductList({
   preselectSlug,
   preselectLoadingLabel,
   showSoldOut = false,
+  partySize,
   onSelect,
   onPreselectSoldOut,
   onLoaded,
@@ -230,6 +233,7 @@ export function ProductList({
                 product={product}
                 locale={locale}
                 showDateModel={showDateModel}
+                party={partySize}
                 onSelect={onSelect}
               />
             ) : (
@@ -238,6 +242,7 @@ export function ProductList({
                 product={product}
                 locale={locale}
                 showDateModel={showDateModel}
+                party={partySize}
                 onSelect={onSelect}
               />
             )

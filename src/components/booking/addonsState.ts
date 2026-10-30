@@ -117,6 +117,41 @@ export function addonStockCeiling(
 }
 
 /**
+ * landr-c88o5: how many of this add-on OTHER cart lines already claim from
+ * the same stock. `others` are the add-on rows (with their picked quantity)
+ * of the other stays; a row counts when it is the same add-on product and its
+ * pool_ids intersect this add-on's.
+ */
+export function pooledQtyElsewhere(
+  addon: Pick<ProductAddon, 'addon_product_id' | 'pool_ids'>,
+  others: readonly {
+    addon: Pick<ProductAddon, 'addon_product_id' | 'pool_ids'>
+    qty: number
+  }[],
+  /** landr-h8n0k: count lines of OTHER add-on products sharing a pool too
+   *  (a bike pool serving a room add-on and a service add-on). */
+  anyProduct = false,
+): number {
+  const mine = new Set(addon.pool_ids ?? [])
+  if (mine.size === 0) return 0
+  let total = 0
+  for (const o of others) {
+    if (!anyProduct && o.addon.addon_product_id !== addon.addon_product_id) continue
+    if ((o.addon.pool_ids ?? []).some((id) => mine.has(id))) total += o.qty
+  }
+  return total
+}
+
+/** landr-c88o5: the add-on with `claimed` taken off its remaining stock. */
+export function withClaimedStock<T extends Pick<ProductAddon, 'stock_remaining'>>(
+  addon: T,
+  claimed: number,
+): T {
+  if (claimed <= 0 || typeof addon.stock_remaining !== 'number') return addon
+  return { ...addon, stock_remaining: Math.max(0, addon.stock_remaining - claimed) }
+}
+
+/**
  * Required-min validation surface for an add-on row. Returns null when
  * the row is satisfied (not required, or required-and-met); returns a
  * short reason string when the form should block submission. Components

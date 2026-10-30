@@ -1273,3 +1273,90 @@ describe('PriceSidebar — payee-aware pay-separately (landr-hzovu.5)', () => {
     expect(screen.queryAllByTestId('price-sidebar-mobile-athotel')).toHaveLength(0)
   })
 })
+
+// Voucher preview: the code rides the estimate request, the saving shows as a
+// voucher row, and the verdict is lifted for DetailsStep / BookingForm.
+describe('PriceSidebar voucher preview', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  const operatorOnly = SAMPLE.line_items.filter((li) => li.paid_to === 'operator')
+  const APPLIED: EstimateResponse = {
+    ...SAMPLE,
+    line_items: operatorOnly,
+    hotel_total: '0.00',
+    grand_total: '162.00',
+    savings: [{ kind: 'voucher', label: 'Voucher EARLYBIRD', amount: '18.00' }],
+    savings_total: '18.00',
+    subtotal_before_savings: '180.00',
+    amount_due: '162.00',
+    voucher_status: 'applied',
+  }
+  const REJECTED: EstimateResponse = {
+    ...SAMPLE,
+    line_items: operatorOnly,
+    hotel_total: '0.00',
+    grand_total: '180.00',
+    voucher_status: 'not_applicable',
+  }
+
+  function renderSidebar(
+    voucherCode: string | undefined,
+    onVoucherStatusChange?: (s: string | null) => void,
+  ) {
+    return render(
+      <PriceSidebar
+        operatorToken="para42"
+        product={makeProduct()}
+        selectedDays={['2026-05-23']}
+        participantCount={1}
+        accommodationRooms={[]}
+        addons={[]}
+        voucherCode={voucherCode}
+        onVoucherStatusChange={onVoucherStatusChange}
+      />,
+    )
+  }
+
+  it('sends the trimmed code with the estimate and shows the voucher saving', async () => {
+    const spy = vi.spyOn(client, 'estimateBookingPrice').mockResolvedValue(APPLIED)
+    const onStatus = vi.fn()
+    renderSidebar(' EARLYBIRD ', onStatus)
+    await waitFor(() => {
+      expect(screen.getAllByTestId('price-sidebar-saving').length).toBeGreaterThan(0)
+    })
+    expect(spy.mock.calls[0]![2]).toMatchObject({ voucher_code: 'EARLYBIRD' })
+    const desktop = screen.getByTestId('price-sidebar-desktop')
+    expect(desktop.querySelector('[data-testid="price-sidebar-saving"]')).toHaveTextContent(
+      /Voucher EARLYBIRD.*−€18/,
+    )
+    expect(desktop.querySelector('[data-testid="price-sidebar-voucher-rejected"]')).toBeNull()
+    await waitFor(() => expect(onStatus).toHaveBeenLastCalledWith('applied'))
+  })
+
+  it('shows the not-applicable hint and lifts the status for a rejected code', async () => {
+    vi.spyOn(client, 'estimateBookingPrice').mockResolvedValue(REJECTED)
+    const onStatus = vi.fn()
+    renderSidebar('NOPE', onStatus)
+    await waitFor(() => {
+      expect(screen.getAllByTestId('price-sidebar-voucher-rejected').length).toBeGreaterThan(0)
+    })
+    expect(screen.getAllByTestId('price-sidebar-voucher-rejected')[0]).toHaveTextContent(
+      "This code can't be applied to this booking.",
+    )
+    await waitFor(() => expect(onStatus).toHaveBeenLastCalledWith('not_applicable'))
+  })
+
+  it('sends no voucher_code and reports no status when the field is empty', async () => {
+    const spy = vi.spyOn(client, 'estimateBookingPrice').mockResolvedValue(REJECTED)
+    const onStatus = vi.fn()
+    renderSidebar('   ', onStatus)
+    await waitFor(() => {
+      expect(screen.getAllByTestId('price-sidebar-amount-due').length).toBeGreaterThan(0)
+    })
+    expect(spy.mock.calls[0]![2]).not.toHaveProperty('voucher_code')
+    expect(screen.queryAllByTestId('price-sidebar-voucher-rejected')).toHaveLength(0)
+    expect(onStatus).toHaveBeenLastCalledWith(null)
+  })
+})
