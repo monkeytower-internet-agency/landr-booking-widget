@@ -20772,6 +20772,11 @@ export interface components {
             name_localized?: {
                 [key: string]: string;
             } | null;
+            /**
+             * Pool Ids
+             * @default []
+             */
+            pool_ids: string[];
             /** Price Per Unit */
             price_per_unit?: number | null;
             /**
@@ -20788,6 +20793,8 @@ export interface components {
             sort_order: number;
             /** Stock Remaining */
             stock_remaining?: number | null;
+            /** Stock Scope */
+            stock_scope?: ("unit" | "place" | "type") | null;
             /** Stock Unit Label */
             stock_unit_label?: string | null;
             /** Unavailable Reason */
@@ -20805,8 +20812,12 @@ export interface components {
         ProductAlternative: {
             /** Available Dates */
             available_dates?: string[] | null;
+            /** Capacity Per Unit */
+            capacity_per_unit?: number | null;
             /** Currency */
             currency?: string | null;
+            /** Max Party Size */
+            max_party_size?: number | null;
             /** Name */
             name: string;
             /** Name Localized */
@@ -20817,6 +20828,8 @@ export interface components {
             price_from?: string | null;
             /** Product Id */
             product_id: string;
+            /** Product Kind */
+            product_kind?: string | null;
             /**
              * Service Time Shape
              * @enum {string}

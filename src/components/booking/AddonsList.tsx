@@ -11,6 +11,7 @@ import {
   isAddonSoldOut,
   isOverbooked,
   requiredAddonError,
+  withClaimedStock,
 } from './addonsState'
 
 /**
@@ -91,7 +92,16 @@ interface Props {
    * legend>, so leaving it null hides the heading entirely.
    */
   heading?: string
+  /**
+   * landr-c88o5: quantity of each add-on (by addon_product_id) that OTHER
+   * cart lines already claim from the same stock pool; subtracted from
+   * stock_remaining so two stays sharing a pool cannot oversell it.
+   */
+  claimedElsewhere?: Record<string, number>
 }
+
+/** Show the "only N left" hint at or below this many. */
+const LOW_STOCK_HINT_MAX = 3
 
 export function AddonsList({
   addons,
@@ -102,6 +112,7 @@ export function AddonsList({
   roomQty = 1,
   participantCount,
   heading,
+  claimedElsewhere,
 }: Props) {
   const locale = browserLocale()
 
@@ -111,6 +122,10 @@ export function AddonsList({
   // service-flow callers (occupancyLimited=false) so they stay uncapped.
   const occupancyCap = occupancyLimited ? expectedQty : undefined
 
+  const effective = (addon: ProductAddon) =>
+    withClaimedStock(addon, claimedElsewhere?.[addon.addon_product_id] ?? 0)
+
+  // `addon` is already the claimed-stock-adjusted row from the render below.
   function bumpQty(addon: ProductAddon, delta: number) {
     const current = selection[addon.addon_product_id] ?? 0
     const next = clampAddonQty(addon, current + delta, occupancyCap, participantCount)
@@ -124,7 +139,8 @@ export function AddonsList({
       {heading ? (
         <p className="text-xs font-medium text-muted-foreground">{heading}</p>
       ) : null}
-      {addons.map((addon) => {
+      {addons.map((rawAddon) => {
+        const addon = effective(rawAddon)
         const qty = selection[addon.addon_product_id] ?? 0
         const addonName = pickLocalized(addon.name, addon.name_localized, locale)
         // landr-anq5s: the over/under hint compares the add-on against what a
@@ -138,7 +154,9 @@ export function AddonsList({
         // landr-yybu: + disabled at the occupancy cap (room-linked add-ons)
         // OR the add-on's own max_qty, whichever binds first.
         // landr-lmudr.10: a sold-out (stock-limited) add-on can't be added.
-        const soldOut = isAddonSoldOut(addon)
+        const soldOut =
+          isAddonSoldOut(addon) ||
+          (qty === 0 && Number.isFinite(addonStockCeiling(addon)) && addonStockCeiling(addon) === 0)
         // landr-lmudr.32: stock is counted by quantity — the stepper stops
         // at what is left on the chosen days.
         const stockCeiling = addonStockCeiling(addon)
@@ -228,7 +246,10 @@ export function AddonsList({
                 {addonUnavailableMessage(addon, locale)}
               </p>
             ) : null}
-            {atStock && qty > 0 && (addon.max_qty === null || stockCeiling < addon.max_qty) ? (
+            {!soldOut &&
+            Number.isFinite(stockCeiling) &&
+            stockCeiling <= LOW_STOCK_HINT_MAX &&
+            (addon.max_qty === null || stockCeiling < addon.max_qty) ? (
               <p
                 className="text-xs text-muted-foreground"
                 data-testid={`addon-stock-left-${addon.addon_product_id}`}

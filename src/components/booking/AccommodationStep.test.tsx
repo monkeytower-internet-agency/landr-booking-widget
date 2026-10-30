@@ -9,6 +9,7 @@ import type {
   ProductAddon,
 } from '@/api/types'
 import { AccommodationStep } from './AccommodationStep'
+import { stayNightIsos } from './accommodationCalc'
 
 const { mocks } = vi.hoisted(() => ({
   mocks: {
@@ -18,7 +19,12 @@ const { mocks } = vi.hoisted(() => ({
     // landr-cip6: AccommodationStep fetches add-ons per room. Default mock
     // returns [] so existing tests don't need add-on catalogue mocks unless
     // they specifically exercise add-on UX.
-    getProductAddons: vi.fn<(productId: string) => Promise<ProductAddon[]>>(),
+    getProductAddons: vi.fn<
+      (
+        productId: string,
+        stock?: { selectedDays: string[]; participants: number },
+      ) => Promise<ProductAddon[]>
+    >(),
     // landr-t869m.2: AccommodationStep re-fetches the first selected day's
     // availability row to read accommodation_bookable. Default resolves []
     // (no matching row → fail-open, accommodationBookability(undefined) =
@@ -3421,5 +3427,52 @@ describe('AccommodationStep — invitee accommodation (landr-zeg4u.4)', () => {
     const [rooms, , , , isSharedDouble] = onConfirm.mock.calls[0]!
     expect(rooms).toEqual([])
     expect(isSharedDouble).toBe(true)
+  })
+})
+
+// landr-c88o5: the per-room add-on fetch carries the stay's nights.
+describe('AccommodationStep add-on stock fetch (landr-c88o5)', () => {
+  it('passes the stay nights per room and refetches when the dates change', async () => {
+    mocks.getProductAddons.mockResolvedValue([])
+    mocks.getAvailability.mockResolvedValue([])
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([
+      makeRoom('single-room', 'Single Room', 49),
+    ])
+    const props = {
+      product: makeService('mandatory'),
+      operatorToken: 'para42',
+      participantCount: 2,
+      onConfirm: vi.fn(),
+      onBack: vi.fn(),
+    }
+    const { rerender } = render(
+      <AccommodationStep {...props} selectedDays={['2026-06-10']} />,
+    )
+    const firstNights = stayNightIsos(['2026-06-10'], props.product.accommodation_checkin_offset_days)
+    expect(firstNights.length).toBeGreaterThan(0)
+    await waitFor(() =>
+      expect(mocks.getProductAddons).toHaveBeenCalledWith('single-room', {
+        selectedDays: firstNights,
+        participants: 2,
+      }),
+    )
+    const callsBefore = mocks.getProductAddons.mock.calls.length
+
+    rerender(
+      <AccommodationStep {...props} selectedDays={['2026-06-10', '2026-06-11']} />,
+    )
+    const secondNights = stayNightIsos(
+      ['2026-06-10', '2026-06-11'],
+      props.product.accommodation_checkin_offset_days,
+    )
+    expect(secondNights).not.toEqual(firstNights)
+    await waitFor(() =>
+      expect(mocks.getProductAddons).toHaveBeenCalledWith('single-room', {
+        selectedDays: secondNights,
+        participants: 2,
+      }),
+    )
+    expect(mocks.getProductAddons.mock.calls.length).toBeGreaterThan(callsBefore)
   })
 })

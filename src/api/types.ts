@@ -90,7 +90,7 @@ export interface ProductAlternative {
   available_dates?: string[] | null
   windows?: AlternativeWindow[] | null
   /** Stay alternatives only; when the API sends them the row shows a max-guests chip. */
-  product_kind?: ProductKind
+  product_kind?: ProductKind | null
   capacity_per_unit?: number | null
   max_party_size?: number | null
 }
@@ -910,6 +910,16 @@ export interface ProductAddon {
    * stops there; null/absent = nothing limits it.
    */
   stock_remaining?: number | null
+  /**
+   * landr-c88o5: what the stock is counted over — one unit, one place (a
+   * pooled resource) or a whole resource type. null/absent = not stock-limited.
+   */
+  stock_scope?: 'unit' | 'place' | 'type' | null
+  /**
+   * landr-c88o5: ids of the stock pools this add-on draws from. Two cart
+   * lines of the same add-on whose pool_ids intersect share one stock.
+   */
+  pool_ids?: string[]
   /** landr-lmudr.19: the operator's word for one unit ("raft") for 'unit_taken'. */
   stock_unit_label?: string | null
   /**
