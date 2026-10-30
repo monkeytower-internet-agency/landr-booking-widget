@@ -7813,6 +7813,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/hidden-roles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Put Hidden Roles */
+        put: operations["put_hidden_roles"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/holded/invoices": {
         parameters: {
             query?: never;
@@ -11550,6 +11567,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/roles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Role Catalogue */
+        get: operations["get_role_catalogue"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/saved-views": {
         parameters: {
             query?: never;
@@ -14693,6 +14727,11 @@ export interface components {
              */
             notify_customer: boolean;
         };
+        /** CapabilityKey */
+        CapabilityKey: {
+            /** Key */
+            key: string;
+        };
         /**
          * CatalogueAddon
          * @description One add-on linked to a product, keyed by the add-on's slug
@@ -17307,6 +17346,11 @@ export interface components {
             path: string;
             /** Url */
             url: string | null;
+        };
+        /** HiddenRolesBody */
+        HiddenRolesBody: {
+            /** Roles */
+            roles: ("owner" | "admin" | "staff" | "field" | "finance" | "readonly" | "performer" | "agent")[];
         };
         /** HostnameBranding */
         HostnameBranding: {
@@ -23055,6 +23099,34 @@ export interface components {
             projected_total: number;
             /** Realized Total */
             realized_total: number;
+        };
+        /** RoleCapabilityLevel */
+        RoleCapabilityLevel: {
+            /**
+             * Level
+             * @enum {string}
+             */
+            level: "full" | "partial" | "none";
+            /** Note Key */
+            note_key?: string | null;
+        };
+        /** RoleCatalogue */
+        RoleCatalogue: {
+            /** Capabilities */
+            capabilities: components["schemas"]["CapabilityKey"][];
+            /** Field Staffing Window Days */
+            field_staffing_window_days: number;
+            /** Roles */
+            roles: components["schemas"]["RoleCatalogueEntry"][];
+        };
+        /** RoleCatalogueEntry */
+        RoleCatalogueEntry: {
+            /** Code */
+            code: string;
+            /** Levels */
+            levels: {
+                [key: string]: components["schemas"]["RoleCapabilityLevel"];
+            };
         };
         /** RollForwardConditionShiftOut */
         RollForwardConditionShiftOut: {
@@ -38143,6 +38215,43 @@ export interface operations {
             };
         };
     };
+    put_hidden_roles: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HiddenRolesBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_holded_invoices: {
         parameters: {
             query?: {
@@ -45762,6 +45871,37 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_role_catalogue: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoleCatalogue"];
                 };
             };
             /** @description Validation Error */
