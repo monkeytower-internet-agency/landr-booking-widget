@@ -823,24 +823,6 @@ export function AccommodationStep({
     product.accommodation_checkin_offset_days,
   ).join(',')
   const roomStockNights = roomNightsKey ? roomNightsKey.split(',') : []
-  // landr-c88o5: what the OTHER rooms' picked add-ons already claim from the
-  // same stock pool, per add-on — subtracted from this room's stock ceiling.
-  const claimedByOtherRooms = (roomId: string): Record<string, number> => {
-    const others: { addon: ProductAddon; qty: number }[] = []
-    for (const [otherId, list] of Object.entries(addonsByRoom)) {
-      if (otherId === roomId) continue
-      for (const a of list) {
-        const qty = addonSelection[otherId]?.[a.addon_product_id] ?? 0
-        if (qty > 0) others.push({ addon: a, qty })
-      }
-    }
-    const out: Record<string, number> = {}
-    for (const a of addonsByRoom[roomId] ?? []) {
-      const n = pooledQtyElsewhere(a, others)
-      if (n > 0) out[a.addon_product_id] = n
-    }
-    return out
-  }
   useEffect(() => {
     if (!rooms || rooms.length === 0) return
     let cancelled = false
@@ -1045,6 +1027,37 @@ export function AccommodationStep({
     [serviceAddons, roomAddonProductIds],
   )
   const serviceAddonCatalogueReady = serviceAddons !== null
+  // landr-h8n0k: ONE cart-level view of what every picked add-on line (all
+  // rooms + the stay-flow service add-ons) claims from its stock pools. Each
+  // list gets the cart minus its own picks, per add-on, so a pool shared by a
+  // room add-on and a service add-on (or two rooms) is capped consistently.
+  const claimedForList = (
+    list: readonly ProductAddon[],
+    skip: { roomId?: string; service?: boolean },
+  ): Record<string, number> => {
+    const others: { addon: ProductAddon; qty: number }[] = []
+    for (const [otherId, roomList] of Object.entries(addonsByRoom)) {
+      if (otherId === skip.roomId) continue
+      for (const a of roomList) {
+        const qty = addonSelection[otherId]?.[a.addon_product_id] ?? 0
+        if (qty > 0) others.push({ addon: a, qty })
+      }
+    }
+    if (!skip.service) {
+      for (const a of visibleServiceAddons) {
+        const qty = serviceAddonSelection[a.addon_product_id] ?? 0
+        if (qty > 0) others.push({ addon: a, qty })
+      }
+    }
+    const out: Record<string, number> = {}
+    for (const a of list) {
+      const n = pooledQtyElsewhere(a, others, true)
+      if (n > 0) out[a.addon_product_id] = n
+    }
+    return out
+  }
+  const claimedByOtherRooms = (roomId: string): Record<string, number> =>
+    claimedForList(addonsByRoom[roomId] ?? [], { roomId })
   const unmetRequiredServiceAddon = useMemo(() => {
     for (const a of visibleServiceAddons) {
       const qty = serviceAddonSelection[a.addon_product_id] ?? 0
@@ -2468,6 +2481,9 @@ export function AccommodationStep({
               }}
               expectedQty={1}
               participantCount={participantCount}
+              claimedElsewhere={claimedForList(visibleServiceAddons, {
+                service: true,
+              })}
             />
           </fieldset>
         ) : null}

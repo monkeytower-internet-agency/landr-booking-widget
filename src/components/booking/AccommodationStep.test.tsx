@@ -3476,3 +3476,107 @@ describe('AccommodationStep add-on stock fetch (landr-c88o5)', () => {
     expect(mocks.getProductAddons.mock.calls.length).toBeGreaterThan(callsBefore)
   })
 })
+
+// landr-h8n0k: stock claims are subtracted across the whole cart.
+describe('AccommodationStep pool-aware cart subtraction (landr-h8n0k)', () => {
+  const pooled = (
+    id: string,
+    kind: ProductAddon['product_kind'],
+    stock = 2,
+  ): ProductAddon => ({
+    product_addon_id: `pa-${id}`,
+    addon_product_id: id,
+    name: id,
+    name_localized: null,
+    is_required: false,
+    min_qty: 0,
+    max_qty: 5,
+    sort_order: 10,
+    price_per_unit: 10,
+    currency: 'EUR',
+    product_kind: kind,
+    available: true,
+    stock_scope: 'type',
+    pool_ids: ['pool-a'],
+    stock_remaining: stock,
+  })
+
+  it('caps a second room at stock minus what the first room picked', async () => {
+    mocks.getAvailability.mockResolvedValue([])
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([
+      makeRoom('room-a', 'Room A', 49, 2),
+      makeRoom('room-b', 'Room B', 49, 2),
+    ])
+    mocks.getProductAddons.mockImplementation(async (id: string) =>
+      id === 'room-a' || id === 'room-b' ? [pooled('bike', 'service')] : [],
+    )
+    render(
+      <AccommodationStep
+        product={makeService('mandatory')}
+        selectedDays={['2026-06-10']}
+        operatorToken="para42"
+        participantCount={4}
+        onConfirm={vi.fn()}
+        onBack={vi.fn()}
+        initialHotelLocationId="hotel-a"
+        initialRooms={[
+          { productId: 'room-a', quantity: 1 },
+          { productId: 'room-b', quantity: 1 },
+        ]}
+        initialPerRoomAddons={{ 'room-a': { bike: 1 } }}
+        initialMode="package"
+      />,
+    )
+    await waitFor(() =>
+      expect(screen.getAllByTestId('addon-stock-left-bike')).toHaveLength(2),
+    )
+    const roomA = within(screen.getByTestId('room-card-room-a'))
+    const roomB = within(screen.getByTestId('room-card-room-b'))
+    // Room B holds nothing: the pool has 2, room A claims 1 -> cap 1.
+    expect(roomB.getByTestId('addon-stock-left-bike')).toHaveTextContent(
+      /Only 1 left/,
+    )
+    // Room A's own pick is not subtracted from its own cap: still 2 left.
+    expect(roomA.getByTestId('addon-stock-left-bike')).toHaveTextContent(
+      /Only 2 left/,
+    )
+    expect(roomA.getByRole('button', { name: /Increase bike quantity/i })).not.toBeDisabled()
+    // Room B can take its one unit, then is capped.
+    fireEvent.click(roomB.getByRole('button', { name: /Increase bike quantity/i }))
+    await waitFor(() =>
+      expect(roomB.getByRole('button', { name: /Increase bike quantity/i })).toBeDisabled(),
+    )
+  })
+
+  it('caps the stay-flow service add-on by what a room add-on claims', async () => {
+    mocks.getAvailability.mockResolvedValue([])
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([
+      makeRoom('room-a', 'Room A', 49),
+    ])
+    mocks.getProductAddons.mockImplementation(async (id: string) => {
+      if (id === 'room-a') return [pooled('bike', 'service')]
+      return [pooled('kayak', 'service')]
+    })
+    render(
+      <AccommodationStep
+        product={makeService('mandatory')}
+        selectedDays={['2026-06-10']}
+        operatorToken="para42"
+        participantCount={2}
+        onConfirm={vi.fn()}
+        onBack={vi.fn()}
+        initialHotelLocationId="hotel-a"
+        initialRooms={[{ productId: 'room-a', quantity: 1 }]}
+        initialPerRoomAddons={{ 'room-a': { bike: 1 } }}
+        initialMode="package"
+      />,
+    )
+    await waitFor(() =>
+      expect(screen.getByTestId('addon-stock-left-kayak')).toHaveTextContent(
+        /Only 1 left/,
+      ),
+    )
+  })
+})

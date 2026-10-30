@@ -128,12 +128,15 @@ export function pooledQtyElsewhere(
     addon: Pick<ProductAddon, 'addon_product_id' | 'pool_ids'>
     qty: number
   }[],
+  /** landr-h8n0k: count lines of OTHER add-on products sharing a pool too
+   *  (a bike pool serving a room add-on and a service add-on). */
+  anyProduct = false,
 ): number {
   const mine = new Set(addon.pool_ids ?? [])
   if (mine.size === 0) return 0
   let total = 0
   for (const o of others) {
-    if (o.addon.addon_product_id !== addon.addon_product_id) continue
+    if (!anyProduct && o.addon.addon_product_id !== addon.addon_product_id) continue
     if ((o.addon.pool_ids ?? []).some((id) => mine.has(id))) total += o.qty
   }
   return total
