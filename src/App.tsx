@@ -829,6 +829,7 @@ function BookingFlowApp() {
         if (
           !inline.languages &&
           !inline.pickupId &&
+          !inline.ages &&
           Object.keys(inline.forms).length === 0 &&
           (same ? !prev.inline : true)
         )
@@ -1884,11 +1885,13 @@ function BookingFlowApp() {
     () =>
       step.name === 'details' && liveParticipantCount > 0
         ? liveChildAges
-        : childAgesFromRoster(
+        : step.name === 'fill-form' && inlineAnswers?.childAges
+          ? inlineAnswers.childAges
+          : childAgesFromRoster(
             rosterForAges ?? [],
             (rosterForAges ?? []).length || 1,
           ),
-    [step.name, liveParticipantCount, liveChildAges, rosterForAges],
+    [step.name, liveParticipantCount, liveChildAges, rosterForAges, inlineAnswers],
   )
 
   const sidebarInputs = sidebarInputsForStep(

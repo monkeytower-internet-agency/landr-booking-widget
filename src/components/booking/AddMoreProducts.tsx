@@ -7,6 +7,7 @@
  * reads); an unavailable day is shown on the line, never silently dropped,
  * and blocks Confirm until the customer edits or removes it.
  */
+import { InlineGuestAges } from './InlineGuestAges'
 import { useEffect, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react'
 import { getAvailability, getFixedDateWindows, getProductFlow, listProducts } from '@/api/client'
 import type { FormResponseEntry, ProductFlowResponse } from '@/api/flowTypes'
@@ -22,6 +23,7 @@ import {
   languagesCover,
   lineNeeds,
   type CrossSellContext,
+  type GuestAgeEntry,
   type InlineModuleState,
   lineIssue,
   preferredWindow,
@@ -74,6 +76,7 @@ export interface InlineModules {
   onLanguages: (assignment: ParticipantLanguageMap) => void
   onForm: (entry: FormResponseEntry, raw: Record<string, unknown>) => void
   onPickup: (locationId: string) => void
+  onAges: (ages: Record<number, GuestAgeEntry>) => void
 }
 
 function slotFree(s: AvailabilitySlot, need: number): boolean {
@@ -432,6 +435,15 @@ export function AddMoreProducts({
                 </span>
               ) : null}
             </div>
+
+            {needs?.ages ? (
+              <InlineGuestAges
+                labels={modules.participantLabels}
+                value={modules.state.ages ?? {}}
+                onChange={modules.onAges}
+                locale={locale}
+              />
+            ) : null}
 
             {needs && (needs.language || needs.pickup || needs.forms.length > 0) ? (
               <div className="space-y-3">

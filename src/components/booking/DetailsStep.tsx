@@ -1248,7 +1248,14 @@ export function DetailsStep({
     }
     onConfirm(
       bookerForSubmit,
-      participantsForValidation,
+      // landr-hfvyc.2: stamp every guest once ages were asked, so the review
+      // step knows they were collected (an untouched guest is an adult).
+      collectGuestAges
+        ? participantsForValidation.map((p) => ({
+            ...p,
+            occupant_age_band: p.occupant_age_band ?? ('adult' as const),
+          }))
+        : participantsForValidation,
       noAccommodation
         ? companions.map((c) =>
             normalizeOwnAccommodation(

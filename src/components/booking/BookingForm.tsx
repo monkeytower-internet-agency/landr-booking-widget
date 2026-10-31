@@ -54,7 +54,9 @@ import {
   productOfferedLanguages,
   type CrossSellContext,
   type ExtraLine,
+  type GuestAgeEntry,
   type InlineModuleState,
+  childAgesFromEntries,
 } from './crossSell'
 import { UN_PRICEABLE_MESSAGE } from './priceSidebarHelpers'
 import {
@@ -80,6 +82,10 @@ export interface InlineAnswers {
   languages: ParticipantLanguageMap | null
   forms: Record<string, { entry: FormResponseEntry; raw: Record<string, unknown> }>
   pickupId: string | null
+  /** landr-hfvyc.2: raw inline guest ages by roster index (for re-seeding). */
+  ages?: Record<number, GuestAgeEntry> | null
+  /** landr-hfvyc.2: child ages the estimate should send, when inline ages apply. */
+  childAges?: number[]
 }
 
 export type BookingSelection =
@@ -1079,13 +1085,28 @@ export function BookingForm({
   const [inlinePickupId, setInlinePickupId] = useState<string | null>(
     inlineAnswers?.pickupId ?? null,
   )
+  const [inlineAges, setInlineAges] = useState<Record<number, GuestAgeEntry> | null>(
+    inlineAnswers?.ages ?? null,
+  )
+  // landr-hfvyc.2: inline ages apply only while an occupancy-priced added line
+  // exists and the guest step never collected ages.
+  const agesNeeded =
+    participants.length >= 2 && !participants.some((p) => p.occupant_age_band !== undefined)
+  const inlineAgesApply =
+    agesNeeded && crossSellLines.some((l) => l.product.occupancy_pricing)
+  const inlineChildAges = useMemo(
+    () => (inlineAgesApply ? childAgesFromEntries(inlineAges, participants.length) : undefined),
+    [inlineAgesApply, inlineAges, participants.length],
+  )
   useEffect(() => {
     onInlineAnswersChange?.({
       languages: inlineLanguages,
       forms: inlineForms,
       pickupId: inlinePickupId,
+      ages: inlineAges,
+      childAges: inlineChildAges,
     })
-  }, [inlineLanguages, inlineForms, inlinePickupId, onInlineAnswersChange])
+  }, [inlineLanguages, inlineForms, inlinePickupId, inlineAges, inlineChildAges, onInlineAnswersChange])
   const mainOfferedLanguages = useMemo(() => productOfferedLanguages(product), [product])
   const crossSellContext: CrossSellContext = {
     participantLanguages: mainParticipantLanguages,
@@ -1093,11 +1114,13 @@ export function BookingForm({
     mainLanguages: mainOfferedLanguages,
     answeredFormKeys: (mainFormResponses ?? []).map((f) => f.form_key),
     hasPickup: mainPickupLocationId != null || (accommodationRooms ?? []).length > 0,
+    agesNeeded,
   }
   const inlineModuleState: InlineModuleState = {
     languages: inlineLanguages,
     formKeys: Object.keys(inlineForms),
     pickupLocationId: inlinePickupId,
+    ages: inlineAges,
   }
   const addedNeeds = Object.values(lineNeeds(crossSellLines, crossSellContext))
   const participantLanguages = effectiveLanguages(
@@ -1601,6 +1624,7 @@ export function BookingForm({
           // the participant row (stays with occupancy pricing).
           const ageEntry =
             occupantAgeMap[idx] ??
+            (inlineAgesApply && idx > 0 ? inlineAges?.[idx] : undefined) ??
             (p.occupant_age_band === 'child'
               ? { band: 'child' as const, age: p.occupant_age ?? null }
               : undefined)
@@ -2378,6 +2402,7 @@ export function BookingForm({
               onForm: (entry, raw) =>
                 setInlineForms((prev) => ({ ...prev, [entry.form_key]: { entry, raw } })),
               onPickup: setInlinePickupId,
+              onAges: setInlineAges,
             }}
           />
         ) : null}

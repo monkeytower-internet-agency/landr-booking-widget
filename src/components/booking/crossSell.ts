@@ -105,6 +105,17 @@ export interface CrossSellContext {
   answeredFormKeys: readonly string[]
   /** A pickup point (or a booked hotel acting as one) is already set. */
   hasPickup: boolean
+  /**
+   * landr-hfvyc.2: the roster has 2+ guests and the guest step never asked
+   * for Adult/Child + age (no occupancy-priced stay was in the cart then).
+   */
+  agesNeeded?: boolean
+}
+
+/** One guest's Adult/Child band (+ age 0-17 for a child). */
+export interface GuestAgeEntry {
+  band: 'adult' | 'child'
+  age: number | null
 }
 
 /**
@@ -117,6 +128,8 @@ export interface InlineModuleState {
   /** Form keys answered inline (their entries live in the booking form). */
   formKeys: readonly string[]
   pickupLocationId: string | null
+  /** landr-hfvyc.2: inline guest ages by roster index (0 = first guest, always adult). */
+  ages?: Readonly<Record<number, GuestAgeEntry>> | null
 }
 
 export const EMPTY_INLINE_MODULES: InlineModuleState = {
@@ -214,6 +227,8 @@ export interface LineNeeds {
   pickup: boolean
   /** Custom forms of this line the main flow has not answered. */
   forms: FlowFormDef[]
+  /** landr-hfvyc.2: Adult/Child + age per guest (owned by the first occupancy-priced line). */
+  ages?: boolean
 }
 
 /**
@@ -236,6 +251,7 @@ export function lineNeeds(
   const claimed = new Set<string>()
   let languageClaimed = false
   let pickupClaimed = false
+  let agesClaimed = false
   for (const line of lines) {
     const needs: LineNeeds = { language: false, pickup: false, forms: [] }
     if (languageMissing && !languageClaimed && productOfferedLanguages(line.product).length > 0) {
@@ -252,6 +268,10 @@ export function lineNeeds(
       needs.pickup = true
       pickupClaimed = true
     }
+    if (ctx.agesNeeded && !agesClaimed && line.product.occupancy_pricing) {
+      needs.ages = true
+      agesClaimed = true
+    }
     for (const m of line.flow?.modules ?? []) {
       if (m.kind !== 'custom_form' || m.form == null) continue
       const key = m.form.key
@@ -262,6 +282,25 @@ export function lineNeeds(
     out[line.key] = needs
   }
   return out
+}
+
+/** True when a guest is marked child with no age yet. */
+export function hasChildWithoutAgeEntry(
+  ages: Readonly<Record<number, GuestAgeEntry>> | null | undefined,
+): boolean {
+  return Object.values(ages ?? {}).some((e) => e.band === 'child' && e.age === null)
+}
+
+/** `child_ages` for the estimate from inline entries (first guest is never a child). */
+export function childAgesFromEntries(
+  ages: Readonly<Record<number, GuestAgeEntry>> | null | undefined,
+  participantCount: number,
+): number[] {
+  const out: number[] = []
+  for (const [k, e] of Object.entries(ages ?? {})) {
+    if (Number(k) > 0 && e.band === 'child' && e.age !== null) out.push(e.age)
+  }
+  return out.slice(0, Math.max(0, participantCount - 1))
 }
 
 /** True while an inline module of an added line still waits for the customer. */
@@ -278,6 +317,7 @@ export function inlineModulesPending(
       (n.language &&
         !(offer && languagesCover(inline.languages ?? {}, ctx.participantCount, offer))) ||
       (n.pickup && inline.pickupLocationId === null) ||
+      (n.ages === true && hasChildWithoutAgeEntry(inline.ages)) ||
       n.forms.some((f) => !answered.has(f.key)),
   )
 }
