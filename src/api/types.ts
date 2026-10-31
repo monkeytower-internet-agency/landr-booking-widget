@@ -621,6 +621,13 @@ export interface OperatorSettings {
    */
   remove_powered_by?: boolean
   /**
+   * Whether the operator has a voucher a guest could redeem right now. Only an
+   * explicit `false` hides the checkout's voucher-code field (a `?voucher=`
+   * link still keeps it). Optional for rolling deploy — an older API sends no
+   * key and the field shows as before.
+   */
+  has_active_vouchers?: boolean
+  /**
    * landr-otml0.2 (API) D8: hides the header logo when explicitly false.
    * Defaults to true on the API (new column, default `true`); optional here
    * for rolling deploy — an absent/undefined value is also treated as "show
