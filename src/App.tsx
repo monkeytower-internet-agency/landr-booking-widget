@@ -1,4 +1,5 @@
 import { PausedGate } from '@/components/booking/PausedGate'
+import { shouldShowVoucherField } from '@/components/booking/voucherField'
 import { DemoBanner, DemoCongrats } from '@/components/booking/DemoMode'
 import { demoSlug, demoToken } from '@/lib/demo'
 import {
@@ -2850,7 +2851,11 @@ function BookingFlowApp() {
             initialMemberPerkOtp={memberPerkOtp}
             onMemberPerkOtpChange={setMemberPerkOtp}
             initialVoucherCode={voucherCode}
-            onVoucherCodeChange={setVoucherCode}
+            onVoucherCodeChange={
+              shouldShowVoucherField(operatorSettings.has_active_vouchers, voucherCode)
+                ? setVoucherCode
+                : undefined
+            }
             voucherStatus={voucherStatus}
             // landr-de6ej: restore the comment on Back / reload — sourced
             // from the persistent draft (it round-trips through
