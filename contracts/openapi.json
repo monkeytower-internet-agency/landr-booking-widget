@@ -27926,6 +27926,98 @@
         "title": "ResolveIn",
         "type": "object"
       },
+      "ResolveOut": {
+        "properties": {
+          "board": {
+            "title": "Board",
+            "type": "string"
+          },
+          "operators": {
+            "items": {
+              "$ref": "#/components/schemas/ResolvedOperator"
+            },
+            "title": "Operators",
+            "type": "array"
+          }
+        },
+        "required": [
+          "board",
+          "operators"
+        ],
+        "title": "ResolveOut",
+        "type": "object"
+      },
+      "ResolvedOperator": {
+        "properties": {
+          "is_default": {
+            "title": "Is Default",
+            "type": "boolean"
+          },
+          "link_id": {
+            "title": "Link Id",
+            "type": "string"
+          },
+          "operator_id": {
+            "title": "Operator Id",
+            "type": "string"
+          },
+          "operator_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operator Name"
+          },
+          "operator_slug": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operator Slug"
+          },
+          "trello_member_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trello Member Id"
+          },
+          "trello_member_username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trello Member Username"
+          }
+        },
+        "required": [
+          "link_id",
+          "operator_id",
+          "operator_slug",
+          "operator_name",
+          "trello_member_username",
+          "trello_member_id",
+          "is_default"
+        ],
+        "title": "ResolvedOperator",
+        "type": "object"
+      },
       "ResourceDayStateIn": {
         "description": "``PUT /resources/{id}/day-state`` \u2014 one capacity resource, one day, one\nanswer: ``auto`` (Auto-approve), ``ask`` (Ask me) or ``not_available``.\n``reason`` is the operator's own words (whitespace-only = none).\nlandr-lmudr.33: the unified successor of the pool route's\n``UnitDayStateIn`` \u2014 same fields, unified vocabulary.",
         "properties": {
@@ -34789,6 +34881,197 @@
           "recipients"
         ],
         "title": "TodayMessagePostIn",
+        "type": "object"
+      },
+      "TrelloBoardLinkCreate": {
+        "properties": {
+          "board_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Board Name"
+          },
+          "is_default": {
+            "default": false,
+            "title": "Is Default",
+            "type": "boolean"
+          },
+          "operator_id": {
+            "title": "Operator Id",
+            "type": "string"
+          },
+          "trello_board_id": {
+            "title": "Trello Board Id",
+            "type": "string"
+          },
+          "trello_member_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trello Member Id"
+          },
+          "trello_member_username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trello Member Username"
+          }
+        },
+        "required": [
+          "trello_board_id",
+          "operator_id"
+        ],
+        "title": "TrelloBoardLinkCreate",
+        "type": "object"
+      },
+      "TrelloBoardLinkOut": {
+        "properties": {
+          "board_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Board Name"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "is_default": {
+            "title": "Is Default",
+            "type": "boolean"
+          },
+          "operator_id": {
+            "title": "Operator Id",
+            "type": "string"
+          },
+          "trello_board_id": {
+            "title": "Trello Board Id",
+            "type": "string"
+          },
+          "trello_member_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trello Member Id"
+          },
+          "trello_member_username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trello Member Username"
+          },
+          "updated_at": {
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "trello_board_id",
+          "board_name",
+          "operator_id",
+          "trello_member_username",
+          "trello_member_id",
+          "is_default",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "TrelloBoardLinkOut",
+        "type": "object"
+      },
+      "TrelloBoardLinkPatch": {
+        "properties": {
+          "board_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Board Name"
+          },
+          "is_default": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Default"
+          },
+          "trello_board_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trello Board Id"
+          },
+          "trello_member_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trello Member Id"
+          },
+          "trello_member_username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trello Member Username"
+          }
+        },
+        "title": "TrelloBoardLinkPatch",
         "type": "object"
       },
       "TrelloSyncIn": {
@@ -75722,6 +76005,250 @@
         "summary": "Delete Assignment",
         "tags": [
           "staff-providers"
+        ]
+      }
+    },
+    "/api/staff/trello-board-links": {
+      "get": {
+        "operationId": "staff_trello_list_links",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "operator_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Operator Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TrelloBoardLinkOut"
+                  },
+                  "title": "Response Staff Trello List Links",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Staff Trello List Links",
+        "tags": [
+          "staff-trello-board-links"
+        ]
+      },
+      "post": {
+        "operationId": "staff_trello_create_link",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TrelloBoardLinkCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrelloBoardLinkOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Staff Trello Create Link",
+        "tags": [
+          "staff-trello-board-links"
+        ]
+      }
+    },
+    "/api/staff/trello-board-links/resolve": {
+      "get": {
+        "operationId": "staff_trello_resolve_board",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "board",
+            "required": true,
+            "schema": {
+              "title": "Board",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResolveOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Staff Trello Resolve Board",
+        "tags": [
+          "staff-trello-board-links"
+        ]
+      }
+    },
+    "/api/staff/trello-board-links/{link_id}": {
+      "delete": {
+        "operationId": "staff_trello_delete_link",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "link_id",
+            "required": true,
+            "schema": {
+              "title": "Link Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Staff Trello Delete Link",
+        "tags": [
+          "staff-trello-board-links"
+        ]
+      },
+      "patch": {
+        "operationId": "staff_trello_patch_link",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "link_id",
+            "required": true,
+            "schema": {
+              "title": "Link Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TrelloBoardLinkPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrelloBoardLinkOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Staff Trello Patch Link",
+        "tags": [
+          "staff-trello-board-links"
         ]
       }
     },
