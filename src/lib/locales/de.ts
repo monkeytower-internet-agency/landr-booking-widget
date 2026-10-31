@@ -30,6 +30,7 @@ export const de: Bundle = {
   noCategoriesAvailable: 'Derzeit sind keine Kategorien verfügbar.',
   productListCue: 'Angebot wählen',
   productDetailCue: 'diese Tour buchen',
+  productDetailCueStay: 'Unterkunft buchen',
   priceNoteBase: 'Grundpreis {amount}',
   priceNoteWeekends: 'Wochenende',
   priceNoteWeekdays: 'Werktage',

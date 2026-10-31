@@ -32,6 +32,7 @@ export const tr: Bundle = {
   noCategoriesAvailable: 'Şu anda uygun kategori yok.',
   productListCue: 'bir ürün seçin',
   productDetailCue: 'bu turu rezerve edin',
+  productDetailCueStay: 'bu konaklamayı rezerve edin',
   priceNoteBase: 'Temel fiyat {amount}',
   priceNoteWeekends: 'Hafta sonları',
   priceNoteWeekdays: 'Hafta içi',
