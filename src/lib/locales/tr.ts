@@ -930,6 +930,7 @@ export const tr: Bundle = {
   addMorePickWindow: 'Kurs tarihleri',
   addMoreNoWindows: 'Boş yeri olan kurs tarihi yok.',
   addMoreQuantity: 'Adet',
+  addMoreMaxQuantity: 'en fazla {max}',
   addMoreForGroup: '{count} kişilik grubunuz için fiyat',
   addMoreChecking: 'Müsaitlik kontrol ediliyor…',
   addMoreUnavailable: '{dates} tarihlerinde müsait değil. Bu tarihleri veya bu ürünü kaldır.',

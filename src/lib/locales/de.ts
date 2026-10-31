@@ -935,6 +935,7 @@ export const de: Bundle = {
   addMorePickWindow: 'Kurstermin',
   addMoreNoWindows: 'Keine Kurstermine mit freien Plätzen.',
   addMoreQuantity: 'Anzahl',
+  addMoreMaxQuantity: 'max. {max}',
   addMoreForGroup: 'Preis für eure Gruppe von {count}',
   addMoreChecking: 'Verfügbarkeit wird geprüft…',
   addMoreUnavailable: 'Nicht verfügbar am {dates}. Entferne diese Tage oder dieses Angebot.',

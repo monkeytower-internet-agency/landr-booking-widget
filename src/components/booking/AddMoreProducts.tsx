@@ -21,6 +21,9 @@ import {
   inheritLine,
   languagesCover,
   lineNeeds,
+  freeUnitsFor,
+  freeUnitsOfSeats,
+  maxQuantityFor,
   type CrossSellContext,
   type InlineModuleState,
   lineIssue,
@@ -105,6 +108,19 @@ export function AddMoreProducts({
   const inflight = useRef(new Set<string>())
   const flowsRef = useRef<Record<string, null>>({})
 
+  // Free units for the quantity cap: slot / window lines read the picked row.
+  const capFree = (l: ExtraLine): number | null => {
+    const need = seatsForLine(l, partySize)
+    if (l.mode === 'slot') {
+      return l.slot ? freeUnitsOfSeats(l.slot.available_seats, need) : null
+    }
+    if (l.mode === 'window') {
+      const w = (windowsByKey[l.key] ?? []).find((x) => x.id === l.windowId)
+      return w ? freeUnitsOfSeats(w.capacity - w.capacity_reserved, need) : null
+    }
+    return l.freeUnits ?? null
+  }
+
   useEffect(() => {
     let live = true
     listProducts(operatorToken, previewToken ? { previewToken } : undefined)
@@ -188,14 +204,38 @@ export function AddMoreProducts({
               unavailableDays: day.length > 0 && !day.some((s) => slotFree(s, need)) ? [sorted[0]] : [],
             })
           } else {
-            settle({ unavailableDays: unavailableDaysFor(slots, sorted, need) })
+            settle({
+              unavailableDays: unavailableDaysFor(slots, sorted, need),
+              freeUnits: freeUnitsFor(slots, sorted, need),
+            })
           }
         })
         // A failed read never blocks: the submit re-checks every line.
-        .catch(() => settle({ unavailableDays: [] }))
+        .catch(() => settle({ unavailableDays: [], freeUnits: null }))
         .finally(done)
     }
   }, [lines, partySize, mainDays, inviteToken, onLinesChange])
+
+  // The cap can fall after a re-check (fewer free units, smaller party):
+  // pull the quantity down to it.
+  const clampKey = lines
+    .map((l) => `${l.key}:${l.quantity}:${l.freeUnits ?? ''}:${l.slot?.available_seats ?? ''}:${l.windowId ?? ''}`)
+    .join('|')
+  useEffect(() => {
+    onLinesChange((prev) => {
+      let changed = false
+      const next = prev.map((l) => {
+        const cap = maxQuantityFor(l, partySize, capFree(l))
+        if (l.quantity > cap) {
+          changed = true
+          return { ...l, quantity: cap }
+        }
+        return l
+      })
+      return changed ? next : prev
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clampKey, partySize, windowsByKey])
 
   const taken = [...cartProductIds, ...lines.map((l) => l.product.product_id)]
   // A product shares no guide language with the booking: not offered
@@ -275,6 +315,8 @@ export function AddMoreProducts({
         )
         const windows = windowsByKey[line.key] ?? []
         const needs = needsByLine[line.key]
+        const maxQty = maxQuantityFor(line, partySize, capFree(line))
+        const atMax = line.quantity >= maxQty
         return (
           <div
             key={line.key}
@@ -404,6 +446,7 @@ export function AddMoreProducts({
               )
             ) : null}
 
+            {line.mode !== 'nights' ? (
             <div className="flex items-center gap-2 text-sm">
               <span>{tr('addMoreQuantity', locale)}</span>
               <Button
@@ -422,16 +465,21 @@ export function AddMoreProducts({
                 size="icon-sm"
                 variant="outline"
                 aria-label="+"
+                disabled={atMax}
                 onClick={() => update(line.key, { quantity: line.quantity + 1 })}
               >
                 +
               </Button>
-              {line.mode !== 'nights' ? (
-                <span className="text-xs text-muted-foreground">
-                  {fmt(tr('addMoreForGroup', locale), { count: partySize })}
+              {Number.isFinite(maxQty) ? (
+                <span data-testid="add-more-max" className="text-xs text-muted-foreground">
+                  {fmt(tr('addMoreMaxQuantity', locale), { max: maxQty })}
                 </span>
               ) : null}
+              <span className="text-xs text-muted-foreground">
+                {fmt(tr('addMoreForGroup', locale), { count: partySize })}
+              </span>
             </div>
+            ) : null}
 
             {needs && (needs.language || needs.pickup || needs.forms.length > 0) ? (
               <div className="space-y-3">

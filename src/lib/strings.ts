@@ -978,6 +978,7 @@ export type Bundle = {
   addMorePickWindow: string
   addMoreNoWindows: string
   addMoreQuantity: string
+  addMoreMaxQuantity: string
   addMoreForGroup: string
   addMoreChecking: string
   addMoreUnavailable: string
@@ -1921,6 +1922,7 @@ const en: Bundle = {
   addMorePickWindow: 'Course dates',
   addMoreNoWindows: 'No course dates with free places.',
   addMoreQuantity: 'Quantity',
+  addMoreMaxQuantity: 'max. {max}',
   addMoreForGroup: 'priced for your group of {count}',
   addMoreChecking: 'Checking availability…',
   addMoreUnavailable: 'Not available on {dates}. Remove these dates or this product.',
