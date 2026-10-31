@@ -19476,6 +19476,11 @@ export interface components {
              */
             expose_seats_to_customer: boolean;
             /**
+             * Has Active Vouchers
+             * @default true
+             */
+            has_active_vouchers: boolean;
+            /**
              * Has Member Perks
              * @default false
              */
