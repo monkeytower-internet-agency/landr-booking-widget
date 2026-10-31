@@ -32433,6 +32433,17 @@
             "title": "Product Count",
             "type": "integer"
           },
+          "product_kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Kind"
+          },
           "slug": {
             "title": "Slug",
             "type": "string"
@@ -34261,6 +34272,17 @@
           "product_count": {
             "title": "Product Count",
             "type": "integer"
+          },
+          "product_kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Kind"
           },
           "slug": {
             "title": "Slug",

@@ -24146,6 +24146,8 @@ export interface components {
             } | null;
             /** Product Count */
             product_count: number;
+            /** Product Kind */
+            product_kind?: string | null;
             /** Slug */
             slug: string;
             /** Uses Pools */
@@ -24842,6 +24844,8 @@ export interface components {
             } | null;
             /** Product Count */
             product_count: number;
+            /** Product Kind */
+            product_kind?: string | null;
             /** Slug */
             slug: string;
             /** Uses Pools */
