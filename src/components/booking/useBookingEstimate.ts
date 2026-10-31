@@ -121,7 +121,7 @@ export function useBookingEstimate(
       ...(availabilityId ? { product_availability_id: availabilityId } : {}),
       ...(slotStartTime ? { slot_start_time: slotStartTime } : {}),
       ...(voucher ? { voucher_code: voucher } : {}),
-      ...(childAges && childAges.length > 0 ? { child_ages: childAges } : {}),
+      ...(childAges && childAges.length > 0 ? { child_ages: [...childAges] } : {}),
     }),
     [selectedDays, participantCount, addonLines, availabilityId, slotStartTime, voucher, childAges],
   )

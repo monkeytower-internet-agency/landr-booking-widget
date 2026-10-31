@@ -70,6 +70,8 @@ describe('extraEstimateRequests child_ages', () => {
     days: ['2026-12-01', '2026-12-02'],
     slot: null,
     windowId: null,
+    unavailableDays: [],
+    checking: false,
     quantity: 1,
   })
   it('sends child_ages only to occupancy-priced lines', () => {
