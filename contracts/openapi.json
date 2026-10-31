@@ -4773,6 +4773,15 @@
             ],
             "title": "Currency"
           },
+          "day_selection": {
+            "default": "parent_all",
+            "enum": [
+              "parent_all",
+              "parent_subset"
+            ],
+            "title": "Day Selection",
+            "type": "string"
+          },
           "description": {
             "anyOf": [
               {
@@ -4795,6 +4804,14 @@
               }
             ],
             "title": "Description Localized"
+          },
+          "images": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ProductImage"
+            },
+            "title": "Images",
+            "type": "array"
           },
           "is_required": {
             "default": false,
@@ -4916,6 +4933,17 @@
             "default": 0,
             "title": "Sort Order",
             "type": "integer"
+          },
+          "thumb_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thumb Url"
           }
         },
         "required": [
@@ -22397,6 +22425,22 @@
             ],
             "title": "Currency"
           },
+          "day_selection": {
+            "default": "parent_all",
+            "enum": [
+              "parent_all",
+              "parent_subset"
+            ],
+            "title": "Day Selection",
+            "type": "string"
+          },
+          "images": {
+            "items": {
+              "$ref": "#/components/schemas/ProductImage"
+            },
+            "title": "Images",
+            "type": "array"
+          },
           "is_required": {
             "title": "Is Required",
             "type": "boolean"
@@ -22514,6 +22558,17 @@
               }
             ],
             "title": "Stock Unit Label"
+          },
+          "thumb_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thumb Url"
           },
           "unavailable_reason": {
             "anyOf": [
@@ -23479,6 +23534,15 @@
             ],
             "title": "Day Capacity Source"
           },
+          "day_selection": {
+            "default": "parent_all",
+            "enum": [
+              "parent_all",
+              "parent_subset"
+            ],
+            "title": "Day Selection",
+            "type": "string"
+          },
           "default_pricing_scheme_id": {
             "anyOf": [
               {
@@ -24221,6 +24285,21 @@
               }
             ],
             "title": "Day Capacity Source"
+          },
+          "day_selection": {
+            "anyOf": [
+              {
+                "enum": [
+                  "parent_all",
+                  "parent_subset"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Day Selection"
           },
           "default_pricing_scheme_id": {
             "anyOf": [
