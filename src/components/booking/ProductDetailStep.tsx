@@ -199,7 +199,7 @@ export function ProductDetailStep({
       {/* Desktop price + CTA — in-flow at the bottom of the content. */}
       <NextAction
         active
-        cue={tr('productDetailCue', locale)}
+        cue={tr(product.product_kind === 'stay' ? 'productDetailCueStay' : 'productDetailCue', locale)}
         className="mt-2 hidden md:flex"
       >
         <div

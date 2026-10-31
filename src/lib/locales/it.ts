@@ -28,6 +28,7 @@ export const it: Bundle = {
   noCategoriesAvailable: 'Al momento non ci sono categorie disponibili.',
   productListCue: 'scegli un’attività',
   productDetailCue: 'prenota questa escursione',
+  productDetailCueStay: 'prenota questo alloggio',
   priceNoteBase: 'Prezzo base {amount}',
   priceNoteWeekends: 'Fine settimana',
   priceNoteWeekdays: 'Giorni feriali',

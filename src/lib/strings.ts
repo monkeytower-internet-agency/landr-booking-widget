@@ -52,6 +52,7 @@ export type Bundle = {
   noCategoriesAvailable: string
   productListCue: string
   productDetailCue: string
+  productDetailCueStay: string
   /** landr-bwm91.4: price notes under the product page's "from" price. */
   priceNoteBase: string
   priceNoteWeekends: string
@@ -1016,6 +1017,7 @@ const en: Bundle = {
   noCategoriesAvailable: 'No categories are available right now.',
   productListCue: 'choose a product',
   productDetailCue: 'book this trip',
+  productDetailCueStay: 'book this stay',
   priceNoteBase: 'Base price {amount}',
   priceNoteWeekends: 'Weekends',
   priceNoteWeekdays: 'Weekdays',

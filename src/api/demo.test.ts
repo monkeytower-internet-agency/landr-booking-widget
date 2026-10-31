@@ -323,6 +323,64 @@ describe('demo mode: stay, pass and verification templates (landr-m6tp4.46)', ()
     expect(est.surcharges?.[0]).toMatchObject({ amount: '17.00' })
   })
 
+  describe('city bike companion add-on', () => {
+    const bikeStay = (extra: Record<string, unknown> = {}) => {
+      const base = STAY_CATALOGUE.products[0]!
+      catalogue = {
+        ...STAY_CATALOGUE,
+        products: [{
+          ...base,
+          addons: [{
+            slug: 'bike-rental', name: 'City bike', paid_to: 'operator', price_unit: 'night',
+            addon_quantity_rule: 'any', price_per_unit: 12, currency: 'EUR', day_selection: 'parent_subset',
+            sort_order: 1, ...extra,
+          }],
+        }],
+      }
+      window.history.replaceState({}, '', '/?demo=apartment')
+      resetDemoTemplateCache()
+    }
+    const NIGHTS = ['2099-03-09', '2099-03-10', '2099-03-11', '2099-03-12']
+
+    it('prices a picked-days bike on its own nights, not the stay nights', async () => {
+      bikeStay()
+      const [studio] = await listProducts('demo-apartment')
+      const [bike] = await getProductAddons(studio.product_id)
+      const est = await estimateBookingPrice('demo-apartment', studio.product_id, {
+        selected_days: NIGHTS,
+        participants_count: 3,
+        addon_lines: [{ product_id: bike.addon_product_id, qty: 3, selected_days: ['2099-03-10', '2099-03-12'] }],
+      })
+      const line = est.line_items.find((l) => l.product_id === bike.addon_product_id)!
+      // 3 bikes x 2 picked nights x 12 EUR, not 3 x 4 stay nights.
+      expect(line).toMatchObject({ qty: 3, units: 2, line_total: '72.00' })
+    })
+
+    it('still follows the stay nights when the line carries no days of its own', async () => {
+      bikeStay()
+      const [studio] = await listProducts('demo-apartment')
+      const [bike] = await getProductAddons(studio.product_id)
+      const est = await estimateBookingPrice('demo-apartment', studio.product_id, {
+        selected_days: NIGHTS,
+        participants_count: 3,
+        addon_lines: [{ product_id: bike.addon_product_id, qty: 3 }],
+      })
+      expect(est.line_items.find((l) => l.product_id === bike.addon_product_id)).toMatchObject({ units: 4, line_total: '144.00' })
+    })
+
+    it('draws the bike card with the bundled art, and keeps the API image when there is none', async () => {
+      bikeStay({ thumb_url: 'http://storage.example/bike.jpg' })
+      const [studio] = await listProducts('demo-apartment')
+      const [bike] = await getProductAddons(studio.product_id)
+      expect(bike.thumb_url).toMatch(/demo\/apartment\/bike-rental-1\.svg$/)
+      expect(bike.images?.[0]?.hero_url).toMatch(/demo\/apartment\/bike-rental-1\.svg$/)
+
+      bikeStay({ slug: 'helmet', thumb_url: 'http://storage.example/helmet.jpg' })
+      const [helmet] = await getProductAddons(studio.product_id)
+      expect(helmet.thumb_url).toBe('http://storage.example/helmet.jpg')
+    })
+  })
+
   it('reports the stay rules a range breaks, so checkout is blocked as in production', async () => {
     const short = await stayEstimate(['2099-03-01'])
     expect(short.est.stay?.errors).toEqual([{ code: 'below_min_nights' }])

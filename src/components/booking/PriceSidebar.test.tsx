@@ -235,6 +235,62 @@ describe('PriceSidebar — day chips + hotel span + names (landr-2wyi)', () => {
     expect(chips.length).toBe(3)
   })
 
+  it('labels the day chips in the widget locale, not the browser default', async () => {
+    vi.stubGlobal('navigator', { ...navigator, language: 'de-DE' })
+    try {
+      vi.spyOn(client, 'estimateBookingPrice').mockResolvedValue(SAMPLE)
+      render(
+        <PriceSidebar
+          operatorToken="para42"
+          product={makeProduct()}
+          selectedDays={['2026-11-09', '2026-11-11']}
+          participantCount={1}
+          accommodationRooms={[]}
+          addons={[]}
+        />,
+      )
+      await waitFor(() => {
+        expect(screen.getAllByTestId('day-chips').length).toBeGreaterThan(0)
+      })
+      const chips = screen
+        .getByTestId('price-sidebar-desktop')
+        .querySelectorAll('[data-testid="day-chips"] [data-day]')
+      expect(chips[0]).toHaveTextContent('Mo., 9. Nov.')
+      expect(chips[1]).toHaveTextContent('Mi., 11. Nov.')
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('shows a companion add-on line on its own picked days, not the whole stay', async () => {
+    vi.spyOn(client, 'estimateBookingPrice').mockResolvedValue({
+      ...SAMPLE,
+      line_items: [
+        ...SAMPLE.line_items.filter((li) => li.product_id === 'svc'),
+        { product_id: 'bike', label: 'City bike', qty: 3, units: 2, unit_price: '12.00', line_total: '72.00', paid_to: 'operator' },
+      ],
+    })
+    render(
+      <PriceSidebar
+        operatorToken="para42"
+        product={makeProduct()}
+        selectedDays={['2026-11-09', '2026-11-10', '2026-11-11', '2026-11-12']}
+        participantCount={3}
+        accommodationRooms={[]}
+        addons={[{ productId: 'bike', name: 'City bike', quantity: 3, selectedDays: ['2026-11-10', '2026-11-12'] } as never]}
+      />,
+    )
+    await waitFor(() => {
+      expect(screen.getAllByTestId('day-chips').length).toBeGreaterThan(1)
+    })
+    const lists = screen.getByTestId('price-sidebar-desktop').querySelectorAll('[data-testid="day-chips"]')
+    expect(lists[0].querySelectorAll('[data-day]')).toHaveLength(4)
+    expect([...lists[1].querySelectorAll('[data-day]')].map((e) => e.getAttribute('data-day'))).toEqual([
+      '2026-11-10',
+      '2026-11-12',
+    ])
+  })
+
   it('renders separate chips (not a contiguous range) for a NON-contiguous selection', async () => {
     vi.spyOn(client, 'estimateBookingPrice').mockResolvedValue(SAMPLE)
     render(
