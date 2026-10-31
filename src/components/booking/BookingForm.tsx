@@ -1597,7 +1597,13 @@ export function BookingForm({
           const assigned = roomAssignment?.[idx]
           // landr-doam.1: per-occupant age band + age (hotel informational).
           // Absent/null = adult (default). Only 'child' sends occupant_age.
-          const ageEntry = occupantAgeMap[idx]
+          // landr-hfvyc.2: falls back to the age the guest step captured on
+          // the participant row (stays with occupancy pricing).
+          const ageEntry =
+            occupantAgeMap[idx] ??
+            (p.occupant_age_band === 'child'
+              ? { band: 'child' as const, age: p.occupant_age ?? null }
+              : undefined)
           const isChild = ageEntry?.band === 'child'
           // landr-a4fy: per-occupant breakfast flag. Omit when false/absent
           // to keep the payload compact (API default = false).

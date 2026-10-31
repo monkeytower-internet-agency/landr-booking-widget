@@ -21,6 +21,25 @@ import type { FormResponseEntry } from '@/api/flowTypes'
  * Supabase directly) instead of hand-declared, so drift between the DB enum
  * and this wire type is caught by tsc.
  */
+/** One child age band of an occupancy_pricing rule (ages inclusive, 0-17). */
+export interface OccupancyChildBand {
+  min_age: number
+  max_age: number
+  /** Decimal string, e.g. "12.00". 0 = free. */
+  per_night: string
+}
+
+/**
+ * landr-hfvyc.1 public payload: base price covers `included_adults` per unit;
+ * each extra adult and each child (by age band) adds a per-night charge.
+ */
+export interface OccupancyPricing {
+  included_adults: number
+  /** Decimal string, e.g. "25.00". */
+  extra_adult_per_night: string
+  child_bands: OccupancyChildBand[]
+}
+
 export type ProductKind = Enums<'product_kind'> | 'stay'
 
 /**
@@ -292,6 +311,11 @@ export interface Product {
    * — the lenient default until landr-knm0 backfills the seeds.
    */
   capacity_per_unit?: number | null
+  /**
+   * landr-hfvyc.1: guest-based stay pricing from the product's active scheme.
+   * null / absent = the stay is priced per unit, guest mix is irrelevant.
+   */
+  occupancy_pricing?: OccupancyPricing | null
   /**
    * landr-7zc5.3: publish state. true = published (live), false = draft.
    * The live products RPC only returns rows where is_publicly_listed=true;
@@ -2110,6 +2134,12 @@ export interface EstimateRequestBody {
    * the customer typed (or arrived with) one; the estimate never consumes it.
    */
   voucher_code?: string
+  /**
+   * landr-hfvyc.1: ages (0-17) of the children among participants_count, for
+   * stays with occupancy pricing. adults = participants_count - length.
+   * Omitted = everyone is an adult.
+   */
+  child_ages?: number[]
 }
 
 /**

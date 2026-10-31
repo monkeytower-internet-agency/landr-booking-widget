@@ -33,6 +33,7 @@ import { FullyBookedNotice } from '@/components/booking/FullyBookedNotice'
 import { ProductGallery } from '@/components/booking/detail/ProductGallery'
 import { ProductFacts } from '@/components/booking/detail/ProductFacts'
 import { formatPriceFrom } from '@/components/booking/detail/priceFromLabel'
+import { occupancyBlurb } from '@/components/booking/occupancyPricing'
 import { priceNoteItems } from '@/components/booking/detail/priceNotes'
 import { DescribedLabel } from '@/components/booking/DescribedLabel'
 import { tr } from '@/lib/strings'
@@ -191,6 +192,17 @@ export function ProductDetailStep({
               />
             </Fragment>
           ))}
+        </p>
+      ) : null}
+
+      {/* landr-hfvyc.2: guest-based price model (included adults, extra adult
+          and child band rates), only when the stay carries the rule. */}
+      {product.occupancy_pricing ? (
+        <p
+          className="text-sm text-muted-foreground"
+          data-testid="product-detail-occupancy-model"
+        >
+          {occupancyBlurb(product.occupancy_pricing, product.currency ?? 'EUR', locale)}
         </p>
       ) : null}
 

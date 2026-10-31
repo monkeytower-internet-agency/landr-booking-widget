@@ -406,6 +406,7 @@ export function extraEstimateRequests(
   lines: readonly ExtraLine[],
   participantCount: number,
   locale?: string,
+  childAges?: readonly number[],
 ): ExtraEstimateRequest[] {
   return lines
     .filter((l) => l.days.length > 0 && (l.mode !== 'slot' || l.slot))
@@ -420,6 +421,9 @@ export function extraEstimateRequests(
           participants_count: Math.max(1, participantCount),
           addon_lines: [],
           ...(locale ? { locale } : {}),
+          ...(childAges && childAges.length > 0 && l.product.occupancy_pricing
+            ? { child_ages: [...childAges] }
+            : {}),
           ...(pl.product_availability_id
             ? { product_availability_id: pl.product_availability_id }
             : {}),

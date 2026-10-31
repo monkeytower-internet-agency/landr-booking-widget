@@ -52,6 +52,8 @@ export interface UseBookingEstimateArgs {
    * exact request body it always had.
    */
   voucherCode?: string
+  /** landr-hfvyc.2: ages of the children in the party (occupancy-priced stays). */
+  childAges?: readonly number[]
   enabled?: boolean
   /** Debounce in ms (default 300). */
   debounceMs?: number
@@ -91,6 +93,7 @@ export function useBookingEstimate(
     addonLines,
     slot,
     voucherCode,
+    childAges,
     enabled = true,
     debounceMs = 300,
   } = args
@@ -118,8 +121,9 @@ export function useBookingEstimate(
       ...(availabilityId ? { product_availability_id: availabilityId } : {}),
       ...(slotStartTime ? { slot_start_time: slotStartTime } : {}),
       ...(voucher ? { voucher_code: voucher } : {}),
+      ...(childAges && childAges.length > 0 ? { child_ages: childAges } : {}),
     }),
-    [selectedDays, participantCount, addonLines, availabilityId, slotStartTime, voucher],
+    [selectedDays, participantCount, addonLines, availabilityId, slotStartTime, voucher, childAges],
   )
 
   const liveKey = useMemo(

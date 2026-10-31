@@ -136,6 +136,11 @@ interface Props {
    * total, so every figure here covers ALL lines of the booking.
    */
   extraLines?: ExtraLine[]
+  /**
+   * landr-hfvyc.2: ages (0-17) of the children among `participantCount`, from
+   * the guest step. Sent as `child_ages` only to occupancy-priced stays.
+   */
+  childAges?: readonly number[]
 }
 
 /** landr-h0opd.3: the estimate's calculated total, lifted out of PriceSidebar. */
@@ -583,6 +588,7 @@ export default function PriceSidebar(props: Props) {
     voucherCode,
     onVoucherStatusChange,
     extraLines,
+    childAges,
   } = props
 
   const addonLines = useMemo(
@@ -628,6 +634,7 @@ export default function PriceSidebar(props: Props) {
     addonLines,
     slot,
     voucherCode,
+    childAges: product.occupancy_pricing ? childAges : undefined,
     enabled: hasSelection,
     debounceMs,
   })
@@ -636,8 +643,8 @@ export default function PriceSidebar(props: Props) {
   // selection exists; collapses to the no-data empty state ("Pick your
   // options to see the price.") when nothing is selected.
   const extraRequests = useMemo(
-    () => extraEstimateRequests(extraLines ?? [], participantCount, browserLocale()),
-    [extraLines, participantCount],
+    () => extraEstimateRequests(extraLines ?? [], participantCount, browserLocale(), childAges),
+    [extraLines, participantCount, childAges],
   )
   const extras = useExtraLineEstimates(operatorToken, extraRequests)
   // The main estimate with every added line folded in. While an added line's

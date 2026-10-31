@@ -54,6 +54,7 @@ import {
   type CompanionDetails,
   type ParticipantDetails,
 } from './detailsTypes'
+import { childAgesFromRoster, hasChildWithoutAge } from './occupancyPricing'
 // landr-uwvl: stable per-member identity for the room-assignment maps.
 import { isStayKind } from '@/flowPlan'
 import { withMemberId } from './partyIdentity'
@@ -233,7 +234,15 @@ interface Props {
     count: number,
     names: string[],
     companionCount: number,
+    /** landr-hfvyc.2: ages of the children among `count` (0-17). */
+    childAges?: number[],
   ) => void
+  /**
+   * landr-hfvyc.2: a stay in the cart has occupancy pricing, so each guest
+   * (except the first, who stays an adult) can be marked Adult / Child, and a
+   * child needs an age. Off = no controls, nothing sent.
+   */
+  collectGuestAges?: boolean
   /**
    * landr-fn4i / landr-5krc: fires on every keystroke in the optional
    * member-perk code field, lifting the live value straight into App.tsx's
@@ -363,6 +372,7 @@ export function DetailsStep({
   onBack,
   onConfirm,
   onLiveParticipantsChange,
+  collectGuestAges = false,
   onMemberPerkOtpChange,
   initialVoucherCode,
   onVoucherCodeChange,
@@ -628,7 +638,16 @@ export function DetailsStep({
       ...(nextJoins ? [nextBooker.first_name.trim()] : []),
       ...nextAdditional.map((p) => p.first_name.trim()),
     ].filter((n) => n.length > 0)
-    onLiveParticipantsChange(count, names, nextCompanions.length)
+    if (collectGuestAges) {
+      onLiveParticipantsChange(
+        count,
+        names,
+        nextCompanions.length,
+        childAgesFromRoster(nextAdditional, count),
+      )
+    } else {
+      onLiveParticipantsChange(count, names, nextCompanions.length)
+    }
   }
 
   // landr-rmcsu.5: rows pre-created from the dates-step group size are not a
@@ -870,6 +889,20 @@ export function DetailsStep({
     if (!row) return
     const next = additional.slice()
     next[idx] = { ...row, [key]: value }
+    setAdditional(next)
+    notifyLive(booker, next, companions)
+  }
+
+  // landr-hfvyc.2: Adult / Child + age for one guest row. Adult clears the age.
+  const setGuestAge = (idx: number, band: 'adult' | 'child', age: number | null) => {
+    const row = additional[idx]
+    if (!row) return
+    const next = additional.slice()
+    next[idx] = {
+      ...row,
+      occupant_age_band: band,
+      occupant_age: band === 'child' ? age : null,
+    }
     setAdditional(next)
     notifyLive(booker, next, companions)
   }
@@ -1174,8 +1207,10 @@ export function DetailsStep({
   // above the product cap until the customer removes one — block Continue.
   const withinCap =
     additional.length <= rowCap && additional.length + companions.length <= othersCap
+  const guestAgeMissing = collectGuestAges && hasChildWithoutAge(additional)
   const canContinue =
     withinCap &&
+    !guestAgeMissing &&
     detailsAreComplete(
       bookerForSubmit,
       participantsForValidation,
@@ -1770,6 +1805,57 @@ export function DetailsStep({
                 </Button>
                 ) : null}
               </div>
+              {collectGuestAges && !isFirstOfRoster ? (
+                <div
+                  className="sm:col-span-2 flex flex-wrap items-center gap-2"
+                  data-testid={`guest-age-controls-${n}`}
+                >
+                  <select
+                    data-testid={`guest-age-band-${n}`}
+                    aria-label={tr('ageBandAria', locale)}
+                    value={row.occupant_age_band ?? 'adult'}
+                    onChange={(e) =>
+                      setGuestAge(
+                        idx,
+                        e.target.value === 'child' ? 'child' : 'adult',
+                        row.occupant_age ?? null,
+                      )
+                    }
+                    className="border-input bg-surface-page h-9 rounded-md border px-2 text-sm"
+                  >
+                    <option value="adult">{tr('adultOption', locale)}</option>
+                    <option value="child">{tr('childOption', locale)}</option>
+                  </select>
+                  {row.occupant_age_band === 'child' ? (
+                    <select
+                      data-testid={`guest-age-${n}`}
+                      aria-label={tr('childAgeAria', locale)}
+                      value={row.occupant_age ?? ''}
+                      onChange={(e) =>
+                        setGuestAge(
+                          idx,
+                          'child',
+                          e.target.value === '' ? null : Number(e.target.value),
+                        )
+                      }
+                      aria-invalid={row.occupant_age == null ? true : undefined}
+                      className="border-input bg-surface-page h-9 rounded-md border px-2 text-sm aria-invalid:border-destructive"
+                    >
+                      <option value="">{tr('agePlaceholder', locale)}</option>
+                      {Array.from({ length: 18 }, (_, a) => (
+                        <option key={a} value={a}>
+                          {a}
+                        </option>
+                      ))}
+                    </select>
+                  ) : null}
+                  {row.occupant_age_band === 'child' && row.occupant_age == null ? (
+                    <span className="text-xs text-destructive" role="alert">
+                      {tr('guestAgeRequired', locale)}
+                    </span>
+                  ) : null}
+                </div>
+              ) : null}
               <Field label={tr('firstNameLabel', locale)} htmlFor={`p-${idx}-first`} error={pFirstV.error}>
                 <Input
                   id={`p-${idx}-first`}
