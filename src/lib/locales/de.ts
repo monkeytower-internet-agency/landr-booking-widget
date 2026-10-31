@@ -714,6 +714,8 @@ export const de: Bundle = {
   maxGuestsChip: 'max. {n} Gäste',
   tooSmallForParty: 'zu klein für {n}',
   alternativesStartsTemplate: 'Start: {date}',
+  alternativeBackTemplate: 'Zurück zu {name}',
+  alternativeBackKeepsDates: 'Deine Daten bleiben ausgewählt',
   altDayAria: 'ausgebucht, andere Aktivitäten verfügbar',
   altDayNotOfferedAria: 'nicht im Angebot, andere Aktivitäten verfügbar',
   altDayShortAria: 'nicht genug Plätze für {n} Personen, andere Aktivitäten verfügbar',

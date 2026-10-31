@@ -705,6 +705,8 @@ export const it: Bundle = {
   maxGuestsChip: 'max. {n} ospiti',
   tooSmallForParty: 'troppo piccolo per {n}',
   alternativesStartsTemplate: 'Inizia il {date}',
+  alternativeBackTemplate: 'Torna a {name}',
+  alternativeBackKeepsDates: 'Le tue date restano selezionate',
   altDayAria: 'al completo, altre attività disponibili',
   altDayNotOfferedAria: 'non disponibile, altre attività disponibili',
   altDayShortAria: 'posti insufficienti per {n} persone, altre attività disponibili',

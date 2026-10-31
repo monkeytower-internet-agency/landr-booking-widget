@@ -709,6 +709,8 @@ export const tr: Bundle = {
   maxGuestsChip: 'en fazla {n} misafir',
   tooSmallForParty: '{n} kişi için çok küçük',
   alternativesStartsTemplate: 'Başlangıç: {date}',
+  alternativeBackTemplate: '{name} ürününe geri dön',
+  alternativeBackKeepsDates: 'Seçtiğin tarihler korunur',
   altDayAria: 'dolu, diğer etkinlikler müsait',
   altDayNotOfferedAria: 'sunulmuyor, diğer etkinlikler müsait',
   altDayShortAria: '{n} kişi için yeterli yer yok, diğer etkinlikler müsait',

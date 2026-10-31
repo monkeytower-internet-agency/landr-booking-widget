@@ -1826,6 +1826,39 @@ export function stepForAlternativeSwitch(args: AlternativeSwitchArgs): Step {
 }
 
 /**
+ * landr-p2du5: what the "Also available" switch left behind, so the guest can
+ * go back to the product they came from with their picks intact.
+ */
+export interface AlternativeBack {
+  /** The step the row was tapped on (the origin's date step or fully-booked notice). */
+  from: Extract<Step, { name: 'pick-selection' } | { name: 'fully-booked' }>
+  /** Product switched to; the way back is offered only while on its date step. */
+  toProductId: string
+  /** Live day(s) picked on the origin at tap time. */
+  days: string[]
+  /** Origin is a course: the live window picked. */
+  windowId?: string
+  /** Origin is time-slot: the live start time picked. */
+  startTime?: string | null
+  /** The draft (party, booker, participants) as it was before the switch. */
+  draft: BookingDraft
+}
+
+/** The origin step re-seeded with the picks it had when the guest left it. */
+export function stepForAlternativeBack(back: AlternativeBack): Step {
+  const from = back.from
+  if (from.name !== 'pick-selection') return from
+  const committedWindow =
+    from.selection?.kind === 'days' ? from.selection.fixedDateWindowId : undefined
+  return stepForAlternativeSwitch({
+    target: from.product,
+    days: back.days,
+    windowId: back.windowId ?? committedWindow,
+    startTime: back.startTime,
+  })
+}
+
+/**
  * The party cap of the product being switched to, when the carried group
  * exceeds it (the number to clamp to), else null.
  */

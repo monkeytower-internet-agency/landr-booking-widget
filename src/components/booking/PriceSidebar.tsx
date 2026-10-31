@@ -834,8 +834,10 @@ export default function PriceSidebar(props: Props) {
             voucherRejected={voucherStatus === 'not_applicable'}
           />
         </div>
-        {/* "Also available" panel of the date step portals in here. */}
-        <div id={ALTERNATIVES_SLOT_ID} data-testid="alternatives-desktop-slot" />
+        {/* "Also available" panel of the date step portals in here. The extra
+            top margin (on top of the rail's gap) keeps it clear of the total,
+            so it never reads as part of the price (landr-p2du5). */}
+        <div id={ALTERNATIVES_SLOT_ID} data-testid="alternatives-desktop-slot" className="mt-4 empty:hidden" />
         </div>
       </aside>
 

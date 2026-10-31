@@ -750,6 +750,8 @@ export type Bundle = {
   maxGuestsChip: string
   tooSmallForParty: string
   alternativesStartsTemplate: string
+  alternativeBackTemplate: string
+  alternativeBackKeepsDates: string
   altDayAria: string
   altDayNotOfferedAria: string
   altDayShortAria: string
@@ -1714,6 +1716,8 @@ const en: Bundle = {
   maxGuestsChip: 'max. {n} guests',
   tooSmallForParty: 'too small for {n}',
   alternativesStartsTemplate: 'Starts {date}',
+  alternativeBackTemplate: 'Back to {name}',
+  alternativeBackKeepsDates: 'Your dates stay picked',
   altDayAria: 'fully booked, other activities available',
   altDayNotOfferedAria: 'not offered, other activities available',
   altDayShortAria: 'not enough places for {n} people, other activities available',
