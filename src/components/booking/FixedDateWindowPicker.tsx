@@ -68,7 +68,7 @@ interface Props {
    * Called when the user selects a window so App.tsx can feed the live
    * expanded days into PriceSidebar before Continue is pressed (landr-w7pi).
    */
-  onLiveDaysChange?: (isoDays: string[]) => void
+  onLiveDaysChange?: (isoDays: string[], windowId?: string) => void
   /**
    * landr (breadcrumb): id of the previously-picked window, restored when the
    * customer navigates BACK so the prior window is pre-selected (the committed
@@ -233,7 +233,7 @@ export function FixedDateWindowPicker({
   // landr (breadcrumb): once the windows load, surface a restored selection in
   // the live sidebar so the price preview reflects the prior pick immediately.
   useEffect(() => {
-    if (selectedWindow) onLiveDaysChange?.(expandWindowDays(selectedWindow))
+    if (selectedWindow) onLiveDaysChange?.(expandWindowDays(selectedWindow), selectedWindow.id)
     // Fire only when the resolved window changes (i.e. the restore resolves).
     // eslint-disable-next-line react-hooks/exhaustive-deps -- fire when the resolved window changes; onLiveDaysChange is a parent callback with unstable identity
   }, [selectedWindow])
@@ -379,7 +379,7 @@ export function FixedDateWindowPicker({
                         }
                       }
                       setSelectedId(dateWindow.id)
-                      onLiveDaysChange?.(expandWindowDays(dateWindow))
+                      onLiveDaysChange?.(expandWindowDays(dateWindow), dateWindow.id)
                     }}
                     aria-pressed={isSelected}
                     className={cn(

@@ -183,7 +183,9 @@ function PanelBody({
     <section
       data-testid={testId}
       className={cn(
-        'flex min-w-0 flex-col gap-3 rounded-xl border bg-surface-card p-4',
+        // landr-p2du5: recessed well + dashed edge, not the price card's white
+        // elevated surface, so the panel can't be mistaken for the total.
+        'flex min-w-0 flex-col gap-3 rounded-xl border border-dashed bg-surface-well p-4',
         className,
       )}
     >
