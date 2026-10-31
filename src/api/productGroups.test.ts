@@ -59,9 +59,7 @@ describe('listProductGroups — fetch path (landr-d8rg contract E)', () => {
   it('calls GET /api/public/operators/{token}/product-groups', async () => {
     vi.stubEnv('VITE_USE_MOCKS', '0')
     vi.stubEnv('VITE_API_BASE_URL', 'https://api.example.com')
-    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify([]), { status: 200 }),
-    )
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response(JSON.stringify([]), { status: 200 }))
     await client.listProductGroups('tok-abc')
     const calledUrl = fetchSpy.mock.calls[0]?.[0] as string
     expect(calledUrl).toBe('https://api.example.com/api/public/operators/tok-abc/product-groups')
@@ -70,9 +68,7 @@ describe('listProductGroups — fetch path (landr-d8rg contract E)', () => {
   it('appends preview_token query param when provided', async () => {
     vi.stubEnv('VITE_USE_MOCKS', '0')
     vi.stubEnv('VITE_API_BASE_URL', 'https://api.example.com')
-    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify([]), { status: 200 }),
-    )
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response(JSON.stringify([]), { status: 200 }))
     await client.listProductGroups('tok-abc', { previewToken: 'prev-xyz' })
     const calledUrl = fetchSpy.mock.calls[0]?.[0] as string
     expect(calledUrl).toContain('preview_token=prev-xyz')
@@ -81,9 +77,7 @@ describe('listProductGroups — fetch path (landr-d8rg contract E)', () => {
   it('omits preview_token param when not provided', async () => {
     vi.stubEnv('VITE_USE_MOCKS', '0')
     vi.stubEnv('VITE_API_BASE_URL', 'https://api.example.com')
-    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify([]), { status: 200 }),
-    )
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response(JSON.stringify([]), { status: 200 }))
     await client.listProductGroups('tok-abc')
     const calledUrl = fetchSpy.mock.calls[0]?.[0] as string
     expect(calledUrl).not.toContain('preview_token')
@@ -92,9 +86,7 @@ describe('listProductGroups — fetch path (landr-d8rg contract E)', () => {
   it('throws HttpError on non-2xx response', async () => {
     vi.stubEnv('VITE_USE_MOCKS', '0')
     vi.stubEnv('VITE_API_BASE_URL', 'https://api.example.com')
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify({ detail: 'Not found' }), { status: 404, statusText: 'Not Found' }),
-    )
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response(JSON.stringify({ detail: 'Not found' }), { status: 404, statusText: 'Not Found' }))
     await expect(client.listProductGroups('bad-token')).rejects.toMatchObject({
       name: 'HttpError',
       status: 404,
