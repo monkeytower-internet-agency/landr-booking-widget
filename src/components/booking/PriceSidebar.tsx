@@ -32,7 +32,10 @@
  *   - Happy path: full breakdown with operator/hotel split + applied
  *     discount tags
  */
-import { ALTERNATIVES_SLOT_ID } from '@/components/booking/alternativesSlot'
+import {
+  ALTERNATIVE_BACK_SLOT_ID,
+  ALTERNATIVES_SLOT_ID,
+} from '@/components/booking/alternativesSlot'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronUp, RefreshCw } from 'lucide-react'
 import type { EstimateSlotFields, Product, VoucherStatus } from '@/api/types'
@@ -837,7 +840,12 @@ export default function PriceSidebar(props: Props) {
         {/* "Also available" panel of the date step portals in here. The extra
             top margin (on top of the rail's gap) keeps it clear of the total,
             so it never reads as part of the price (landr-p2du5). */}
-        <div id={ALTERNATIVES_SLOT_ID} data-testid="alternatives-desktop-slot" className="mt-4 empty:hidden" />
+        <div className="mt-4 flex flex-col gap-4">
+          {/* landr-d9qs8: the way back after an alternative switch sits where
+              the tapped row was, above the new product's own alternatives. */}
+          <div id={ALTERNATIVE_BACK_SLOT_ID} data-testid="alternative-back-desktop-slot" className="empty:hidden" />
+          <div id={ALTERNATIVES_SLOT_ID} data-testid="alternatives-desktop-slot" className="empty:hidden" />
+        </div>
         </div>
       </aside>
 
