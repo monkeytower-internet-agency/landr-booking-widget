@@ -12660,6 +12660,59 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/trello-board-links": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Staff Trello List Links */
+        get: operations["staff_trello_list_links"];
+        put?: never;
+        /** Staff Trello Create Link */
+        post: operations["staff_trello_create_link"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/trello-board-links/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Staff Trello Resolve Board */
+        get: operations["staff_trello_resolve_board"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/trello-board-links/{link_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Staff Trello Delete Link */
+        delete: operations["staff_trello_delete_link"];
+        options?: never;
+        head?: never;
+        /** Staff Trello Patch Link */
+        patch: operations["staff_trello_patch_link"];
+        trace?: never;
+    };
     "/api/tickets/{ticket_id}/notify-mentions": {
         parameters: {
             query?: never;
@@ -22506,6 +22559,30 @@ export interface components {
             /** Code */
             code: string;
         };
+        /** ResolveOut */
+        ResolveOut: {
+            /** Board */
+            board: string;
+            /** Operators */
+            operators: components["schemas"]["ResolvedOperator"][];
+        };
+        /** ResolvedOperator */
+        ResolvedOperator: {
+            /** Is Default */
+            is_default: boolean;
+            /** Link Id */
+            link_id: string;
+            /** Operator Id */
+            operator_id: string;
+            /** Operator Name */
+            operator_name: string | null;
+            /** Operator Slug */
+            operator_slug: string | null;
+            /** Trello Member Id */
+            trello_member_id: string | null;
+            /** Trello Member Username */
+            trello_member_username: string | null;
+        };
         /**
          * ResourceDayStateIn
          * @description ``PUT /resources/{id}/day-state`` — one capacity resource, one day, one
@@ -25060,6 +25137,58 @@ export interface components {
              */
             kind: "text" | "activity_code";
             recipients: components["schemas"]["RecipientSetIn"];
+        };
+        /** TrelloBoardLinkCreate */
+        TrelloBoardLinkCreate: {
+            /** Board Name */
+            board_name?: string | null;
+            /**
+             * Is Default
+             * @default false
+             */
+            is_default: boolean;
+            /** Operator Id */
+            operator_id: string;
+            /** Trello Board Id */
+            trello_board_id: string;
+            /** Trello Member Id */
+            trello_member_id?: string | null;
+            /** Trello Member Username */
+            trello_member_username?: string | null;
+        };
+        /** TrelloBoardLinkOut */
+        TrelloBoardLinkOut: {
+            /** Board Name */
+            board_name: string | null;
+            /** Created At */
+            created_at: string;
+            /** Id */
+            id: string;
+            /** Is Default */
+            is_default: boolean;
+            /** Operator Id */
+            operator_id: string;
+            /** Trello Board Id */
+            trello_board_id: string;
+            /** Trello Member Id */
+            trello_member_id: string | null;
+            /** Trello Member Username */
+            trello_member_username: string | null;
+            /** Updated At */
+            updated_at: string;
+        };
+        /** TrelloBoardLinkPatch */
+        TrelloBoardLinkPatch: {
+            /** Board Name */
+            board_name?: string | null;
+            /** Is Default */
+            is_default?: boolean | null;
+            /** Trello Board Id */
+            trello_board_id?: string | null;
+            /** Trello Member Id */
+            trello_member_id?: string | null;
+            /** Trello Member Username */
+            trello_member_username?: string | null;
         };
         /**
          * TrelloSyncIn
@@ -48027,6 +48156,165 @@ export interface operations {
                     "application/json": {
                         [key: string]: string;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_trello_list_links: {
+        parameters: {
+            query?: {
+                operator_id?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrelloBoardLinkOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_trello_create_link: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TrelloBoardLinkCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrelloBoardLinkOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_trello_resolve_board: {
+        parameters: {
+            query: {
+                board: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResolveOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_trello_delete_link: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                link_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_trello_patch_link: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                link_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TrelloBoardLinkPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrelloBoardLinkOut"];
                 };
             };
             /** @description Validation Error */
