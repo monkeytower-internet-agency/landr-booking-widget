@@ -102,6 +102,14 @@ export interface ParticipantDetails {
    * race never produces an unknown code.
    */
   service_role_code: string
+  /**
+   * landr-hfvyc.2: guest-based stay pricing. 'child' + occupant_age (0-17)
+   * when the guest is a child; absent/'adult' otherwise. Only collected when
+   * a stay in the cart has occupancy pricing. Sent on submit as
+   * occupant_age_band / occupant_age.
+   */
+  occupant_age_band?: 'adult' | 'child'
+  occupant_age?: number | null
 }
 
 /**

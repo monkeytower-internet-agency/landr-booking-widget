@@ -342,6 +342,12 @@ export type Bundle = {
   childOption: string
   ageBandAria: string
   childAgeAria: string
+  occupancyIncludedOne: string
+  occupancyIncludedMany: string
+  occupancyExtraAdult: string
+  occupancyChildBand: string
+  occupancyChildBandFree: string
+  guestAgeRequired: string
   agePlaceholder: string
   breakfastLabel: string
   emptyLabel: string
@@ -1312,6 +1318,12 @@ const en: Bundle = {
   childOption: 'Child',
   ageBandAria: 'Age band',
   childAgeAria: 'Child age',
+  occupancyIncludedOne: 'incl. 1 adult',
+  occupancyIncludedMany: 'incl. {count} adults',
+  occupancyExtraAdult: 'additional adults +{price}/night',
+  occupancyChildBand: 'children {from}-{to} +{price}/night',
+  occupancyChildBandFree: 'children {from}-{to} free',
+  guestAgeRequired: 'Please select the age of each child.',
   agePlaceholder: 'Age',
   breakfastLabel: 'Breakfast',
   emptyLabel: 'Empty',

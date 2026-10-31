@@ -78,6 +78,7 @@ import { MembershipReturnPage } from '@/components/booking/MembershipReturnPage'
 import { PassCheckoutStep } from '@/components/booking/PassCheckoutStep'
 import { MultiDayStep } from '@/components/booking/MultiDayStep'
 import { PickupLocationPicker } from '@/components/booking/PickupLocationPicker'
+import { childAgesFromRoster, hasOccupancyPricing } from '@/components/booking/occupancyPricing'
 import PriceSidebar, { type CalculatedTotal } from '@/components/booking/PriceSidebar'
 import type { ExtraLine } from '@/components/booking/crossSell'
 import { ProductList } from '@/components/booking/ProductList'
@@ -516,6 +517,8 @@ function BookingFlowApp() {
   // when leaving the details step so back-nav starts fresh.
   const [liveParticipantCount, setLiveParticipantCount] = useState<number>(0)
   const [liveParticipantNames, setLiveParticipantNames] = useState<string[]>([])
+  // landr-hfvyc.2: children's ages from the guest step, live (valid while liveParticipantCount > 0).
+  const [liveChildAges, setLiveChildAges] = useState<number[]>([])
   // landr-fn4i / landr-5krc: the optional member-perk code, lifted live from
   // DetailsStep (mirrors liveParticipant* above) straight to BookingForm's
   // submit — deliberately NOT part of the Step union / BookingDraft (unlike
@@ -826,6 +829,7 @@ function BookingFlowApp() {
         if (
           !inline.languages &&
           !inline.pickupId &&
+          !inline.ages &&
           Object.keys(inline.forms).length === 0 &&
           (same ? !prev.inline : true)
         )
@@ -1874,6 +1878,22 @@ function BookingFlowApp() {
 
   // landr-rmcsu.6: on the dates step of a participants-first flow the party
   // is already committed — price it instead of the count-only default.
+  // landr-hfvyc.2: children's ages for the estimate. Live from the guest step
+  // while it is open; otherwise read off the confirmed roster.
+  const rosterForAges = 'participants' in step ? step.participants : bookingDraft.participants
+  const sidebarChildAges = useMemo(
+    () =>
+      step.name === 'details' && liveParticipantCount > 0
+        ? liveChildAges
+        : step.name === 'fill-form' && inlineAnswers?.childAges
+          ? inlineAnswers.childAges
+          : childAgesFromRoster(
+            rosterForAges ?? [],
+            (rosterForAges ?? []).length || 1,
+          ),
+    [step.name, liveParticipantCount, liveChildAges, rosterForAges, inlineAnswers],
+  )
+
   const sidebarInputs = sidebarInputsForStep(
     step,
     step.name === 'pick-selection' && participantsFirstFor(step.product)
@@ -2923,10 +2943,17 @@ function BookingFlowApp() {
             // (participants_count) and aren't needed for any live sidebar
             // state on this step (the committed companions land in step state
             // on Continue), so we intentionally ignore the third arg here.
-            onLiveParticipantsChange={(count, names) => {
+            onLiveParticipantsChange={(count, names, _companions, childAges) => {
               setLiveParticipantCount(count)
               setLiveParticipantNames(names)
+              setLiveChildAges(childAges ?? [])
             }}
+            // landr-hfvyc.2: any stay in the cart (main or cross-sell line)
+            // with occupancy pricing → Adult/Child + age per guest.
+            collectGuestAges={hasOccupancyPricing(
+              step.product,
+              ...extraLines.map((l) => l.product),
+            )}
           />
         ) : null}
 
@@ -3845,6 +3872,7 @@ function BookingFlowApp() {
             voucherCode={voucherCode}
             onVoucherStatusChange={setVoucherStatus}
             extraLines={step.name === 'fill-form' ? extraLines : undefined}
+            childAges={sidebarChildAges}
           />
         ) : null}
         </div>
