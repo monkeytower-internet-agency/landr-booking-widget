@@ -4264,7 +4264,7 @@ export interface paths {
          *     Same verdict as ``GET /products/{id}/addons`` with a single-day
          *     ``selected_days`` (the add-on's minimum quantity, at least 1, judged in the
          *     parent's own stock scope), for every day asked. Hidden parent / no
-         *     companion add-ons: an empty list. At most 62 distinct days (422
+         *     companion add-ons: an empty list. At most 31 distinct days (422
          *     ``too_many_days``).
          */
         get: operations["get_product_addons_stock_by_day"];

@@ -13,8 +13,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { getProductAddonsDayStock } from '@/api/client'
 import type { CompanionDayStock } from './addonsState'
 
-/** Most days looked up at once (the API's cap, `ADDON_STOCK_MAX_DAYS`); a longer stay falls back to the API's submit check. */
-export const COMPANION_STOCK_MAX_DAYS = 62
+/** Most days looked up at once (the API's cap for the batch lookup); a longer stay falls back to the API's submit check. */
+export const COMPANION_STOCK_MAX_DAYS = 31
 
 export async function fetchCompanionDayStock(
   parentProductId: string,

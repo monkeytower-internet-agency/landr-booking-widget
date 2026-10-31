@@ -47168,7 +47168,7 @@
     },
     "/api/public/products/{product_id}/addons/stock": {
       "get": {
-        "description": "Per-day stock of the day-pickable (``parent_subset``) companion add-ons\nof a parent product, in ONE call instead of one add-ons call per day.\n\nSame verdict as ``GET /products/{id}/addons`` with a single-day\n``selected_days`` (the add-on's minimum quantity, at least 1, judged in the\nparent's own stock scope), for every day asked. Hidden parent / no\ncompanion add-ons: an empty list. At most 62 distinct days (422\n``too_many_days``).",
+        "description": "Per-day stock of the day-pickable (``parent_subset``) companion add-ons\nof a parent product, in ONE call instead of one add-ons call per day.\n\nSame verdict as ``GET /products/{id}/addons`` with a single-day\n``selected_days`` (the add-on's minimum quantity, at least 1, judged in the\nparent's own stock scope), for every day asked. Hidden parent / no\ncompanion add-ons: an empty list. At most 31 distinct days (422\n``too_many_days``).",
         "operationId": "get_product_addons_stock_by_day",
         "parameters": [
           {
