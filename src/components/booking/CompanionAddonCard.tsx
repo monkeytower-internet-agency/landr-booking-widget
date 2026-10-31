@@ -5,6 +5,7 @@ import { qtyAdjustAriaLabel, tr } from '@/lib/strings'
 import { formatCurrency } from './accommodationCalc'
 import {
   addonStockCeiling,
+  companionPriceSuffix,
   isCompanionDayFull,
   type CompanionDayStock,
 } from './addonsState'
@@ -34,6 +35,8 @@ interface Props {
   /** Most the stepper may reach (rule / max / party size), Infinity = none. */
   ceiling: number
   locale: string
+  /** The parent's days are a stay's nights (a "night" price reads "/ night", else "/ day"). */
+  daysAreNights?: boolean
   onBump: (delta: number) => void
   onToggleDay: (day: string) => void
 }
@@ -46,6 +49,7 @@ export function CompanionAddonCard({
   stock,
   ceiling,
   locale,
+  daysAreNights = false,
   onBump,
   onToggleDay,
 }: Props) {
@@ -90,7 +94,7 @@ export function CompanionAddonCard({
               data-testid={`addon-day-price-${addon.addon_product_id}`}
             >
               {formatCurrency(Number(addon.price_per_unit), addon.currency, locale)}{' '}
-              {tr('companionPerDaySuffix', locale)}
+              {companionPriceSuffix(addon.price_unit, daysAreNights, locale)}
             </span>
           ) : (
             <span className="text-xs text-muted-foreground">{tr('priceOnRequest', locale)}</span>

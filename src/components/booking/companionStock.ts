@@ -1,20 +1,20 @@
 /**
- * landr-a27k9.2: per-DAY stock of a parent's add-ons, for the companion cards
- * (an add-on the guest books on a subset of the parent's days).
+ * landr-a27k9.2 / .6: per-DAY stock of a parent's add-ons, for the companion
+ * cards (an add-on the guest books on a subset of the parent's days).
  *
  * The add-ons endpoint judges stock over ALL the days it is sent (the lowest
  * remaining), so one full night would sell the whole add-on out. A companion
  * card needs it per day -- a full night's chip is disabled, the stepper stops
- * at the lowest remaining across the PICKED days -- so each day is asked on
- * its own. A day whose lookup fails is simply absent: the card stays usable
- * and the API still judges the submit.
+ * at the lowest remaining across the PICKED days -- so the batch lookup judges
+ * each day on its own, in one call. A failed lookup leaves the card usable
+ * (fail open) and the API still judges the submit.
  */
 import { useEffect, useMemo, useState } from 'react'
-import { getProductAddons } from '@/api/client'
+import { getProductAddonsDayStock } from '@/api/client'
 import type { CompanionDayStock } from './addonsState'
 
-/** Most days looked up one by one; a longer stay falls back to the API's submit check. */
-export const COMPANION_STOCK_MAX_DAYS = 31
+/** Most days looked up at once (the API's cap, `ADDON_STOCK_MAX_DAYS`); a longer stay falls back to the API's submit check. */
+export const COMPANION_STOCK_MAX_DAYS = 62
 
 export async function fetchCompanionDayStock(
   parentProductId: string,
@@ -24,26 +24,18 @@ export async function fetchCompanionDayStock(
   const unique = [...new Set(days)]
   const out: CompanionDayStock = {}
   if (unique.length === 0 || unique.length > COMPANION_STOCK_MAX_DAYS) return out
-  await Promise.all(
-    unique.map(async (day) => {
-      try {
-        const rows = await getProductAddons(parentProductId, {
-          selectedDays: [day],
-          participants,
-        })
-        const verdicts: CompanionDayStock[string] = {}
-        for (const r of rows) {
-          verdicts[r.addon_product_id] = {
-            available: r.available !== false,
-            remaining: typeof r.stock_remaining === 'number' ? r.stock_remaining : null,
-          }
-        }
-        out[day] = verdicts
-      } catch {
-        /* fail open: this day stays selectable */
+  try {
+    const rows = await getProductAddonsDayStock(parentProductId, unique, participants)
+    for (const r of rows) {
+      const verdicts = (out[r.day] ??= {})
+      verdicts[r.addon_product_id] = {
+        available: r.available !== false,
+        remaining: typeof r.stock_remaining === 'number' ? r.stock_remaining : null,
       }
-    }),
-  )
+    }
+  } catch {
+    /* fail open: every day stays selectable */
+  }
   return out
 }
 

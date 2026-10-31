@@ -123,6 +123,8 @@ interface Props {
    * lists (other rooms) already hold; the party-size cap is shared with them.
    */
   companionElsewhere?: Record<string, number>
+  /** landr-a27k9.6: `parentDays` are a stay's / room's nights (price suffix "/ night"). */
+  daysAreNights?: boolean
 }
 
 /** Show the "only N left" hint at or below this many. */
@@ -143,6 +145,7 @@ export function AddonsList({
   onDaysChange,
   parentProductId,
   companionElsewhere,
+  daysAreNights,
 }: Props) {
   const locale = browserLocale()
   const companionsOn = !!parentDays && !!onDaysChange
@@ -251,6 +254,7 @@ export function AddonsList({
               stock={companionStock}
               ceiling={companionCeiling(view)}
               locale={locale}
+              daysAreNights={daysAreNights}
               onBump={(delta) => bumpQty(view, delta)}
               onToggleDay={(day) => toggleDay(rawAddon, day)}
             />
