@@ -22,6 +22,159 @@ export interface AddonSelection {
    * still-correct behavior for a plain service-tied add-on).
    */
   productKind?: ProductKind
+  /**
+   * landr-a27k9.2: a day-pickable companion add-on ('parent_subset') carries
+   * the days the guest picked (a non-empty subset of the parent's days /
+   * nights). BookingForm.onConfirm submits exactly these instead of the
+   * parent's window; absent = the add-on follows its parent's days.
+   */
+  selectedDays?: string[]
+  /** Companion display data, so the price sidebar can show qty x days x price. */
+  name?: string
+  nameLocalized?: Record<string, string> | null
+  unitPrice?: number | null
+  currency?: string | null
+}
+
+/** landr-a27k9.2: the add-on is booked on a subset of its parent's days. */
+export function isCompanion(
+  addon: Partial<Pick<ProductAddon, 'day_selection'>>,
+): boolean {
+  return addon.day_selection === 'parent_subset'
+}
+
+/** Stock verdict of one add-on on ONE day (a single-day add-ons query). */
+export interface CompanionDayVerdict {
+  available: boolean
+  remaining: number | null
+}
+
+/** day (ISO) -> addon_product_id -> verdict. */
+export type CompanionDayStock = Record<string, Record<string, CompanionDayVerdict>>
+
+/** The day has no unit of the add-on left. */
+export function isCompanionDayFull(
+  stock: CompanionDayStock | null | undefined,
+  addonId: string,
+  day: string,
+): boolean {
+  const v = stock?.[day]?.[addonId]
+  if (!v) return false
+  return !v.available || v.remaining === 0
+}
+
+/**
+ * The days a companion pick really covers: the picked days that are still
+ * among the parent's days (the stay changed). Order follows the parent's
+ * days. A day that has since filled up stays picked -- the card flags it and
+ * the API has the last word -- so the pick never changes under the guest.
+ */
+export function effectiveCompanionDays(
+  picked: readonly string[] | undefined,
+  parentDays: readonly string[],
+): string[] {
+  if (!picked || picked.length === 0) return []
+  const set = new Set(picked)
+  return parentDays.filter((d) => set.has(d))
+}
+
+/**
+ * landr-a27k9.2: the companion with its stock judged on the PICKED days only
+ * -- the lowest remaining across them. The row's own stock fields (counted
+ * over every day of the stay) would sell the whole add-on out the moment one
+ * night is full.
+ */
+export function companionView(
+  addon: ProductAddon,
+  chosenDays: readonly string[],
+  stock: CompanionDayStock | null | undefined,
+): ProductAddon {
+  let lowest: number | null = null
+  for (const d of chosenDays) {
+    const r = stock?.[d]?.[addon.addon_product_id]?.remaining
+    if (typeof r === 'number') lowest = lowest === null ? r : Math.min(lowest, r)
+  }
+  return {
+    ...addon,
+    available: true,
+    unavailable_reason: null,
+    stock_remaining: lowest,
+  }
+}
+
+/**
+ * landr-a27k9.2: the most of a companion the party may take, before stock:
+ * its own rule / max, the party size (a bike per guest at most) less what
+ * OTHER lists (other rooms) already hold of it.
+ */
+export function companionQtyCeiling(
+  addon: Pick<ProductAddon, 'max_qty'> &
+    Partial<
+      Pick<ProductAddon, 'product_kind' | 'addon_quantity_rule' | 'addon_quantity_max'>
+    >,
+  participantCount?: number,
+  elsewhere = 0,
+): number {
+  const party =
+    participantCount === undefined
+      ? Number.POSITIVE_INFINITY
+      : Math.max(1, participantCount) - elsewhere
+  return Math.max(
+    0,
+    Math.min(
+      addon.max_qty ?? Number.POSITIVE_INFINITY,
+      addonRuleCeiling(addon, participantCount),
+      party,
+    ),
+  )
+}
+
+/**
+ * A companion picked above what the party may take (a stale restore, a party
+ * that shrank): Continue must stay blocked until the quantity is lowered.
+ * Stock is not judged here -- the list clamps to it as it arrives.
+ */
+export function companionOverCap(
+  addons: readonly ProductAddon[],
+  selection: Record<string, number>,
+  participantCount?: number,
+  elsewhereById: Record<string, number> = {},
+): boolean {
+  return addons.some(
+    (a) =>
+      isCompanion(a) &&
+      (selection[a.addon_product_id] ?? 0) >
+        companionQtyCeiling(a, participantCount, elsewhereById[a.addon_product_id] ?? 0),
+  )
+}
+
+/** Add or remove one day from a companion's pick. */
+export function toggleCompanionDay(
+  picked: readonly string[] | undefined,
+  day: string,
+): string[] {
+  const set = new Set(picked ?? [])
+  if (set.has(day)) set.delete(day)
+  else set.add(day)
+  return [...set].sort()
+}
+
+/**
+ * Companions with a quantity but no (still valid) day: the step cannot
+ * continue, and the line would be refused (companion_days_required).
+ */
+export function companionDaysMissing(
+  addons: readonly ProductAddon[],
+  selection: Record<string, number>,
+  daysByAddon: Record<string, string[] | undefined>,
+  parentDays: readonly string[],
+): boolean {
+  return addons.some(
+    (a) =>
+      isCompanion(a) &&
+      (selection[a.addon_product_id] ?? 0) > 0 &&
+      effectiveCompanionDays(daysByAddon[a.addon_product_id], parentDays).length === 0,
+  )
 }
 
 /**
@@ -240,7 +393,10 @@ export function withoutSoldOut(
     'addon_product_id' | 'available' | 'stock_remaining'
   > &
     Partial<
-      Pick<ProductAddon, 'product_kind' | 'addon_quantity_rule' | 'addon_quantity_max'>
+      Pick<
+        ProductAddon,
+        'product_kind' | 'addon_quantity_rule' | 'addon_quantity_max' | 'day_selection'
+      >
     >)[],
   participantCount?: number,
 ): Record<string, number> {
@@ -248,7 +404,10 @@ export function withoutSoldOut(
   for (const a of addons) {
     const id = a.addon_product_id
     if (!(id in selection)) continue
-    if (isAddonSoldOut(a)) {
+    // landr-a27k9.2: a companion's stock is judged per picked day by its card;
+    // the row's all-days verdict must not drop a pick that fits its own days.
+    const companion = isCompanion(a)
+    if (!companion && isAddonSoldOut(a)) {
       next ??= { ...selection }
       delete next[id]
       continue
@@ -256,7 +415,7 @@ export function withoutSoldOut(
     // landr-lmudr.32: a restored pick above the stock left is trimmed to it;
     // landr-hzovu.2: likewise above what the add-on's quantity rule allows.
     const ceiling = Math.min(
-      addonStockCeiling(a),
+      companion ? Number.POSITIVE_INFINITY : addonStockCeiling(a),
       addonRuleCeiling(a, participantCount),
     )
     if (selection[id] > ceiling) {
@@ -281,16 +440,44 @@ export function withoutSoldOut(
  */
 export function selectionToLines(
   selection: Record<string, number>,
-  addons: readonly Pick<ProductAddon, 'addon_product_id' | 'product_kind'>[] = [],
+  addons: readonly (Pick<ProductAddon, 'addon_product_id' | 'product_kind'> &
+    Partial<
+      Pick<
+        ProductAddon,
+        'day_selection' | 'name' | 'name_localized' | 'price_per_unit' | 'currency'
+      >
+    >)[] = [],
+  /**
+   * landr-a27k9.2: the picked days of each companion (already trimmed to its
+   * parent's days). A companion without any day yields NO line -- it cannot
+   * be booked, and the step's gate blocks Continue until a day is picked.
+   */
+  companionDays: Record<string, string[] | undefined> = {},
 ): AddonSelection[] {
-  const kindById = new Map(addons.map((a) => [a.addon_product_id, a.product_kind]))
+  const byId = new Map(addons.map((a) => [a.addon_product_id, a]))
   return Object.entries(selection)
     .filter(([, qty]) => qty > 0)
-    .map(([productId, quantity]) => ({
-      productId,
-      quantity,
-      ...(kindById.has(productId)
-        ? { productKind: kindById.get(productId) }
-        : {}),
-    }))
+    .flatMap(([productId, quantity]): AddonSelection[] => {
+      const row = byId.get(productId)
+      const base: AddonSelection = {
+        productId,
+        quantity,
+        ...(row ? { productKind: row.product_kind } : {}),
+      }
+      if (row && isCompanion(row)) {
+        const days = companionDays[productId] ?? []
+        if (days.length === 0) return []
+        return [
+          {
+            ...base,
+            selectedDays: days,
+            ...(row.name ? { name: row.name } : {}),
+            ...(row.name_localized ? { nameLocalized: row.name_localized } : {}),
+            unitPrice: row.price_per_unit ?? null,
+            currency: row.currency ?? null,
+          },
+        ]
+      }
+      return [base]
+    })
 }

@@ -62,6 +62,7 @@ import { extraEstimateRequests, mergeEstimates, type ExtraLine } from './crossSe
 import { useExtraLineEstimates } from './useExtraLineEstimates'
 import {
   buildAddonLines,
+  companionEstimate,
   buildDiscountExplanation,
   groupPerformerLines,
   isSavingsLine,
@@ -326,9 +327,9 @@ function BookingOverviewBody({
             {tr('youPayNowHeading', locale)}
           </h4>
           <ul className="space-y-2 text-sm">
-            {operator.map((li) => (
+            {operator.map((li, liIdx) => (
               <li
-                key={`op-${li.product_id}`}
+                key={`op-${li.product_id}-${liIdx}`}
                 className="flex items-baseline justify-between gap-2"
               >
                 <span className="flex-1">
@@ -641,8 +642,19 @@ export default function PriceSidebar(props: Props) {
           ? { ...estimate, data: null, isStale: false, error: extras.error }
           : { ...estimate, isStale: true }
 
+  // landr-a27k9.2: companion add-ons on a subset of the days, qty x days x price.
+  const mainCurrency = combined.data?.currency
+  const companionEst = useMemo(
+    () => (mainCurrency ? companionEstimate(addons, mainCurrency, browserLocale()) : null),
+    [addons, mainCurrency],
+  )
+  const withCompanions: typeof estimate =
+    companionEst && combined.data
+      ? { ...combined, data: mergeEstimates(combined.data, [{ estimate: companionEst, quantity: 1 }]) }
+      : combined
+
   const visible: typeof estimate = hasSelection
-    ? combined
+    ? withCompanions
     : {
         data: null,
         isLoading: false,

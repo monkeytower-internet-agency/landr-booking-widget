@@ -1,5 +1,8 @@
+import { useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import type { ProductAddon } from '@/api/types'
+import { CompanionAddonCard } from './CompanionAddonCard'
+import { useCompanionDayStock } from './companionStock'
 import { browserLocale, pickLocalized } from '@/lib/locale'
 import { addonDeviationMessage, addonUnitSuffix, qtyAdjustAriaLabel, tr } from '@/lib/strings'
 import { formatCurrency } from './accommodationCalc'
@@ -8,7 +11,12 @@ import {
   addonRuleCeiling,
   addonStockCeiling,
   addonUnavailableMessage,
+  companionQtyCeiling,
+  companionView,
+  effectiveCompanionDays,
   isAddonSoldOut,
+  isCompanion,
+  toggleCompanionDay,
   isOverbooked,
   requiredAddonError,
   withClaimedStock,
@@ -98,6 +106,23 @@ interface Props {
    * stock_remaining so two stays sharing a pool cannot oversell it.
    */
   claimedElsewhere?: Record<string, number>
+  /**
+   * landr-a27k9.2: day-pickable companion add-ons (day_selection =
+   * 'parent_subset'). `parentDays` = the days / nights of the parent they may
+   * be booked on, `daysSelection` = the picked days per add-on (by
+   * addon_product_id), `onDaysChange` its setter, `parentProductId` = the
+   * product the add-ons hang off (for the per-day stock lookup). A list
+   * without `parentDays` + `onDaysChange` draws a companion as a plain row.
+   */
+  parentDays?: string[]
+  daysSelection?: Record<string, string[]>
+  onDaysChange?: (next: Record<string, string[]>) => void
+  parentProductId?: string
+  /**
+   * landr-a27k9.2: quantity of each companion (by addon_product_id) that OTHER
+   * lists (other rooms) already hold; the party-size cap is shared with them.
+   */
+  companionElsewhere?: Record<string, number>
 }
 
 /** Show the "only N left" hint at or below this many. */
@@ -113,10 +138,21 @@ export function AddonsList({
   participantCount,
   heading,
   claimedElsewhere,
+  parentDays,
+  daysSelection,
+  onDaysChange,
+  parentProductId,
+  companionElsewhere,
 }: Props) {
   const locale = browserLocale()
-
-  if (addons.length === 0) return null
+  const companionsOn = !!parentDays && !!onDaysChange
+  const hasCompanion = companionsOn && addons.some(isCompanion)
+  const companionStock = useCompanionDayStock(
+    parentProductId,
+    parentDays ?? [],
+    participantCount,
+    hasCompanion,
+  )
 
   // landr-yybu: occupancy hard-cap for room-linked add-ons. undefined for
   // service-flow callers (occupancyLimited=false) so they stay uncapped.
@@ -134,12 +170,92 @@ export function AddonsList({
     onChange(out)
   }
 
+  // landr-a27k9.2: a companion's stepper cap is min(rule / max, party size
+  // less the other rooms' share, stock on the PICKED days, room occupancy).
+  function companionCeiling(addon: ProductAddon): number {
+    return Math.min(
+      companionQtyCeiling(
+        addon,
+        participantCount,
+        companionElsewhere?.[addon.addon_product_id] ?? 0,
+      ),
+      addonStockCeiling(addon),
+      occupancyCap ?? Number.POSITIVE_INFINITY,
+    )
+  }
+
+  // Re-clamp every companion's quantity whenever its effective days, the
+  // stock or the party change -- not only when a chip is toggled (a stay
+  // change trims days, a stock refresh lowers what is left). Idempotent: it
+  // only calls onChange while a quantity is above its cap.
+  useEffect(() => {
+    if (!companionsOn || !parentDays) return
+    let next: Record<string, number> | null = null
+    for (const raw of addons) {
+      if (!isCompanion(raw)) continue
+      const id = raw.addon_product_id
+      const qty = selection[id] ?? 0
+      if (qty <= 0) continue
+      const picked = effectiveCompanionDays(daysSelection?.[id], parentDays)
+      const cap = companionCeiling(
+        withClaimedStock(
+          companionView(raw, picked, companionStock),
+          claimedElsewhere?.[id] ?? 0,
+        ),
+      )
+      if (qty > cap) {
+        next ??= { ...selection }
+        if (cap > 0) next[id] = cap
+        else delete next[id]
+      }
+    }
+    if (next) onChange(next)
+  })
+
+  if (addons.length === 0) return null
+
+  function toggleDay(rawAddon: ProductAddon, day: string) {
+    if (!parentDays || !onDaysChange) return
+    const id = rawAddon.addon_product_id
+    const current = effectiveCompanionDays(daysSelection?.[id], parentDays)
+    const nextDays = toggleCompanionDay(current, day)
+    onDaysChange({ ...(daysSelection ?? {}), [id]: nextDays })
+    // Fewer / other days can lower the stock the quantity may use.
+    const qty = selection[id] ?? 0
+    const view = effective(companionView(rawAddon, nextDays, companionStock))
+    const cap = companionCeiling(view)
+    if (qty > cap) {
+      const out = { ...selection, [id]: Math.max(0, cap) }
+      if (out[id] === 0) delete out[id]
+      onChange(out)
+    }
+  }
+
   return (
     <div className="flex flex-col gap-2" data-testid="addons-list">
       {heading ? (
         <p className="text-xs font-medium text-muted-foreground">{heading}</p>
       ) : null}
       {addons.map((rawAddon) => {
+        if (companionsOn && isCompanion(rawAddon) && parentDays) {
+          const id = rawAddon.addon_product_id
+          const picked = effectiveCompanionDays(daysSelection?.[id], parentDays)
+          const view = effective(companionView(rawAddon, picked, companionStock))
+          return (
+            <CompanionAddonCard
+              key={rawAddon.product_addon_id}
+              addon={view}
+              quantity={selection[id] ?? 0}
+              pickedDays={picked}
+              parentDays={parentDays}
+              stock={companionStock}
+              ceiling={companionCeiling(view)}
+              locale={locale}
+              onBump={(delta) => bumpQty(view, delta)}
+              onToggleDay={(day) => toggleDay(rawAddon, day)}
+            />
+          )
+        }
         const addon = effective(rawAddon)
         const qty = selection[addon.addon_product_id] ?? 0
         const addonName = pickLocalized(addon.name, addon.name_localized, locale)

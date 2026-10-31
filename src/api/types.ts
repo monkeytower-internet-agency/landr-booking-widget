@@ -935,6 +935,19 @@ export interface ProductAddon {
    * (and absent, on an older API) = once per item.
    */
   price_unit?: AddonPriceUnit | null
+  /**
+   * landr-a27k9.1: 'parent_subset' = a companion add-on (a city bike): the
+   * guest picks any non-empty subset of the parent's days / nights, one
+   * quantity for the line. 'parent_all' / absent = the add-on follows its
+   * parent's days (the pre-existing behaviour).
+   */
+  day_selection?: 'parent_all' | 'parent_subset' | null
+  /** landr-a27k9.1: the add-on product's own pictures (renditions), for its card. */
+  images?: ProductImage[]
+  thumb_url?: string | null
+  /** Optional blurb for the card; not sent by every API build. */
+  short_description?: string | null
+  short_description_localized?: Record<string, string> | null
 }
 
 export interface AvailabilitySlot {

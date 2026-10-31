@@ -711,6 +711,19 @@ export type Bundle = {
   addonUnitTakenTemplate: string
   /** landr-lmudr.32: the stepper reached the stock left — `{n}` = how many. */
   addonStockLeftTemplate: string
+  companionPerDaySuffix: string
+  companionDaysAriaTemplate: string
+  companionDayFull: string
+  companionDaysRequired: string
+  companionPickedDaySoldOut: string
+  companionDaysToContinue: string
+  companionQtyToContinue: string
+  companionErrDaysRequired: string
+  companionErrOutsideParent: string
+  companionErrParentMissing: string
+  companionErrOutOfStock: string
+  companionErrQuantityMax: string
+  companionErrNoLongerFits: string
   pickRequiredAddonsCue: string
   pickRequiredAddonsToContinue: string
   requiredSuffix: string
@@ -1649,6 +1662,19 @@ const en: Bundle = {
   addonUnitTaken: 'Reserved for another group on your dates.',
   addonUnitTakenTemplate: '{unit}: fully reserved for another group on your dates.',
   addonStockLeftTemplate: 'Only {n} left for your dates.',
+  companionPerDaySuffix: '/ day',
+  companionDaysAriaTemplate: 'Days for {item}',
+  companionDayFull: 'Fully booked on this day',
+  companionDaysRequired: 'Pick at least one day.',
+  companionPickedDaySoldOut: 'Sold out on a day you picked — pick other days.',
+  companionDaysToContinue: 'Pick at least one day for each add-on you chose.',
+  companionQtyToContinue: 'Lower the quantity of your add-ons to continue.',
+  companionErrDaysRequired: 'Please pick at least one day for this add-on.',
+  companionErrOutsideParent: 'This add-on can only be booked on days your booking covers. Please go back and check the days.',
+  companionErrParentMissing: 'This add-on can only be booked together with the product it belongs to.',
+  companionErrOutOfStock: 'Not enough of this add-on is left on the days you picked. Please lower the quantity or pick other days.',
+  companionErrQuantityMax: 'You picked more of this add-on than is allowed. Please lower the quantity.',
+  companionErrNoLongerFits: 'This add-on no longer fits your booking dates. Please go back and check its days.',
   pickRequiredAddonsCue: 'pick your required add-ons',
   pickRequiredAddonsToContinue: 'Pick every required add-on to continue.',
   requiredSuffix: 'required',
