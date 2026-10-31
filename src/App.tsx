@@ -2754,10 +2754,11 @@ function BookingFlowApp() {
             operatorToken={token ?? undefined}
             operatorTimezone={operatorSettings.timezone}
             contactEmail={operatorSettings.contact_email ?? null}
-            onConfirm={(selectedDays, forcedDays, forcedReasons) =>
+            onConfirm={(selectedDays, forcedDays, forcedReasons, pastStart) =>
               afterSelection(step.product, {
                 kind: 'days',
                 selectedDays,
+                ...(pastStart ? { pastStart } : {}),
                 // landr-aoak.2/t869m.5: carry the force-booked subset (staff
                 // mode only) and which gate(s) it bypassed.
                 ...(forcedDays && forcedDays.length > 0

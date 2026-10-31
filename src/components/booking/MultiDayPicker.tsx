@@ -143,6 +143,28 @@ function fillRange(from: Date, to: Date, availableSet: Set<string>): string[] {
   return out
 }
 
+/** Ends of the span a range click builds (same rule the customer path uses). */
+function spanEnds(valueSet: Set<string>, anchor: Date, day: Date): [Date, Date] {
+  const sorted = Array.from(valueSet).sort()
+  const first = dateFromIso(sorted[0]!)
+  const last = dateFromIso(sorted[sorted.length - 1]!)
+  if (day < first) return [day, last]
+  if (day > last) return [first, day]
+  return anchor <= day ? [anchor, day] : [day, anchor]
+}
+
+/** Every ISO day from `from` to `to` inclusive (staff range fill). */
+function everyDay(from: Date, to: Date): string[] {
+  const out: string[] = []
+  const cursor = new Date(from.getFullYear(), from.getMonth(), from.getDate())
+  const limit = new Date(to.getFullYear(), to.getMonth(), to.getDate())
+  while (cursor <= limit) {
+    out.push(isoDate(cursor))
+    cursor.setDate(cursor.getDate() + 1)
+  }
+  return out
+}
+
 function sortedDates(isoSet: Set<string>): Date[] {
   return Array.from(isoSet)
     .sort()
@@ -257,6 +279,15 @@ export function MultiDayPicker({
     const end = dateFromIso(availabilityWindow(startOfToday(operatorTimezone)).toIso)
     return new Date(end.getFullYear(), end.getMonth(), 1)
   }, [operatorTimezone])
+  // Operator's today: days before it are "past" (staff may still backfill them).
+  const today = useMemo(() => startOfToday(operatorTimezone), [operatorTimezone])
+  const isPast = useCallback((date: Date) => date < today, [today])
+  // Staff only: a future day customers cannot book but the operator may force.
+  const isOverride = useCallback(
+    (date: Date) =>
+      canForce && date >= today && !availableSet.has(isoDate(date)),
+    [canForce, today, availableSet],
+  )
   const peekMonth = useMemo(
     () => new Date(month.getFullYear(), month.getMonth() + 1, 1),
     [month],
@@ -329,6 +360,19 @@ export function MultiDayPicker({
           }
           return
         }
+        // Range gesture in staff mode: fill EVERY day between the ends (unbookable
+        // ones become forced days) behind ONE confirm, not one per day.
+        const lone = valueSet.size === 1 && valueSet.has(key)
+        if (!toggle && anchor !== null && valueSet.size > 0 && !lone) {
+          const [rangeFrom, rangeTo] = spanEnds(valueSet, anchor, day)
+          const days = everyDay(rangeFrom, rangeTo)
+          if (days.some((iso) => !availableSet.has(iso)) && !confirmOverride()) {
+            return
+          }
+          setAnchor(day)
+          onChange(sortedDates(new Set(days)))
+          return
+        }
         if (!confirmOverride()) {
           return
         }
@@ -337,6 +381,23 @@ export function MultiDayPicker({
         else forcedNext.add(key)
         setAnchor(day)
         onChange(sortedDates(forcedNext))
+        return
+      }
+      // Staff range gesture landing on a bookable day: same fill-every-day rule.
+      if (
+        canForce &&
+        !toggle &&
+        anchor !== null &&
+        valueSet.size > 0 &&
+        !(valueSet.size === 1 && valueSet.has(key))
+      ) {
+        const [rangeFrom, rangeTo] = spanEnds(valueSet, anchor, day)
+        const days = everyDay(rangeFrom, rangeTo)
+        if (days.some((iso) => !availableSet.has(iso)) && !confirmOverride()) {
+          return
+        }
+        setAnchor(day)
+        onChange(sortedDates(new Set(days)))
         return
       }
       const next = new Set(valueSet)
@@ -588,6 +649,10 @@ export function MultiDayPicker({
             diffAdded: diffAddedDates,
             diffRemoved: diffRemovedDates,
             short: shortDates,
+            // Staff only (canForce): past / force-only days stay clickable but
+            // read differently from bookable ones. Customers get disabled days.
+            past: canForce ? isPast : [],
+            override: isOverride,
           }}
         />
       </CalendarDayHintContext.Provider>
@@ -628,6 +693,8 @@ export function MultiDayPicker({
                         diffAdded: diffAddedSet.has(iso),
                         diffRemoved: diffRemovedSet.has(iso),
                         short: shortSeats.has(iso),
+                        past: canForce && isPast(date),
+                        override: isOverride(date),
                       } as Modifiers
                     }
                     disabled={disabled}

@@ -448,3 +448,53 @@ describe('MultiDayStep — invite summary honours the group size (landr-rmcsu.7)
     expect(screen.getByText('1 day selected')).toBeInTheDocument()
   })
 })
+
+describe('MultiDayStep — staff past start confirm', () => {
+  const YESTERDAY = isoDate(dayFromNow(-1))
+  const renderStaff = (onConfirm = vi.fn(), onBack = vi.fn()) => {
+    render(
+      <StaffModeProvider
+        value={{ active: true, token: 't', powers: ALL_STAFF_POWERS, operatorId: 'op' }}
+      >
+        <MultiDayStep
+          product={PRODUCT}
+          onConfirm={onConfirm}
+          onBack={onBack}
+          initialSelectedDays={[YESTERDAY, OPEN_A]}
+        />
+      </StaffModeProvider>,
+    )
+    return onConfirm
+  }
+
+  it('asks in the widget first; Back keeps the step, Book anyway proceeds with the past start', async () => {
+    const onConfirm = renderStaff()
+    const cont = await screen.findByTestId('multi-day-step-submit')
+    fireEvent.click(cont)
+    expect(onConfirm).not.toHaveBeenCalled()
+    expect(screen.getByTestId('past-start-confirm')).toHaveTextContent(/1 day ago/)
+
+    fireEvent.click(screen.getByTestId('past-start-back'))
+    expect(screen.queryByTestId('past-start-confirm')).not.toBeInTheDocument()
+    expect(onConfirm).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByTestId('multi-day-step-submit'))
+    fireEvent.click(screen.getByTestId('past-start-proceed'))
+    expect(onConfirm).toHaveBeenCalledTimes(1)
+    expect(onConfirm.mock.calls[0]![3]).toEqual({ iso: YESTERDAY, daysAgo: 1 })
+  })
+
+  it('a future-only staff selection continues without asking', async () => {
+    const onConfirm = vi.fn()
+    render(
+      <StaffModeProvider
+        value={{ active: true, token: 't', powers: ALL_STAFF_POWERS, operatorId: 'op' }}
+      >
+        <MultiDayStep product={PRODUCT} onConfirm={onConfirm} initialSelectedDays={[OPEN_A]} />
+      </StaffModeProvider>,
+    )
+    fireEvent.click(await screen.findByTestId('multi-day-step-submit'))
+    expect(screen.queryByTestId('past-start-confirm')).not.toBeInTheDocument()
+    expect(onConfirm).toHaveBeenCalledTimes(1)
+  })
+})

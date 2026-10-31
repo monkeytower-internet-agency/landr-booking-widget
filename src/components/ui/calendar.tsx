@@ -161,7 +161,7 @@ function Calendar({
         range_middle: cn("rounded-none", defaultClassNames.range_middle),
         range_end: cn("rounded-r-md bg-accent", defaultClassNames.range_end),
         today: cn(
-          "rounded-md bg-accent text-accent-foreground data-[selected=true]:rounded-none",
+          "rounded-md ring-1 ring-inset ring-primary",
           defaultClassNames.today
         ),
         outside: cn(
@@ -253,6 +253,8 @@ function CalendarDayButton({
   const override = modifiers.override === true
   // The product itself is full that day but another activity is free: the day
   // stays clickable, marked by a small dot (never a fill colour).
+  // Staff only: a day before the operator's today (clickable for backfilling).
+  const past = modifiers.past === true
   const altOnly = modifiers.altOnly === true
   // The product has no slot at all that day (not merely full): wording only.
   const notOffered = modifiers.notOffered === true
@@ -343,6 +345,7 @@ function CalendarDayButton({
       data-diff={diffAdded ? "added" : diffRemoved ? "removed" : undefined}
       data-short={short || undefined}
       data-override={override || undefined}
+      data-past={past || undefined}
       data-alt-only={altOnly || undefined}
       aria-label={ariaLabel}
       title={hint}
@@ -369,6 +372,8 @@ function CalendarDayButton({
         override &&
           !modifiers.selected &&
           "text-muted-foreground underline decoration-dotted underline-offset-4",
+        past && !modifiers.selected && "text-muted-foreground/60",
+        past && modifiers.selected && "ring-2 ring-inset ring-amber-500",
         defaultClassNames.day,
         className
       )}

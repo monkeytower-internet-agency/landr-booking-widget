@@ -28,6 +28,7 @@ import {
   multiDayGate,
   sameDaysAsHostForLabel,
   tr,
+  pastStartText,
 } from '@/lib/strings'
 import { browserLocale } from '@/lib/locale'
 import { NextAction } from '@/components/booking/NextAction'
@@ -51,6 +52,8 @@ interface Props {
     selectedDays: string[],
     forcedDays?: string[],
     forcedReasons?: ForceReason[],
+    /** Staff only: earliest picked day (ISO) when it is before the operator's today. */
+    pastStart?: { iso: string; daysAgo: number },
   ) => void
   /**
    * Called whenever the user's day selection changes so App.tsx can feed
@@ -146,6 +149,9 @@ export function MultiDayStep({
 }: Props) {
   const [slots, setSlots] = useState<AvailabilitySlot[] | null>(null)
   const [error, setError] = useState<string | null>(null)
+  // Staff picked a start before today: Continue asks first (in-widget; a native
+  // confirm is suppressed inside the dashboard iframe).
+  const [confirmingPast, setConfirmingPast] = useState(false)
   useReportLoaded(slots !== null || error !== null, onLoaded)
   const [selectedDays, setSelectedDays] = useState<Date[]>(() =>
     (initialSelectedDays ?? []).map(dateFromIso),
@@ -304,6 +310,20 @@ export function MultiDayStep({
     onLiveDaysChange?.(selectedDays.map(isoDate))
   }, [selectedDays, onLiveDaysChange])
 
+  // Staff-only: earliest picked day before the operator's today, else null.
+  const pastStartIso = useMemo(() => {
+    if (!canForce || selectedDays.length === 0) return null
+    const earliest = selectedDays.map(isoDate).sort()[0]!
+    return earliest < isoDate(startOfToday(operatorTimezone)) ? earliest : null
+  }, [canForce, selectedDays, operatorTimezone])
+  const pastDaysAgo =
+    pastStartIso === null
+      ? 0
+      : Math.round(
+          (startOfToday(operatorTimezone).getTime() - dateFromIso(pastStartIso).getTime()) /
+            86_400_000,
+        )
+
   if (error) {
     return (
       <Card>
@@ -380,6 +400,19 @@ export function MultiDayStep({
       </Card>
     )
   }
+  const submit = () =>
+    pastStartIso === null
+      ? onConfirm(
+          selectedDays.map(isoDate),
+          forcedDays,
+          forcedDays.length > 0 ? forcedReasons : undefined,
+        )
+      : onConfirm(
+          selectedDays.map(isoDate),
+          forcedDays,
+          forcedDays.length > 0 ? forcedReasons : undefined,
+          { iso: pastStartIso, daysAgo: pastDaysAgo },
+        )
 
   return (
     <Card>
@@ -467,12 +500,55 @@ export function MultiDayStep({
                 : multiDayGate(selectedDays.length, locale)
           }
           reasonId="multi-day-step-gate"
-          onContinue={() =>
-            onConfirm(
-              selectedDays.map(isoDate),
-              forcedDays,
-              forcedDays.length > 0 ? forcedReasons : undefined,
-            )
+          onContinue={() => {
+            if (pastStartIso !== null) {
+              setConfirmingPast(true)
+              return
+            }
+            submit()
+          }}
+          below={
+            confirmingPast && pastStartIso !== null ? (
+              <div
+                role="alertdialog"
+                aria-label={pastStartText(
+                  'pastStartConfirm',
+                  formatDayLabel(pastStartIso, locale),
+                  pastDaysAgo,
+                  locale,
+                )}
+                data-testid="past-start-confirm"
+                className="mt-2 flex flex-col gap-2 rounded-lg border border-amber-400 bg-amber-50 p-3 text-sm dark:border-amber-600 dark:bg-amber-950/40"
+              >
+                <p className="text-amber-900 dark:text-amber-100">
+                  {pastStartText(
+                    'pastStartConfirm',
+                    formatDayLabel(pastStartIso, locale),
+                    pastDaysAgo,
+                    locale,
+                  )}
+                </p>
+                <div className="flex justify-end gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setConfirmingPast(false)}
+                    data-testid="past-start-back"
+                  >
+                    {tr('pastStartBack', locale)}
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={submit}
+                    data-testid="past-start-proceed"
+                  >
+                    {tr('pastStartBookAnyway', locale)}
+                  </Button>
+                </div>
+              </div>
+            ) : null
           }
           data-testid="multi-day-step-submit"
         />
