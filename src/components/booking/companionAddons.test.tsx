@@ -20,12 +20,12 @@ import {
   type CompanionDayStock,
 } from './addonsState'
 import { flattenPerRoomAddons } from './accommodationCalc'
-import { buildAddonLines, companionEstimate } from './priceSidebarHelpers'
+import { buildAddonLines } from './priceSidebarHelpers'
 
-const getProductAddons = vi.hoisted(() => vi.fn())
+const getProductAddonsDayStock = vi.hoisted(() => vi.fn())
 vi.mock('@/api/client', async (orig) => ({
   ...(await orig<typeof import('@/api/client')>()),
-  getProductAddons,
+  getProductAddonsDayStock,
 }))
 
 const DAYS = ['2026-11-10', '2026-11-11', '2026-11-12']
@@ -53,26 +53,26 @@ function bike(overrides: Partial<ProductAddon> = {}): ProductAddon {
   }
 }
 
-/** A per-day addons endpoint: `stock` = remaining bikes per day (absent = unlimited). */
+/** The batch per-day stock endpoint: `stock` = remaining bikes per day (absent = unlimited). */
 function stockByDay(stock: Record<string, number>) {
-  getProductAddons.mockImplementation(
-    async (_parent: string, q?: { selectedDays: string[] }) => {
-      const day = q?.selectedDays[0] ?? ''
-      const left = stock[day]
-      return [
-        bike({
+  getProductAddonsDayStock.mockImplementation(
+    async (_parent: string, days: string[]) =>
+      days.map((day) => {
+        const left = stock[day]
+        return {
+          day,
+          addon_product_id: 'bike',
           available: left === undefined || left > 0,
           unavailable_reason: left === 0 ? 'sold_out' : null,
           stock_remaining: left ?? null,
-        }),
-      ]
-    },
+        }
+      }),
   )
 }
 
-/** Let the three per-day stock lookups land before interacting. */
+/** Let the one batch stock lookup land before interacting. */
 async function settle() {
-  await waitFor(() => expect(getProductAddons).toHaveBeenCalledTimes(DAYS.length))
+  await waitFor(() => expect(getProductAddonsDayStock).toHaveBeenCalledTimes(1))
   await act(async () => {})
 }
 
@@ -107,7 +107,7 @@ function Harness({
 
 describe('companion add-on card', () => {
   beforeEach(() => {
-    getProductAddons.mockReset()
+    getProductAddonsDayStock.mockReset()
     stockByDay({})
   })
 
@@ -120,24 +120,57 @@ describe('companion add-on card', () => {
     for (const d of DAYS) {
       expect(screen.getByTestId(`addon-day-bike-${d}`)).toHaveAttribute('aria-pressed', 'false')
     }
-    await waitFor(() => expect(getProductAddons).toHaveBeenCalledTimes(DAYS.length))
+    await waitFor(() => expect(getProductAddonsDayStock).toHaveBeenCalledTimes(1))
   })
 
-  it('asks the stock one day at a time and disables the chip of a day with none left', async () => {
+  it('shows the short description and a price suffix from the price unit', async () => {
+    const { rerender } = render(
+      <AddonsList
+        addons={[bike({ short_description: 'Basket and lock included', price_unit: 'night' })]}
+        selection={{}}
+        onChange={() => {}}
+        expectedQty={1}
+        participantCount={2}
+        parentProductId="parent-1"
+        parentDays={DAYS}
+        daysSelection={{}}
+        onDaysChange={() => {}}
+      />,
+    )
+    expect(screen.getByText('Basket and lock included')).toBeInTheDocument()
+    // Activity days: "/ day".
+    expect(screen.getByTestId('addon-day-price-bike')).toHaveTextContent('/ day')
+    const props = {
+      selection: {},
+      onChange: () => {},
+      expectedQty: 1,
+      participantCount: 2,
+      parentProductId: 'parent-1',
+      parentDays: DAYS,
+      daysSelection: {},
+      onDaysChange: () => {},
+    }
+    rerender(<AddonsList {...props} daysAreNights addons={[bike({ price_unit: 'night' })]} />)
+    expect(screen.getByTestId('addon-day-price-bike')).toHaveTextContent('/ night')
+    rerender(<AddonsList {...props} addons={[bike({ price_unit: 'booking' })]} />)
+    expect(screen.getByTestId('addon-day-price-bike')).not.toHaveTextContent('/ day')
+    expect(screen.getByTestId('addon-day-price-bike')).not.toHaveTextContent('/ night')
+    await act(async () => {})
+  })
+
+  it('asks the stock for all the days in one call and disables the chip of a day with none left', async () => {
     stockByDay({ '2026-11-11': 0 })
     render(<Harness />)
     await waitFor(() => expect(screen.getByTestId('addon-day-bike-2026-11-11')).toBeDisabled())
     expect(screen.getByTestId('addon-day-bike-2026-11-10')).not.toBeDisabled()
-    for (const call of getProductAddons.mock.calls) {
-      expect(call[1].selectedDays).toHaveLength(1)
-      expect(call[1].participants).toBe(2)
-    }
+    expect(getProductAddonsDayStock).toHaveBeenCalledTimes(1)
+    expect(getProductAddonsDayStock).toHaveBeenCalledWith('parent-1', DAYS, 2)
   })
 
   it('caps the stepper at min(party size, lowest remaining across the picked days)', async () => {
     stockByDay({ '2026-11-10': 5, '2026-11-11': 1, '2026-11-12': 5 })
     render(<Harness party={3} />)
-    await waitFor(() => expect(getProductAddons).toHaveBeenCalledTimes(3))
+    await settle()
     const plus = screen.getByRole('button', { name: /increase/i })
     // Day 10 only: min(3 guests, 5 left) = 3.
     fireEvent.click(screen.getByTestId('addon-day-bike-2026-11-10'))
@@ -177,8 +210,10 @@ describe('companion add-on card', () => {
   it('re-clamps the quantity when the stock on the picked days drops, without a chip toggle', async () => {
     stockByDay({ '2026-11-10': 1 })
     render(<Harness party={4} initial={{ bike: 3 }} initialDays={{ bike: ['2026-11-10'] }} />)
-    await waitFor(() => expect(screen.getByRole('button', { name: /increase/i })).toBeDisabled())
-    expect(screen.getByLabelText(/increase/i).previousElementSibling).toHaveTextContent('1')
+    await waitFor(() =>
+      expect(screen.getByLabelText(/increase/i).previousElementSibling).toHaveTextContent('1'),
+    )
+    expect(screen.getByRole('button', { name: /increase/i })).toBeDisabled()
   })
 
   it('re-clamps to the party size when the parent days or party change', async () => {
@@ -241,7 +276,6 @@ describe('companion helpers', () => {
     expect(lines.find((l) => l.productId === 'bike')).toMatchObject({
       quantity: 2,
       selectedDays: ['2026-11-10', '2026-11-12'],
-      unitPrice: 12,
     })
     expect(lines.find((l) => l.productId === 'video')?.selectedDays).toBeUndefined()
     expect(selectionToLines({ bike: 2 }, rows, {})).toEqual([])
@@ -289,37 +323,21 @@ describe('companion helpers', () => {
   })
 })
 
-describe('companion pricing in the sidebar', () => {
+describe('companion pricing is the API\'s (per-line days on the estimate)', () => {
   const line: AddonSelection = {
     productId: 'bike',
     quantity: 2,
-    selectedDays: ['2026-11-10', '2026-11-11', '2026-11-12'],
-    name: 'City bike',
-    unitPrice: 12,
-    currency: 'EUR',
+    selectedDays: ['2026-11-10', '2026-11-12'],
   }
 
-  it('keeps a companion out of the shared-days estimate lines', () => {
+  it('sends a companion with its own days, a plain add-on without', () => {
     expect(buildAddonLines([], [line, { productId: 'video', quantity: 1 }])).toEqual([
+      { product_id: 'bike', qty: 2, selected_days: ['2026-11-10', '2026-11-12'] },
       { product_id: 'video', qty: 1 },
     ])
   })
 
-  it('prices qty x days x price per day', () => {
-    const est = companionEstimate([line], 'EUR', 'en')
-    expect(est?.line_items[0]).toMatchObject({ qty: 2, units: 3, unit_price: '12.00', line_total: '72.00' })
-    expect(est?.operator_total).toBe('72.00')
-    expect(est?.grand_total).toBe('72.00')
-    // Localized name, currency of the add-on's estimate (no EUR assumption).
-    const de = companionEstimate(
-      [{ ...line, currency: 'CHF', nameLocalized: { de: 'Stadtrad' } }],
-      'CHF',
-      'de-DE',
-    )
-    expect(de?.line_items[0]?.label).toBe('Stadtrad')
-    expect(de?.currency).toBe('CHF')
-    // A line in another currency cannot be summed into the main estimate.
-    expect(companionEstimate([{ ...line, currency: 'USD' }], 'CHF', 'en')).toBeNull()
-    expect(companionEstimate([{ productId: 'video', quantity: 1 }], 'EUR', 'en')).toBeNull()
+  it('drops a zero-quantity line', () => {
+    expect(buildAddonLines([], [{ ...line, quantity: 0 }])).toEqual([])
   })
 })

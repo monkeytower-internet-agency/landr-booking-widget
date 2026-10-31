@@ -333,10 +333,6 @@ export function flattenPerRoomAddons(
         quantity,
         productKind: row.product_kind,
         selectedDays: entry.days,
-        name: row.name,
-        ...(row.name_localized ? { nameLocalized: row.name_localized } : {}),
-        unitPrice: row.price_per_unit ?? null,
-        currency: row.currency ?? null,
       })
     }
   }

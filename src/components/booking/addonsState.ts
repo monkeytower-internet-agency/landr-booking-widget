@@ -6,7 +6,7 @@
  * trigger the rule and block CI; see landr-znl history).
  */
 import type { ProductAddon, ProductKind } from '@/api/types'
-import { tr } from '@/lib/strings'
+import { addonUnitSuffix, tr } from '@/lib/strings'
 
 /** Single line item: an add-on product + how many of it the customer picked. */
 export interface AddonSelection {
@@ -29,11 +29,6 @@ export interface AddonSelection {
    * parent's window; absent = the add-on follows its parent's days.
    */
   selectedDays?: string[]
-  /** Companion display data, so the price sidebar can show qty x days x price. */
-  name?: string
-  nameLocalized?: Record<string, string> | null
-  unitPrice?: number | null
-  currency?: string | null
 }
 
 /** landr-a27k9.2: the add-on is booked on a subset of its parent's days. */
@@ -43,10 +38,27 @@ export function isCompanion(
   return addon.day_selection === 'parent_subset'
 }
 
-/** Stock verdict of one add-on on ONE day (a single-day add-ons query). */
+/** Stock verdict of one add-on on ONE day (the batch per-day lookup). */
 export interface CompanionDayVerdict {
   available: boolean
   remaining: number | null
+}
+
+/**
+ * landr-a27k9.6: the suffix of a companion's price, from the add-on's own
+ * `price_unit`: a per-"night" price reads "/ night" on a stay and "/ day" on
+ * an activity (its booked days); once-per-item and per-guest units keep their
+ * own suffix. An API that sends no unit prices per day, as before.
+ */
+export function companionPriceSuffix(
+  priceUnit: ProductAddon['price_unit'],
+  daysAreNights: boolean,
+  locale: string,
+): string {
+  if (priceUnit == null || priceUnit === 'night') {
+    return daysAreNights ? tr('perNightSuffix', locale) : tr('companionPerDaySuffix', locale)
+  }
+  return addonUnitSuffix(priceUnit, locale)
 }
 
 /** day (ISO) -> addon_product_id -> verdict. */
@@ -467,16 +479,7 @@ export function selectionToLines(
       if (row && isCompanion(row)) {
         const days = companionDays[productId] ?? []
         if (days.length === 0) return []
-        return [
-          {
-            ...base,
-            selectedDays: days,
-            ...(row.name ? { name: row.name } : {}),
-            ...(row.name_localized ? { nameLocalized: row.name_localized } : {}),
-            unitPrice: row.price_per_unit ?? null,
-            currency: row.currency ?? null,
-          },
-        ]
+        return [{ ...base, selectedDays: days }]
       }
       return [base]
     })

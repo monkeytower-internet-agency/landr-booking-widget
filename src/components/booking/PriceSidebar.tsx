@@ -62,7 +62,6 @@ import { extraEstimateRequests, mergeEstimates, type ExtraLine } from './crossSe
 import { useExtraLineEstimates } from './useExtraLineEstimates'
 import {
   buildAddonLines,
-  companionEstimate,
   buildDiscountExplanation,
   groupPerformerLines,
   isSavingsLine,
@@ -642,19 +641,8 @@ export default function PriceSidebar(props: Props) {
           ? { ...estimate, data: null, isStale: false, error: extras.error }
           : { ...estimate, isStale: true }
 
-  // landr-a27k9.2: companion add-ons on a subset of the days, qty x days x price.
-  const mainCurrency = combined.data?.currency
-  const companionEst = useMemo(
-    () => (mainCurrency ? companionEstimate(addons, mainCurrency, browserLocale()) : null),
-    [addons, mainCurrency],
-  )
-  const withCompanions: typeof estimate =
-    companionEst && combined.data
-      ? { ...combined, data: mergeEstimates(combined.data, [{ estimate: companionEst, quantity: 1 }]) }
-      : combined
-
   const visible: typeof estimate = hasSelection
-    ? withCompanions
+    ? combined
     : {
         data: null,
         isLoading: false,

@@ -247,6 +247,7 @@ export function ServiceAddonsStep({
               participantCount={participantCount}
               parentProductId={product.product_id}
               parentDays={parentDays}
+              daysAreNights={product.product_kind === 'stay'}
               daysSelection={daysSelection}
               onDaysChange={setDaysSelection}
             />

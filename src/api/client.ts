@@ -20,6 +20,7 @@ import type {
   PassTiersResponse,
   PriceAdjustment,
   Product,
+  AddonDayStock,
   ProductAddon,
   ProductAlternative,
   ProductGroup,
@@ -650,6 +651,25 @@ export async function getProductAddons(
   const query = qs.toString()
   return http<ProductAddon[]>(
     `/api/public/products/${encodeURIComponent(productId)}/addons${query ? `?${query}` : ''}`,
+  )
+}
+
+/**
+ * landr-a27k9.6: the per-DAY stock of a parent's day-pickable (companion)
+ * add-ons in one call -- each day judged on its own, unlike getProductAddons,
+ * which reports the lowest remaining across all the days it is sent.
+ */
+export async function getProductAddonsDayStock(
+  productId: string,
+  days: readonly string[],
+  participants: number,
+): Promise<AddonDayStock[]> {
+  if (mocksEnabled()) return []
+  const qs = new URLSearchParams()
+  for (const day of new Set(days)) qs.append('days', day)
+  qs.set('participants', String(participants))
+  return http<AddonDayStock[]>(
+    `/api/public/products/${encodeURIComponent(productId)}/addons/stock?${qs.toString()}`,
   )
 }
 

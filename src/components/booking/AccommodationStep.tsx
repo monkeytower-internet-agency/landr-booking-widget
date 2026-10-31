@@ -2424,6 +2424,7 @@ export function AccommodationStep({
                       parentProductId={room.product_id}
                       companionElsewhere={companionElsewhereFor(room.product_id)}
                       parentDays={roomNightDays}
+                      daysAreNights
                       participantCount={participantCount}
                       daysSelection={roomAddonDays[room.product_id] ?? {}}
                       onDaysChange={(nextDays) => {
