@@ -62,6 +62,7 @@ import { UN_PRICEABLE_MESSAGE } from './priceSidebarHelpers'
 import {
   additionalAccommodationHeading,
   forceBookReasonMessage,
+  pastStartText,
   nightsWord,
   seatsShortMessage,
   seatsShortDaysMessage,
@@ -124,6 +125,8 @@ export type BookingSelection =
        * normal customer selections. Drives the submit adapter's force flag.
        */
       forcedDays?: string[]
+      /** Staff only: earliest day (ISO) when the operator picked a start before today. */
+      pastStart?: { iso: string; daysAgo: number }
       /** landr-t869m.5: see the `kind: 'slot'` variant's doc above. */
       forcedReasons?: ForceReason[]
     }
@@ -1190,6 +1193,8 @@ export function BookingForm({
   // (any caller that predates this ticket) falls back to the pre-existing
   // capacity-flavoured copy inside forceBookReasonMessage itself.
   const forcedReasons: ForceReason[] = selection.forcedReasons ?? []
+  const pastStart =
+    canForce && selection.kind === 'days' ? selection.pastStart : undefined
 
   // landr-my6fc.7: staff-only, NON-BLOCKING warning when the customer already
   // holds a booking on overlapping dates. Public mode never calls the endpoint
@@ -2289,6 +2294,22 @@ export function BookingForm({
             </div>
             <p className="text-amber-900 dark:text-amber-100">
               {forceBookReasonMessage(forcedReasons, forcedDays.length)}
+            </p>
+          </section>
+        ) : null}
+
+        {pastStart ? (
+          <section
+            data-testid="review-past-start"
+            className="rounded-lg border border-amber-400 bg-amber-50 p-3 text-sm dark:border-amber-600 dark:bg-amber-950/40"
+          >
+            <p className="text-amber-900 dark:text-amber-100">
+              {pastStartText(
+                'pastStartReviewNote',
+                formatDayLabel(pastStart.iso, browserLocale()),
+                pastStart.daysAgo,
+                browserLocale(),
+              )}
             </p>
           </section>
         ) : null}

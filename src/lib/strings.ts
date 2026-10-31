@@ -902,6 +902,12 @@ export type Bundle = {
   multiDayGateNone: string
   multiDayGateOne: string
   multiDayGateOther: string
+  pastStartConfirm: string
+  pastStartAgoOne: string
+  pastStartAgoOther: string
+  pastStartBack: string
+  pastStartBookAnyway: string
+  pastStartReviewNote: string
   fixedDateWindowGateSelected: string
   fixedDateWindowGateEmpty: string
   availabilityGateTimeSelected: string
@@ -1854,6 +1860,12 @@ const en: Bundle = {
   multiDayGateNone: 'Choose at least one date to continue.',
   multiDayGateOne: '1 date selected.',
   multiDayGateOther: '{n} dates selected.',
+  pastStartConfirm: 'Starts {day} ({ago}). Book it retroactively?',
+  pastStartAgoOne: '1 day ago',
+  pastStartAgoOther: '{n} days ago',
+  pastStartBack: 'Back',
+  pastStartBookAnyway: 'Book anyway',
+  pastStartReviewNote: 'This booking starts in the past: {day} ({ago}). Check that it should be recorded retroactively.',
   fixedDateWindowGateSelected: 'Window selected.',
   fixedDateWindowGateEmpty: 'Choose a window to continue.',
   availabilityGateTimeSelected: 'Time selected.',
@@ -2464,6 +2476,18 @@ export function singleDateGate(hasSelection: boolean, locale?: string): string {
 }
 
 /** landr-80ubl.2: MultiDayStep's gate line beside Continue. */
+/** "Mon, 26 Oct" + days-ago phrase for the past-start confirm / review note. */
+export function pastStartText(
+  key: 'pastStartConfirm' | 'pastStartReviewNote',
+  dayLabel: string,
+  daysAgo: number,
+  locale?: string,
+): string {
+  const t = pickBundle(locale)
+  const ago = daysAgo === 1 ? t.pastStartAgoOne : fmt(t.pastStartAgoOther, { n: daysAgo })
+  return fmt(t[key], { day: dayLabel, ago })
+}
+
 export function multiDayGate(selectedCount: number, locale?: string): string {
   const t = pickBundle(locale)
   if (selectedCount === 0) return t.multiDayGateNone
