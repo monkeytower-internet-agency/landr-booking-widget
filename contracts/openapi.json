@@ -18618,6 +18618,11 @@
             "title": "Expose Seats To Customer",
             "type": "boolean"
           },
+          "has_active_vouchers": {
+            "default": true,
+            "title": "Has Active Vouchers",
+            "type": "boolean"
+          },
           "has_member_perks": {
             "default": false,
             "title": "Has Member Perks",
