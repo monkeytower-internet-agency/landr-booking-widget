@@ -86,23 +86,23 @@ export function FixedDateWindowChips({
       className="flex flex-wrap gap-1.5 px-1"
       data-testid={`product-date-chips-${slug}`}
     >
-      {windows.map((window) => {
-        const available = Math.max(0, window.capacity - window.capacity_reserved)
+      {windows.map((dateWindow) => {
+        const available = Math.max(0, dateWindow.capacity - dateWindow.capacity_reserved)
         const isFull = available === 0
         // landr-t869m.5: same lead-time rule as FixedDateWindowPicker — a
         // window that fails it is shown unavailable here too, never dropped,
         // so the customer sees the trip exists but can't be booked this late.
-        const leadTimeBlocked = !isDayBookable(window, hotelOffering)
+        const leadTimeBlocked = !isDayBookable(dateWindow, hotelOffering)
         const need = Math.max(1, seatsNeeded ?? 1)
         const isShort = !isFull && available < need
         const blocked = isFull || leadTimeBlocked || isShort
         return (
           <span
-            key={window.id}
+            key={dateWindow.id}
             className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-raised px-2.5 py-1 text-xs"
           >
             <span className="font-medium tabular-nums">
-              {formatWindowRangeLabel(window.start_date, window.end_date, locale)}
+              {formatWindowRangeLabel(dateWindow.start_date, dateWindow.end_date, locale)}
             </span>
             <span
               className={cn(

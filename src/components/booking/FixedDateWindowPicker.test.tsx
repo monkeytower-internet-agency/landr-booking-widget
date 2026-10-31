@@ -85,14 +85,14 @@ describe('FixedDateWindowPicker', () => {
   })
 
   it('confirms selected window with a synthesised slot', async () => {
-    const window: FixedDateWindow = {
+    const dateWindow: FixedDateWindow = {
       id: 'w-1',
       start_date: '2027-07-07',
       end_date: '2027-07-13',
       capacity: 8,
       capacity_reserved: 2,
     }
-    mocks.getFixedDateWindows.mockResolvedValue([window])
+    mocks.getFixedDateWindows.mockResolvedValue([dateWindow])
     const onConfirm = vi.fn()
     render(
       <FixedDateWindowPicker
@@ -112,7 +112,7 @@ describe('FixedDateWindowPicker', () => {
     expect(slot.availability_id).toBe('w-1')
     expect(slot.capacity).toBe(8)
     expect(slot.available_seats).toBe(6)
-    expect(returnedWindow).toBe(window)
+    expect(returnedWindow).toBe(dateWindow)
   })
 
   it('renders error state on API failure', async () => {
