@@ -1,4 +1,4 @@
-import { ChevronLeftIcon } from 'lucide-react'
+import { AlternativeBackButton } from '@/components/booking/AlternativeBackButton'
 import { PausedGate } from '@/components/booking/PausedGate'
 import { shouldShowVoucherField } from '@/components/booking/voucherField'
 import { DemoBanner, DemoCongrats } from '@/components/booking/DemoMode'
@@ -2579,31 +2579,15 @@ function BookingFlowApp() {
           catalogue to go back to.
         */}
         {showAlternativeBack && alternativeBack ? (
-          <button
-            type="button"
-            onClick={goBackFromAlternative}
-            data-testid="alternative-back"
-            className="tap-44 flex w-full items-center gap-2 rounded-md border border-primary/30 bg-surface-tint px-3 py-2 text-left text-sm shadow-well transition-colors hover:border-primary"
-          >
-            <ChevronLeftIcon className="size-4 shrink-0 text-primary" aria-hidden />
-            <span className="flex min-w-0 flex-col">
-              <span className="truncate font-medium">
-                {tr('alternativeBackTemplate', browserLocale()).replace(
-                  '{name}',
-                  pickLocalized(
-                    alternativeBack.from.product.name,
-                    alternativeBack.from.product.name_localized,
-                    browserLocale(),
-                  ),
-                )}
-              </span>
-              {alternativeBack.days.length > 0 ? (
-                <span className="text-xs text-muted-foreground">
-                  {tr('alternativeBackKeepsDates', browserLocale())}
-                </span>
-              ) : null}
-            </span>
-          </button>
+          <AlternativeBackButton
+            productName={pickLocalized(
+              alternativeBack.from.product.name,
+              alternativeBack.from.product.name_localized,
+              browserLocale(),
+            )}
+            keepsDates={alternativeBack.days.length > 0}
+            onBack={goBackFromAlternative}
+          />
         ) : null}
 
         {partyClampNote &&
