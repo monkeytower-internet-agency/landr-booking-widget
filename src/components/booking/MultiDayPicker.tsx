@@ -617,6 +617,8 @@ export function MultiDayPicker({
       <CalendarDayHintContext.Provider value={dayHint}>
         <Calendar
           mode="multiple"
+          // The ring follows the operator's day, same clock as `past`.
+          today={today}
           selected={value}
           onSelect={handleSelect}
           // landr-aoak.2: in staff mode every day stays selectable so the
