@@ -9,6 +9,7 @@ import type {
   EstimateLineItem,
   EstimateResponse,
 } from '@/api/types'
+import { pickLocalized } from '@/lib/locale'
 import { plural, tr } from '@/lib/strings'
 import type { RoomSelection } from './accommodationCalc'
 import type { AddonSelection } from './addonsState'
@@ -55,20 +56,23 @@ export function buildAddonLines(
  */
 export function companionEstimate(
   addons: readonly AddonSelection[],
+  /** The main estimate's currency: lines in another currency cannot be summed into it. */
   currency: string,
+  locale: string,
 ): EstimateResponse | null {
   const items: EstimateLineItem[] = []
   let cents = 0
   for (const a of addons) {
     const days = a.selectedDays?.length ?? 0
     if (a.quantity <= 0 || days === 0 || a.unitPrice == null) continue
+    if ((a.currency ?? currency) !== currency) continue
     const unitCents = Math.round(Number(a.unitPrice) * 100)
     if (!Number.isFinite(unitCents)) continue
     const total = unitCents * days * a.quantity
     cents += total
     items.push({
       product_id: a.productId,
-      label: a.name ?? '',
+      label: pickLocalized(a.name, a.nameLocalized, locale),
       qty: a.quantity,
       units: days,
       unit_price: (unitCents / 100).toFixed(2),

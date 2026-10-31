@@ -677,6 +677,7 @@ export const tr: Bundle = {
   companionDaysRequired: 'En az bir gün seçin.',
   companionPickedDaySoldOut: 'Seçtiğiniz bir günde tükendi — başka günler seçin.',
   companionDaysToContinue: 'Seçtiğiniz her ek hizmet için en az bir gün seçin.',
+  companionQtyToContinue: 'Devam etmek için ek hizmet miktarını azaltın.',
   companionErrDaysRequired: 'Lütfen bu ek hizmet için en az bir gün seçin.',
   companionErrOutsideParent: 'Bu ek hizmet yalnızca rezervasyonunuzun kapsadığı günlerde ayrılabilir. Lütfen geri dönüp günleri kontrol edin.',
   companionErrParentMissing: 'Bu ek hizmet yalnızca ait olduğu ürünle birlikte ayrılabilir.',

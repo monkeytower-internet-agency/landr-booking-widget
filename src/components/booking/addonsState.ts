@@ -31,6 +31,7 @@ export interface AddonSelection {
   selectedDays?: string[]
   /** Companion display data, so the price sidebar can show qty x days x price. */
   name?: string
+  nameLocalized?: Record<string, string> | null
   unitPrice?: number | null
   currency?: string | null
 }
@@ -99,6 +100,52 @@ export function companionView(
     unavailable_reason: null,
     stock_remaining: lowest,
   }
+}
+
+/**
+ * landr-a27k9.2: the most of a companion the party may take, before stock:
+ * its own rule / max, the party size (a bike per guest at most) less what
+ * OTHER lists (other rooms) already hold of it.
+ */
+export function companionQtyCeiling(
+  addon: Pick<ProductAddon, 'max_qty'> &
+    Partial<
+      Pick<ProductAddon, 'product_kind' | 'addon_quantity_rule' | 'addon_quantity_max'>
+    >,
+  participantCount?: number,
+  elsewhere = 0,
+): number {
+  const party =
+    participantCount === undefined
+      ? Number.POSITIVE_INFINITY
+      : Math.max(1, participantCount) - elsewhere
+  return Math.max(
+    0,
+    Math.min(
+      addon.max_qty ?? Number.POSITIVE_INFINITY,
+      addonRuleCeiling(addon, participantCount),
+      party,
+    ),
+  )
+}
+
+/**
+ * A companion picked above what the party may take (a stale restore, a party
+ * that shrank): Continue must stay blocked until the quantity is lowered.
+ * Stock is not judged here -- the list clamps to it as it arrives.
+ */
+export function companionOverCap(
+  addons: readonly ProductAddon[],
+  selection: Record<string, number>,
+  participantCount?: number,
+  elsewhereById: Record<string, number> = {},
+): boolean {
+  return addons.some(
+    (a) =>
+      isCompanion(a) &&
+      (selection[a.addon_product_id] ?? 0) >
+        companionQtyCeiling(a, participantCount, elsewhereById[a.addon_product_id] ?? 0),
+  )
 }
 
 /** Add or remove one day from a companion's pick. */
@@ -395,7 +442,10 @@ export function selectionToLines(
   selection: Record<string, number>,
   addons: readonly (Pick<ProductAddon, 'addon_product_id' | 'product_kind'> &
     Partial<
-      Pick<ProductAddon, 'day_selection' | 'name' | 'price_per_unit' | 'currency'>
+      Pick<
+        ProductAddon,
+        'day_selection' | 'name' | 'name_localized' | 'price_per_unit' | 'currency'
+      >
     >)[] = [],
   /**
    * landr-a27k9.2: the picked days of each companion (already trimmed to its
@@ -422,6 +472,7 @@ export function selectionToLines(
             ...base,
             selectedDays: days,
             ...(row.name ? { name: row.name } : {}),
+            ...(row.name_localized ? { nameLocalized: row.name_localized } : {}),
             unitPrice: row.price_per_unit ?? null,
             currency: row.currency ?? null,
           },

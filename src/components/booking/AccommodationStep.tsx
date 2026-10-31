@@ -63,6 +63,7 @@ import {
   pooledQtyElsewhere,
   requiredAddonError,
   companionDaysMissing,
+  companionOverCap,
   effectiveCompanionDays,
   isCompanion,
   selectionToLines,
@@ -989,13 +990,19 @@ export function AccommodationStep({
   const [roomAddonDays, setRoomAddonDays] = useState<
     Record<string, Record<string, string[]>>
   >(() => {
+    // A companion is submitted as one line per distinct day set (see
+    // flattenPerRoomAddons); hand each line's days back to the rooms that
+    // hold its quantity, in room order.
     const seed: Record<string, Record<string, string[]>> = {}
-    for (const [roomId, qtys] of Object.entries(initialPerRoomAddons ?? {})) {
-      for (const id of Object.keys(qtys)) {
-        const line = (initialAddons ?? []).find((l) => l.productId === id)
-        if (line?.selectedDays?.length) {
-          seed[roomId] = { ...(seed[roomId] ?? {}), [id]: line.selectedDays }
-        }
+    const lines = (initialAddons ?? []).filter((l) => l.selectedDays?.length)
+    for (const line of lines) {
+      let left = line.quantity
+      for (const [roomId, qtys] of Object.entries(initialPerRoomAddons ?? {})) {
+        const have = qtys[line.productId] ?? 0
+        if (left <= 0) break
+        if (have <= 0 || seed[roomId]?.[line.productId]) continue
+        seed[roomId] = { ...(seed[roomId] ?? {}), [line.productId]: line.selectedDays! }
+        left -= have
       }
     }
     return seed
@@ -1132,6 +1139,30 @@ export function AccommodationStep({
   const serviceAddonLines = serviceLinesFor(serviceAddonSelection, serviceAddonDays)
   const roomNightDays = roomStockNights
   // A companion picked without a (still valid) day blocks Continue.
+  const companionElsewhereFor = (roomId: string): Record<string, number> => {
+    const out: Record<string, number> = {}
+    for (const [otherId, otherQty] of Object.entries(selection)) {
+      if (otherId === roomId || otherQty <= 0) continue
+      for (const a of addonsByRoom[otherId] ?? []) {
+        if (!isCompanion(a)) continue
+        const n = addonSelection[otherId]?.[a.addon_product_id] ?? 0
+        if (n > 0) out[a.addon_product_id] = (out[a.addon_product_id] ?? 0) + n
+      }
+    }
+    return out
+  }
+  const companionTooMany =
+    companionOverCap(visibleServiceAddons, serviceAddonSelection, participantCount) ||
+    Object.entries(selection).some(
+      ([roomId, roomQty]) =>
+        roomQty > 0 &&
+        companionOverCap(
+          addonsByRoom[roomId] ?? [],
+          addonSelection[roomId] ?? {},
+          participantCount,
+          companionElsewhereFor(roomId),
+        ),
+    )
   const companionDayMissing =
     companionDaysMissing(
       visibleServiceAddons,
@@ -1201,6 +1232,7 @@ export function AccommodationStep({
       ...flattenPerRoomAddons(nextAddonSelection, nextSelection, addonsByRoom, {
         daysByRoom: nextRoomAddonDays,
         nights: roomNightDays,
+        partySize: participantCount,
       }),
       ...nextServiceAddonLines,
     ]
@@ -1596,6 +1628,7 @@ export function AccommodationStep({
     serviceAddonCatalogueReady &&
     !unmetRequiredServiceAddon &&
     !companionDayMissing &&
+    !companionTooMany &&
     (mode === 'guiding-only'
       ? true
       : mode === 'shared-double'
@@ -1797,6 +1830,7 @@ export function AccommodationStep({
       ...flattenPerRoomAddons(addonSelection, selection, addonsByRoom, {
         daysByRoom: roomAddonDays,
         nights: roomNightDays,
+        partySize: participantCount,
       }),
       ...serviceAddonLines,
     ]
@@ -2388,6 +2422,7 @@ export function AccommodationStep({
                       occupancyLimited
                       claimedElsewhere={claimedByOtherRooms(room.product_id)}
                       parentProductId={room.product_id}
+                      companionElsewhere={companionElsewhereFor(room.product_id)}
                       parentDays={roomNightDays}
                       participantCount={participantCount}
                       daysSelection={roomAddonDays[room.product_id] ?? {}}
@@ -2607,9 +2642,11 @@ export function AccommodationStep({
               : occupancyHint ||
                 (unmetRequiredServiceAddon
                   ? tr('pickRequiredAddonsToContinue', locale)
-                  : companionDayMissing
-                    ? tr('companionDaysToContinue', locale)
-                    : tr('completeStepsAboveToContinue', locale))
+                  : companionTooMany
+                    ? tr('companionQtyToContinue', locale)
+                    : companionDayMissing
+                      ? tr('companionDaysToContinue', locale)
+                      : tr('completeStepsAboveToContinue', locale))
           }
           reasonId="accommodation-step-gate"
           onContinue={handleContinue}

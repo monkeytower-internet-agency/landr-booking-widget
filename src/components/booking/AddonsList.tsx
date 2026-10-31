@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import type { ProductAddon } from '@/api/types'
 import { CompanionAddonCard } from './CompanionAddonCard'
@@ -10,6 +11,7 @@ import {
   addonRuleCeiling,
   addonStockCeiling,
   addonUnavailableMessage,
+  companionQtyCeiling,
   companionView,
   effectiveCompanionDays,
   isAddonSoldOut,
@@ -116,6 +118,11 @@ interface Props {
   daysSelection?: Record<string, string[]>
   onDaysChange?: (next: Record<string, string[]>) => void
   parentProductId?: string
+  /**
+   * landr-a27k9.2: quantity of each companion (by addon_product_id) that OTHER
+   * lists (other rooms) already hold; the party-size cap is shared with them.
+   */
+  companionElsewhere?: Record<string, number>
 }
 
 /** Show the "only N left" hint at or below this many. */
@@ -135,6 +142,7 @@ export function AddonsList({
   daysSelection,
   onDaysChange,
   parentProductId,
+  companionElsewhere,
 }: Props) {
   const locale = browserLocale()
   const companionsOn = !!parentDays && !!onDaysChange
@@ -145,8 +153,6 @@ export function AddonsList({
     participantCount,
     hasCompanion,
   )
-
-  if (addons.length === 0) return null
 
   // landr-yybu: occupancy hard-cap for room-linked add-ons. undefined for
   // service-flow callers (occupancyLimited=false) so they stay uncapped.
@@ -164,16 +170,49 @@ export function AddonsList({
     onChange(out)
   }
 
-  // landr-a27k9.2: a companion's stepper cap is min(rule/party, max, stock on
-  // the PICKED days); its days change re-clamps the quantity.
+  // landr-a27k9.2: a companion's stepper cap is min(rule / max, party size
+  // less the other rooms' share, stock on the PICKED days, room occupancy).
   function companionCeiling(addon: ProductAddon): number {
     return Math.min(
-      addon.max_qty ?? Number.POSITIVE_INFINITY,
+      companionQtyCeiling(
+        addon,
+        participantCount,
+        companionElsewhere?.[addon.addon_product_id] ?? 0,
+      ),
       addonStockCeiling(addon),
-      addonRuleCeiling(addon, participantCount),
       occupancyCap ?? Number.POSITIVE_INFINITY,
     )
   }
+
+  // Re-clamp every companion's quantity whenever its effective days, the
+  // stock or the party change -- not only when a chip is toggled (a stay
+  // change trims days, a stock refresh lowers what is left). Idempotent: it
+  // only calls onChange while a quantity is above its cap.
+  useEffect(() => {
+    if (!companionsOn || !parentDays) return
+    let next: Record<string, number> | null = null
+    for (const raw of addons) {
+      if (!isCompanion(raw)) continue
+      const id = raw.addon_product_id
+      const qty = selection[id] ?? 0
+      if (qty <= 0) continue
+      const picked = effectiveCompanionDays(daysSelection?.[id], parentDays)
+      const cap = companionCeiling(
+        withClaimedStock(
+          companionView(raw, picked, companionStock),
+          claimedElsewhere?.[id] ?? 0,
+        ),
+      )
+      if (qty > cap) {
+        next ??= { ...selection }
+        if (cap > 0) next[id] = cap
+        else delete next[id]
+      }
+    }
+    if (next) onChange(next)
+  })
+
+  if (addons.length === 0) return null
 
   function toggleDay(rawAddon: ProductAddon, day: string) {
     if (!parentDays || !onDaysChange) return

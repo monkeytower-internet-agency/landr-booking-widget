@@ -717,6 +717,7 @@ export type Bundle = {
   companionDaysRequired: string
   companionPickedDaySoldOut: string
   companionDaysToContinue: string
+  companionQtyToContinue: string
   companionErrDaysRequired: string
   companionErrOutsideParent: string
   companionErrParentMissing: string
@@ -1667,6 +1668,7 @@ const en: Bundle = {
   companionDaysRequired: 'Pick at least one day.',
   companionPickedDaySoldOut: 'Sold out on a day you picked — pick other days.',
   companionDaysToContinue: 'Pick at least one day for each add-on you chose.',
+  companionQtyToContinue: 'Lower the quantity of your add-ons to continue.',
   companionErrDaysRequired: 'Please pick at least one day for this add-on.',
   companionErrOutsideParent: 'This add-on can only be booked on days your booking covers. Please go back and check the days.',
   companionErrParentMissing: 'This add-on can only be booked together with the product it belongs to.',

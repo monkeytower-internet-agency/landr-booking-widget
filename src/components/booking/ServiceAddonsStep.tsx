@@ -17,6 +17,7 @@ import { NextAction } from './NextAction'
 import { StepBackButton } from './StepBackButton'
 import {
   companionDaysMissing,
+  companionOverCap,
   defaultAddonQty,
   effectiveCompanionDays,
   isAddonSoldOut,
@@ -202,7 +203,12 @@ export function ServiceAddonsStep({
     () => (addons ? companionDaysMissing(addons, selection, companionDays, parentDays) : false),
     [addons, selection, companionDays, parentDays],
   )
-  const canContinue = addons !== null && !unmetRequired && !companionDayMissing
+  const companionTooMany = useMemo(
+    () => (addons ? companionOverCap(addons, selection, participantCount) : false),
+    [addons, selection, participantCount],
+  )
+  const canContinue =
+    addons !== null && !unmetRequired && !companionDayMissing && !companionTooMany
 
   function handleContinue() {
     if (!canContinue) return
@@ -258,6 +264,8 @@ export function ServiceAddonsStep({
           reason={
             canContinue
               ? tr('readyToContinue', locale)
+              : companionTooMany && !unmetRequired
+                ? tr('companionQtyToContinue', locale)
               : companionDayMissing && !unmetRequired
                 ? tr('companionDaysToContinue', locale)
                 : tr('pickRequiredAddonsToContinue', locale)

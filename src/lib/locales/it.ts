@@ -673,6 +673,7 @@ export const it: Bundle = {
   companionDaysRequired: 'Scegli almeno un giorno.',
   companionPickedDaySoldOut: 'Esaurito in un giorno scelto: scegli altri giorni.',
   companionDaysToContinue: 'Scegli almeno un giorno per ogni extra selezionato.',
+  companionQtyToContinue: 'Riduci la quantità dei tuoi extra per continuare.',
   companionErrDaysRequired: 'Scegli almeno un giorno per questo extra.',
   companionErrOutsideParent: 'Questo extra si può prenotare solo nei giorni coperti dalla tua prenotazione. Torna indietro e controlla i giorni.',
   companionErrParentMissing: 'Questo extra si può prenotare solo insieme al prodotto a cui appartiene.',

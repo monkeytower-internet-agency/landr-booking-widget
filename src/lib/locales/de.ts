@@ -682,6 +682,7 @@ export const de: Bundle = {
   companionDaysRequired: 'Wählen Sie mindestens einen Tag.',
   companionPickedDaySoldOut: 'An einem gewählten Tag ausverkauft – bitte andere Tage wählen.',
   companionDaysToContinue: 'Wählen Sie für jede gewählte Zusatzleistung mindestens einen Tag.',
+  companionQtyToContinue: 'Verringern Sie die Menge Ihrer Zusatzleistungen, um fortzufahren.',
   companionErrDaysRequired: 'Bitte wählen Sie mindestens einen Tag für diese Zusatzleistung.',
   companionErrOutsideParent: 'Diese Zusatzleistung kann nur an Tagen gebucht werden, die Ihre Buchung abdeckt. Bitte gehen Sie zurück und prüfen Sie die Tage.',
   companionErrParentMissing: 'Diese Zusatzleistung kann nur zusammen mit dem Produkt gebucht werden, zu dem sie gehört.',

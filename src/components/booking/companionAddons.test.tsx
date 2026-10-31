@@ -10,6 +10,7 @@ import type { ProductAddon } from '@/api/types'
 import { AddonsList } from './AddonsList'
 import {
   companionDaysMissing,
+  companionOverCap,
   companionView,
   effectiveCompanionDays,
   selectionToLines,
@@ -173,6 +174,19 @@ describe('companion add-on card', () => {
     expect(effectiveCompanionDays(seen?.days.bike, DAYS)).toEqual(['2026-11-10'])
   })
 
+  it('re-clamps the quantity when the stock on the picked days drops, without a chip toggle', async () => {
+    stockByDay({ '2026-11-10': 1 })
+    render(<Harness party={4} initial={{ bike: 3 }} initialDays={{ bike: ['2026-11-10'] }} />)
+    await waitFor(() => expect(screen.getByRole('button', { name: /increase/i })).toBeDisabled())
+    expect(screen.getByLabelText(/increase/i).previousElementSibling).toHaveTextContent('1')
+  })
+
+  it('re-clamps to the party size when the parent days or party change', async () => {
+    let seen: number | undefined
+    render(<Harness party={2} initial={{ bike: 3 }} initialDays={{ bike: ['2026-11-10'] }} onState={(s) => (seen = s.qty.bike)} />)
+    await waitFor(() => expect(seen).toBe(2))
+  })
+
   it('a list without parent days draws a companion as a plain row', () => {
     render(<AddonsList addons={[bike()]} selection={{}} onChange={vi.fn()} expectedQty={1} />)
     expect(screen.queryByTestId('addon-days-bike')).toBeNull()
@@ -195,6 +209,15 @@ describe('companion helpers', () => {
     expect(companionView(row, ['2026-11-10'], stock).stock_remaining).toBe(4)
     expect(companionView(row, ['2026-11-10'], stock).available).toBe(true)
     expect(companionView(row, [], stock).stock_remaining).toBeNull()
+  })
+
+  it('companionOverCap blocks a quantity above the party size (less other rooms\' share)', () => {
+    const a = [bike()]
+    expect(companionOverCap(a, { bike: 3 }, 2)).toBe(true)
+    expect(companionOverCap(a, { bike: 2 }, 2)).toBe(false)
+    expect(companionOverCap(a, { bike: 2 }, 3, { bike: 2 })).toBe(true)
+    expect(companionOverCap(a, { bike: 1 }, 3, { bike: 2 })).toBe(false)
+    expect(companionOverCap(a, { bike: 5 }, undefined)).toBe(false)
   })
 
   it('companionDaysMissing flags a companion with a quantity and no valid day', () => {
@@ -224,22 +247,41 @@ describe('companion helpers', () => {
     expect(selectionToLines({ bike: 2 }, rows, {})).toEqual([])
   })
 
-  it('flattenPerRoomAddons unions a companion\'s days over rooms, trims to the nights, sums quantity', () => {
+  it('flattenPerRoomAddons never merges rooms with different days into qty x union (2 bikes on 10 Nov + 1 bike on 11 Nov = 3 bike-days)', () => {
     const lines = flattenPerRoomAddons(
-      { r1: { bike: 1 }, r2: { bike: 2 } },
+      { r1: { bike: 2 }, r2: { bike: 1 } },
       { r1: 1, r2: 1 },
       { r1: [bike()], r2: [bike()] },
       {
-        daysByRoom: { r1: { bike: ['2026-11-10'] }, r2: { bike: ['2026-11-11', '2030-01-01'] } },
+        daysByRoom: { r1: { bike: ['2026-11-10'] }, r2: { bike: ['2026-11-11'] } },
         nights: DAYS,
+        partySize: 3,
+      },
+    )
+    expect(lines.map((l) => [l.productId, l.quantity, l.selectedDays])).toEqual([
+      ['bike', 2, ['2026-11-10']],
+      ['bike', 1, ['2026-11-11']],
+    ])
+    const bikeDays = lines.reduce((n, l) => n + l.quantity * (l.selectedDays?.length ?? 0), 0)
+    expect(bikeDays).toBe(3)
+  })
+
+  it('flattenPerRoomAddons sums rooms with the same day set, trims to the nights, caps at the party size', () => {
+    const lines = flattenPerRoomAddons(
+      { r1: { bike: 2 }, r2: { bike: 2 } },
+      { r1: 1, r2: 1 },
+      { r1: [bike()], r2: [bike()] },
+      {
+        daysByRoom: {
+          r1: { bike: ['2026-11-10', '2030-01-01'] },
+          r2: { bike: ['2026-11-10'] },
+        },
+        nights: DAYS,
+        partySize: 3,
       },
     )
     expect(lines).toHaveLength(1)
-    expect(lines[0]).toMatchObject({
-      productId: 'bike',
-      quantity: 3,
-      selectedDays: ['2026-11-10', '2026-11-11'],
-    })
+    expect(lines[0]).toMatchObject({ quantity: 3, selectedDays: ['2026-11-10'] })
     // No valid day: no line.
     expect(
       flattenPerRoomAddons({ r1: { bike: 1 } }, { r1: 1 }, { r1: [bike()] }, { daysByRoom: {}, nights: DAYS }),
@@ -264,10 +306,20 @@ describe('companion pricing in the sidebar', () => {
   })
 
   it('prices qty x days x price per day', () => {
-    const est = companionEstimate([line], 'EUR')
+    const est = companionEstimate([line], 'EUR', 'en')
     expect(est?.line_items[0]).toMatchObject({ qty: 2, units: 3, unit_price: '12.00', line_total: '72.00' })
     expect(est?.operator_total).toBe('72.00')
     expect(est?.grand_total).toBe('72.00')
-    expect(companionEstimate([{ productId: 'video', quantity: 1 }], 'EUR')).toBeNull()
+    // Localized name, currency of the add-on's estimate (no EUR assumption).
+    const de = companionEstimate(
+      [{ ...line, currency: 'CHF', nameLocalized: { de: 'Stadtrad' } }],
+      'CHF',
+      'de-DE',
+    )
+    expect(de?.line_items[0]?.label).toBe('Stadtrad')
+    expect(de?.currency).toBe('CHF')
+    // A line in another currency cannot be summed into the main estimate.
+    expect(companionEstimate([{ ...line, currency: 'USD' }], 'CHF', 'en')).toBeNull()
+    expect(companionEstimate([{ productId: 'video', quantity: 1 }], 'EUR', 'en')).toBeNull()
   })
 })

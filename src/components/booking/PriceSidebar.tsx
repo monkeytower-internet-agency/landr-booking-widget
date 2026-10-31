@@ -327,9 +327,9 @@ function BookingOverviewBody({
             {tr('youPayNowHeading', locale)}
           </h4>
           <ul className="space-y-2 text-sm">
-            {operator.map((li) => (
+            {operator.map((li, liIdx) => (
               <li
-                key={`op-${li.product_id}`}
+                key={`op-${li.product_id}-${liIdx}`}
                 className="flex items-baseline justify-between gap-2"
               >
                 <span className="flex-1">
@@ -643,9 +643,10 @@ export default function PriceSidebar(props: Props) {
           : { ...estimate, isStale: true }
 
   // landr-a27k9.2: companion add-ons on a subset of the days, qty x days x price.
+  const mainCurrency = combined.data?.currency
   const companionEst = useMemo(
-    () => companionEstimate(addons, estimate.data?.currency ?? 'EUR'),
-    [addons, estimate.data?.currency],
+    () => (mainCurrency ? companionEstimate(addons, mainCurrency, browserLocale()) : null),
+    [addons, mainCurrency],
   )
   const withCompanions: typeof estimate =
     companionEst && combined.data
