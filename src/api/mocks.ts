@@ -204,6 +204,52 @@ const mockDraftProducts: Product[] = [
   },
 ]
 
+/**
+ * landr-hfvyc.2: an apartment stay with guest-based pricing (the demo seed's
+ * "Familienwohnung" rule from landr-hfvyc.1). Not part of mockProducts, so
+ * existing catalogue expectations are untouched; tests and mock-mode demos
+ * opt in.
+ */
+export const mockOccupancyStay: Product = {
+  product_id: '00000000-0000-0000-0000-000000000301',
+  slug: 'familienwohnung',
+  name: 'Familienwohnung',
+  name_localized: { en: 'Family apartment', de: 'Familienwohnung' },
+  short_description: 'Apartment for the whole family.',
+  short_description_localized: null,
+  description: null,
+  product_kind: 'stay',
+  service_time_shape: null,
+  is_contiguous: false,
+  duration_minutes: null,
+  fixed_start_date: null,
+  fixed_end_date: null,
+  product_group_id: null,
+  group_slug: null,
+  group_name: null,
+  sort_order: 300,
+  sport_subcategory_codes: [],
+  location_ids: [],
+  needs_pickup: false,
+  hotel_offering: 'none',
+  hotel_location_id: null,
+  price_per_unit: 120,
+  currency: 'EUR',
+  capacity_per_unit: 5,
+  thumb_url: null,
+  images: [],
+  price_from: '120.00',
+  occupancy_pricing: {
+    included_adults: 2,
+    extra_adult_per_night: '25.00',
+    child_bands: [
+      { min_age: 0, max_age: 2, per_night: '0.00' },
+      { min_age: 3, max_age: 11, per_night: '12.00' },
+      { min_age: 12, max_age: 17, per_night: '18.00' },
+    ],
+  },
+}
+
 /** Sentinel used in tests — any non-empty string acts as a preview_token. */
 export const MOCK_PREVIEW_TOKEN = 'mock-preview-token-abc'
 

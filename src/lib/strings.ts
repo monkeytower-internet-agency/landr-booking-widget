@@ -342,6 +342,12 @@ export type Bundle = {
   childOption: string
   ageBandAria: string
   childAgeAria: string
+  occupancyIncludedOne: string
+  occupancyIncludedMany: string
+  occupancyExtraAdult: string
+  occupancyChildBand: string
+  occupancyChildBandFree: string
+  guestAgeRequired: string
   agePlaceholder: string
   breakfastLabel: string
   emptyLabel: string
@@ -978,6 +984,7 @@ export type Bundle = {
   addMorePickWindow: string
   addMoreNoWindows: string
   addMoreQuantity: string
+  addMoreMaxQuantity: string
   addMoreForGroup: string
   addMoreChecking: string
   addMoreUnavailable: string
@@ -1311,6 +1318,12 @@ const en: Bundle = {
   childOption: 'Child',
   ageBandAria: 'Age band',
   childAgeAria: 'Child age',
+  occupancyIncludedOne: 'incl. 1 adult',
+  occupancyIncludedMany: 'incl. {count} adults',
+  occupancyExtraAdult: 'additional adults +{price}/night',
+  occupancyChildBand: 'children {from}-{to} +{price}/night',
+  occupancyChildBandFree: 'children {from}-{to} free',
+  guestAgeRequired: 'Please select the age of each child.',
   agePlaceholder: 'Age',
   breakfastLabel: 'Breakfast',
   emptyLabel: 'Empty',
@@ -1921,6 +1934,7 @@ const en: Bundle = {
   addMorePickWindow: 'Course dates',
   addMoreNoWindows: 'No course dates with free places.',
   addMoreQuantity: 'Quantity',
+  addMoreMaxQuantity: 'max. {max}',
   addMoreForGroup: 'priced for your group of {count}',
   addMoreChecking: 'Checking availability…',
   addMoreUnavailable: 'Not available on {dates}. Remove these dates or this product.',

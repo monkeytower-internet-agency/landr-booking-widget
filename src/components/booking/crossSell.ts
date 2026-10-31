@@ -61,6 +61,11 @@ export interface ExtraLine {
   unavailableDays: string[]
   /** True while the line's availability is being (re-)checked. */
   checking: boolean
+  /**
+   * Whole units the last availability read left free over all the line's
+   * days ('days' / 'nights' modes); null/absent = unknown (no inventory cap).
+   */
+  freeUnits?: number | null
 }
 
 export function lineMode(product: Product): ExtraLineMode {
@@ -105,6 +110,17 @@ export interface CrossSellContext {
   answeredFormKeys: readonly string[]
   /** A pickup point (or a booked hotel acting as one) is already set. */
   hasPickup: boolean
+  /**
+   * landr-hfvyc.2: the roster has 2+ guests and the guest step never asked
+   * for Adult/Child + age (no occupancy-priced stay was in the cart then).
+   */
+  agesNeeded?: boolean
+}
+
+/** One guest's Adult/Child band (+ age 0-17 for a child). */
+export interface GuestAgeEntry {
+  band: 'adult' | 'child'
+  age: number | null
 }
 
 /**
@@ -117,6 +133,8 @@ export interface InlineModuleState {
   /** Form keys answered inline (their entries live in the booking form). */
   formKeys: readonly string[]
   pickupLocationId: string | null
+  /** landr-hfvyc.2: inline guest ages by roster index (0 = first guest, always adult). */
+  ages?: Readonly<Record<number, GuestAgeEntry>> | null
 }
 
 export const EMPTY_INLINE_MODULES: InlineModuleState = {
@@ -214,6 +232,8 @@ export interface LineNeeds {
   pickup: boolean
   /** Custom forms of this line the main flow has not answered. */
   forms: FlowFormDef[]
+  /** landr-hfvyc.2: Adult/Child + age per guest (owned by the first occupancy-priced line). */
+  ages?: boolean
 }
 
 /**
@@ -236,6 +256,7 @@ export function lineNeeds(
   const claimed = new Set<string>()
   let languageClaimed = false
   let pickupClaimed = false
+  let agesClaimed = false
   for (const line of lines) {
     const needs: LineNeeds = { language: false, pickup: false, forms: [] }
     if (languageMissing && !languageClaimed && productOfferedLanguages(line.product).length > 0) {
@@ -252,6 +273,10 @@ export function lineNeeds(
       needs.pickup = true
       pickupClaimed = true
     }
+    if (ctx.agesNeeded && !agesClaimed && line.product.occupancy_pricing) {
+      needs.ages = true
+      agesClaimed = true
+    }
     for (const m of line.flow?.modules ?? []) {
       if (m.kind !== 'custom_form' || m.form == null) continue
       const key = m.form.key
@@ -262,6 +287,25 @@ export function lineNeeds(
     out[line.key] = needs
   }
   return out
+}
+
+/** True when a guest is marked child with no age yet. */
+export function hasChildWithoutAgeEntry(
+  ages: Readonly<Record<number, GuestAgeEntry>> | null | undefined,
+): boolean {
+  return Object.values(ages ?? {}).some((e) => e.band === 'child' && e.age === null)
+}
+
+/** `child_ages` for the estimate from inline entries (first guest is never a child). */
+export function childAgesFromEntries(
+  ages: Readonly<Record<number, GuestAgeEntry>> | null | undefined,
+  participantCount: number,
+): number[] {
+  const out: number[] = []
+  for (const [k, e] of Object.entries(ages ?? {})) {
+    if (Number(k) > 0 && e.band === 'child' && e.age !== null) out.push(e.age)
+  }
+  return out.slice(0, Math.max(0, participantCount - 1))
 }
 
 /** True while an inline module of an added line still waits for the customer. */
@@ -278,6 +322,7 @@ export function inlineModulesPending(
       (n.language &&
         !(offer && languagesCover(inline.languages ?? {}, ctx.participantCount, offer))) ||
       (n.pickup && inline.pickupLocationId === null) ||
+      (n.ages === true && hasChildWithoutAgeEntry(inline.ages)) ||
       n.forms.some((f) => !answered.has(f.key)),
   )
 }
@@ -355,6 +400,49 @@ export function seatsForLine(line: Pick<ExtraLine, 'mode'>, partySize: number): 
   return line.mode === 'nights' ? 1 : Math.max(1, partySize)
 }
 
+/**
+ * Free units for 'days' / 'nights' lines: the lowest free count over the
+ * days that have availability rows (a stay sells units, so `need` is 1; a
+ * service divides by the seats one unit takes). Null when no day has rows.
+ */
+export function freeUnitsFor(
+  slots: readonly AvailabilitySlot[],
+  days: readonly string[],
+  need: number,
+): number | null {
+  let min: number | null = null
+  for (const d of days) {
+    const rows = slots.filter(
+      (s) => s.date === d && s.status !== 'closed' && s.activity_bookable !== false,
+    )
+    if (rows.length === 0) continue
+    const best = Math.max(...rows.map((r) => r.available_seats))
+    min = min === null ? best : Math.min(min, best)
+  }
+  return min === null ? null : Math.max(0, Math.floor(min / Math.max(1, need)))
+}
+
+/** Free units of a picked slot / window for a line needing `need` seats per unit. */
+export function freeUnitsOfSeats(freeSeats: number, need: number): number {
+  return Math.max(0, Math.floor(freeSeats / Math.max(1, need)))
+}
+
+/**
+ * Upper bound of a cross-sell line's quantity stepper. A stay is always one
+ * unit (the API refuses more), so its cap is 1; a service is capped at the
+ * free inventory, never below 1. `freeUnits` null = unknown, no cap (the API
+ * re-checks).
+ */
+export function maxQuantityFor(
+  line: Pick<ExtraLine, 'mode'>,
+  _partySize: number,
+  freeUnits: number | null | undefined,
+): number {
+  if (line.mode === 'nights') return 1
+  if (freeUnits === null || freeUnits === undefined) return Number.POSITIVE_INFINITY
+  return Math.max(1, freeUnits)
+}
+
 /** Why an added line cannot be submitted yet, or null when it is ready. */
 export type ExtraLineIssue = 'checking' | 'needs_time' | 'needs_window' | 'no_days' | 'unavailable'
 
@@ -406,6 +494,7 @@ export function extraEstimateRequests(
   lines: readonly ExtraLine[],
   participantCount: number,
   locale?: string,
+  childAges?: readonly number[],
 ): ExtraEstimateRequest[] {
   return lines
     .filter((l) => l.days.length > 0 && (l.mode !== 'slot' || l.slot))
@@ -420,6 +509,9 @@ export function extraEstimateRequests(
           participants_count: Math.max(1, participantCount),
           addon_lines: [],
           ...(locale ? { locale } : {}),
+          ...(childAges && childAges.length > 0 && l.product.occupancy_pricing
+            ? { child_ages: [...childAges] }
+            : {}),
           ...(pl.product_availability_id
             ? { product_availability_id: pl.product_availability_id }
             : {}),

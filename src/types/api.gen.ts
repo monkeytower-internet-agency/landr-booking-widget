@@ -16816,6 +16816,8 @@ export interface components {
         EstimateRequest: {
             /** Addon Lines */
             addon_lines?: components["schemas"]["EstimateAddonLineIn"][];
+            /** Child Ages */
+            child_ages?: number[] | null;
             /** Locale */
             locale?: string | null;
             /**
@@ -18805,6 +18807,28 @@ export interface components {
             /** Items */
             items?: components["schemas"]["NumberingSeriesItem"][];
         };
+        /** OccupancyChildBand */
+        OccupancyChildBand: {
+            /** Max Age */
+            max_age: number;
+            /** Min Age */
+            min_age: number;
+            /** Per Night */
+            per_night: string;
+        };
+        /**
+         * OccupancyPricingConfig
+         * @description landr-hfvyc.1: the guest-based pricing of a stay (its price list's
+         *     occupancy_pricing rule). Money as numeric strings.
+         */
+        OccupancyPricingConfig: {
+            /** Child Bands */
+            child_bands?: components["schemas"]["OccupancyChildBand"][];
+            /** Extra Adult Per Night */
+            extra_adult_per_night: string;
+            /** Included Adults */
+            included_adults: number;
+        };
         /**
          * Offer
          * @enum {string}
@@ -19462,6 +19486,7 @@ export interface components {
             next_window_end?: string | null;
             /** Next Window Start */
             next_window_start?: string | null;
+            occupancy_pricing?: components["schemas"]["OccupancyPricingConfig"] | null;
             /** Price Base */
             price_base?: string | null;
             /** Price From */
@@ -20668,7 +20693,7 @@ export interface components {
              * Rule Kind
              * @enum {string}
              */
-            rule_kind: "per_day_base" | "per_streak_tier" | "per_total_days_tier" | "per_participant_tier" | "fixed_total" | "percentage_discount" | "flat_discount" | "time_of_day_surcharge" | "manual_override" | "slot_time_adjustment" | "weekday_adjustment";
+            rule_kind: "per_day_base" | "per_streak_tier" | "per_total_days_tier" | "per_participant_tier" | "fixed_total" | "percentage_discount" | "flat_discount" | "time_of_day_surcharge" | "manual_override" | "slot_time_adjustment" | "weekday_adjustment" | "occupancy_pricing";
             /** Sort Order */
             sort_order: number;
             /** Tiers */
@@ -26200,7 +26225,7 @@ export interface components {
              * Rule Kind
              * @enum {string}
              */
-            rule_kind: "per_day_base" | "per_streak_tier" | "per_total_days_tier" | "per_participant_tier" | "fixed_total" | "percentage_discount" | "flat_discount" | "time_of_day_surcharge" | "manual_override" | "slot_time_adjustment" | "weekday_adjustment";
+            rule_kind: "per_day_base" | "per_streak_tier" | "per_total_days_tier" | "per_participant_tier" | "fixed_total" | "percentage_discount" | "flat_discount" | "time_of_day_surcharge" | "manual_override" | "slot_time_adjustment" | "weekday_adjustment" | "occupancy_pricing";
             /** Sort Order */
             sort_order: number;
             /** Tiers */
@@ -26219,7 +26244,7 @@ export interface components {
                 [key: string]: unknown;
             } | null;
             /** Rule Kind */
-            rule_kind?: ("per_day_base" | "per_streak_tier" | "per_total_days_tier" | "per_participant_tier" | "fixed_total" | "percentage_discount" | "flat_discount" | "time_of_day_surcharge" | "manual_override" | "slot_time_adjustment" | "weekday_adjustment") | null;
+            rule_kind?: ("per_day_base" | "per_streak_tier" | "per_total_days_tier" | "per_participant_tier" | "fixed_total" | "percentage_discount" | "flat_discount" | "time_of_day_surcharge" | "manual_override" | "slot_time_adjustment" | "weekday_adjustment" | "occupancy_pricing") | null;
             /** Sort Order */
             sort_order?: number | null;
         };

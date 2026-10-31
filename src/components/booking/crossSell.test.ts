@@ -12,6 +12,9 @@ import {
   extraEstimateRequests,
   extraLinesBlocking,
   extraProductLines,
+  freeUnitsFor,
+  freeUnitsOfSeats,
+  maxQuantityFor,
   inheritLine,
   lineIssue,
   lineMode,
@@ -336,5 +339,27 @@ describe('effectiveLanguages', () => {
       1: 'es',
     })
     expect(effectiveLanguages({ 0: 'de', 1: 'en' }, null, ['en', 'fr'], 2)).toEqual({ 1: 'en' })
+  })
+})
+
+describe('quantity cap', () => {
+  const stay = { mode: 'nights' as const }
+  const svc = { mode: 'days' as const }
+
+  it('keeps a stay at one unit whatever the party or inventory', () => {
+    expect(maxQuantityFor(stay, 1, null)).toBe(1)
+    expect(maxQuantityFor(stay, 8, 9)).toBe(1)
+  })
+  it('caps a service at free units, never below 1; unknown = no cap', () => {
+    expect(maxQuantityFor(svc, 8, 3)).toBe(3)
+    expect(maxQuantityFor(svc, 8, 0)).toBe(1)
+    expect(maxQuantityFor(svc, 8, null)).toBe(Number.POSITIVE_INFINITY)
+  })
+  it('derives free units from the lowest night / day', () => {
+    const slots = [slot('2026-01-01', { available_seats: 3 }), slot('2026-01-02', { available_seats: 2 })]
+    expect(freeUnitsFor(slots, ['2026-01-01', '2026-01-02'], 1)).toBe(2)
+    expect(freeUnitsFor(slots, ['2026-01-01', '2026-01-02'], 2)).toBe(1)
+    expect(freeUnitsFor(slots, ['2026-02-01'], 1)).toBeNull()
+    expect(freeUnitsOfSeats(7, 3)).toBe(2)
   })
 })
