@@ -116,15 +116,13 @@ describe('BookingForm submit body — matches /api/public/bookings PublicSubmitB
   let fetchSpy: ReturnType<typeof vi.spyOn>
 
   beforeEach(() => {
-    fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(
+    fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response(
         JSON.stringify({
           booking_id: 'b-1',
           semantic_state: 'pending',
         }),
         { status: 201, headers: { 'Content-Type': 'application/json' } },
-      ),
-    )
+      ))
   })
 
   afterEach(() => {
@@ -1079,8 +1077,7 @@ describe('BookingForm submit body — matches /api/public/bookings PublicSubmitB
   })
 
   it('reads share_secret/invites/group/join_error from the response without throwing (contract carries them through)', async () => {
-    fetchSpy.mockResolvedValue(
-      new Response(
+    fetchSpy.mockImplementation(async () => new Response(
         JSON.stringify({
           booking_id: 'b-1',
           semantic_state: 'pending',
@@ -1113,8 +1110,7 @@ describe('BookingForm submit body — matches /api/public/bookings PublicSubmitB
           join_error: null,
         }),
         { status: 201, headers: { 'Content-Type': 'application/json' } },
-      ),
-    )
+      ))
     const onConfirmed = vi.fn()
     render(
       <BookingForm
@@ -1144,12 +1140,10 @@ describe('BookingForm submit body — billing address (landr-uuntm.3)', () => {
   let fetchSpy: ReturnType<typeof vi.spyOn>
 
   beforeEach(() => {
-    fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify({ booking_id: 'b-1', semantic_state: 'pending' }), {
+    fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response(JSON.stringify({ booking_id: 'b-1', semantic_state: 'pending' }), {
         status: 201,
         headers: { 'Content-Type': 'application/json' },
-      }),
-    )
+      }))
   })
   afterEach(() => fetchSpy.mockRestore())
 
@@ -1231,12 +1225,10 @@ describe('BookingForm submit body — booker not taking part (landr-jiagg.2)', (
   let fetchSpy: ReturnType<typeof vi.spyOn>
 
   beforeEach(() => {
-    fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify({ booking_id: 'b-1', semantic_state: 'pending' }), {
+    fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response(JSON.stringify({ booking_id: 'b-1', semantic_state: 'pending' }), {
         status: 201,
         headers: { 'Content-Type': 'application/json' },
-      }),
-    )
+      }))
   })
   afterEach(() => fetchSpy.mockRestore())
 

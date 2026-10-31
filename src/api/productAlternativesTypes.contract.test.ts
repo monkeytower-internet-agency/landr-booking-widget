@@ -36,13 +36,13 @@ const genAlt: GenAlt = {
 
 describe('ProductAlternative contract', () => {
   it('generated shapes are assignable to the hand-written types', () => {
-    const window: AlternativeWindow = genWindow
+    const dateWindow: AlternativeWindow = genWindow
     // The API types product_kind as a free string; the widget narrows it.
     const alt: ProductAlternative = {
       ...genAlt,
       product_kind: genAlt.product_kind as ProductAlternative['product_kind'],
     }
-    expect(alt.windows?.[0]).toEqual(window)
+    expect(alt.windows?.[0]).toEqual(dateWindow)
   })
 })
 
@@ -53,12 +53,10 @@ describe('getProductAlternatives', () => {
   })
 
   it('sends from/to/party and returns the parsed list', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify([genAlt]), {
+    const fetchMock = vi.fn().mockImplementation(async () => new Response(JSON.stringify([genAlt]), {
         status: 200,
         headers: { 'content-type': 'application/json' },
-      }),
-    )
+      }))
     vi.stubEnv('VITE_USE_MOCKS', '0')
     vi.stubEnv('VITE_API_BASE_URL', 'https://api.example.com')
     vi.stubGlobal('fetch', fetchMock)

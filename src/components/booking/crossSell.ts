@@ -366,8 +366,8 @@ export function preferredWindow(
   )
 }
 
-export function withWindow(line: ExtraLine, window: FixedDateWindow): ExtraLine {
-  return { ...line, windowId: window.id, days: expandWindowDays(window), unavailableDays: [] }
+export function withWindow(line: ExtraLine, dateWindow: FixedDateWindow): ExtraLine {
+  return { ...line, windowId: dateWindow.id, days: expandWindowDays(dateWindow), unavailableDays: [] }
 }
 
 /**

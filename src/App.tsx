@@ -1,3 +1,4 @@
+import { ChevronLeftIcon } from 'lucide-react'
 import { PausedGate } from '@/components/booking/PausedGate'
 import { shouldShowVoucherField } from '@/components/booking/voucherField'
 import { DemoBanner, DemoCongrats } from '@/components/booking/DemoMode'
@@ -141,6 +142,8 @@ import {
   stepBeforeReview,
   draftForProductSwitch,
   stepForAlternativeSwitch,
+  stepForAlternativeBack,
+  type AlternativeBack,
   partyClampForSwitch,
   type AlternativeCarry,
 } from './appStepMachine'
@@ -1309,6 +1312,12 @@ function BookingFlowApp() {
     from: string
     to: string
   } | null>(null)
+  // landr-p2du5: the way back to the product the guest switched away from,
+  // with the picks it had. Offered on the target's date step only.
+  const [alternativeBack, setAlternativeBack] = useState<AlternativeBack | null>(null)
+  // The course window last picked live, per product (FixedDateWindowPicker
+  // reports it with the days); read when a switch snapshots a course origin.
+  const liveWindowRef = useRef<{ productId: string; windowId?: string } | null>(null)
   useEffect(() => {
     const lastProductId = lastProductIdRef.current
     if (activeProductId && lastProductId && lastProductId !== activeProductId) {
@@ -2077,6 +2086,22 @@ function BookingFlowApp() {
     if (tappedProductId && tappedProductId !== target.product_id) {
       setAlternativeOrigin({ from: tappedProductId, to: target.product_id })
     }
+    setAlternativeBack(
+      (now.name === 'pick-selection' || now.name === 'fully-booked') &&
+        now.product.product_id !== target.product_id
+        ? {
+            from: now,
+            toProductId: target.product_id,
+            days: liveSelectionDays,
+            windowId:
+              liveWindowRef.current?.productId === now.product.product_id
+                ? liveWindowRef.current.windowId
+                : undefined,
+            startTime: liveSlot ? liveSlot.start_time : null,
+            draft: bookingDraft,
+          }
+        : null,
+    )
     setLiveSelectionDays([])
     setLiveSlot(null)
     // The shared-double reference and the live accommodation edits belong to
@@ -2106,6 +2131,28 @@ function BookingFlowApp() {
       }),
     )
   }
+  // landr-p2du5: return from an alternative to the product the guest left,
+  // its day(s)/window/start time and the pre-switch draft restored.
+  const goBackFromAlternative = () => {
+    const back = alternativeBack
+    if (!back) return
+    ++switchSeqRef.current
+    alternativeSwitchRef.current = true
+    setAlternativeBack(null)
+    setAlternativeOrigin(null)
+    setPartyClampNote(null)
+    setLiveSelectionDays([])
+    setLiveSlot(null)
+    setJoinRef(null)
+    clearLiveAccommodation()
+    setBookingDraft(back.draft)
+    setStep(stepForAlternativeBack(back))
+  }
+  const showAlternativeBack =
+    alternativeBack !== null &&
+    step.name === 'pick-selection' &&
+    step.product.product_id === alternativeBack.toProductId
+
   // An invite's hold counts for the product it was minted for only.
   const inviteTokenFor = (p: Product) =>
     inviteData && inviteData.product_id === p.product_id ? (invite ?? undefined) : undefined
@@ -2531,6 +2578,34 @@ function BookingFlowApp() {
           pickedGroupSlug); a top-level ?product= deep link has no
           catalogue to go back to.
         */}
+        {showAlternativeBack && alternativeBack ? (
+          <button
+            type="button"
+            onClick={goBackFromAlternative}
+            data-testid="alternative-back"
+            className="tap-44 flex w-full items-center gap-2 rounded-md border border-primary/30 bg-surface-tint px-3 py-2 text-left text-sm shadow-well transition-colors hover:border-primary"
+          >
+            <ChevronLeftIcon className="size-4 shrink-0 text-primary" aria-hidden />
+            <span className="flex min-w-0 flex-col">
+              <span className="truncate font-medium">
+                {tr('alternativeBackTemplate', browserLocale()).replace(
+                  '{name}',
+                  pickLocalized(
+                    alternativeBack.from.product.name,
+                    alternativeBack.from.product.name_localized,
+                    browserLocale(),
+                  ),
+                )}
+              </span>
+              {alternativeBack.days.length > 0 ? (
+                <span className="text-xs text-muted-foreground">
+                  {tr('alternativeBackKeepsDates', browserLocale())}
+                </span>
+              ) : null}
+            </span>
+          </button>
+        ) : null}
+
         {partyClampNote &&
         (step.name === 'pick-selection' || step.name === 'details') &&
         step.product.product_id === partyClampNote.productId ? (
@@ -2696,20 +2771,23 @@ function BookingFlowApp() {
                     ? (inviteData.fixed_date_window_id ?? undefined)
                     : undefined
             }
-            onConfirm={(_slot, window, forced, forcedReasons) => {
-              const days = expandWindowDays(window)
+            onConfirm={(_slot, dateWindow, forced, forcedReasons) => {
+              const days = expandWindowDays(dateWindow)
               afterSelection(step.product, {
                 kind: 'days',
                 selectedDays: days,
                 // landr-my6fc.7: remember WHICH course window (windows may overlap).
-                fixedDateWindowId: window.id,
+                fixedDateWindowId: dateWindow.id,
                 // landr-aoak.2/t869m.5: a force-booked blocked window marks
                 // ALL its days as forced (so the submit adapter raises
                 // ignore_capacity) and carries WHICH gate(s) it bypassed.
                 ...(forced ? { forcedDays: days, forcedReasons } : {}),
               })
             }}
-            onLiveDaysChange={setLiveSelectionDays}
+            onLiveDaysChange={(days, windowId) => {
+              liveWindowRef.current = { productId: step.product.product_id, windowId }
+              setLiveSelectionDays(days)
+            }}
             onSelectAlternative={onSelectAlternative}
           />
         ) : null}
@@ -2754,10 +2832,11 @@ function BookingFlowApp() {
             operatorToken={token ?? undefined}
             operatorTimezone={operatorSettings.timezone}
             contactEmail={operatorSettings.contact_email ?? null}
-            onConfirm={(selectedDays, forcedDays, forcedReasons) =>
+            onConfirm={(selectedDays, forcedDays, forcedReasons, pastStart) =>
               afterSelection(step.product, {
                 kind: 'days',
                 selectedDays,
+                ...(pastStart ? { pastStart } : {}),
                 // landr-aoak.2/t869m.5: carry the force-booked subset (staff
                 // mode only) and which gate(s) it bypassed.
                 ...(forcedDays && forcedDays.length > 0

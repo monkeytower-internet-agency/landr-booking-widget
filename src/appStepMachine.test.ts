@@ -17,6 +17,7 @@ import {
   draftForProductSwitch,
   partyClampForSwitch,
   stepForAlternativeSwitch,
+  stepForAlternativeBack,
   frameBackStep,
   mergeCapturedDraft,
   participantsBeforeSelection,
@@ -1532,5 +1533,65 @@ describe('stepForAlternativeSwitch + detailsFromDraft carry', () => {
     const step = detailsFromDraft(target, undefined, {}, { date: '2026-11-01', startTime: '11:00' })
     expect(step.carry).toEqual({ date: '2026-11-01', startTime: '11:00' })
     expect(detailsFromDraft(target, undefined, {})).not.toHaveProperty('carry')
+  })
+})
+
+describe('stepForAlternativeBack (landr-p2du5)', () => {
+  const range = makeProduct({ product_id: 'range', service_time_shape: 'days_range' })
+  const course = makeProduct({ product_id: 'course', service_time_shape: 'fixed_window' })
+  const slot = makeProduct({ product_id: 'slot', service_time_shape: 'time_slot' })
+  const days = ['2026-11-14', '2026-11-15']
+  const base = { toProductId: 'other', draft: { partySize: 3 } }
+
+  it('days_range origin: every live day re-selected on its date step', () => {
+    expect(
+      stepForAlternativeBack({ ...base, from: { name: 'pick-selection', product: range }, days }),
+    ).toEqual({
+      name: 'pick-selection',
+      product: range,
+      selection: { kind: 'days', selectedDays: days },
+    })
+  })
+
+  it('course origin: the live window wins, else the committed one', () => {
+    expect(
+      stepForAlternativeBack({
+        ...base,
+        from: { name: 'pick-selection', product: course },
+        days,
+        windowId: 'w-live',
+      }),
+    ).toMatchObject({ selection: { fixedDateWindowId: 'w-live' } })
+    expect(
+      stepForAlternativeBack({
+        ...base,
+        from: {
+          name: 'pick-selection',
+          product: course,
+          selection: { kind: 'days', selectedDays: days, fixedDateWindowId: 'w-old' },
+        },
+        days,
+      }),
+    ).toMatchObject({ selection: { fixedDateWindowId: 'w-old' } })
+  })
+
+  it('time-slot origin: day and start time ride back as a carry', () => {
+    expect(
+      stepForAlternativeBack({
+        ...base,
+        from: { name: 'pick-selection', product: slot },
+        days: ['2026-11-14'],
+        startTime: '10:00:00',
+      }),
+    ).toEqual({
+      name: 'pick-selection',
+      product: slot,
+      carry: { date: '2026-11-14', startTime: '10:00:00' },
+    })
+  })
+
+  it('fully-booked origin: returns to the notice unchanged', () => {
+    const from = { name: 'fully-booked' as const, product: range }
+    expect(stepForAlternativeBack({ ...base, from, days: [] })).toBe(from)
   })
 })

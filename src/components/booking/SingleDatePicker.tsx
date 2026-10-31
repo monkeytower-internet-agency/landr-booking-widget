@@ -372,6 +372,7 @@ export function SingleDatePicker({
           <CalendarDayHintContext.Provider value={dayHint}>
           <CalendarPartyContext.Provider value={need}>
             <Calendar
+              today={startOfToday(operatorTimezone)}
               mode="single"
               selected={selected ?? undefined}
               onSelect={handleSelect}

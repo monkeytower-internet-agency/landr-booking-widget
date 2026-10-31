@@ -101,12 +101,10 @@ const CASES = [
 
 describe.each(CASES)('BookingForm — $lang UI (landr-8r6oc.4)', ({ lang, browser, title, contact, confirm }) => {
   beforeEach(() => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify({ booking_id: 'b-1', semantic_state: 'pending' }), {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response(JSON.stringify({ booking_id: 'b-1', semantic_state: 'pending' }), {
         status: 201,
         headers: { 'Content-Type': 'application/json' },
-      }),
-    )
+      }))
   })
 
   afterEach(() => {

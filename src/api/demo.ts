@@ -777,16 +777,16 @@ export function demoEstimate(
       paid_to: 'operator',
       ...(fee > 0 ? { cleaning_fee: fee.toFixed(2) } : {}),
     })
-    const window = stayWindowOf(nights)
+    const dateWindow = stayWindowOf(nights)
     stay = {
-      check_in: window?.checkIn ?? null,
-      check_out: window?.checkOut ?? null,
+      check_in: dateWindow?.checkIn ?? null,
+      check_out: dateWindow?.checkOut ?? null,
       nights: nights.length,
       cleaning_fee: fee.toFixed(2),
-      errors: window
+      errors: dateWindow
         ? checkStayRange({
-            check_in: window.checkIn,
-            check_out: window.checkOut,
+            check_in: dateWindow.checkIn,
+            check_out: dateWindow.checkOut,
             min_nights: config?.min_nights ?? 1,
             max_nights: config?.max_nights ?? null,
             guests: body.participants_count,

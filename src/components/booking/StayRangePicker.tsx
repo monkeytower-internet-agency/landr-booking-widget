@@ -173,6 +173,7 @@ export function StayRangePicker({
         ) : null}
         <NextAction active={!complete} cue={tr('stayPickerCue', locale)}>
           <Calendar
+            today={startOfToday(operatorTimezone)}
             mode="range"
             selected={{
               from: range.checkIn ? dateFromIso(range.checkIn) : undefined,
