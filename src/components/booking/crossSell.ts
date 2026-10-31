@@ -388,23 +388,19 @@ export function freeUnitsOfSeats(freeSeats: number, need: number): number {
 }
 
 /**
- * Upper bound of a cross-sell line's quantity stepper: min(free inventory,
- * party cap), never below 1. Party cap applies to stays only:
- * max(1, ceil(partySize / capacity_per_unit)), capacity_per_unit null = 1.
- * `freeUnits` null = unknown, no inventory cap (the API re-checks).
+ * Upper bound of a cross-sell line's quantity stepper. A stay is always one
+ * unit (the API refuses more), so its cap is 1; a service is capped at the
+ * free inventory, never below 1. `freeUnits` null = unknown, no cap (the API
+ * re-checks).
  */
 export function maxQuantityFor(
-  line: Pick<ExtraLine, 'mode'> & { product: Pick<Product, 'capacity_per_unit'> },
-  partySize: number,
+  line: Pick<ExtraLine, 'mode'>,
+  _partySize: number,
   freeUnits: number | null | undefined,
 ): number {
-  let cap = Number.POSITIVE_INFINITY
-  if (line.mode === 'nights') {
-    const per = Math.max(1, line.product.capacity_per_unit ?? 1)
-    cap = Math.max(1, Math.ceil(Math.max(1, partySize) / per))
-  }
-  if (freeUnits !== null && freeUnits !== undefined) cap = Math.min(cap, freeUnits)
-  return Number.isFinite(cap) ? Math.max(1, cap) : Number.POSITIVE_INFINITY
+  if (line.mode === 'nights') return 1
+  if (freeUnits === null || freeUnits === undefined) return Number.POSITIVE_INFINITY
+  return Math.max(1, freeUnits)
 }
 
 /** Why an added line cannot be submitted yet, or null when it is ready. */

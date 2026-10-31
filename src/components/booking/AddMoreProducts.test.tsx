@@ -170,12 +170,12 @@ describe('Add more to this booking (review step)', () => {
     })
   }
 
-  it('caps a stay line at the party size and shows the hint (party of 1)', async () => {
+  it('hides the quantity stepper on a stay line (one unit only)', async () => {
     vi.mocked(getAvailability).mockResolvedValue([])
     render(<Harness />)
     const line = await addAndSettle('camping')
-    expect(line).toHaveTextContent('max. 1')
-    expect(within(line).getByRole('button', { name: '+' })).toBeDisabled()
+    expect(within(line).queryByTestId('add-more-quantity')).toBeNull()
+    expect(within(line).queryByRole('button', { name: '+' })).toBeNull()
   })
 
   it('asks for verification inline when the added product requires it', async () => {

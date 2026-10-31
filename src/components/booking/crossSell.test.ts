@@ -343,25 +343,16 @@ describe('effectiveLanguages', () => {
 })
 
 describe('quantity cap', () => {
-  const stay = (cpu: number | null) => ({
-    mode: 'nights' as const,
-    product: { capacity_per_unit: cpu },
-  })
-  const svc = { mode: 'days' as const, product: { capacity_per_unit: null } }
+  const stay = { mode: 'nights' as const }
+  const svc = { mode: 'days' as const }
 
-  it('caps a stay at ceil(party / capacity_per_unit), min 1', () => {
-    expect(maxQuantityFor(stay(2), 1, null)).toBe(1)
-    expect(maxQuantityFor(stay(2), 5, null)).toBe(3)
-    expect(maxQuantityFor(stay(null), 3, null)).toBe(3)
-    expect(maxQuantityFor(stay(4), 0, null)).toBe(1)
+  it('keeps a stay at one unit whatever the party or inventory', () => {
+    expect(maxQuantityFor(stay, 1, null)).toBe(1)
+    expect(maxQuantityFor(stay, 8, 9)).toBe(1)
   })
-  it('takes the lower of free units and the party cap, never below 1', () => {
-    expect(maxQuantityFor(stay(1), 4, 2)).toBe(2)
-    expect(maxQuantityFor(stay(1), 2, 9)).toBe(2)
-    expect(maxQuantityFor(stay(1), 2, 0)).toBe(1)
-  })
-  it('has no party cap for services and no cap when capacity is unknown', () => {
+  it('caps a service at free units, never below 1; unknown = no cap', () => {
     expect(maxQuantityFor(svc, 8, 3)).toBe(3)
+    expect(maxQuantityFor(svc, 8, 0)).toBe(1)
     expect(maxQuantityFor(svc, 8, null)).toBe(Number.POSITIVE_INFINITY)
   })
   it('derives free units from the lowest night / day', () => {

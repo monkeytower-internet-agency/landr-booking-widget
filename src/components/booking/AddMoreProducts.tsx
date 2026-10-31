@@ -446,6 +446,7 @@ export function AddMoreProducts({
               )
             ) : null}
 
+            {line.mode !== 'nights' ? (
             <div className="flex items-center gap-2 text-sm">
               <span>{tr('addMoreQuantity', locale)}</span>
               <Button
@@ -474,12 +475,11 @@ export function AddMoreProducts({
                   {fmt(tr('addMoreMaxQuantity', locale), { max: maxQty })}
                 </span>
               ) : null}
-              {line.mode !== 'nights' ? (
-                <span className="text-xs text-muted-foreground">
-                  {fmt(tr('addMoreForGroup', locale), { count: partySize })}
-                </span>
-              ) : null}
+              <span className="text-xs text-muted-foreground">
+                {fmt(tr('addMoreForGroup', locale), { count: partySize })}
+              </span>
             </div>
+            ) : null}
 
             {needs && (needs.language || needs.pickup || needs.forms.length > 0) ? (
               <div className="space-y-3">
