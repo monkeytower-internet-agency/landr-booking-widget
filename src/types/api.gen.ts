@@ -14746,12 +14746,23 @@ export interface components {
             addon_quantity_rule?: ("one_per_booking" | "one_per_participant" | "any") | null;
             /** Currency */
             currency?: string | null;
+            /**
+             * Day Selection
+             * @default parent_all
+             * @enum {string}
+             */
+            day_selection: "parent_all" | "parent_subset";
             /** Description */
             description?: string | null;
             /** Description Localized */
             description_localized?: {
                 [key: string]: unknown;
             } | null;
+            /**
+             * Images
+             * @default []
+             */
+            images: components["schemas"]["ProductImage"][];
             /**
              * Is Required
              * @default false
@@ -14795,6 +14806,8 @@ export interface components {
              * @default 0
              */
             sort_order: number;
+            /** Thumb Url */
+            thumb_url?: string | null;
         };
         /**
          * CatalogueAlternative
@@ -20809,6 +20822,14 @@ export interface components {
             available: boolean;
             /** Currency */
             currency?: string | null;
+            /**
+             * Day Selection
+             * @default parent_all
+             * @enum {string}
+             */
+            day_selection: "parent_all" | "parent_subset";
+            /** Images */
+            images?: components["schemas"]["ProductImage"][];
             /** Is Required */
             is_required: boolean;
             /** Max Qty */
@@ -20846,6 +20867,8 @@ export interface components {
             stock_scope?: ("unit" | "place" | "type") | null;
             /** Stock Unit Label */
             stock_unit_label?: string | null;
+            /** Thumb Url */
+            thumb_url?: string | null;
             /** Unavailable Reason */
             unavailable_reason?: ("sold_out" | "unit_taken") | null;
         } & {
@@ -21145,6 +21168,12 @@ export interface components {
             daily_start_weekdays?: number[] | null;
             /** Day Capacity Source */
             day_capacity_source?: ("product" | "resources") | null;
+            /**
+             * Day Selection
+             * @default parent_all
+             * @enum {string}
+             */
+            day_selection: "parent_all" | "parent_subset";
             /** Default Pricing Scheme Id */
             default_pricing_scheme_id?: string | null;
             /** Description */
@@ -21335,6 +21364,8 @@ export interface components {
             daily_start_weekdays?: number[] | null;
             /** Day Capacity Source */
             day_capacity_source?: ("product" | "resources") | null;
+            /** Day Selection */
+            day_selection?: ("parent_all" | "parent_subset") | null;
             /** Default Pricing Scheme Id */
             default_pricing_scheme_id?: string | null;
             /** Description */

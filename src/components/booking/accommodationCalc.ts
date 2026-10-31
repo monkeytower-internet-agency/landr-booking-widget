@@ -262,9 +262,21 @@ export function flattenPerRoomAddons(
   addonSelection: Record<string, Record<string, number>>,
   roomSelection: Record<string, number>,
   addonsByRoom: Record<string, import('@/api/types').ProductAddon[]>,
+  /**
+   * landr-a27k9.2: the days picked for day-pickable companion add-ons, per
+   * room then per add-on, and the stay's nights they must stay inside. A
+   * companion's line carries the UNION of its days over the rooms that
+   * picked it (quantities still sum); one without any valid day is left out.
+   */
+  companion?: {
+    daysByRoom: Record<string, Record<string, string[]>>
+    nights: readonly string[]
+  },
 ): import('./addonsState').AddonSelection[] {
   const totals = new Map<string, number>()
   const kindById = new Map<string, import('@/api/types').ProductKind>()
+  const rowById = new Map<string, import('@/api/types').ProductAddon>()
+  const daysById = new Map<string, Set<string>>()
   for (const [roomId, roomQty] of Object.entries(roomSelection)) {
     if ((roomQty ?? 0) <= 0) continue
     const roomAddons = addonsByRoom[roomId] ?? []
@@ -275,18 +287,44 @@ export function flattenPerRoomAddons(
       if (qty <= 0) continue
       totals.set(id, (totals.get(id) ?? 0) + qty)
       if (!kindById.has(id)) kindById.set(id, addon.product_kind)
+      if (!rowById.has(id)) rowById.set(id, addon)
+      if (addon.day_selection === 'parent_subset') {
+        const set = daysById.get(id) ?? new Set<string>()
+        const nights = new Set(companion?.nights ?? [])
+        for (const d of companion?.daysByRoom[roomId]?.[id] ?? []) {
+          if (nights.has(d)) set.add(d)
+        }
+        daysById.set(id, set)
+      }
     }
   }
   return [...totals.entries()]
     .filter(([, qty]) => qty > 0)
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([productId, quantity]) => ({
-      productId,
-      quantity,
-      ...(kindById.has(productId)
-        ? { productKind: kindById.get(productId) }
-        : {}),
-    }))
+    .flatMap(([productId, quantity]): import('./addonsState').AddonSelection[] => {
+      const base = {
+        productId,
+        quantity,
+        ...(kindById.has(productId)
+          ? { productKind: kindById.get(productId) }
+          : {}),
+      }
+      const row = rowById.get(productId)
+      if (row?.day_selection === 'parent_subset') {
+        const days = [...(daysById.get(productId) ?? [])].sort()
+        if (days.length === 0) return []
+        return [
+          {
+            ...base,
+            selectedDays: days,
+            name: row.name,
+            unitPrice: row.price_per_unit ?? null,
+            currency: row.currency ?? null,
+          },
+        ]
+      }
+      return [base]
+    })
 }
 
 /**

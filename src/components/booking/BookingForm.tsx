@@ -693,6 +693,24 @@ const readShortDay = (err: HttpError): { date: string; seats_short: number } | n
     : null
 }
 
+/** landr-a27k9.1 error codes of a companion add-on line -> widget copy key. */
+const COMPANION_ERROR_COPY: Record<
+  string,
+  | 'companionErrDaysRequired'
+  | 'companionErrOutsideParent'
+  | 'companionErrParentMissing'
+  | 'companionErrOutOfStock'
+  | 'companionErrQuantityMax'
+  | 'companionErrNoLongerFits'
+> = {
+  companion_days_required: 'companionErrDaysRequired',
+  companion_days_outside_parent: 'companionErrOutsideParent',
+  companion_parent_missing: 'companionErrParentMissing',
+  addon_out_of_stock: 'companionErrOutOfStock',
+  addon_quantity_exceeds_max: 'companionErrQuantityMax',
+  companion_addon_no_longer_fits: 'companionErrNoLongerFits',
+}
+
 const formatHttpError = (
   err: HttpError,
   memberLabels: string[] = [],
@@ -729,6 +747,21 @@ const formatHttpError = (
       const message = (err.detail as { message?: unknown }).message
       if (typeof message === 'string' && message.length > 0) return message
     }
+  }
+  // landr-a27k9.2: the day-pickable companion add-on rules the step already
+  // enforces (a day or more, inside the parent's days, in stock, within the
+  // party size). Server backstop for a stale tab / a race: friendly copy per
+  // code instead of the generic 422 dump.
+  if (
+    err.status === 422 &&
+    err.detail !== null &&
+    typeof err.detail === 'object' &&
+    !Array.isArray(err.detail)
+  ) {
+    const code = (err.detail as { error?: unknown }).error
+    const key =
+      typeof code === 'string' ? COMPANION_ERROR_COPY[code] : undefined
+    if (key) return tr(key, browserLocale())
   }
   // landr-zenj.1: the submit endpoint hard-rejects an un-priceable booking
   // with 422 {"error": "un_priceable", "product_ids": [...], "warnings":
@@ -1519,8 +1552,14 @@ export function BookingForm({
           // e.g. breakfast) derives from the room stay — same night
           // window as the room lines above. A service-tied add-on (e.g.
           // Video Package) keeps the raw service-day window.
-          selected_days:
-            addon.productKind === 'hotel_room' ? nightIsos : selectedDaysForSubmit,
+          // landr-a27k9.2: a day-pickable companion (e.g. a city bike) submits
+          // exactly the days the guest picked -- a non-empty subset of the
+          // parent's days -- instead of the parent's whole window.
+          selected_days: addon.selectedDays?.length
+            ? addon.selectedDays
+            : addon.productKind === 'hotel_room'
+              ? nightIsos
+              : selectedDaysForSubmit,
         })),
         // "Add more to this booking": the products added on this step.
         ...extraProductLines(crossSellLines),

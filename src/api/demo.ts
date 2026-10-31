@@ -29,6 +29,7 @@ import type {
   PassValidityKind,
   Product,
   ProductAddon,
+  ProductImage,
   ProductAlternative,
   SavingLine,
   SurchargeLine,
@@ -83,6 +84,12 @@ export interface DemoCatalogueAddon {
   price_unit?: AddonPriceUnit | null
   addon_quantity_rule?: AddonQuantityRule | null
   addon_quantity_max?: number | null
+  /** landr-a27k9.1: 'parent_subset' = a companion booked on a subset of the parent's days. */
+  day_selection?: 'parent_all' | 'parent_subset' | null
+  short_description?: string | null
+  short_description_localized?: Record<string, string> | null
+  images?: ProductImage[] | null
+  thumb_url?: string | null
   price_per_unit?: number | string | null
   currency?: string | null
   pricing?: DemoCataloguePricing | null
@@ -890,6 +897,15 @@ export function demoAddons(template: DemoTemplate, id: string): ProductAddon[] {
       addon_quantity_max: a.addon_quantity_max ?? null,
       price_unit: a.price_unit ?? null,
       available: true,
+      day_selection: a.day_selection ?? 'parent_all',
+      ...(a.images?.length ? { images: a.images } : {}),
+      ...(a.thumb_url ? { thumb_url: a.thumb_url } : {}),
+      ...(a.short_description
+        ? {
+            short_description: fill(a.short_description, 'en'),
+            short_description_localized: fillMap(a.short_description_localized),
+          }
+        : {}),
     }))
 }
 

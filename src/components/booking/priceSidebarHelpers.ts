@@ -7,6 +7,7 @@ import type {
   EstimateAddonLine,
   EstimateAppliedRule,
   EstimateLineItem,
+  EstimateResponse,
 } from '@/api/types'
 import { plural, tr } from '@/lib/strings'
 import type { RoomSelection } from './accommodationCalc'
@@ -35,11 +36,60 @@ export function buildAddonLines(
     }
   }
   for (const addon of addons) {
-    if (addon.quantity > 0) {
+    // landr-a27k9.2: a day-pickable companion is priced on its OWN days (the
+    // estimate prices every add-on line over the one shared day list), see
+    // companionEstimate.
+    if (addon.quantity > 0 && !addon.selectedDays?.length) {
       lines.push({ product_id: addon.productId, qty: addon.quantity })
     }
   }
   return lines
+}
+
+/**
+ * landr-a27k9.2: the price lines of the day-pickable companion add-ons
+ * (qty x picked days x price per day), as an estimate to fold into the main
+ * one. The estimate endpoint takes one shared day list for every add-on, so
+ * a companion on a subset of the days cannot be priced there; this is the
+ * same flat per-day arithmetic. Null when no priced companion is in the cart.
+ */
+export function companionEstimate(
+  addons: readonly AddonSelection[],
+  currency: string,
+): EstimateResponse | null {
+  const items: EstimateLineItem[] = []
+  let cents = 0
+  for (const a of addons) {
+    const days = a.selectedDays?.length ?? 0
+    if (a.quantity <= 0 || days === 0 || a.unitPrice == null) continue
+    const unitCents = Math.round(Number(a.unitPrice) * 100)
+    if (!Number.isFinite(unitCents)) continue
+    const total = unitCents * days * a.quantity
+    cents += total
+    items.push({
+      product_id: a.productId,
+      label: a.name ?? '',
+      qty: a.quantity,
+      units: days,
+      unit_price: (unitCents / 100).toFixed(2),
+      line_total: (total / 100).toFixed(2),
+      paid_to: 'operator',
+      price_unit: 'night',
+    })
+  }
+  if (items.length === 0) return null
+  const sum = (cents / 100).toFixed(2)
+  return {
+    line_items: items,
+    operator_total: sum,
+    hotel_total: '0.00',
+    grand_total: sum,
+    currency,
+    applied_rules: [],
+    warnings: [],
+    un_priceable: false,
+    amount_due: sum,
+  }
 }
 
 /**
