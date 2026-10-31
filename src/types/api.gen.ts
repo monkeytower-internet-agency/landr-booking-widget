@@ -4249,33 +4249,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/public/products/{product_id}/addons/stock": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Product Addons Stock By Day
-         * @description Per-day stock of the day-pickable (``parent_subset``) companion add-ons
-         *     of a parent product, in ONE call instead of one add-ons call per day.
-         *
-         *     Same verdict as ``GET /products/{id}/addons`` with a single-day
-         *     ``selected_days`` (the add-on's minimum quantity, at least 1, judged in the
-         *     parent's own stock scope), for every day asked. Hidden parent / no
-         *     companion add-ons: an empty list. At most 31 distinct days (422
-         *     ``too_many_days``).
-         */
-        get: operations["get_product_addons_stock_by_day"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/public/products/{product_id}/alternatives": {
         parameters: {
             query?: never;
@@ -12926,29 +12899,6 @@ export interface components {
             /** Rotate Weekly */
             rotate_weekly: boolean;
         };
-        /**
-         * AddonDayStock
-         * @description One (day, companion add-on) stock verdict of
-         *     GET /products/{id}/addons/stock (landr-a27k9.6).
-         */
-        AddonDayStock: {
-            /** Addon Product Id */
-            addon_product_id: string;
-            /**
-             * Available
-             * @default true
-             */
-            available: boolean;
-            /**
-             * Day
-             * Format: date
-             */
-            day: string;
-            /** Stock Remaining */
-            stock_remaining?: number | null;
-            /** Unavailable Reason */
-            unavailable_reason?: ("sold_out" | "unit_taken") | null;
-        };
         /** AlertOut */
         AlertOut: {
             /** Alert Type */
@@ -14796,23 +14746,12 @@ export interface components {
             addon_quantity_rule?: ("one_per_booking" | "one_per_participant" | "any") | null;
             /** Currency */
             currency?: string | null;
-            /**
-             * Day Selection
-             * @default parent_all
-             * @enum {string}
-             */
-            day_selection: "parent_all" | "parent_subset";
             /** Description */
             description?: string | null;
             /** Description Localized */
             description_localized?: {
                 [key: string]: unknown;
             } | null;
-            /**
-             * Images
-             * @default []
-             */
-            images: components["schemas"]["ProductImage"][];
             /**
              * Is Required
              * @default false
@@ -14856,8 +14795,6 @@ export interface components {
              * @default 0
              */
             sort_order: number;
-            /** Thumb Url */
-            thumb_url?: string | null;
         };
         /**
          * CatalogueAlternative
@@ -16678,8 +16615,6 @@ export interface components {
              * @default 1
              */
             qty: number;
-            /** Selected Days */
-            selected_days?: string[] | null;
         };
         /**
          * EstimateAppliedRule
@@ -20874,14 +20809,6 @@ export interface components {
             available: boolean;
             /** Currency */
             currency?: string | null;
-            /**
-             * Day Selection
-             * @default parent_all
-             * @enum {string}
-             */
-            day_selection: "parent_all" | "parent_subset";
-            /** Images */
-            images?: components["schemas"]["ProductImage"][];
             /** Is Required */
             is_required: boolean;
             /** Max Qty */
@@ -20911,12 +20838,6 @@ export interface components {
             product_addon_id: string;
             /** Product Kind */
             product_kind: string;
-            /** Short Description */
-            short_description?: string | null;
-            /** Short Description Localized */
-            short_description_localized?: {
-                [key: string]: string;
-            } | null;
             /** Sort Order */
             sort_order: number;
             /** Stock Remaining */
@@ -20925,8 +20846,6 @@ export interface components {
             stock_scope?: ("unit" | "place" | "type") | null;
             /** Stock Unit Label */
             stock_unit_label?: string | null;
-            /** Thumb Url */
-            thumb_url?: string | null;
             /** Unavailable Reason */
             unavailable_reason?: ("sold_out" | "unit_taken") | null;
         } & {
@@ -21226,12 +21145,6 @@ export interface components {
             daily_start_weekdays?: number[] | null;
             /** Day Capacity Source */
             day_capacity_source?: ("product" | "resources") | null;
-            /**
-             * Day Selection
-             * @default parent_all
-             * @enum {string}
-             */
-            day_selection: "parent_all" | "parent_subset";
             /** Default Pricing Scheme Id */
             default_pricing_scheme_id?: string | null;
             /** Description */
@@ -21422,8 +21335,6 @@ export interface components {
             daily_start_weekdays?: number[] | null;
             /** Day Capacity Source */
             day_capacity_source?: ("product" | "resources") | null;
-            /** Day Selection */
-            day_selection?: ("parent_all" | "parent_subset") | null;
             /** Default Pricing Scheme Id */
             default_pricing_scheme_id?: string | null;
             /** Description */
@@ -32287,42 +32198,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProductAddon"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_product_addons_stock_by_day: {
-        parameters: {
-            query: {
-                /** @description landr-a27k9.6: the days to judge (repeat the param). Each day is judged on its own, unlike GET .../addons, which reports the lowest remaining over all the days it is sent. */
-                days: string[];
-                /** @description Guiding participants of the booking, as on GET .../addons */
-                participants: number;
-            };
-            header?: never;
-            path: {
-                product_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AddonDayStock"][];
                 };
             };
             /** @description Validation Error */
