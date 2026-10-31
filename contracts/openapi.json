@@ -10556,6 +10556,23 @@
             "title": "Addon Lines",
             "type": "array"
           },
+          "child_ages": {
+            "anyOf": [
+              {
+                "items": {
+                  "maximum": 17.0,
+                  "minimum": 0.0,
+                  "type": "integer"
+                },
+                "maxItems": 64,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Child Ages"
+          },
           "locale": {
             "anyOf": [
               {
@@ -16221,6 +16238,55 @@
         "title": "NumberingSeriesListResult",
         "type": "object"
       },
+      "OccupancyChildBand": {
+        "properties": {
+          "max_age": {
+            "title": "Max Age",
+            "type": "integer"
+          },
+          "min_age": {
+            "title": "Min Age",
+            "type": "integer"
+          },
+          "per_night": {
+            "title": "Per Night",
+            "type": "string"
+          }
+        },
+        "required": [
+          "min_age",
+          "max_age",
+          "per_night"
+        ],
+        "title": "OccupancyChildBand",
+        "type": "object"
+      },
+      "OccupancyPricingConfig": {
+        "description": "landr-hfvyc.1: the guest-based pricing of a stay (its price list's\noccupancy_pricing rule). Money as numeric strings.",
+        "properties": {
+          "child_bands": {
+            "items": {
+              "$ref": "#/components/schemas/OccupancyChildBand"
+            },
+            "title": "Child Bands",
+            "type": "array"
+          },
+          "extra_adult_per_night": {
+            "title": "Extra Adult Per Night",
+            "type": "string"
+          },
+          "included_adults": {
+            "title": "Included Adults",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "included_adults",
+          "extra_adult_per_night"
+        ],
+        "title": "OccupancyPricingConfig",
+        "type": "object"
+      },
       "Offer": {
         "enum": [
           "flights/activities",
@@ -18410,6 +18476,16 @@
               }
             ],
             "title": "Next Window Start"
+          },
+          "occupancy_pricing": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OccupancyPricingConfig"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "price_base": {
             "anyOf": [
@@ -21847,7 +21923,8 @@
               "time_of_day_surcharge",
               "manual_override",
               "slot_time_adjustment",
-              "weekday_adjustment"
+              "weekday_adjustment",
+              "occupancy_pricing"
             ],
             "title": "Rule Kind",
             "type": "string"
@@ -37317,7 +37394,8 @@
               "time_of_day_surcharge",
               "manual_override",
               "slot_time_adjustment",
-              "weekday_adjustment"
+              "weekday_adjustment",
+              "occupancy_pricing"
             ],
             "title": "Rule Kind",
             "type": "string"
@@ -37392,7 +37470,8 @@
                   "time_of_day_surcharge",
                   "manual_override",
                   "slot_time_adjustment",
-                  "weekday_adjustment"
+                  "weekday_adjustment",
+                  "occupancy_pricing"
                 ],
                 "type": "string"
               },
