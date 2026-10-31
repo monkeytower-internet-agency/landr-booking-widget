@@ -284,14 +284,12 @@ describe('BookingForm — per-participant language (landr-r6e5x.4)', () => {
   })
 
   it('leaves an UNRELATED 422 on the generic path', async () => {
-    fetchSpy.mockResolvedValue(
-      new Response(
+    fetchSpy.mockImplementation(async () => new Response(
         JSON.stringify({
           detail: [{ loc: ['body', 'customer_email'], msg: 'field required' }],
         }),
         { status: 422, headers: { 'Content-Type': 'application/json' } },
-      ),
-    )
+      ))
     renderForm()
     await confirm()
 
@@ -363,8 +361,7 @@ describe('BookingForm — per-participant language (landr-r6e5x.4)', () => {
     })
 
     it('does not retry a service cart on participant_language_missing', async () => {
-      fetchSpy.mockResolvedValue(
-        new Response(
+      fetchSpy.mockImplementation(async () => new Response(
           JSON.stringify({
             detail: {
               error: 'participant_language_missing',
@@ -373,8 +370,7 @@ describe('BookingForm — per-participant language (landr-r6e5x.4)', () => {
             },
           }),
           { status: 422, headers: { 'Content-Type': 'application/json' } },
-        ),
-      )
+        ))
       renderForm({ participantLanguages: {} })
       await confirm()
 

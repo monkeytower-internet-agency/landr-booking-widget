@@ -90,12 +90,10 @@ function setBrowserLanguage(language: string) {
 
 describe('BookingForm — German UI (landr-5aih0.9)', () => {
   beforeEach(() => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify({ booking_id: 'b-1', semantic_state: 'pending' }), {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response(JSON.stringify({ booking_id: 'b-1', semantic_state: 'pending' }), {
         status: 201,
         headers: { 'Content-Type': 'application/json' },
-      }),
-    )
+      }))
   })
 
   afterEach(() => {
@@ -160,9 +158,7 @@ describe('DetailsStep billing address — German UI (landr-uuntm.3)', () => {
   })
 
   function renderDetails() {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify({ country: null }), { status: 200 }),
-    )
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response(JSON.stringify({ country: null }), { status: 200 }))
     render(
       <DetailsStep
         product={makeServiceProduct()}
@@ -214,9 +210,7 @@ describe('Booking for someone else — German UI (landr-jiagg.2)', () => {
   it('DetailsStep: toggle, helper, Participant 1 placeholder and "Rechnung an:" in German', () => {
     setBrowserLanguage('de-DE')
     configureCustomerLocale(['en', 'de'], 'en')
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify({ country: null }), { status: 200 }),
-    )
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response(JSON.stringify({ country: null }), { status: 200 }))
     render(
       <DetailsStep
         product={makeServiceProduct()}
@@ -287,9 +281,7 @@ describe('Booking for someone else — German UI (landr-jiagg.2)', () => {
   it('DetailsStep: the roster max notice and over-cap gate line in German', () => {
     setBrowserLanguage('de-DE')
     configureCustomerLocale(['en', 'de'], 'en')
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify({ country: null }), { status: 200 }),
-    )
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response(JSON.stringify({ country: null }), { status: 200 }))
     render(
       <DetailsStep
         product={{ ...makeServiceProduct(), max_party_size: 1 }}
