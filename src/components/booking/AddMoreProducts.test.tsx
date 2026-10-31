@@ -170,6 +170,14 @@ describe('Add more to this booking (review step)', () => {
     })
   }
 
+  it('caps a stay line at the party size and shows the hint (party of 1)', async () => {
+    vi.mocked(getAvailability).mockResolvedValue([])
+    render(<Harness />)
+    const line = await addAndSettle('camping')
+    expect(line).toHaveTextContent('max. 1')
+    expect(within(line).getByRole('button', { name: '+' })).toBeDisabled()
+  })
+
   it('asks for verification inline when the added product requires it', async () => {
     const verified = product('verified', { name: 'Test event', requires_verification: true })
     vi.mocked(listProducts).mockResolvedValue([MAIN, CAMPING, verified])

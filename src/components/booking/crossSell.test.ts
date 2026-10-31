@@ -12,6 +12,9 @@ import {
   extraEstimateRequests,
   extraLinesBlocking,
   extraProductLines,
+  freeUnitsFor,
+  freeUnitsOfSeats,
+  maxQuantityFor,
   inheritLine,
   lineIssue,
   lineMode,
@@ -336,5 +339,36 @@ describe('effectiveLanguages', () => {
       1: 'es',
     })
     expect(effectiveLanguages({ 0: 'de', 1: 'en' }, null, ['en', 'fr'], 2)).toEqual({ 1: 'en' })
+  })
+})
+
+describe('quantity cap', () => {
+  const stay = (cpu: number | null) => ({
+    mode: 'nights' as const,
+    product: { capacity_per_unit: cpu },
+  })
+  const svc = { mode: 'days' as const, product: { capacity_per_unit: null } }
+
+  it('caps a stay at ceil(party / capacity_per_unit), min 1', () => {
+    expect(maxQuantityFor(stay(2), 1, null)).toBe(1)
+    expect(maxQuantityFor(stay(2), 5, null)).toBe(3)
+    expect(maxQuantityFor(stay(null), 3, null)).toBe(3)
+    expect(maxQuantityFor(stay(4), 0, null)).toBe(1)
+  })
+  it('takes the lower of free units and the party cap, never below 1', () => {
+    expect(maxQuantityFor(stay(1), 4, 2)).toBe(2)
+    expect(maxQuantityFor(stay(1), 2, 9)).toBe(2)
+    expect(maxQuantityFor(stay(1), 2, 0)).toBe(1)
+  })
+  it('has no party cap for services and no cap when capacity is unknown', () => {
+    expect(maxQuantityFor(svc, 8, 3)).toBe(3)
+    expect(maxQuantityFor(svc, 8, null)).toBe(Number.POSITIVE_INFINITY)
+  })
+  it('derives free units from the lowest night / day', () => {
+    const slots = [slot('2026-01-01', { available_seats: 3 }), slot('2026-01-02', { available_seats: 2 })]
+    expect(freeUnitsFor(slots, ['2026-01-01', '2026-01-02'], 1)).toBe(2)
+    expect(freeUnitsFor(slots, ['2026-01-01', '2026-01-02'], 2)).toBe(1)
+    expect(freeUnitsFor(slots, ['2026-02-01'], 1)).toBeNull()
+    expect(freeUnitsOfSeats(7, 3)).toBe(2)
   })
 })

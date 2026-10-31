@@ -61,6 +61,11 @@ export interface ExtraLine {
   unavailableDays: string[]
   /** True while the line's availability is being (re-)checked. */
   checking: boolean
+  /**
+   * Whole units the last availability read left free over all the line's
+   * days ('days' / 'nights' modes); null/absent = unknown (no inventory cap).
+   */
+  freeUnits?: number | null
 }
 
 export function lineMode(product: Product): ExtraLineMode {
@@ -353,6 +358,53 @@ export function unavailableDaysFor(
 /** Seats one added line needs per day: a stay sells a unit, a service seats the party. */
 export function seatsForLine(line: Pick<ExtraLine, 'mode'>, partySize: number): number {
   return line.mode === 'nights' ? 1 : Math.max(1, partySize)
+}
+
+/**
+ * Free units for 'days' / 'nights' lines: the lowest free count over the
+ * days that have availability rows (a stay sells units, so `need` is 1; a
+ * service divides by the seats one unit takes). Null when no day has rows.
+ */
+export function freeUnitsFor(
+  slots: readonly AvailabilitySlot[],
+  days: readonly string[],
+  need: number,
+): number | null {
+  let min: number | null = null
+  for (const d of days) {
+    const rows = slots.filter(
+      (s) => s.date === d && s.status !== 'closed' && s.activity_bookable !== false,
+    )
+    if (rows.length === 0) continue
+    const best = Math.max(...rows.map((r) => r.available_seats))
+    min = min === null ? best : Math.min(min, best)
+  }
+  return min === null ? null : Math.max(0, Math.floor(min / Math.max(1, need)))
+}
+
+/** Free units of a picked slot / window for a line needing `need` seats per unit. */
+export function freeUnitsOfSeats(freeSeats: number, need: number): number {
+  return Math.max(0, Math.floor(freeSeats / Math.max(1, need)))
+}
+
+/**
+ * Upper bound of a cross-sell line's quantity stepper: min(free inventory,
+ * party cap), never below 1. Party cap applies to stays only:
+ * max(1, ceil(partySize / capacity_per_unit)), capacity_per_unit null = 1.
+ * `freeUnits` null = unknown, no inventory cap (the API re-checks).
+ */
+export function maxQuantityFor(
+  line: Pick<ExtraLine, 'mode'> & { product: Pick<Product, 'capacity_per_unit'> },
+  partySize: number,
+  freeUnits: number | null | undefined,
+): number {
+  let cap = Number.POSITIVE_INFINITY
+  if (line.mode === 'nights') {
+    const per = Math.max(1, line.product.capacity_per_unit ?? 1)
+    cap = Math.max(1, Math.ceil(Math.max(1, partySize) / per))
+  }
+  if (freeUnits !== null && freeUnits !== undefined) cap = Math.min(cap, freeUnits)
+  return Number.isFinite(cap) ? Math.max(1, cap) : Number.POSITIVE_INFINITY
 }
 
 /** Why an added line cannot be submitted yet, or null when it is ready. */
