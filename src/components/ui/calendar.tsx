@@ -373,7 +373,9 @@ function CalendarDayButton({
           !modifiers.selected &&
           "text-muted-foreground underline decoration-dotted underline-offset-4",
         past && !modifiers.selected && "text-muted-foreground/60",
-        past && modifiers.selected && "ring-2 ring-inset ring-amber-500",
+        past &&
+          modifiers.selected &&
+          "ring-2 ring-inset ring-amber-500 group-data-[focused=true]/day:ring-amber-500",
         defaultClassNames.day,
         className
       )}

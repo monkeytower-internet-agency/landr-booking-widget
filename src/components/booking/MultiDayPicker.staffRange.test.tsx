@@ -45,11 +45,13 @@ function Harness({
   month,
   availability,
   onForced,
+  operatorTimezone,
 }: {
   staff: boolean
   month: Date
   availability: AvailabilitySlot[]
   onForced?: (d: string[], r: ForceReason[]) => void
+  operatorTimezone?: string
 }) {
   const [value, setValue] = useState<Date[]>([])
   return (
@@ -59,6 +61,7 @@ function Harness({
         value={value}
         onChange={setValue}
         onForcedDaysChange={onForced}
+        operatorTimezone={operatorTimezone}
         defaultMonth={new Date(month.getFullYear(), month.getMonth(), 1)}
       />
     </StaffModeProvider>
@@ -125,9 +128,32 @@ describe('MultiDayPicker range mode', () => {
     expect(btn(yesterday).className).not.toMatch(/ring-amber/)
     fireEvent.click(btn(yesterday))
     expect(btn(yesterday).className).toMatch(/ring-amber-500/)
+    // The just-clicked (focused) day keeps amber over the focus ring.
+    expect(btn(yesterday).className).toContain('group-data-[focused=true]/day:ring-amber-500')
     unmount()
     render(<Harness staff={false} month={month} availability={[]} />)
     expect(btn(yesterday)).toBeDisabled()
     expect(btn(yesterday).dataset.past).toBeUndefined()
+  })
+
+  it("today's ring follows the operator's day, not the browser's", () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    // 05:00 UTC on 1 Nov is still 31 Oct 19:00 in Honolulu.
+    vi.setSystemTime(new Date('2026-11-01T05:00:00Z'))
+    try {
+      render(
+        <Harness
+          staff
+          month={new Date(2026, 9, 1)}
+          availability={[]}
+          operatorTimezone="Pacific/Honolulu"
+        />,
+      )
+      expect(btn(new Date(2026, 9, 31)).closest('[data-today="true"]')).not.toBeNull()
+      expect(btn(new Date(2026, 9, 31)).dataset.past).toBeUndefined()
+      expect(btn(new Date(2026, 9, 30)).dataset.past).toBe('true')
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })
