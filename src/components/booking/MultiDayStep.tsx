@@ -329,7 +329,7 @@ export function MultiDayStep({
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
-          <DayChips dates={originalDays} />
+          <DayChips dates={originalDays} locale={locale} />
           {blocked > 0 ? (
             <p
               className="text-sm text-destructive"

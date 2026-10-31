@@ -16,8 +16,12 @@ import { CustomerCommentField } from './CustomerCommentField'
 import { NextAction } from './NextAction'
 import { StepBackButton } from './StepBackButton'
 import {
+  companionDaysMissing,
+  companionOverCap,
   defaultAddonQty,
+  effectiveCompanionDays,
   isAddonSoldOut,
+  isCompanion,
   requiredAddonError,
   selectionToLines,
   withoutSoldOut,
@@ -106,8 +110,33 @@ export function ServiceAddonsStep({
     return seed
   })
 
+  // landr-a27k9.2: the days picked for each day-pickable companion add-on,
+  // restored from the confirmed lines on back-navigation.
+  const [daysSelection, setDaysSelection] = useState<Record<string, string[]>>(() => {
+    const seed: Record<string, string[]> = {}
+    for (const line of initialAddons ?? []) {
+      if (line.selectedDays && line.selectedDays.length > 0) seed[line.productId] = line.selectedDays
+    }
+    return seed
+  })
+
   // A stable key so a re-render with an equal day list doesn't refetch.
   const daysKey = (selectedDays ?? []).join(',')
+  const parentDays = useMemo(() => (daysKey ? daysKey.split(',') : []), [daysKey])
+  // The companion picks, trimmed to the days the booking still covers (the
+  // customer may have changed the dates since).
+  const companionDays = useMemo(() => {
+    const out: Record<string, string[]> = {}
+    for (const a of addons ?? []) {
+      if (isCompanion(a)) {
+        out[a.addon_product_id] = effectiveCompanionDays(
+          daysSelection[a.addon_product_id],
+          parentDays,
+        )
+      }
+    }
+    return out
+  }, [addons, daysSelection, parentDays])
   useEffect(() => {
     let cancelled = false
     void (async () => {
@@ -167,10 +196,19 @@ export function ServiceAddonsStep({
   })
   useEffect(() => {
     if (addons === null) return
-    onLiveAddonsChangeRef.current?.(selectionToLines(selection, addons))
-  }, [addons, selection])
+    onLiveAddonsChangeRef.current?.(selectionToLines(selection, addons, companionDays))
+  }, [addons, selection, companionDays])
 
-  const canContinue = addons !== null && !unmetRequired
+  const companionDayMissing = useMemo(
+    () => (addons ? companionDaysMissing(addons, selection, companionDays, parentDays) : false),
+    [addons, selection, companionDays, parentDays],
+  )
+  const companionTooMany = useMemo(
+    () => (addons ? companionOverCap(addons, selection, participantCount) : false),
+    [addons, selection, participantCount],
+  )
+  const canContinue =
+    addons !== null && !unmetRequired && !companionDayMissing && !companionTooMany
 
   function handleContinue() {
     if (!canContinue) return
@@ -179,7 +217,7 @@ export function ServiceAddonsStep({
     // one (this step is only ever the LATTER — services with a hotel
     // offering render add-ons inside AccommodationStep instead — but
     // passing the real catalogue keeps this correct if that ever changes).
-    onConfirm(selectionToLines(selection, addons ?? []))
+    onConfirm(selectionToLines(selection, addons ?? [], companionDays))
   }
 
   return (
@@ -207,6 +245,11 @@ export function ServiceAddonsStep({
               onChange={setSelection}
               expectedQty={1}
               participantCount={participantCount}
+              parentProductId={product.product_id}
+              parentDays={parentDays}
+              daysAreNights={product.product_kind === 'stay'}
+              daysSelection={daysSelection}
+              onDaysChange={setDaysSelection}
             />
           </NextAction>
         ) : null}
@@ -222,7 +265,11 @@ export function ServiceAddonsStep({
           reason={
             canContinue
               ? tr('readyToContinue', locale)
-              : tr('pickRequiredAddonsToContinue', locale)
+              : companionTooMany && !unmetRequired
+                ? tr('companionQtyToContinue', locale)
+              : companionDayMissing && !unmetRequired
+                ? tr('companionDaysToContinue', locale)
+                : tr('pickRequiredAddonsToContinue', locale)
           }
           reasonId="addons-step-gate"
           onContinue={handleContinue}

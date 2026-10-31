@@ -98,6 +98,17 @@ describe('ProductDetailStep', () => {
     expect(screen.getByTestId('product-facts')).toHaveTextContent('25 min')
   })
 
+  it('words the Book cue for a stay as a stay, not a trip', () => {
+    renderStep(makeProduct({ product_kind: 'stay' }))
+    expect(screen.getAllByTestId('next-action-cue')[0]).toHaveTextContent('book this stay')
+    expect(screen.getAllByTestId('next-action-cue')[0]).not.toHaveTextContent('trip')
+  })
+
+  it('keeps the trip wording for a service', () => {
+    renderStep(makeProduct())
+    expect(screen.getAllByTestId('next-action-cue')[0]).toHaveTextContent('book this trip')
+  })
+
   it('falls back to ProductArt when there are no images and shows no thumb strip', () => {
     renderStep(makeProduct({ images: [] }))
     expect(

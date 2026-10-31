@@ -262,9 +262,29 @@ export function flattenPerRoomAddons(
   addonSelection: Record<string, Record<string, number>>,
   roomSelection: Record<string, number>,
   addonsByRoom: Record<string, import('@/api/types').ProductAddon[]>,
+  /**
+   * landr-a27k9.2: the days picked for day-pickable companion add-ons, per
+   * room then per add-on, the stay's nights they must stay inside and the
+   * party size. A companion is NEVER merged across rooms into one
+   * quantity x union-of-days line (2 bikes on 10 Nov in room A + 1 bike on
+   * 11 Nov in room B is 3 bike-days, not 3 x 2): rooms picking the SAME day
+   * set share a line (quantities sum), a different day set is its own line,
+   * and each product's total quantity is capped at the party size. A room's
+   * companion without any valid day yields no line.
+   */
+  companion?: {
+    daysByRoom: Record<string, Record<string, string[]>>
+    nights: readonly string[]
+    partySize?: number
+  },
 ): import('./addonsState').AddonSelection[] {
+  type Line = import('./addonsState').AddonSelection
   const totals = new Map<string, number>()
   const kindById = new Map<string, import('@/api/types').ProductKind>()
+  const rowById = new Map<string, import('@/api/types').ProductAddon>()
+  // companion id -> day-set key -> {days, qty}
+  const subset = new Map<string, Map<string, { days: string[]; qty: number }>>()
+  const nights = new Set(companion?.nights ?? [])
   for (const [roomId, roomQty] of Object.entries(roomSelection)) {
     if ((roomQty ?? 0) <= 0) continue
     const roomAddons = addonsByRoom[roomId] ?? []
@@ -273,20 +293,54 @@ export function flattenPerRoomAddons(
       const id = addon.addon_product_id
       const qty = roomQtys[id] ?? 0
       if (qty <= 0) continue
-      totals.set(id, (totals.get(id) ?? 0) + qty)
       if (!kindById.has(id)) kindById.set(id, addon.product_kind)
+      if (!rowById.has(id)) rowById.set(id, addon)
+      if (addon.day_selection === 'parent_subset') {
+        const days = [
+          ...new Set(
+            (companion?.daysByRoom[roomId]?.[id] ?? []).filter((d) => nights.has(d)),
+          ),
+        ].sort()
+        if (days.length === 0) continue
+        const key = days.join(',')
+        const byDays = subset.get(id) ?? new Map<string, { days: string[]; qty: number }>()
+        const hit = byDays.get(key)
+        if (hit) hit.qty += qty
+        else byDays.set(key, { days, qty })
+        subset.set(id, byDays)
+      } else {
+        totals.set(id, (totals.get(id) ?? 0) + qty)
+      }
     }
   }
-  return [...totals.entries()]
+  const out: Line[] = [...totals.entries()]
     .filter(([, qty]) => qty > 0)
-    .sort(([a], [b]) => a.localeCompare(b))
     .map(([productId, quantity]) => ({
       productId,
       quantity,
-      ...(kindById.has(productId)
-        ? { productKind: kindById.get(productId) }
-        : {}),
+      ...(kindById.has(productId) ? { productKind: kindById.get(productId) } : {}),
     }))
+  for (const [productId, byDays] of subset) {
+    const row = rowById.get(productId)!
+    let room = companion?.partySize !== undefined ? Math.max(1, companion.partySize) : Infinity
+    for (const key of [...byDays.keys()].sort()) {
+      const entry = byDays.get(key)!
+      const quantity = Math.min(entry.qty, room)
+      if (quantity <= 0) continue
+      room -= quantity
+      out.push({
+        productId,
+        quantity,
+        productKind: row.product_kind,
+        selectedDays: entry.days,
+      })
+    }
+  }
+  return out.sort(
+    (x, y) =>
+      x.productId.localeCompare(y.productId) ||
+      (x.selectedDays ?? []).join(',').localeCompare((y.selectedDays ?? []).join(',')),
+  )
 }
 
 /**

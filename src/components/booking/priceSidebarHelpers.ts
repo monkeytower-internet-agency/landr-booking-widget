@@ -35,9 +35,14 @@ export function buildAddonLines(
     }
   }
   for (const addon of addons) {
-    if (addon.quantity > 0) {
-      lines.push({ product_id: addon.productId, qty: addon.quantity })
-    }
+    if (addon.quantity <= 0) continue
+    // landr-a27k9.6: a day-pickable companion is priced by the API on its OWN
+    // days; a plain add-on follows the shared days.
+    lines.push(
+      addon.selectedDays?.length
+        ? { product_id: addon.productId, qty: addon.quantity, selected_days: addon.selectedDays }
+        : { product_id: addon.productId, qty: addon.quantity },
+    )
   }
   return lines
 }

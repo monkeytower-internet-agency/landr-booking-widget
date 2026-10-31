@@ -935,6 +935,32 @@ export interface ProductAddon {
    * (and absent, on an older API) = once per item.
    */
   price_unit?: AddonPriceUnit | null
+  /**
+   * landr-a27k9.1: 'parent_subset' = a companion add-on (a city bike): the
+   * guest picks any non-empty subset of the parent's days / nights, one
+   * quantity for the line. 'parent_all' / absent = the add-on follows its
+   * parent's days (the pre-existing behaviour).
+   */
+  day_selection?: 'parent_all' | 'parent_subset' | null
+  /** landr-a27k9.1: the add-on product's own pictures (renditions), for its card. */
+  images?: ProductImage[]
+  thumb_url?: string | null
+  /** One-line blurb for the add-on's card. */
+  short_description?: string | null
+  short_description_localized?: Record<string, string> | null
+}
+
+/**
+ * landr-a27k9.6: one (day, companion add-on) stock verdict of the batch
+ * per-day lookup (GET /products/{id}/addons/stock).
+ */
+export interface AddonDayStock {
+  day: string
+  addon_product_id: string
+  available: boolean
+  unavailable_reason?: 'sold_out' | 'unit_taken' | null
+  /** How many still fit on THIS day; null = nothing limits it. */
+  stock_remaining: number | null
 }
 
 export interface AvailabilitySlot {
@@ -2054,6 +2080,11 @@ export interface EstimateAppliedRule {
 export interface EstimateAddonLine {
   product_id: string
   qty: number
+  /**
+   * landr-a27k9.6: the days of a day-pickable companion add-on; the API prices
+   * the line on these (inside the booking's days). Absent = the shared days.
+   */
+  selected_days?: string[]
 }
 
 export interface EstimateRequestBody {

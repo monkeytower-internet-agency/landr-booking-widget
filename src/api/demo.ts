@@ -29,6 +29,7 @@ import type {
   PassValidityKind,
   Product,
   ProductAddon,
+  ProductImage,
   ProductAlternative,
   SavingLine,
   SurchargeLine,
@@ -83,6 +84,12 @@ export interface DemoCatalogueAddon {
   price_unit?: AddonPriceUnit | null
   addon_quantity_rule?: AddonQuantityRule | null
   addon_quantity_max?: number | null
+  /** landr-a27k9.1: 'parent_subset' = a companion booked on a subset of the parent's days. */
+  day_selection?: 'parent_all' | 'parent_subset' | null
+  short_description?: string | null
+  short_description_localized?: Record<string, string> | null
+  images?: ProductImage[] | null
+  thumb_url?: string | null
   price_per_unit?: number | string | null
   currency?: string | null
   pricing?: DemoCataloguePricing | null
@@ -823,7 +830,9 @@ export function demoEstimate(
     const addon = findAddon(template, line.product_id)
     if (!addon || line.qty <= 0) continue
     const each = Number(addon.price_per_unit ?? 0) || 0
-    const mult = addonUnits(addon.price_unit, nights, qty)
+    // A day-pickable companion (parent_subset) is priced on its own days, as the API does.
+    const lineNights = line.selected_days?.length ? new Set(line.selected_days).size : nights
+    const mult = addonUnits(addon.price_unit, lineNights, qty)
     const total = each * mult * line.qty
     const paidTo = addon.paid_to ?? 'operator'
     totals[paidTo] += total
@@ -874,23 +883,38 @@ export function demoAddons(template: DemoTemplate, id: string): ProductAddon[] {
   const cat = template.catalogue?.products.find((c) => c.slug === hit?.product.slug)
   return [...(cat?.addons ?? [])]
     .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
-    .map((a, i): ProductAddon => ({
-      product_addon_id: `demo-${template.slug}-pa-${hit!.product.slug}-${a.slug}`,
-      addon_product_id: addonId(template.slug, a.slug),
-      name: fill(a.name, 'en'),
-      name_localized: fillMap(a.name_localized),
-      is_required: !!a.is_required,
-      min_qty: a.min_qty ?? 0,
-      max_qty: a.max_qty ?? null,
-      sort_order: a.sort_order ?? i,
-      price_per_unit: a.price_per_unit == null ? null : Number(a.price_per_unit),
-      currency: a.currency ?? 'EUR',
-      product_kind: 'service',
-      addon_quantity_rule: a.addon_quantity_rule ?? null,
-      addon_quantity_max: a.addon_quantity_max ?? null,
-      price_unit: a.price_unit ?? null,
-      available: true,
-    }))
+    .map((a, i): ProductAddon => {
+      // Same bundled comic art as the catalogue cards; an add-on without art keeps its own image.
+      const art = demoArt(template.slug, a.slug, fill(a.name, 'en'))
+      const images = art.length ? art : a.images
+      const thumb = art.length ? art[0].thumb_url : a.thumb_url
+      return {
+        product_addon_id: `demo-${template.slug}-pa-${hit!.product.slug}-${a.slug}`,
+        addon_product_id: addonId(template.slug, a.slug),
+        name: fill(a.name, 'en'),
+        name_localized: fillMap(a.name_localized),
+        is_required: !!a.is_required,
+        min_qty: a.min_qty ?? 0,
+        max_qty: a.max_qty ?? null,
+        sort_order: a.sort_order ?? i,
+        price_per_unit: a.price_per_unit == null ? null : Number(a.price_per_unit),
+        currency: a.currency ?? 'EUR',
+        product_kind: 'service',
+        addon_quantity_rule: a.addon_quantity_rule ?? null,
+        addon_quantity_max: a.addon_quantity_max ?? null,
+        price_unit: a.price_unit ?? null,
+        available: true,
+        day_selection: a.day_selection ?? 'parent_all',
+        ...(images?.length ? { images } : {}),
+        ...(thumb ? { thumb_url: thumb } : {}),
+        ...(a.short_description
+          ? {
+              short_description: fill(a.short_description, 'en'),
+              short_description_localized: fillMap(a.short_description_localized),
+            }
+          : {}),
+      }
+    })
 }
 
 /** Linked alternatives of an offer with their open days / course windows inside [from, to]. */

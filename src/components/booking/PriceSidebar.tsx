@@ -157,6 +157,11 @@ interface BookingOverviewBodyProps
   /** ISO YYYY-MM-DD days the customer picked for the guided service. */
   selectedDays: string[]
   /**
+   * The days a day-pickable companion add-on was picked on, by add-on
+   * product id: its line shows these instead of the whole stay.
+   */
+  companionDays?: Record<string, string[]>
+  /**
    * landr-t869m.1: forwarded to deriveStayWindow so the "Hotel: Sun 24 May
    * → …" header respects the product's own check-in offset instead of the
    * old hardcoded -1. Undefined (product predates the field, or an older
@@ -180,6 +185,7 @@ function BookingOverviewBody({
   isStale,
   error,
   selectedDays,
+  companionDays,
   accommodationCheckinOffsetDays,
   hasHotelRoom,
   voucherRejected = false,
@@ -326,9 +332,9 @@ function BookingOverviewBody({
             {tr('youPayNowHeading', locale)}
           </h4>
           <ul className="space-y-2 text-sm">
-            {operator.map((li) => (
+            {operator.map((li, liIdx) => (
               <li
-                key={`op-${li.product_id}`}
+                key={`op-${li.product_id}-${liIdx}`}
                 className="flex items-baseline justify-between gap-2"
               >
                 <span className="flex-1">
@@ -384,7 +390,7 @@ function BookingOverviewBody({
                     // DayChips: one chip per picked date — replaces the
                     // previous "qty × units days" subtitle which conflated
                     // non-contiguous selections with a range.
-                    <DayChips dates={selectedDays} />
+                    <DayChips dates={companionDays?.[li.product_id] ?? selectedDays} locale={locale} />
                   )}
                   {/* We still show the participant-count multiplier when
                       qty > 1 so the customer sees why the line total scales. */}
@@ -607,6 +613,11 @@ export default function PriceSidebar(props: Props) {
   // (enabled) and the render (`visible` below) — the hook deliberately
   // keeps the previous response for stale-while-loading, so deselecting
   // the last day would otherwise leave the old price on screen.
+  const companionDays = useMemo(() => {
+    const byProduct: Record<string, string[]> = {}
+    for (const a of addons) if (a.quantity > 0 && a.selectedDays?.length) byProduct[a.productId] = a.selectedDays
+    return byProduct
+  }, [addons])
   const hasSelection = selectedDays.length > 0
 
   const estimate = useBookingEstimate({
@@ -810,6 +821,7 @@ export default function PriceSidebar(props: Props) {
           <BookingOverviewBody
             {...visible}
             selectedDays={selectedDays}
+            companionDays={companionDays}
             accommodationCheckinOffsetDays={product.accommodation_checkin_offset_days}
             hasHotelRoom={hasHotelRoom}
             voucherRejected={voucherStatus === 'not_applicable'}
@@ -938,6 +950,7 @@ export default function PriceSidebar(props: Props) {
             <BookingOverviewBody
             {...visible}
             selectedDays={selectedDays}
+            companionDays={companionDays}
             accommodationCheckinOffsetDays={product.accommodation_checkin_offset_days}
             hasHotelRoom={hasHotelRoom}
             voucherRejected={voucherStatus === 'not_applicable'}

@@ -62,6 +62,10 @@ import {
   isAddonSoldOut,
   pooledQtyElsewhere,
   requiredAddonError,
+  companionDaysMissing,
+  companionOverCap,
+  effectiveCompanionDays,
+  isCompanion,
   selectionToLines,
   withoutSoldOut,
   type AddonSelection,
@@ -965,6 +969,45 @@ export function AccommodationStep({
     return seed
   })
 
+  // landr-a27k9.2: the days picked for day-pickable companion add-ons --
+  // service-level ones (days = the service days) and per-room ones (days = the
+  // stay's nights). Restored from the confirmed lines on back-navigation.
+  const [serviceAddonDays, setServiceAddonDays] = useState<Record<string, string[]>>(
+    () => {
+      const roomClaimed = new Set<string>()
+      for (const qtys of Object.values(initialPerRoomAddons ?? {})) {
+        for (const id of Object.keys(qtys)) roomClaimed.add(id)
+      }
+      const seed: Record<string, string[]> = {}
+      for (const line of initialAddons ?? []) {
+        if (line.selectedDays?.length && !roomClaimed.has(line.productId)) {
+          seed[line.productId] = line.selectedDays
+        }
+      }
+      return seed
+    },
+  )
+  const [roomAddonDays, setRoomAddonDays] = useState<
+    Record<string, Record<string, string[]>>
+  >(() => {
+    // A companion is submitted as one line per distinct day set (see
+    // flattenPerRoomAddons); hand each line's days back to the rooms that
+    // hold its quantity, in room order.
+    const seed: Record<string, Record<string, string[]>> = {}
+    const lines = (initialAddons ?? []).filter((l) => l.selectedDays?.length)
+    for (const line of lines) {
+      let left = line.quantity
+      for (const [roomId, qtys] of Object.entries(initialPerRoomAddons ?? {})) {
+        const have = qtys[line.productId] ?? 0
+        if (left <= 0) break
+        if (have <= 0 || seed[roomId]?.[line.productId]) continue
+        seed[roomId] = { ...(seed[roomId] ?? {}), [line.productId]: line.selectedDays! }
+        left -= have
+      }
+    }
+    return seed
+  })
+
   const serviceAddonDaysKey = selectedDays.join(',')
   useEffect(() => {
     let cancelled = false
@@ -1068,18 +1111,79 @@ export function AccommodationStep({
   // The AddonSelection[] lines this step contributes for the service-level
   // add-ons, filtered the same way visibleServiceAddons is (drops a
   // room-claimed id so it is never double-submitted).
-  const serviceAddonLines = useMemo(
-    () =>
-      selectionToLines(
-        Object.fromEntries(
-          Object.entries(serviceAddonSelection).filter(
-            ([id]) => !roomAddonProductIds.has(id),
-          ),
-        ),
-        visibleServiceAddons,
+  // landr-a27k9.2: the companion picks of the service-level list, trimmed to
+  // the service days still booked; `serviceLinesFor` builds the lines for a
+  // candidate (selection, days) so the change handlers can report live too.
+  const serviceCompanionDays = (
+    days: Record<string, string[]>,
+  ): Record<string, string[]> => {
+    const out: Record<string, string[]> = {}
+    for (const a of visibleServiceAddons) {
+      if (isCompanion(a)) {
+        out[a.addon_product_id] = effectiveCompanionDays(days[a.addon_product_id], selectedDays)
+      }
+    }
+    return out
+  }
+  const serviceLinesFor = (
+    sel: Record<string, number>,
+    days: Record<string, string[]>,
+  ): AddonSelection[] =>
+    selectionToLines(
+      Object.fromEntries(
+        Object.entries(sel).filter(([id]) => !roomAddonProductIds.has(id)),
       ),
-    [serviceAddonSelection, roomAddonProductIds, visibleServiceAddons],
-  )
+      visibleServiceAddons,
+      serviceCompanionDays(days),
+    )
+  const serviceAddonLines = serviceLinesFor(serviceAddonSelection, serviceAddonDays)
+  const roomNightDays = roomStockNights
+  // A companion picked without a (still valid) day blocks Continue.
+  const companionElsewhereFor = (roomId: string): Record<string, number> => {
+    const out: Record<string, number> = {}
+    for (const [otherId, otherQty] of Object.entries(selection)) {
+      if (otherId === roomId || otherQty <= 0) continue
+      for (const a of addonsByRoom[otherId] ?? []) {
+        if (!isCompanion(a)) continue
+        const n = addonSelection[otherId]?.[a.addon_product_id] ?? 0
+        if (n > 0) out[a.addon_product_id] = (out[a.addon_product_id] ?? 0) + n
+      }
+    }
+    return out
+  }
+  const companionTooMany =
+    companionOverCap(visibleServiceAddons, serviceAddonSelection, participantCount) ||
+    Object.entries(selection).some(
+      ([roomId, roomQty]) =>
+        roomQty > 0 &&
+        companionOverCap(
+          addonsByRoom[roomId] ?? [],
+          addonSelection[roomId] ?? {},
+          participantCount,
+          companionElsewhereFor(roomId),
+        ),
+    )
+  const companionDayMissing =
+    companionDaysMissing(
+      visibleServiceAddons,
+      serviceAddonSelection,
+      serviceCompanionDays(serviceAddonDays),
+      selectedDays,
+    ) ||
+    Object.entries(selection).some(([roomId, roomQty]) => {
+      if (roomQty <= 0) return false
+      const list = addonsByRoom[roomId] ?? []
+      const eff: Record<string, string[]> = {}
+      for (const a of list) {
+        if (isCompanion(a)) {
+          eff[a.addon_product_id] = effectiveCompanionDays(
+            roomAddonDays[roomId]?.[a.addon_product_id],
+            roomNightDays,
+          )
+        }
+      }
+      return companionDaysMissing(list, addonSelection[roomId] ?? {}, eff, roomNightDays)
+    })
 
   // landr-87n9.2: fire the live-lift callback with the latest flattened
   // room + add-on lines so App.tsx can feed the PriceSidebar while the
@@ -1107,6 +1211,7 @@ export function AccommodationStep({
     // room/hotel-change call sites pick these up automatically without
     // having to pass them explicitly.
     nextServiceAddonLines: AddonSelection[] = serviceAddonLines,
+    nextRoomAddonDays: Record<string, Record<string, string[]>> = roomAddonDays,
   ) => {
     if (!onLiveAccommodationChange) return
     // landr-zeg4u.4 / .5: shared-double books rooms for everyone but the
@@ -1124,7 +1229,11 @@ export function AccommodationStep({
       .filter(([, qty]) => qty > 0)
       .map(([productId, quantity]) => ({ productId, quantity }))
     const addonLines = [
-      ...flattenPerRoomAddons(nextAddonSelection, nextSelection, addonsByRoom),
+      ...flattenPerRoomAddons(nextAddonSelection, nextSelection, addonsByRoom, {
+        daysByRoom: nextRoomAddonDays,
+        nights: roomNightDays,
+        partySize: participantCount,
+      }),
       ...nextServiceAddonLines,
     ]
     onLiveAccommodationChange(rooms, addonLines)
@@ -1144,6 +1253,7 @@ export function AccommodationStep({
     setSelection({})
     setAddonsByRoom({})
     setAddonSelection({})
+    setRoomAddonDays({})
     // landr-gb2f.2: a new hotel means a new room list — drop the prior
     // participant→room assignment so it doesn't reference stale units.
     setAssignment({})
@@ -1167,6 +1277,7 @@ export function AccommodationStep({
     setSelection({})
     setAddonsByRoom({})
     setAddonSelection({})
+    setRoomAddonDays({})
     // landr-gb2f.2: only package mode has room units — clear the assignment
     // when switching modes so a stale package-mode layout doesn't bleed in.
     setAssignment({})
@@ -1516,6 +1627,8 @@ export function AccommodationStep({
     // add-ons, not tied to a hotel/room choice).
     serviceAddonCatalogueReady &&
     !unmetRequiredServiceAddon &&
+    !companionDayMissing &&
+    !companionTooMany &&
     (mode === 'guiding-only'
       ? true
       : mode === 'shared-double'
@@ -1714,7 +1827,11 @@ export function AccommodationStep({
     // landr-lmudr.30: fold in the service-level (booking-wide) add-on lines
     // alongside the flattened per-room ones — see serviceAddonLines above.
     const addonLines = [
-      ...flattenPerRoomAddons(addonSelection, selection, addonsByRoom),
+      ...flattenPerRoomAddons(addonSelection, selection, addonsByRoom, {
+        daysByRoom: roomAddonDays,
+        nights: roomNightDays,
+        partySize: participantCount,
+      }),
       ...serviceAddonLines,
     ]
     // landr-gb2f.2: prune the assignment to the units actually present at
@@ -2304,6 +2421,23 @@ export function AccommodationStep({
                       // room's occupancy (incl single-occupancy rooms → cap 1).
                       occupancyLimited
                       claimedElsewhere={claimedByOtherRooms(room.product_id)}
+                      parentProductId={room.product_id}
+                      companionElsewhere={companionElsewhereFor(room.product_id)}
+                      parentDays={roomNightDays}
+                      daysAreNights
+                      participantCount={participantCount}
+                      daysSelection={roomAddonDays[room.product_id] ?? {}}
+                      onDaysChange={(nextDays) => {
+                        const merged = { ...roomAddonDays, [room.product_id]: nextDays }
+                        setRoomAddonDays(merged)
+                        notifyLiveAccommodation(
+                          mode,
+                          selection,
+                          addonSelection,
+                          serviceAddonLines,
+                          merged,
+                        )
+                      }}
                       heading={tr('addonsTitle', locale)}
                     />
                   ) : null}
@@ -2460,6 +2594,18 @@ export function AccommodationStep({
             <AddonsList
               addons={visibleServiceAddons}
               selection={serviceAddonSelection}
+              parentProductId={product.product_id}
+              parentDays={selectedDays}
+              daysSelection={serviceAddonDays}
+              onDaysChange={(nextDays) => {
+                setServiceAddonDays(nextDays)
+                notifyLiveAccommodation(
+                  mode,
+                  selection,
+                  addonSelection,
+                  serviceLinesFor(serviceAddonSelection, nextDays),
+                )
+              }}
               onChange={(next) => {
                 setServiceAddonSelection(next)
                 // landr-87n9.2 / landr-lmudr.30: report the new service-addon
@@ -2469,14 +2615,7 @@ export function AccommodationStep({
                   mode,
                   selection,
                   addonSelection,
-                  selectionToLines(
-                    Object.fromEntries(
-                      Object.entries(next).filter(
-                        ([id]) => !roomAddonProductIds.has(id),
-                      ),
-                    ),
-                    visibleServiceAddons,
-                  ),
+                  serviceLinesFor(next, serviceAddonDays),
                 )
               }}
               expectedQty={1}
@@ -2504,7 +2643,11 @@ export function AccommodationStep({
               : occupancyHint ||
                 (unmetRequiredServiceAddon
                   ? tr('pickRequiredAddonsToContinue', locale)
-                  : tr('completeStepsAboveToContinue', locale))
+                  : companionTooMany
+                    ? tr('companionQtyToContinue', locale)
+                    : companionDayMissing
+                      ? tr('companionDaysToContinue', locale)
+                      : tr('completeStepsAboveToContinue', locale))
           }
           reasonId="accommodation-step-gate"
           onContinue={handleContinue}
