@@ -3877,6 +3877,39 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/public/offers/evaluate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Evaluate Offers
+         * @description landr-tm48v.2: which offers each cart line shows this party, and may
+         *     each line be booked -- the ONE evaluator (app/services/offer_rules.py)
+         *     with the facts only the server knows (capacity for ``parent_unavailable``,
+         *     the seasons the dates touch). The widget (landr-tm48v.5) reads this
+         *     instead of GET /products/{id}/addons; submit re-judges the same way.
+         *
+         *     Keyed on the widget token in the body: every line's product must be that
+         *     operator's active, publicly listed, not-deleted product, else one uniform
+         *     404. Per line, in request order: ``eligible`` -- the verdict submit
+         *     enforces (offer_enforcement.judge_lines: the product's eligibility_rules,
+         *     and offered by a parent line where the cart has one) -- and the offers
+         *     (``visible_offers_for``: parent-linked ones always, flagged ``in_cart``
+         *     when already this line's child; on a top-level line also the cross-sell
+         *     ones not yet in the cart) with a price preview.
+         */
+        post: operations["evaluate_offers"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/public/operator-invites/{token}": {
         parameters: {
             query?: never;
@@ -4189,6 +4222,15 @@ export interface paths {
          *     LEGACY path the widget reproduces bit-for-bit (zero config = today's
          *     hardcoded flow). Keyed on the opaque widget_token (resolved to the slug
          *     here); an unknown token 404s via ``_resolve_operator_by_token``.
+         *
+         *     landr-tm48v.2: ``eligible`` + ``eligibility_reason_key`` -- may the product
+         *     be booked on these dates (``products.eligibility_rules`` through the offer
+         *     evaluator, without a party: ``attribute_missing.<key>`` = ask the guests,
+         *     then judge them with POST /offers/evaluate, which never puts guest data in
+         *     a URL). Present when the product has eligibility rules or the caller sent
+         *     ``arrival`` / ``departure``; absent otherwise, so the legacy wire shape
+         *     stays as it was. 422 ``bad_dates`` for a departure without an arrival,
+         *     before it, or more than a year after it.
          */
         get: operations["get_product_flow"];
         put?: never;
@@ -4343,8 +4385,10 @@ export interface paths {
          *     Thin FastAPI wrapper over the SECURITY DEFINER RPC
          *     `public_get_product_addons`. Returns one row per linked add-on
          *     product, including the add-on's display name, per-unit price (when
-         *     the scheme exposes a per_day_base rule), and the product_addons
-         *     config (is_required, min_qty, max_qty, sort_order). The widget
+         *     the scheme exposes a per_day_base rule), and the offer's config
+         *     (is_required = mandatory, min_qty, max_qty, sort_order; landr-tm48v.2:
+         *     the RPC reads ``offers`` -- rows needing guests or dates are left out,
+         *     POST /offers/evaluate judges those). The widget
          *     calls this after the customer picks a parent product to render
          *     qty steppers + the orange overbook warning + required-min gating.
          *
@@ -16940,6 +16984,8 @@ export interface components {
             addon_lines?: components["schemas"]["EstimateAddonLineIn"][];
             /** Child Ages */
             child_ages?: number[] | null;
+            /** Guests */
+            guests?: components["schemas"]["EvaluateGuestIn"][] | null;
             /** Locale */
             locale?: string | null;
             /**
@@ -17005,6 +17051,136 @@ export interface components {
             warnings?: string[];
         } & {
             [key: string]: unknown;
+        };
+        /**
+         * EvaluateGuestIn
+         * @description One guest of the party and the attributes answered so far
+         *     (keys of the operator's guest_attribute_definitions).
+         */
+        EvaluateGuestIn: {
+            /** Attributes */
+            attributes?: {
+                [key: string]: boolean | number | string;
+            };
+            /** Id */
+            id: string;
+        };
+        /**
+         * EvaluateLineIn
+         * @description One cart line. ``parent_line_id`` names the line this one hangs off (an
+         *     add-on under its main product); null = a top-level line. Dates are the
+         *     operator-local calendar: ``selected_days`` (the booked days / nights) win,
+         *     else ``arrival`` .. ``departure`` (exclusive); an undated line is judged
+         *     without dates (date rules fail closed).
+         */
+        EvaluateLineIn: {
+            /** Arrival */
+            arrival?: string | null;
+            /** Departure */
+            departure?: string | null;
+            /** Line Id */
+            line_id: string;
+            /** Parent Line Id */
+            parent_line_id?: string | null;
+            /**
+             * Product Id
+             * Format: uuid
+             */
+            product_id: string;
+            /** Selected Days */
+            selected_days?: string[] | null;
+        };
+        /**
+         * EvaluatedLine
+         * @description One request line: may it be booked (a top-level line: its product's
+         *     eligibility_rules; a child line: does its parent line offer it), and the
+         *     offers it shows. ``eligibility_reason_key`` (null when eligible):
+         *     ``attribute_missing.<key>``, ``guest_attr.<key>``, ``<cond>``,
+         *     ``no_rule_matched``, ``not_offered`` or ``invalid_rules``.
+         */
+        EvaluatedLine: {
+            /** Eligibility Reason Key */
+            eligibility_reason_key?: string | null;
+            /** Eligible */
+            eligible: boolean;
+            /** Line Id */
+            line_id: string;
+            /** Offers */
+            offers?: components["schemas"]["EvaluatedOffer"][];
+        };
+        /**
+         * EvaluatedOffer
+         * @description An offer row a line sees, with the offered product's display fields.
+         */
+        EvaluatedOffer: {
+            /**
+             * Binding
+             * @enum {string}
+             */
+            binding: "booking" | "person" | "free";
+            /**
+             * Collection
+             * @enum {string}
+             */
+            collection: "online" | "on_site" | "free";
+            /** Day Selection */
+            day_selection?: ("parent_all" | "parent_subset") | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * In Cart
+             * @default false
+             */
+            in_cart: boolean;
+            /** Max Qty */
+            max_qty?: number | null;
+            /** Min Qty */
+            min_qty: number;
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "optional" | "mandatory" | "info";
+            /** Name */
+            name: string;
+            /** Name Localized */
+            name_localized?: {
+                [key: string]: string;
+            } | null;
+            /** Options */
+            options?: components["schemas"]["OfferOption"][];
+            /** Parent Product Id */
+            parent_product_id?: string | null;
+            price_preview?: components["schemas"]["OfferPricePreview"] | null;
+            /**
+             * Product Id
+             * Format: uuid
+             */
+            product_id: string;
+            /** Product Kind */
+            product_kind: string;
+            /** Required Attributes */
+            required_attributes?: string[];
+            /** Rules */
+            rules: {
+                [key: string]: unknown;
+            };
+            /**
+             * Schedule
+             * @enum {string}
+             */
+            schedule: "locked" | "subset" | "own";
+            /** Short Description */
+            short_description?: string | null;
+            /** Short Description Localized */
+            short_description_localized?: {
+                [key: string]: string;
+            } | null;
+            /** Sort Order */
+            sort_order: number;
         };
         /** EventOccurrence */
         EventOccurrence: {
@@ -19248,6 +19424,34 @@ export interface components {
             to_address: string;
         };
         /**
+         * OfferEvaluateIn
+         * @description POST /api/public/offers/evaluate body. ``season_ids`` only judges
+         *     ``season_in`` on an UNDATED line (a dated line's seasons are computed from
+         *     its dates); ids that are not the operator's own are ignored.
+         */
+        OfferEvaluateIn: {
+            /** Guests */
+            guests?: components["schemas"]["EvaluateGuestIn"][];
+            /** Lines */
+            lines: components["schemas"]["EvaluateLineIn"][];
+            /** Season Ids */
+            season_ids?: string[] | null;
+            /** Widget Token */
+            widget_token: string;
+        };
+        /**
+         * OfferEvaluateOut
+         * @description Per request line, in request order. ``required_attribute_keys``: every
+         *     guest attribute the cart's products and their candidate offers read -- the
+         *     keys the widget asks per guest before offers needing them can show.
+         */
+        OfferEvaluateOut: {
+            /** Lines */
+            lines: components["schemas"]["EvaluatedLine"][];
+            /** Required Attribute Keys */
+            required_attribute_keys?: string[];
+        };
+        /**
          * OfferIn
          * @description POST body (and the merged row a PATCH is validated as). No operator_id:
          *     the path's operator is stamped server-side.
@@ -19536,6 +19740,29 @@ export interface components {
             unit_price: string;
             /** Units */
             units: string;
+        };
+        /**
+         * OfferPricePreview
+         * @description What the offer would cost on its parent line's days for this party, at
+         *     ``quantity`` (its minimum, at least 1). ``unit_price_cents`` / ``total_cents``
+         *     are null when it cannot be quoted here (own dates, an un-priceable list);
+         *     0 for ``collection = 'free'``.
+         */
+        OfferPricePreview: {
+            /** Currency */
+            currency?: string | null;
+            /**
+             * Price Unit
+             * @default booking
+             * @enum {string}
+             */
+            price_unit: "booking" | "night" | "stay" | "guest" | "guest_night";
+            /** Quantity */
+            quantity: number;
+            /** Total Cents */
+            total_cents?: number | null;
+            /** Unit Price Cents */
+            unit_price_cents?: number | null;
         };
         /**
          * OfferProductLine
@@ -21593,6 +21820,10 @@ export interface components {
          *     shape) or list of modules otherwise.
          */
         ProductFlowResponse: {
+            /** Eligibility Reason Key */
+            eligibility_reason_key?: string | null;
+            /** Eligible */
+            eligible?: boolean | null;
             /** Guest Attributes */
             guest_attributes?: components["schemas"]["FlowGuestAttribute"][];
             /** Modules */
@@ -32576,6 +32807,39 @@ export interface operations {
             };
         };
     };
+    evaluate_offers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OfferEvaluateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OfferEvaluateOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_invite: {
         parameters: {
             query?: never;
@@ -32996,7 +33260,12 @@ export interface operations {
     };
     get_product_flow: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description landr-tm48v.2: first booked day, for the eligibility verdict */
+                arrival?: string | null;
+                /** @description landr-tm48v.2: day after the last booked day / night */
+                departure?: string | null;
+            };
             header?: never;
             path: {
                 token: string;

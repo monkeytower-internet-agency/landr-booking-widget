@@ -10588,6 +10588,21 @@
             ],
             "title": "Child Ages"
           },
+          "guests": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/EvaluateGuestIn"
+                },
+                "maxItems": 50,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Guests"
+          },
           "locale": {
             "anyOf": [
               {
@@ -10831,6 +10846,350 @@
           "currency"
         ],
         "title": "EstimateResponse",
+        "type": "object"
+      },
+      "EvaluateGuestIn": {
+        "additionalProperties": false,
+        "description": "One guest of the party and the attributes answered so far\n(keys of the operator's guest_attribute_definitions).",
+        "properties": {
+          "attributes": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "string"
+                }
+              ]
+            },
+            "title": "Attributes",
+            "type": "object"
+          },
+          "id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "title": "EvaluateGuestIn",
+        "type": "object"
+      },
+      "EvaluateLineIn": {
+        "additionalProperties": false,
+        "description": "One cart line. ``parent_line_id`` names the line this one hangs off (an\nadd-on under its main product); null = a top-level line. Dates are the\noperator-local calendar: ``selected_days`` (the booked days / nights) win,\nelse ``arrival`` .. ``departure`` (exclusive); an undated line is judged\nwithout dates (date rules fail closed).",
+        "properties": {
+          "arrival": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Arrival"
+          },
+          "departure": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Departure"
+          },
+          "line_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Line Id",
+            "type": "string"
+          },
+          "parent_line_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Line Id"
+          },
+          "product_id": {
+            "format": "uuid",
+            "title": "Product Id",
+            "type": "string"
+          },
+          "selected_days": {
+            "anyOf": [
+              {
+                "items": {
+                  "format": "date",
+                  "type": "string"
+                },
+                "maxItems": 62,
+                "minItems": 1,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selected Days"
+          }
+        },
+        "required": [
+          "line_id",
+          "product_id"
+        ],
+        "title": "EvaluateLineIn",
+        "type": "object"
+      },
+      "EvaluatedLine": {
+        "description": "One request line: may it be booked (a top-level line: its product's\neligibility_rules; a child line: does its parent line offer it), and the\noffers it shows. ``eligibility_reason_key`` (null when eligible):\n``attribute_missing.<key>``, ``guest_attr.<key>``, ``<cond>``,\n``no_rule_matched``, ``not_offered`` or ``invalid_rules``.",
+        "properties": {
+          "eligibility_reason_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Eligibility Reason Key"
+          },
+          "eligible": {
+            "title": "Eligible",
+            "type": "boolean"
+          },
+          "line_id": {
+            "title": "Line Id",
+            "type": "string"
+          },
+          "offers": {
+            "items": {
+              "$ref": "#/components/schemas/EvaluatedOffer"
+            },
+            "title": "Offers",
+            "type": "array"
+          }
+        },
+        "required": [
+          "line_id",
+          "eligible"
+        ],
+        "title": "EvaluatedLine",
+        "type": "object"
+      },
+      "EvaluatedOffer": {
+        "description": "An offer row a line sees, with the offered product's display fields.",
+        "properties": {
+          "binding": {
+            "enum": [
+              "booking",
+              "person",
+              "free"
+            ],
+            "title": "Binding",
+            "type": "string"
+          },
+          "collection": {
+            "enum": [
+              "online",
+              "on_site",
+              "free"
+            ],
+            "title": "Collection",
+            "type": "string"
+          },
+          "day_selection": {
+            "anyOf": [
+              {
+                "enum": [
+                  "parent_all",
+                  "parent_subset"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Day Selection"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "in_cart": {
+            "default": false,
+            "title": "In Cart",
+            "type": "boolean"
+          },
+          "max_qty": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Qty"
+          },
+          "min_qty": {
+            "title": "Min Qty",
+            "type": "integer"
+          },
+          "mode": {
+            "enum": [
+              "optional",
+              "mandatory",
+              "info"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "name_localized": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name Localized"
+          },
+          "options": {
+            "items": {
+              "$ref": "#/components/schemas/OfferOption"
+            },
+            "title": "Options",
+            "type": "array"
+          },
+          "parent_product_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Product Id"
+          },
+          "price_preview": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OfferPricePreview"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "product_id": {
+            "format": "uuid",
+            "title": "Product Id",
+            "type": "string"
+          },
+          "product_kind": {
+            "title": "Product Kind",
+            "type": "string"
+          },
+          "required_attributes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Required Attributes",
+            "type": "array"
+          },
+          "rules": {
+            "additionalProperties": true,
+            "title": "Rules",
+            "type": "object"
+          },
+          "schedule": {
+            "enum": [
+              "locked",
+              "subset",
+              "own"
+            ],
+            "title": "Schedule",
+            "type": "string"
+          },
+          "short_description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Short Description"
+          },
+          "short_description_localized": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Short Description Localized"
+          },
+          "sort_order": {
+            "title": "Sort Order",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "product_id",
+          "rules",
+          "binding",
+          "schedule",
+          "collection",
+          "mode",
+          "min_qty",
+          "sort_order",
+          "name",
+          "product_kind"
+        ],
+        "title": "EvaluatedOffer",
         "type": "object"
       },
       "EventOccurrence": {
@@ -17092,6 +17451,81 @@
         "title": "OfferEmailPreview",
         "type": "object"
       },
+      "OfferEvaluateIn": {
+        "additionalProperties": false,
+        "description": "POST /api/public/offers/evaluate body. ``season_ids`` only judges\n``season_in`` on an UNDATED line (a dated line's seasons are computed from\nits dates); ids that are not the operator's own are ignored.",
+        "properties": {
+          "guests": {
+            "items": {
+              "$ref": "#/components/schemas/EvaluateGuestIn"
+            },
+            "maxItems": 50,
+            "title": "Guests",
+            "type": "array"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/EvaluateLineIn"
+            },
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "Lines",
+            "type": "array"
+          },
+          "season_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                "maxItems": 200,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Season Ids"
+          },
+          "widget_token": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Widget Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "widget_token",
+          "lines"
+        ],
+        "title": "OfferEvaluateIn",
+        "type": "object"
+      },
+      "OfferEvaluateOut": {
+        "description": "Per request line, in request order. ``required_attribute_keys``: every\nguest attribute the cart's products and their candidate offers read -- the\nkeys the widget asks per guest before offers needing them can show.",
+        "properties": {
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/EvaluatedLine"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "required_attribute_keys": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Required Attribute Keys",
+            "type": "array"
+          }
+        },
+        "required": [
+          "lines"
+        ],
+        "title": "OfferEvaluateOut",
+        "type": "object"
+      },
       "OfferIn": {
         "additionalProperties": false,
         "description": "POST body (and the merged row a PATCH is validated as). No operator_id:\nthe path's operator is stamped server-side.",
@@ -17920,6 +18354,65 @@
           "in_offer"
         ],
         "title": "OfferPositionOut",
+        "type": "object"
+      },
+      "OfferPricePreview": {
+        "description": "What the offer would cost on its parent line's days for this party, at\n``quantity`` (its minimum, at least 1). ``unit_price_cents`` / ``total_cents``\nare null when it cannot be quoted here (own dates, an un-priceable list);\n0 for ``collection = 'free'``.",
+        "properties": {
+          "currency": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Currency"
+          },
+          "price_unit": {
+            "default": "booking",
+            "enum": [
+              "booking",
+              "night",
+              "stay",
+              "guest",
+              "guest_night"
+            ],
+            "title": "Price Unit",
+            "type": "string"
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "total_cents": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Cents"
+          },
+          "unit_price_cents": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit Price Cents"
+          }
+        },
+        "required": [
+          "quantity"
+        ],
+        "title": "OfferPricePreview",
         "type": "object"
       },
       "OfferProductLine": {
@@ -24131,6 +24624,28 @@
         "additionalProperties": true,
         "description": "Response of GET \u2026/products/{id}/flow. Mirrors the widget's\n``ProductFlowResponse`` TypeScript interface (src/api/flowTypes.ts).\n``modules`` is null for products with no configured flow (legacy\nshape) or list of modules otherwise.",
         "properties": {
+          "eligibility_reason_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Eligibility Reason Key"
+          },
+          "eligible": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Eligible"
+          },
           "guest_attributes": {
             "items": {
               "$ref": "#/components/schemas/FlowGuestAttribute"
@@ -48050,6 +48565,48 @@
         ]
       }
     },
+    "/api/public/offers/evaluate": {
+      "post": {
+        "description": "landr-tm48v.2: which offers each cart line shows this party, and may\neach line be booked -- the ONE evaluator (app/services/offer_rules.py)\nwith the facts only the server knows (capacity for ``parent_unavailable``,\nthe seasons the dates touch). The widget (landr-tm48v.5) reads this\ninstead of GET /products/{id}/addons; submit re-judges the same way.\n\nKeyed on the widget token in the body: every line's product must be that\noperator's active, publicly listed, not-deleted product, else one uniform\n404. Per line, in request order: ``eligible`` -- the verdict submit\nenforces (offer_enforcement.judge_lines: the product's eligibility_rules,\nand offered by a parent line where the cart has one) -- and the offers\n(``visible_offers_for``: parent-linked ones always, flagged ``in_cart``\nwhen already this line's child; on a top-level line also the cross-sell\nones not yet in the cart) with a price preview.",
+        "operationId": "evaluate_offers",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OfferEvaluateIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OfferEvaluateOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Evaluate Offers",
+        "tags": [
+          "public-operators"
+        ]
+      }
+    },
     "/api/public/operator-invites/{token}": {
       "get": {
         "operationId": "get_invite",
@@ -48711,7 +49268,7 @@
     },
     "/api/public/operators/{token}/products/{product_id}/flow": {
       "get": {
-        "description": "landr-71kz.2 / EPIC A: the product's ordered booking-flow modules.\n\nThin FastAPI wrapper over the SECURITY DEFINER RPC\n``public_get_product_flow``. The widget calls this after the customer picks a\nproduct to learn which modules (selection, participants, accommodation,\ncustom_form, \u2026) to render in which order, with the attached form definition\n(key/version/name + ordered fields) inlined for custom_form modules.\n\nReturns ``{\"modules\": null}`` when the product has no configured flow \u2014 the\nLEGACY path the widget reproduces bit-for-bit (zero config = today's\nhardcoded flow). Keyed on the opaque widget_token (resolved to the slug\nhere); an unknown token 404s via ``_resolve_operator_by_token``.",
+        "description": "landr-71kz.2 / EPIC A: the product's ordered booking-flow modules.\n\nThin FastAPI wrapper over the SECURITY DEFINER RPC\n``public_get_product_flow``. The widget calls this after the customer picks a\nproduct to learn which modules (selection, participants, accommodation,\ncustom_form, \u2026) to render in which order, with the attached form definition\n(key/version/name + ordered fields) inlined for custom_form modules.\n\nReturns ``{\"modules\": null}`` when the product has no configured flow \u2014 the\nLEGACY path the widget reproduces bit-for-bit (zero config = today's\nhardcoded flow). Keyed on the opaque widget_token (resolved to the slug\nhere); an unknown token 404s via ``_resolve_operator_by_token``.\n\nlandr-tm48v.2: ``eligible`` + ``eligibility_reason_key`` -- may the product\nbe booked on these dates (``products.eligibility_rules`` through the offer\nevaluator, without a party: ``attribute_missing.<key>`` = ask the guests,\nthen judge them with POST /offers/evaluate, which never puts guest data in\na URL). Present when the product has eligibility rules or the caller sent\n``arrival`` / ``departure``; absent otherwise, so the legacy wire shape\nstays as it was. 422 ``bad_dates`` for a departure without an arrival,\nbefore it, or more than a year after it.",
         "operationId": "get_product_flow",
         "parameters": [
           {
@@ -48730,6 +49287,44 @@
             "schema": {
               "title": "Product Id",
               "type": "string"
+            }
+          },
+          {
+            "description": "landr-tm48v.2: first booked day, for the eligibility verdict",
+            "in": "query",
+            "name": "arrival",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "landr-tm48v.2: first booked day, for the eligibility verdict",
+              "title": "Arrival"
+            }
+          },
+          {
+            "description": "landr-tm48v.2: day after the last booked day / night",
+            "in": "query",
+            "name": "departure",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "landr-tm48v.2: day after the last booked day / night",
+              "title": "Departure"
             }
           }
         ],
@@ -49037,7 +49632,7 @@
     },
     "/api/public/products/{product_id}/addons": {
       "get": {
-        "description": "Add-ons configured for a parent product (landr-cip6 / epic landr-ie8g).\n\nThin FastAPI wrapper over the SECURITY DEFINER RPC\n`public_get_product_addons`. Returns one row per linked add-on\nproduct, including the add-on's display name, per-unit price (when\nthe scheme exposes a per_day_base rule), and the product_addons\nconfig (is_required, min_qty, max_qty, sort_order). The widget\ncalls this after the customer picks a parent product to render\nqty steppers + the orange overbook warning + required-min gating.\n\nReturns an empty list when the parent has no add-ons (including\nwhen the parent itself is hidden \u2014 see RPC docstring); the widget\ntreats an empty list as \"no add-ons\" and skips the add-on UI.",
+        "description": "Add-ons configured for a parent product (landr-cip6 / epic landr-ie8g).\n\nThin FastAPI wrapper over the SECURITY DEFINER RPC\n`public_get_product_addons`. Returns one row per linked add-on\nproduct, including the add-on's display name, per-unit price (when\nthe scheme exposes a per_day_base rule), and the offer's config\n(is_required = mandatory, min_qty, max_qty, sort_order; landr-tm48v.2:\nthe RPC reads ``offers`` -- rows needing guests or dates are left out,\nPOST /offers/evaluate judges those). The widget\ncalls this after the customer picks a parent product to render\nqty steppers + the orange overbook warning + required-min gating.\n\nReturns an empty list when the parent has no add-ons (including\nwhen the parent itself is hidden \u2014 see RPC docstring); the widget\ntreats an empty list as \"no add-ons\" and skips the add-on UI.",
         "operationId": "get_product_addons",
         "parameters": [
           {
