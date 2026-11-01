@@ -47219,7 +47219,7 @@
     },
     "/api/operators/{operator_id}/offers/{offer_id}": {
       "delete": {
-        "description": "Delete a native offer; a mirrored (legacy) row is 409.",
+        "description": "Delete an offer. A migrated add-on is removed by deleting its\nproduct_addons link; a cross-sell row is deleted directly.",
         "operationId": "delete_product_offer",
         "parameters": [
           {
@@ -47268,7 +47268,7 @@
         ]
       },
       "patch": {
-        "description": "Update the fields sent. 409 ``offer_owned_by_legacy_source`` for a column\na mirrored row's source owns.",
+        "description": "Update the fields sent. A migrated add-on writes them through to its\nproduct_addons link in one transaction (409 ``addon_link_exists`` for a\nduplicate parent/add-on pair, ``binding_not_applicable``,\n``product_cap_overrides`` for a cleared max_qty under the product's own cap);\n409 ``offer_owned_by_legacy_source`` for parent / product of a cross-sell row\nor a null parent on a migrated add-on.",
         "operationId": "patch_product_offer",
         "parameters": [
           {
