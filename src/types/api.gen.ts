@@ -15008,6 +15008,17 @@ export interface components {
             addon_quantity_max?: number | null;
             /** Addon Quantity Rule */
             addon_quantity_rule?: ("one_per_booking" | "one_per_participant" | "any") | null;
+            /**
+             * Collection
+             * @default online
+             * @enum {string}
+             */
+            collection: "online" | "on_site" | "free";
+            /**
+             * Conditional
+             * @default false
+             */
+            conditional: boolean;
             /** Currency */
             currency?: string | null;
             /**
@@ -15046,6 +15057,11 @@ export interface components {
                 [key: string]: unknown;
             } | null;
             /**
+             * Options
+             * @default []
+             */
+            options: components["schemas"]["CatalogueAddonOption"][];
+            /**
              * Paid To
              * @enum {string}
              */
@@ -15072,6 +15088,25 @@ export interface components {
             sort_order: number;
             /** Thumb Url */
             thumb_url?: string | null;
+        };
+        /**
+         * CatalogueAddonOption
+         * @description A pick inside an offer (shuttle: one way / both ways) with its price delta.
+         */
+        CatalogueAddonOption: {
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /** Label Localized */
+            label_localized?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Price Delta Cents
+             * @default 0
+             */
+            price_delta_cents: number;
         };
         /**
          * CatalogueAlternative
