@@ -17181,8 +17181,8 @@ export interface components {
          * @description One request line: may it be booked (a top-level line: its product's
          *     eligibility_rules; a child line: does its parent line offer it), and the
          *     offers it shows. ``eligibility_reason_key`` (null when eligible):
-         *     ``attribute_missing.<key>``, ``guest_attr.<key>``, ``<cond>``,
-         *     ``no_rule_matched``, ``not_offered`` or ``invalid_rules``.
+         *     ``attribute_missing.<key>``, ``guest_attr.<key>``, ``guest_attr_all.<key>``,
+         *     ``<cond>``, ``no_rule_matched``, ``not_offered`` or ``invalid_rules``.
          */
         EvaluatedLine: {
             /** Eligibility Reason Key */
@@ -24319,14 +24319,21 @@ export interface components {
         };
         /**
          * RuleItem
-         * @description One condition: ``{"cond", "op", "value"[, "key"]}`` (``key`` on guest_attr only).
+         * @description One condition: ``{"cond", "op", "value"[, "key"][, "anchor"]}`` (``key`` on
+         *     guest_attr / guest_attr_all only, required there; ``anchor`` on date_window
+         *     only, optional).
          */
         RuleItem: {
+            /**
+             * Anchor
+             * @enum {string}
+             */
+            anchor?: "every_night" | "arrival";
             /**
              * Cond
              * @enum {string}
              */
-            cond: "parent_in" | "guest_attr" | "date_window" | "season_in" | "stay_nights" | "parent_unavailable";
+            cond: "parent_in" | "guest_attr" | "guest_attr_all" | "date_window" | "season_in" | "stay_nights" | "parent_unavailable";
             /** Key */
             key?: string | null;
             /**
