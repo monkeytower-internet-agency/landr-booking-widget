@@ -7,6 +7,7 @@ import {
   guestAttributesWire,
   initialText,
   unansweredCount,
+  unionAttributes,
 } from './guestAttributes'
 
 const AGE: FlowGuestAttribute = { key: 'age', label: 'Age', value_type: 'integer', unit: 'years' }
@@ -62,7 +63,20 @@ describe('prefill and completeness', () => {
   it('prefills age from the roster age', () => {
     expect(initialText(kid, 'age')).toBe('8')
     expect(initialText(ada, 'age')).toBe('')
-    expect(initialText({ ...kid, guest_attributes: { age: 9 } }, 'age')).toBe('9')
+    expect(initialText({ ...kid, guest_attributes: { weight_kg: 9 } }, 'weight_kg')).toBe('9')
+  })
+
+  it('takes the age from the roster only, never from a stale copy', () => {
+    const stale = { ...kid, guest_attributes: { age: 12 } }
+    expect(initialText(stale, 'age')).toBe('8')
+    // switched to adult on the party step: no roster age, the copy is ignored
+    expect(initialText({ ...ada, guest_attributes: { age: 12 } }, 'age')).toBe('')
+  })
+
+  it('unions the attributes of several lists, each key once', () => {
+    expect(unionAttributes([AGE, WEIGHT], undefined, [WEIGHT, SIZE]).map((d) => d.key)).toEqual([
+      'age', 'weight_kg', 'clothing_size',
+    ])
   })
 
   it('counts what is still missing', () => {

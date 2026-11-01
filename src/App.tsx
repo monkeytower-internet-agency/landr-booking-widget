@@ -44,6 +44,7 @@ import { ApprovalReplyPage } from '@/components/booking/ApprovalReplyPage'
 import { Confirmation } from '@/components/booking/Confirmation'
 import { DetailsStep } from '@/components/booking/DetailsStep'
 import { GuestAttributesStep } from '@/components/booking/GuestAttributesStep'
+import { unansweredCount, unionAttributes } from '@/components/booking/guestAttributes'
 import {
   bookerJoins,
   emptyBilling,
@@ -2224,6 +2225,22 @@ function BookingFlowApp() {
   // "still resolving" (see its declaration); once it settles to an object
   // (success, already past this step) or `null` (404 → plain wizard is the
   // intended fallback, so let it through) this gate no longer applies.
+  // A line added on the review step can ask attributes the guest step never
+  // asked (its product, or an offer for it, lists more keys). Until every guest
+  // has them the review is replaced by the same 'About your guests' step.
+  const cartGuestAttributes =
+    step.name === 'fill-form'
+      ? unionAttributes(
+          resolvedFlowForProduct(step.product.product_id)?.guest_attributes,
+          ...extraLines.map((l) => l.flow?.guest_attributes),
+        )
+      : []
+  const reviewGuests =
+    step.name === 'fill-form' ? [...step.participants, ...step.companions] : []
+  const reviewNeedsAttributes =
+    cartGuestAttributes.length > 0 &&
+    unansweredCount(cartGuestAttributes, reviewGuests, {}) > 0
+
   if (invite && inviteData === undefined && step.name === 'pick-product') {
     return (
       <div
@@ -3705,7 +3722,33 @@ function BookingFlowApp() {
           />
         ) : null}
 
-        {step.name === 'fill-form' ? (
+        {step.name === 'fill-form' && reviewNeedsAttributes ? (
+          <GuestAttributesStep
+            productName={pickLocalized(
+              step.product.name,
+              step.product.name_localized,
+              browserLocale(),
+            )}
+            attributes={cartGuestAttributes}
+            participants={step.participants}
+            companions={step.companions}
+            onBack={() =>
+              // Take the lines that need more answers back off the cart.
+              setExtraLines((lines) =>
+                lines.filter(
+                  (l) =>
+                    unansweredCount(unionAttributes(l.flow?.guest_attributes), reviewGuests, {}) === 0,
+                ),
+              )
+            }
+            onConfirm={(participants, companions) => {
+              mergeDraft({ participants, companions })
+              setStep({ ...step, participants, companions })
+            }}
+          />
+        ) : null}
+
+        {step.name === 'fill-form' && !reviewNeedsAttributes ? (
           <BookingForm
             widgetToken={token!}
             previewToken={previewToken ?? undefined}

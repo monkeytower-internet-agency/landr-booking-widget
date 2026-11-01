@@ -52,12 +52,23 @@ export function attributeBounds(def: FlowGuestAttribute): [number | null, number
   return [def.min_value ?? null, def.max_value ?? null]
 }
 
-/** The stored value of `key` for a guest, falling back to the roster age. */
+/**
+ * The current value of `key` for a guest. `age` is the roster age
+ * (occupant_age) and nothing else: a copy kept in guest_attributes goes stale
+ * when the party step changes the child's age or switches the guest to adult.
+ */
 export function currentValue(guest: GuestLike, key: string): number | string | undefined {
-  const own = guest.guest_attributes?.[key]
-  if (own !== undefined) return own
-  if (key === 'age' && typeof guest.occupant_age === 'number') return guest.occupant_age
-  return undefined
+  if (key === 'age') return typeof guest.occupant_age === 'number' ? guest.occupant_age : undefined
+  return guest.guest_attributes?.[key]
+}
+
+/** The attributes of several lists, each key once, first definition wins. */
+export function unionAttributes(
+  ...lists: ReadonlyArray<readonly FlowGuestAttribute[] | null | undefined>
+): FlowGuestAttribute[] {
+  const seen = new Map<string, FlowGuestAttribute>()
+  for (const list of lists) for (const def of list ?? []) if (!seen.has(def.key)) seen.set(def.key, def)
+  return [...seen.values()]
 }
 
 /** The text a guest's input starts with. */
