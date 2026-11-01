@@ -13,8 +13,11 @@
  * what a cart sees and submit re-judges it. This evaluator lets the widget
  * re-judge instantly while the guest edits the party.
  *
- * Rules: `{mode: 'all' | 'any', items: [{cond, op, value[, key]}]}`; `null` =
- * no rules (offered to everyone). Context (dates are operator-local):
+ * Rules: `{mode: 'all' | 'any', items: [{cond, op, value[, key][, anchor]}]}`;
+ * `null` = no rules (offered to everyone). `guest_attr` = SOME guest has the
+ * key and matches; `guest_attr_all` = EVERY guest does (an empty party never
+ * does). `date_window` judges every night, or with `anchor: 'arrival'` the
+ * arrival date alone. Context (dates are operator-local):
  * `{parent_product_id, parent_available, participants: [{id, guest_attributes}],
  *   arrival, departure, nights, season_ids}` — a key the caller does not know
  * is left out, and every condition needing it is false.
@@ -26,11 +29,15 @@
 
 export type RuleMode = 'all' | 'any'
 
+export type DateWindowAnchor = 'every_night' | 'arrival'
+
 export interface OfferRuleItem {
   cond: string
   op: string
   value: unknown
   key?: string
+  /** `date_window` only; absent = `every_night`. */
+  anchor?: DateWindowAnchor
 }
 
 export interface OfferRules {
@@ -58,6 +65,9 @@ type JType = 'null' | 'boolean' | 'number' | 'string' | 'array' | 'object'
 const DATE_RE = /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/
 const MONTH_DAY_RE = /^[0-9]{2}-[0-9]{2}$/
 const ATTRIBUTE_KEY_RE = /^[a-z][a-z0-9_]{0,39}$/
+const ATTR_OPS = ['eq', 'in', 'gte', 'lte', 'between']
+/** The conds that read a guest attribute `key`. */
+const GUEST_ATTR_CONDS = ['guest_attr', 'guest_attr_all']
 const DAY_MS = 86_400_000
 
 /** `jsonb_typeof`; undefined for a missing key (SQL NULL). */
@@ -189,6 +199,27 @@ function dateWindowHit(value: unknown, ctx: unknown): boolean {
   return true
 }
 
+/**
+ * SQL `offer_rule_item_matches` date_window branch: `anchor` absent or
+ * `every_night` judges every night; `arrival` the arrival date alone (the ctx
+ * without its departure); any other anchor never matches.
+ */
+function dateWindowItemHit(item: Record<string, unknown>, ctx: Record<string, unknown>): boolean {
+  const anchor = get(item, 'anchor')
+  const value = get(item, 'value')
+  if (anchor === undefined || anchor === 'every_night') return dateWindowHit(value, ctx)
+  if (anchor === 'arrival') {
+    const arrivalOnly = Object.fromEntries(Object.entries(ctx).filter(([k]) => k !== 'departure'))
+    return dateWindowHit(value, arrivalOnly)
+  }
+  return false
+}
+
+function participantHas(p: unknown, key: string, op: unknown, val: unknown): boolean {
+  const attrs = get(p, 'guest_attributes')
+  return isObject(attrs) && Object.prototype.hasOwnProperty.call(attrs, key) && valueCmp(attrs[key], op, val)
+}
+
 /** SQL `offer_rule_item_matches`: one condition against the context. */
 export function ruleItemMatches(item: unknown, ctx: unknown): boolean {
   if (!isObject(item) || !isObject(ctx)) return false
@@ -207,15 +238,19 @@ export function ruleItemMatches(item: unknown, ctx: unknown): boolean {
     case 'guest_attr': {
       const key = text(get(item, 'key'))
       const participants = get(ctx, 'participants')
-      if (key === undefined || !['eq', 'in', 'gte', 'lte', 'between'].includes(op as string)) return false
+      if (key === undefined || !ATTR_OPS.includes(op as string)) return false
       if (!Array.isArray(participants)) return false
-      return participants.some((p) => {
-        const attrs = get(p, 'guest_attributes')
-        return isObject(attrs) && Object.prototype.hasOwnProperty.call(attrs, key) && valueCmp(attrs[key], op, val)
-      })
+      return participants.some((p) => participantHas(p, key, op, val))
+    }
+    case 'guest_attr_all': {
+      const key = text(get(item, 'key'))
+      const participants = get(ctx, 'participants')
+      if (key === undefined || !ATTR_OPS.includes(op as string)) return false
+      if (!Array.isArray(participants) || participants.length === 0) return false
+      return participants.every((p) => participantHas(p, key, op, val))
     }
     case 'date_window':
-      return op === 'between' && dateWindowHit(val, ctx)
+      return op === 'between' && dateWindowItemHit(item, ctx)
     case 'stay_nights':
       return ['eq', 'gte', 'lte', 'between'].includes(op as string) && valueCmp(get(ctx, 'nights'), op, val)
     case 'parent_unavailable': {
@@ -248,13 +283,20 @@ export function ruleMatches(rules: unknown, ctx: unknown): boolean {
   return rules.mode === 'all'
 }
 
-/** The `guest_attr` keys a rule set reads, in first-use order. */
+/** The `guest_attr` / `guest_attr_all` keys a rule set reads, in first-use order. */
 export function ruleKeys(rules: unknown): string[] {
   if (!wellFormed(rules)) return []
   const out: string[] = []
   for (const item of rules.items) {
     const key = get(item, 'key')
-    if (get(item, 'cond') === 'guest_attr' && typeof key === 'string' && ATTRIBUTE_KEY_RE.test(key) && !out.includes(key)) {
+    const cond = get(item, 'cond')
+    if (
+      typeof cond === 'string' &&
+      GUEST_ATTR_CONDS.includes(cond) &&
+      typeof key === 'string' &&
+      ATTRIBUTE_KEY_RE.test(key) &&
+      !out.includes(key)
+    ) {
       out.push(key)
     }
   }
