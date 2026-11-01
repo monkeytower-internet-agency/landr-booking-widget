@@ -28,7 +28,11 @@ import type {
 import { hasFixedStartTimes } from '@/components/booking/slotKey'
 import { maxPartySize, seatsNeeded } from '@/lib/seatHold'
 import type { Product, ProductGroup, SubmitBookingResponse } from '@/api/types'
-import type { FormResponseEntry, ProductFlowResponse } from '@/api/flowTypes'
+import type {
+  FlowGuestAttribute,
+  FormResponseEntry,
+  ProductFlowResponse,
+} from '@/api/flowTypes'
 import {
   buildFlowPlan,
   isBookableKind,
@@ -249,6 +253,19 @@ export type Step =
        * participants run first: handed on to the dates step that follows.
        */
       carry?: AlternativeCarry
+    }
+  // The 'About your guests' interstitial: right after the party step, once
+  // per booking, only when the product (or an offer that can be shown for it)
+  // asks for per-guest attributes. Not a breadcrumb crumb: it is part of
+  // finishing the party step, and Back returns to it.
+  | {
+      name: 'guest-attributes'
+      product: Product
+      selection: BookingSelection
+      booker: BookerDetails
+      participants: ParticipantDetails[]
+      companions: CompanionDetails[]
+      attributes: FlowGuestAttribute[]
     }
   // landr-yf0n: optional initialHotelLocationId / accommodationRooms /
   // addons / includeHotel let AccommodationStep re-seed its internal
@@ -1261,6 +1278,16 @@ export function sidebarInputsForStep(
         selectedDays: step.selection ? selectionToDays(step.selection) : [],
         participantCount: step.participants?.length ?? 1,
         participantNames: step.participants ? namesFrom(step.participants) : [],
+        accommodationRooms: [],
+        addons: [],
+      }
+    case 'guest-attributes':
+      // The party is settled; the sidebar prices it as on the details step.
+      return {
+        product: step.product,
+        selectedDays: selectionToDays(step.selection),
+        participantCount: step.participants.length,
+        participantNames: namesFrom(step.participants),
         accommodationRooms: [],
         addons: [],
       }

@@ -349,6 +349,15 @@ export type Bundle = {
   occupancyChildBandFree: string
   guestAgeRequired: string
   agePlaceholder: string
+  guestAttrsTitle: string
+  guestAttrsIntro: string
+  guestAttrsFallback: string
+  guestAttrsChoose: string
+  guestAttrsCue: string
+  guestAttrsMissing: string
+  guestAttrsOk: string
+  guestAttrsInvalid: string
+  guestAttrsRange: string
   breakfastLabel: string
   emptyLabel: string
   swapInHereLabel: string
@@ -1333,6 +1342,15 @@ const en: Bundle = {
   occupancyChildBandFree: 'children {from}-{to} free',
   guestAgeRequired: 'Please select the age of each child.',
   agePlaceholder: 'Age',
+  guestAttrsTitle: 'About your guests',
+  guestAttrsIntro: 'A few details per guest, so we can prepare the right gear and price.',
+  guestAttrsFallback: 'Guest {n}',
+  guestAttrsChoose: 'Choose',
+  guestAttrsCue: 'fill in the guest details',
+  guestAttrsMissing: '{count} answer(s) still missing.',
+  guestAttrsOk: 'All guest details are in.',
+  guestAttrsInvalid: 'Please check this value.',
+  guestAttrsRange: '{min}-{max}',
   breakfastLabel: 'Breakfast',
   emptyLabel: 'Empty',
   swapInHereLabel: 'Swap in here',

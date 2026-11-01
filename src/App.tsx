@@ -43,6 +43,7 @@ import { DetailsPage } from '@/components/booking/DetailsPage'
 import { ApprovalReplyPage } from '@/components/booking/ApprovalReplyPage'
 import { Confirmation } from '@/components/booking/Confirmation'
 import { DetailsStep } from '@/components/booking/DetailsStep'
+import { GuestAttributesStep } from '@/components/booking/GuestAttributesStep'
 import {
   bookerJoins,
   emptyBilling,
@@ -1665,6 +1666,50 @@ function BookingFlowApp() {
     comment: string,
   ) => {
     commitDetails(product, booker, participants, companions, comment)
+    // The 'About your guests' step: once per booking, right after the party
+    // step and before the extras, only when the product (or an offer that can
+    // be shown for it) asks per-guest attributes. The flow is normally cached
+    // by now (it is fetched when the product is picked); if not, wait for it.
+    const gate = (flow: ProductFlowResponse | null) => {
+      const attributes = flow?.guest_attributes ?? []
+      if (attributes.length > 0) {
+        setStep({
+          name: 'guest-attributes',
+          product,
+          selection,
+          booker,
+          participants,
+          companions,
+          attributes,
+        })
+        return
+      }
+      continueAfterDetails(product, selection, booker, participants, companions)
+    }
+    const cached = resolvedFlowForProduct(product.product_id)
+    if (cached !== undefined) gate(cached)
+    else withResolvedFlow(product.product_id, gate)
+  }
+
+  /** The guest step confirmed: keep the answers in the draft, then run on. */
+  const afterGuestAttributes = (
+    product: Product,
+    selection: BookingSelection,
+    booker: BookerDetails,
+    participants: ParticipantDetails[],
+    companions: CompanionDetails[],
+  ) => {
+    mergeDraft({ participants, companions })
+    continueAfterDetails(product, selection, booker, participants, companions)
+  }
+
+  const continueAfterDetails = (
+    product: Product,
+    selection: BookingSelection,
+    booker: BookerDetails,
+    participants: ParticipantDetails[],
+    companions: CompanionDetails[],
+  ) => {
     const offering = product.hotel_offering ?? 'none'
     if (product.product_kind === 'service' && offering !== 'none') {
       // landr-nmed: re-seed the AccommodationStep from the draft so a customer
@@ -3017,6 +3062,38 @@ function BookingFlowApp() {
               step.product,
               ...extraLines.map((l) => l.product),
             )}
+          />
+        ) : null}
+
+        {step.name === 'guest-attributes' ? (
+          <GuestAttributesStep
+            productName={pickLocalized(
+              step.product.name,
+              step.product.name_localized,
+              browserLocale(),
+            )}
+            attributes={step.attributes}
+            participants={step.participants}
+            companions={step.companions}
+            onBack={() =>
+              setStep({
+                name: 'details',
+                product: step.product,
+                selection: step.selection,
+                booker: step.booker,
+                participants: step.participants,
+                companions: step.companions,
+              })
+            }
+            onConfirm={(participants, companions) =>
+              afterGuestAttributes(
+                step.product,
+                step.selection,
+                step.booker,
+                participants,
+                companions,
+              )
+            }
           />
         ) : null}
 

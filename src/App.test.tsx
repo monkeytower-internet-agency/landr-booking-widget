@@ -6341,6 +6341,97 @@ describe('App', () => {
       expect(body.participants[0]).toMatchObject({ language: 'de' })
     })
 
+    it('asks the guest attributes once after the party step and submits them per participant', async () => {
+      const today = new Date()
+      today.setHours(12, 0, 0, 0)
+      mocks.getOperatorSettings.mockResolvedValue({
+        slug: 'para42',
+        expose_seats_to_customer: false,
+      })
+      mocks.getProductFlow.mockResolvedValue({
+        modules: null,
+        guest_attributes: [
+          { key: 'weight_kg', label: 'Weight', value_type: 'number', unit: 'kg' },
+        ],
+      })
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          product_kind: 'service',
+          service_time_shape: 'single_date',
+          name: 'Weighed Flight',
+          needs_pickup: false,
+          hotel_offering: 'none',
+          // Any language: no language step in between.
+          guide_languages: [],
+        }),
+      ])
+      mocks.getAvailability.mockResolvedValue([
+        {
+          availability_id: 'a-1',
+          date: today.toISOString().slice(0, 10),
+          start_time: null,
+          end_time: null,
+          capacity: 10,
+          capacity_reserved: 0,
+          available_seats: 10,
+          status: 'open',
+        },
+      ])
+      mocks.submitBooking.mockResolvedValue({
+        booking_id: 'b-3',
+        semantic_state: 'pending',
+      })
+
+      render(<App />)
+      await waitFor(() => screen.getByText('Weighed Flight'))
+      fireEvent.click(screen.getByRole('button', { name: 'Weighed Flight' }))
+      fireEvent.click(await screen.findByTestId('product-detail-book-cta'))
+      await waitFor(() =>
+        expect(screen.getByText(/Pick a date/i)).toBeInTheDocument(),
+      )
+      const days = screen
+        .getAllByRole('gridcell')
+        .map((cell) => cell.querySelector('button'))
+        .filter((b): b is HTMLButtonElement => !!b && !b.disabled)
+      fireEvent.click(days[0]!)
+      fireEvent.click(await screen.findByRole('button', { name: /continue/i }))
+      await waitFor(() =>
+        expect(screen.getByText(/your contact details/i)).toBeInTheDocument(),
+      )
+      const setField = (name: string, value: string) =>
+        fireEvent.change(
+          document.querySelector<HTMLInputElement>(`input[name="${name}"]`)!,
+          { target: { value } },
+        )
+      setField('booker_first_name', 'Ada')
+      setField('booker_last_name', 'Lovelace')
+      setField('booker_email', 'ada@example.com')
+      setField('booker_phone', '+34600000001')
+      fillBillingFields()
+      fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+
+      await waitFor(() =>
+        expect(screen.getByTestId('guest-attributes-step')).toBeInTheDocument(),
+      )
+      expect(screen.getByTestId('guest-attrs-submit')).toBeDisabled()
+      fireEvent.change(screen.getByTestId('guest-attr-0-weight_kg'), {
+        target: { value: '70' },
+      })
+      fireEvent.click(screen.getByTestId('guest-attrs-submit'))
+
+      await waitFor(() =>
+        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
+      )
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+      await waitFor(() => expect(mocks.submitBooking).toHaveBeenCalled())
+      const body = mocks.submitBooking.mock.calls[0][0] as {
+        participants: Array<Record<string, unknown>>
+      }
+      expect(body.participants[0]).toMatchObject({
+        guest_attributes: { weight_kg: 70 },
+      })
+    })
+
     it('keeps each person their own language when a participant is removed after assigning', async () => {
       // The landr-uwvl failure mode, in language form: renumbering the party
       // must not hand Grace someone else's language.

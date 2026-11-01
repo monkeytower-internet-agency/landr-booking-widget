@@ -40,6 +40,7 @@ import {
   type CompanionDetails,
   type ParticipantDetails,
 } from './detailsTypes'
+import { guestAttributesWire } from './guestAttributes'
 import { ContinueAction } from './ContinueAction'
 import { isOwnAccommodation, ownAccommodationWire } from './ownAccommodation'
 import { CustomerCommentField } from './CustomerCommentField'
@@ -1664,6 +1665,7 @@ export function BookingForm({
                   occupant_age: ageEntry.age ?? null,
                 }
               : {}),
+            ...guestAttributesWire(p),
             // landr-a4fy wire field (PINNED contract):
             // omit when false to keep the payload compact.
             ...(hasBreakfast ? { has_breakfast: true as const } : {}),
@@ -1717,6 +1719,7 @@ export function BookingForm({
                         occupant_age: ageEntry.age ?? null,
                       }
                     : {}),
+                  ...guestAttributesWire(c),
                   // landr-a4fy wire field (PINNED contract):
                   // omit when false to keep the payload compact.
                   ...(hasBreakfast ? { has_breakfast: true as const } : {}),
