@@ -15483,6 +15483,8 @@ export interface components {
             own_accommodation: boolean;
             /** Phone */
             phone?: string | null;
+            /** Ref */
+            ref?: string | null;
             /** Room Product Id */
             room_product_id?: string | null;
             /** Room Unit Index */
@@ -16890,6 +16892,16 @@ export interface components {
         };
         /** EstimateAddonLineIn */
         EstimateAddonLineIn: {
+            /** Line Id */
+            line_id?: string | null;
+            /** Offer Id */
+            offer_id?: string | null;
+            /** Option Key */
+            option_key?: string | null;
+            /** Parent Line Id */
+            parent_line_id?: string | null;
+            /** Participant Id */
+            participant_id?: string | null;
             /** Product Id */
             product_id: string;
             /**
@@ -16950,17 +16962,39 @@ export interface components {
          *     (e.g. "60.00"), matching ``_compute_line``'s wire format exactly.
          */
         EstimateLineItem: {
+            /** Attribute Missing */
+            attribute_missing?: boolean | null;
+            /** Auto Attached */
+            auto_attached?: boolean | null;
             /** Cleaning Fee */
             cleaning_fee?: string | null;
+            /** Collection */
+            collection?: ("online" | "on_site" | "free") | null;
+            /** Collection Amount */
+            collection_amount?: string | null;
             /** Label */
             label: string;
+            /** Line Id */
+            line_id?: string | null;
             /** Line Total */
             line_total: string;
+            /** Missing Attribute Keys */
+            missing_attribute_keys?: string[] | null;
+            /** Mode */
+            mode?: ("optional" | "mandatory" | "info") | null;
+            /** Offer Id */
+            offer_id?: string | null;
+            /** Option Key */
+            option_key?: string | null;
             /**
              * Paid To
              * @enum {string}
              */
             paid_to: "operator" | "hotel" | "performer";
+            /** Parent Line Id */
+            parent_line_id?: string | null;
+            /** Participant Ids */
+            participant_ids?: string[] | null;
             /** Payee Label */
             payee_label?: string | null;
             /** Payment Note */
@@ -16971,6 +17005,8 @@ export interface components {
             product_id: string;
             /** Qty */
             qty: number;
+            /** Schedule */
+            schedule?: ("locked" | "subset" | "own") | null;
             /** Unit Price */
             unit_price: string;
             /** Units */
@@ -16988,6 +17024,8 @@ export interface components {
             guests?: components["schemas"]["EvaluateGuestIn"][] | null;
             /** Locale */
             locale?: string | null;
+            /** Main Line Id */
+            main_line_id?: string | null;
             /**
              * Participants Count
              * @default 1
@@ -17014,6 +17052,8 @@ export interface components {
             amount_due?: string | null;
             /** Applied Rules */
             applied_rules?: components["schemas"]["EstimateAppliedRule"][];
+            /** Attribute Missing */
+            attribute_missing?: boolean | null;
             /** Currency */
             currency: string;
             /** Grand Total */
@@ -17022,7 +17062,13 @@ export interface components {
             hotel_total: string;
             /** Line Items */
             line_items?: components["schemas"]["EstimateLineItem"][];
+            /** Missing Attributes */
+            missing_attributes?: {
+                [key: string]: unknown;
+            }[] | null;
             multi_day_savings?: components["schemas"]["MultiDaySavingsOut"] | null;
+            /** On Site Total */
+            on_site_total?: string | null;
             /** Operator Total */
             operator_total: string;
             /** Performer Total */
@@ -20465,6 +20511,8 @@ export interface components {
             phone?: string | null;
             /** Pickup Location Id */
             pickup_location_id?: string | null;
+            /** Ref */
+            ref?: string | null;
             /** Room Product Id */
             room_product_id?: string | null;
             /** Room Unit Index */
@@ -21333,7 +21381,7 @@ export interface components {
              * Rule Kind
              * @enum {string}
              */
-            rule_kind: "per_day_base" | "per_streak_tier" | "per_total_days_tier" | "per_participant_tier" | "fixed_total" | "percentage_discount" | "flat_discount" | "time_of_day_surcharge" | "manual_override" | "slot_time_adjustment" | "weekday_adjustment" | "occupancy_pricing";
+            rule_kind: "per_day_base" | "per_streak_tier" | "per_total_days_tier" | "per_participant_tier" | "fixed_total" | "percentage_discount" | "flat_discount" | "time_of_day_surcharge" | "manual_override" | "slot_time_adjustment" | "weekday_adjustment" | "occupancy_pricing" | "attribute_bands";
             /** Sort Order */
             sort_order: number;
             /** Tiers */
@@ -22094,6 +22142,16 @@ export interface components {
             date_range_start?: string | null;
             /** Fixed Date Window Id */
             fixed_date_window_id?: string | null;
+            /** Line Id */
+            line_id?: string | null;
+            /** Offer Id */
+            offer_id?: string | null;
+            /** Option Key */
+            option_key?: string | null;
+            /** Parent Line Id */
+            parent_line_id?: string | null;
+            /** Participant Id */
+            participant_id?: string | null;
             /** Pass Tier Id */
             pass_tier_id?: string | null;
             /** Product Availability Id */
@@ -26961,7 +27019,7 @@ export interface components {
              * Rule Kind
              * @enum {string}
              */
-            rule_kind: "per_day_base" | "per_streak_tier" | "per_total_days_tier" | "per_participant_tier" | "fixed_total" | "percentage_discount" | "flat_discount" | "time_of_day_surcharge" | "manual_override" | "slot_time_adjustment" | "weekday_adjustment" | "occupancy_pricing";
+            rule_kind: "per_day_base" | "per_streak_tier" | "per_total_days_tier" | "per_participant_tier" | "fixed_total" | "percentage_discount" | "flat_discount" | "time_of_day_surcharge" | "manual_override" | "slot_time_adjustment" | "weekday_adjustment" | "occupancy_pricing" | "attribute_bands";
             /** Sort Order */
             sort_order: number;
             /** Tiers */
@@ -26980,7 +27038,7 @@ export interface components {
                 [key: string]: unknown;
             } | null;
             /** Rule Kind */
-            rule_kind?: ("per_day_base" | "per_streak_tier" | "per_total_days_tier" | "per_participant_tier" | "fixed_total" | "percentage_discount" | "flat_discount" | "time_of_day_surcharge" | "manual_override" | "slot_time_adjustment" | "weekday_adjustment" | "occupancy_pricing") | null;
+            rule_kind?: ("per_day_base" | "per_streak_tier" | "per_total_days_tier" | "per_participant_tier" | "fixed_total" | "percentage_discount" | "flat_discount" | "time_of_day_surcharge" | "manual_override" | "slot_time_adjustment" | "weekday_adjustment" | "occupancy_pricing" | "attribute_bands") | null;
             /** Sort Order */
             sort_order?: number | null;
         };
