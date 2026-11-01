@@ -17972,6 +17972,11 @@ export interface components {
              */
             offer_lines_attached: number;
             /**
+             * Offer Lines Removed
+             * @default 0
+             */
+            offer_lines_removed: number;
+            /**
              * Participant Id
              * Format: uuid
              */
