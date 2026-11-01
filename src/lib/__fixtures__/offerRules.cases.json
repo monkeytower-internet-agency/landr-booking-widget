@@ -5997,6 +5997,43 @@
    "expected": false
   },
   {
+   "name": "guest_attr_all: an adult with a guest whose age is blank never matches",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "guest_attr_all",
+      "key": "age",
+      "op": "gte",
+      "value": 10
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": {
+       "age": 40
+      }
+     },
+     {
+      "id": "b",
+      "guest_attributes": {}
+     }
+    ],
+    "arrival": "2026-07-10",
+    "departure": "2026-07-17",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": false
+  },
+  {
    "name": "guest_attr on the same party (some guest)",
    "rules": {
     "mode": "all",

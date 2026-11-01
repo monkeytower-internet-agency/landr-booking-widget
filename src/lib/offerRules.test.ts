@@ -72,6 +72,7 @@ describe('every-guest attributes and arrival-anchored windows', () => {
     for (const name of [
       'guest_attr_all: every guest matches',
       'guest_attr_all: one guest missing the key',
+      'guest_attr_all: an adult with a guest whose age is blank never matches',
       'guest_attr_all: one guest fails (adult with an 8-year-old vs gte 10)',
       'guest_attr_all: empty party never matches',
       'date_window arrival anchor: Oct 31 arrival into November matches',
