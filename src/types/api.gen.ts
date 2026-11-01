@@ -4249,33 +4249,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/public/products/{product_id}/addons/stock": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Product Addons Stock By Day
-         * @description Per-day stock of the day-pickable (``parent_subset``) companion add-ons
-         *     of a parent product, in ONE call instead of one add-ons call per day.
-         *
-         *     Same verdict as ``GET /products/{id}/addons`` with a single-day
-         *     ``selected_days`` (the add-on's minimum quantity, at least 1, judged in the
-         *     parent's own stock scope), for every day asked. Hidden parent / no
-         *     companion add-ons: an empty list. At most 31 distinct days (422
-         *     ``too_many_days``).
-         */
-        get: operations["get_product_addons_stock_by_day"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/public/products/{product_id}/alternatives": {
         parameters: {
             query?: never;
@@ -12660,59 +12633,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/staff/trello-board-links": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Staff Trello List Links */
-        get: operations["staff_trello_list_links"];
-        put?: never;
-        /** Staff Trello Create Link */
-        post: operations["staff_trello_create_link"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/staff/trello-board-links/resolve": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Staff Trello Resolve Board */
-        get: operations["staff_trello_resolve_board"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/staff/trello-board-links/{link_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /** Staff Trello Delete Link */
-        delete: operations["staff_trello_delete_link"];
-        options?: never;
-        head?: never;
-        /** Staff Trello Patch Link */
-        patch: operations["staff_trello_patch_link"];
-        trace?: never;
-    };
     "/api/tickets/{ticket_id}/notify-mentions": {
         parameters: {
             query?: never;
@@ -12978,29 +12898,6 @@ export interface components {
         ActivityCodePatch: {
             /** Rotate Weekly */
             rotate_weekly: boolean;
-        };
-        /**
-         * AddonDayStock
-         * @description One (day, companion add-on) stock verdict of
-         *     GET /products/{id}/addons/stock (landr-a27k9.6).
-         */
-        AddonDayStock: {
-            /** Addon Product Id */
-            addon_product_id: string;
-            /**
-             * Available
-             * @default true
-             */
-            available: boolean;
-            /**
-             * Day
-             * Format: date
-             */
-            day: string;
-            /** Stock Remaining */
-            stock_remaining?: number | null;
-            /** Unavailable Reason */
-            unavailable_reason?: ("sold_out" | "unit_taken") | null;
         };
         /** AlertOut */
         AlertOut: {
@@ -14849,23 +14746,12 @@ export interface components {
             addon_quantity_rule?: ("one_per_booking" | "one_per_participant" | "any") | null;
             /** Currency */
             currency?: string | null;
-            /**
-             * Day Selection
-             * @default parent_all
-             * @enum {string}
-             */
-            day_selection: "parent_all" | "parent_subset";
             /** Description */
             description?: string | null;
             /** Description Localized */
             description_localized?: {
                 [key: string]: unknown;
             } | null;
-            /**
-             * Images
-             * @default []
-             */
-            images: components["schemas"]["ProductImage"][];
             /**
              * Is Required
              * @default false
@@ -14909,8 +14795,6 @@ export interface components {
              * @default 0
              */
             sort_order: number;
-            /** Thumb Url */
-            thumb_url?: string | null;
         };
         /**
          * CatalogueAlternative
@@ -16731,8 +16615,6 @@ export interface components {
              * @default 1
              */
             qty: number;
-            /** Selected Days */
-            selected_days?: string[] | null;
         };
         /**
          * EstimateAppliedRule
@@ -16816,8 +16698,6 @@ export interface components {
         EstimateRequest: {
             /** Addon Lines */
             addon_lines?: components["schemas"]["EstimateAddonLineIn"][];
-            /** Child Ages */
-            child_ages?: number[] | null;
             /** Locale */
             locale?: string | null;
             /**
@@ -18807,28 +18687,6 @@ export interface components {
             /** Items */
             items?: components["schemas"]["NumberingSeriesItem"][];
         };
-        /** OccupancyChildBand */
-        OccupancyChildBand: {
-            /** Max Age */
-            max_age: number;
-            /** Min Age */
-            min_age: number;
-            /** Per Night */
-            per_night: string;
-        };
-        /**
-         * OccupancyPricingConfig
-         * @description landr-hfvyc.1: the guest-based pricing of a stay (its price list's
-         *     occupancy_pricing rule). Money as numeric strings.
-         */
-        OccupancyPricingConfig: {
-            /** Child Bands */
-            child_bands?: components["schemas"]["OccupancyChildBand"][];
-            /** Extra Adult Per Night */
-            extra_adult_per_night: string;
-            /** Included Adults */
-            included_adults: number;
-        };
         /**
          * Offer
          * @enum {string}
@@ -19486,7 +19344,6 @@ export interface components {
             next_window_end?: string | null;
             /** Next Window Start */
             next_window_start?: string | null;
-            occupancy_pricing?: components["schemas"]["OccupancyPricingConfig"] | null;
             /** Price Base */
             price_base?: string | null;
             /** Price From */
@@ -20693,7 +20550,7 @@ export interface components {
              * Rule Kind
              * @enum {string}
              */
-            rule_kind: "per_day_base" | "per_streak_tier" | "per_total_days_tier" | "per_participant_tier" | "fixed_total" | "percentage_discount" | "flat_discount" | "time_of_day_surcharge" | "manual_override" | "slot_time_adjustment" | "weekday_adjustment" | "occupancy_pricing";
+            rule_kind: "per_day_base" | "per_streak_tier" | "per_total_days_tier" | "per_participant_tier" | "fixed_total" | "percentage_discount" | "flat_discount" | "time_of_day_surcharge" | "manual_override" | "slot_time_adjustment" | "weekday_adjustment";
             /** Sort Order */
             sort_order: number;
             /** Tiers */
@@ -20952,14 +20809,6 @@ export interface components {
             available: boolean;
             /** Currency */
             currency?: string | null;
-            /**
-             * Day Selection
-             * @default parent_all
-             * @enum {string}
-             */
-            day_selection: "parent_all" | "parent_subset";
-            /** Images */
-            images?: components["schemas"]["ProductImage"][];
             /** Is Required */
             is_required: boolean;
             /** Max Qty */
@@ -20989,12 +20838,6 @@ export interface components {
             product_addon_id: string;
             /** Product Kind */
             product_kind: string;
-            /** Short Description */
-            short_description?: string | null;
-            /** Short Description Localized */
-            short_description_localized?: {
-                [key: string]: string;
-            } | null;
             /** Sort Order */
             sort_order: number;
             /** Stock Remaining */
@@ -21003,8 +20846,6 @@ export interface components {
             stock_scope?: ("unit" | "place" | "type") | null;
             /** Stock Unit Label */
             stock_unit_label?: string | null;
-            /** Thumb Url */
-            thumb_url?: string | null;
             /** Unavailable Reason */
             unavailable_reason?: ("sold_out" | "unit_taken") | null;
         } & {
@@ -21304,12 +21145,6 @@ export interface components {
             daily_start_weekdays?: number[] | null;
             /** Day Capacity Source */
             day_capacity_source?: ("product" | "resources") | null;
-            /**
-             * Day Selection
-             * @default parent_all
-             * @enum {string}
-             */
-            day_selection: "parent_all" | "parent_subset";
             /** Default Pricing Scheme Id */
             default_pricing_scheme_id?: string | null;
             /** Description */
@@ -21500,8 +21335,6 @@ export interface components {
             daily_start_weekdays?: number[] | null;
             /** Day Capacity Source */
             day_capacity_source?: ("product" | "resources") | null;
-            /** Day Selection */
-            day_selection?: ("parent_all" | "parent_subset") | null;
             /** Default Pricing Scheme Id */
             default_pricing_scheme_id?: string | null;
             /** Description */
@@ -22583,30 +22416,6 @@ export interface components {
         ResolveIn: {
             /** Code */
             code: string;
-        };
-        /** ResolveOut */
-        ResolveOut: {
-            /** Board */
-            board: string;
-            /** Operators */
-            operators: components["schemas"]["ResolvedOperator"][];
-        };
-        /** ResolvedOperator */
-        ResolvedOperator: {
-            /** Is Default */
-            is_default: boolean;
-            /** Link Id */
-            link_id: string;
-            /** Operator Id */
-            operator_id: string;
-            /** Operator Name */
-            operator_name: string | null;
-            /** Operator Slug */
-            operator_slug: string | null;
-            /** Trello Member Id */
-            trello_member_id: string | null;
-            /** Trello Member Username */
-            trello_member_username: string | null;
         };
         /**
          * ResourceDayStateIn
@@ -25163,58 +24972,6 @@ export interface components {
             kind: "text" | "activity_code";
             recipients: components["schemas"]["RecipientSetIn"];
         };
-        /** TrelloBoardLinkCreate */
-        TrelloBoardLinkCreate: {
-            /** Board Name */
-            board_name?: string | null;
-            /**
-             * Is Default
-             * @default false
-             */
-            is_default: boolean;
-            /** Operator Id */
-            operator_id: string;
-            /** Trello Board Id */
-            trello_board_id: string;
-            /** Trello Member Id */
-            trello_member_id?: string | null;
-            /** Trello Member Username */
-            trello_member_username?: string | null;
-        };
-        /** TrelloBoardLinkOut */
-        TrelloBoardLinkOut: {
-            /** Board Name */
-            board_name: string | null;
-            /** Created At */
-            created_at: string;
-            /** Id */
-            id: string;
-            /** Is Default */
-            is_default: boolean;
-            /** Operator Id */
-            operator_id: string;
-            /** Trello Board Id */
-            trello_board_id: string;
-            /** Trello Member Id */
-            trello_member_id: string | null;
-            /** Trello Member Username */
-            trello_member_username: string | null;
-            /** Updated At */
-            updated_at: string;
-        };
-        /** TrelloBoardLinkPatch */
-        TrelloBoardLinkPatch: {
-            /** Board Name */
-            board_name?: string | null;
-            /** Is Default */
-            is_default?: boolean | null;
-            /** Trello Board Id */
-            trello_board_id?: string | null;
-            /** Trello Member Id */
-            trello_member_id?: string | null;
-            /** Trello Member Username */
-            trello_member_username?: string | null;
-        };
         /**
          * TrelloSyncIn
          * @description Context only the browser knows — never trust reporter identity from here.
@@ -26225,7 +25982,7 @@ export interface components {
              * Rule Kind
              * @enum {string}
              */
-            rule_kind: "per_day_base" | "per_streak_tier" | "per_total_days_tier" | "per_participant_tier" | "fixed_total" | "percentage_discount" | "flat_discount" | "time_of_day_surcharge" | "manual_override" | "slot_time_adjustment" | "weekday_adjustment" | "occupancy_pricing";
+            rule_kind: "per_day_base" | "per_streak_tier" | "per_total_days_tier" | "per_participant_tier" | "fixed_total" | "percentage_discount" | "flat_discount" | "time_of_day_surcharge" | "manual_override" | "slot_time_adjustment" | "weekday_adjustment";
             /** Sort Order */
             sort_order: number;
             /** Tiers */
@@ -26244,7 +26001,7 @@ export interface components {
                 [key: string]: unknown;
             } | null;
             /** Rule Kind */
-            rule_kind?: ("per_day_base" | "per_streak_tier" | "per_total_days_tier" | "per_participant_tier" | "fixed_total" | "percentage_discount" | "flat_discount" | "time_of_day_surcharge" | "manual_override" | "slot_time_adjustment" | "weekday_adjustment" | "occupancy_pricing") | null;
+            rule_kind?: ("per_day_base" | "per_streak_tier" | "per_total_days_tier" | "per_participant_tier" | "fixed_total" | "percentage_discount" | "flat_discount" | "time_of_day_surcharge" | "manual_override" | "slot_time_adjustment" | "weekday_adjustment") | null;
             /** Sort Order */
             sort_order?: number | null;
         };
@@ -32441,42 +32198,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProductAddon"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_product_addons_stock_by_day: {
-        parameters: {
-            query: {
-                /** @description landr-a27k9.6: the days to judge (repeat the param). Each day is judged on its own, unlike GET .../addons, which reports the lowest remaining over all the days it is sent. */
-                days: string[];
-                /** @description Guiding participants of the booking, as on GET .../addons */
-                participants: number;
-            };
-            header?: never;
-            path: {
-                product_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AddonDayStock"][];
                 };
             };
             /** @description Validation Error */
@@ -48181,165 +47902,6 @@ export interface operations {
                     "application/json": {
                         [key: string]: string;
                     };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    staff_trello_list_links: {
-        parameters: {
-            query?: {
-                operator_id?: string | null;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TrelloBoardLinkOut"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    staff_trello_create_link: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["TrelloBoardLinkCreate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TrelloBoardLinkOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    staff_trello_resolve_board: {
-        parameters: {
-            query: {
-                board: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ResolveOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    staff_trello_delete_link: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                link_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    staff_trello_patch_link: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                link_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["TrelloBoardLinkPatch"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TrelloBoardLinkOut"];
                 };
             };
             /** @description Validation Error */
