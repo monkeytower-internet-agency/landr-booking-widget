@@ -9357,6 +9357,16 @@
             "title": "Changed",
             "type": "boolean"
           },
+          "customer_notification": {
+            "default": "none",
+            "enum": [
+              "queued",
+              "disabled",
+              "none"
+            ],
+            "title": "Customer Notification",
+            "type": "string"
+          },
           "day_date": {
             "title": "Day Date",
             "type": "string"
@@ -17591,6 +17601,17 @@
               }
             ],
             "title": "Date Format Short"
+          },
+          "day_update_emails_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Day Update Emails Enabled"
           },
           "default_locale": {
             "anyOf": [

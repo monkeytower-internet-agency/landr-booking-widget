@@ -16312,6 +16312,12 @@ export interface components {
             booking_id: string;
             /** Changed */
             changed: boolean;
+            /**
+             * Customer Notification
+             * @default none
+             * @enum {string}
+             */
+            customer_notification: "queued" | "disabled" | "none";
             /** Day Date */
             day_date: string;
             /** Participant Id */
@@ -19322,6 +19328,8 @@ export interface components {
             date_format?: string | null;
             /** Date Format Short */
             date_format_short?: string | null;
+            /** Day Update Emails Enabled */
+            day_update_emails_enabled?: boolean | null;
             /** Default Locale */
             default_locale?: string | null;
             /** Default Tax Rate */
