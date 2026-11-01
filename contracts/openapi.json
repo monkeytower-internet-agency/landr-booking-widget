@@ -11299,7 +11299,7 @@
         "type": "object"
       },
       "EvaluatedLine": {
-        "description": "One request line: may it be booked (a top-level line: its product's\neligibility_rules; a child line: does its parent line offer it), and the\noffers it shows. ``eligibility_reason_key`` (null when eligible):\n``attribute_missing.<key>``, ``guest_attr.<key>``, ``<cond>``,\n``no_rule_matched``, ``not_offered`` or ``invalid_rules``.",
+        "description": "One request line: may it be booked (a top-level line: its product's\neligibility_rules; a child line: does its parent line offer it), and the\noffers it shows. ``eligibility_reason_key`` (null when eligible):\n``attribute_missing.<key>``, ``guest_attr.<key>``, ``guest_attr_all.<key>``,\n``<cond>``, ``no_rule_matched``, ``not_offered`` or ``invalid_rules``.",
         "properties": {
           "eligibility_reason_key": {
             "anyOf": [
@@ -32560,12 +32560,21 @@
       },
       "RuleItem": {
         "additionalProperties": false,
-        "description": "One condition: ``{\"cond\", \"op\", \"value\"[, \"key\"]}`` (``key`` on guest_attr only).",
+        "description": "One condition: ``{\"cond\", \"op\", \"value\"[, \"key\"][, \"anchor\"]}`` (``key`` on\nguest_attr / guest_attr_all only, required there; ``anchor`` on date_window\nonly, optional).",
         "properties": {
+          "anchor": {
+            "enum": [
+              "every_night",
+              "arrival"
+            ],
+            "title": "Anchor",
+            "type": "string"
+          },
           "cond": {
             "enum": [
               "parent_in",
               "guest_attr",
+              "guest_attr_all",
               "date_window",
               "season_in",
               "stay_nights",
