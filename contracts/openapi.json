@@ -13491,6 +13491,11 @@
             "title": "Offer Lines Attached",
             "type": "integer"
           },
+          "offer_lines_removed": {
+            "default": 0,
+            "title": "Offer Lines Removed",
+            "type": "integer"
+          },
           "participant_id": {
             "format": "uuid",
             "title": "Participant Id",
