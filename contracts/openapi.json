@@ -6151,6 +6151,19 @@
             ],
             "title": "Phone"
           },
+          "ref": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ref"
+          },
           "room_product_id": {
             "anyOf": [
               {
@@ -10353,6 +10366,67 @@
       },
       "EstimateAddonLineIn": {
         "properties": {
+          "line_id": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9_-]{1,40}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Line Id"
+          },
+          "offer_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Offer Id"
+          },
+          "option_key": {
+            "anyOf": [
+              {
+                "pattern": "^[a-z0-9_]{1,40}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Option Key"
+          },
+          "parent_line_id": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9_-]{1,40}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Line Id"
+          },
+          "participant_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Participant Id"
+          },
           "product_id": {
             "title": "Product Id",
             "type": "string"
@@ -10466,6 +10540,28 @@
         "additionalProperties": true,
         "description": "One row in the PriceSidebar breakdown (landr-qez0). Mirrors the\nwidget's ``EstimateLineItem`` TypeScript interface (src/api/types.ts)\nand the dashboard's ``SimulateLineItem`` (src/lib/pricing-simulator.ts)\nfield-for-field. ``unit_price``/``line_total`` are decimal strings\n(e.g. \"60.00\"), matching ``_compute_line``'s wire format exactly.",
         "properties": {
+          "attribute_missing": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attribute Missing"
+          },
+          "auto_attached": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Auto Attached"
+          },
           "cleaning_fee": {
             "anyOf": [
               {
@@ -10477,13 +10573,103 @@
             ],
             "title": "Cleaning Fee"
           },
+          "collection": {
+            "anyOf": [
+              {
+                "enum": [
+                  "online",
+                  "on_site",
+                  "free"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection"
+          },
+          "collection_amount": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection Amount"
+          },
           "label": {
             "title": "Label",
             "type": "string"
           },
+          "line_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Line Id"
+          },
           "line_total": {
             "title": "Line Total",
             "type": "string"
+          },
+          "missing_attribute_keys": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Missing Attribute Keys"
+          },
+          "mode": {
+            "anyOf": [
+              {
+                "enum": [
+                  "optional",
+                  "mandatory",
+                  "info"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mode"
+          },
+          "offer_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Offer Id"
+          },
+          "option_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Option Key"
           },
           "paid_to": {
             "enum": [
@@ -10493,6 +10679,31 @@
             ],
             "title": "Paid To",
             "type": "string"
+          },
+          "parent_line_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Line Id"
+          },
+          "participant_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Participant Ids"
           },
           "payee_label": {
             "anyOf": [
@@ -10541,6 +10752,22 @@
             "title": "Qty",
             "type": "integer"
           },
+          "schedule": {
+            "anyOf": [
+              {
+                "enum": [
+                  "locked",
+                  "subset",
+                  "own"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Schedule"
+          },
           "unit_price": {
             "title": "Unit Price",
             "type": "string"
@@ -10568,6 +10795,7 @@
             "items": {
               "$ref": "#/components/schemas/EstimateAddonLineIn"
             },
+            "maxItems": 50,
             "title": "Addon Lines",
             "type": "array"
           },
@@ -10614,6 +10842,18 @@
               }
             ],
             "title": "Locale"
+          },
+          "main_line_id": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9_-]{1,40}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Main Line Id"
           },
           "participants_count": {
             "default": 1,
@@ -10691,6 +10931,17 @@
             "title": "Applied Rules",
             "type": "array"
           },
+          "attribute_missing": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attribute Missing"
+          },
           "currency": {
             "title": "Currency",
             "type": "string"
@@ -10710,6 +10961,21 @@
             "title": "Line Items",
             "type": "array"
           },
+          "missing_attributes": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Missing Attributes"
+          },
           "multi_day_savings": {
             "anyOf": [
               {
@@ -10719,6 +10985,17 @@
                 "type": "null"
               }
             ]
+          },
+          "on_site_total": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "On Site Total"
           },
           "operator_total": {
             "title": "Operator Total",
@@ -20734,6 +21011,19 @@
             ],
             "title": "Pickup Location Id"
           },
+          "ref": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ref"
+          },
           "room_product_id": {
             "anyOf": [
               {
@@ -23283,7 +23573,8 @@
               "manual_override",
               "slot_time_adjustment",
               "weekday_adjustment",
-              "occupancy_pricing"
+              "occupancy_pricing",
+              "attribute_bands"
             ],
             "title": "Rule Kind",
             "type": "string"
@@ -25565,6 +25856,67 @@
               }
             ],
             "title": "Fixed Date Window Id"
+          },
+          "line_id": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9_-]{1,40}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Line Id"
+          },
+          "offer_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Offer Id"
+          },
+          "option_key": {
+            "anyOf": [
+              {
+                "pattern": "^[a-z0-9_]{1,40}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Option Key"
+          },
+          "parent_line_id": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9_-]{1,40}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Line Id"
+          },
+          "participant_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Participant Id"
           },
           "pass_tier_id": {
             "anyOf": [
@@ -38994,7 +39346,8 @@
               "manual_override",
               "slot_time_adjustment",
               "weekday_adjustment",
-              "occupancy_pricing"
+              "occupancy_pricing",
+              "attribute_bands"
             ],
             "title": "Rule Kind",
             "type": "string"
@@ -39070,7 +39423,8 @@
                   "manual_override",
                   "slot_time_adjustment",
                   "weekday_adjustment",
-                  "occupancy_pricing"
+                  "occupancy_pricing",
+                  "attribute_bands"
                 ],
                 "type": "string"
               },
