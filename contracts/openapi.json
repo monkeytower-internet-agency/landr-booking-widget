@@ -194,57 +194,6 @@
         "title": "ActivityCodePatch",
         "type": "object"
       },
-      "AddonDayStock": {
-        "description": "One (day, companion add-on) stock verdict of\nGET /products/{id}/addons/stock (landr-a27k9.6).",
-        "properties": {
-          "addon_product_id": {
-            "title": "Addon Product Id",
-            "type": "string"
-          },
-          "available": {
-            "default": true,
-            "title": "Available",
-            "type": "boolean"
-          },
-          "day": {
-            "format": "date",
-            "title": "Day",
-            "type": "string"
-          },
-          "stock_remaining": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Stock Remaining"
-          },
-          "unavailable_reason": {
-            "anyOf": [
-              {
-                "enum": [
-                  "sold_out",
-                  "unit_taken"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Unavailable Reason"
-          }
-        },
-        "required": [
-          "day",
-          "addon_product_id"
-        ],
-        "title": "AddonDayStock",
-        "type": "object"
-      },
       "AlertOut": {
         "properties": {
           "alert_type": {
@@ -4824,15 +4773,6 @@
             ],
             "title": "Currency"
           },
-          "day_selection": {
-            "default": "parent_all",
-            "enum": [
-              "parent_all",
-              "parent_subset"
-            ],
-            "title": "Day Selection",
-            "type": "string"
-          },
           "description": {
             "anyOf": [
               {
@@ -4855,14 +4795,6 @@
               }
             ],
             "title": "Description Localized"
-          },
-          "images": {
-            "default": [],
-            "items": {
-              "$ref": "#/components/schemas/ProductImage"
-            },
-            "title": "Images",
-            "type": "array"
           },
           "is_required": {
             "default": false,
@@ -4984,17 +4916,6 @@
             "default": 0,
             "title": "Sort Order",
             "type": "integer"
-          },
-          "thumb_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Thumb Url"
           }
         },
         "required": [
@@ -10347,22 +10268,6 @@
             "minimum": 1.0,
             "title": "Qty",
             "type": "integer"
-          },
-          "selected_days": {
-            "anyOf": [
-              {
-                "items": {
-                  "format": "date",
-                  "type": "string"
-                },
-                "maxItems": 366,
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Selected Days"
           }
         },
         "required": [
@@ -10555,23 +10460,6 @@
             },
             "title": "Addon Lines",
             "type": "array"
-          },
-          "child_ages": {
-            "anyOf": [
-              {
-                "items": {
-                  "maximum": 17.0,
-                  "minimum": 0.0,
-                  "type": "integer"
-                },
-                "maxItems": 64,
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Child Ages"
           },
           "locale": {
             "anyOf": [
@@ -16238,55 +16126,6 @@
         "title": "NumberingSeriesListResult",
         "type": "object"
       },
-      "OccupancyChildBand": {
-        "properties": {
-          "max_age": {
-            "title": "Max Age",
-            "type": "integer"
-          },
-          "min_age": {
-            "title": "Min Age",
-            "type": "integer"
-          },
-          "per_night": {
-            "title": "Per Night",
-            "type": "string"
-          }
-        },
-        "required": [
-          "min_age",
-          "max_age",
-          "per_night"
-        ],
-        "title": "OccupancyChildBand",
-        "type": "object"
-      },
-      "OccupancyPricingConfig": {
-        "description": "landr-hfvyc.1: the guest-based pricing of a stay (its price list's\noccupancy_pricing rule). Money as numeric strings.",
-        "properties": {
-          "child_bands": {
-            "items": {
-              "$ref": "#/components/schemas/OccupancyChildBand"
-            },
-            "title": "Child Bands",
-            "type": "array"
-          },
-          "extra_adult_per_night": {
-            "title": "Extra Adult Per Night",
-            "type": "string"
-          },
-          "included_adults": {
-            "title": "Included Adults",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "included_adults",
-          "extra_adult_per_night"
-        ],
-        "title": "OccupancyPricingConfig",
-        "type": "object"
-      },
       "Offer": {
         "enum": [
           "flights/activities",
@@ -18476,16 +18315,6 @@
               }
             ],
             "title": "Next Window Start"
-          },
-          "occupancy_pricing": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/OccupancyPricingConfig"
-              },
-              {
-                "type": "null"
-              }
-            ]
           },
           "price_base": {
             "anyOf": [
@@ -21923,8 +21752,7 @@
               "time_of_day_surcharge",
               "manual_override",
               "slot_time_adjustment",
-              "weekday_adjustment",
-              "occupancy_pricing"
+              "weekday_adjustment"
             ],
             "title": "Rule Kind",
             "type": "string"
@@ -22569,22 +22397,6 @@
             ],
             "title": "Currency"
           },
-          "day_selection": {
-            "default": "parent_all",
-            "enum": [
-              "parent_all",
-              "parent_subset"
-            ],
-            "title": "Day Selection",
-            "type": "string"
-          },
-          "images": {
-            "items": {
-              "$ref": "#/components/schemas/ProductImage"
-            },
-            "title": "Images",
-            "type": "array"
-          },
           "is_required": {
             "title": "Is Required",
             "type": "boolean"
@@ -22661,31 +22473,6 @@
             "title": "Product Kind",
             "type": "string"
           },
-          "short_description": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Short Description"
-          },
-          "short_description_localized": {
-            "anyOf": [
-              {
-                "additionalProperties": {
-                  "type": "string"
-                },
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Short Description Localized"
-          },
           "sort_order": {
             "title": "Sort Order",
             "type": "integer"
@@ -22727,17 +22514,6 @@
               }
             ],
             "title": "Stock Unit Label"
-          },
-          "thumb_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Thumb Url"
           },
           "unavailable_reason": {
             "anyOf": [
@@ -23703,15 +23479,6 @@
             ],
             "title": "Day Capacity Source"
           },
-          "day_selection": {
-            "default": "parent_all",
-            "enum": [
-              "parent_all",
-              "parent_subset"
-            ],
-            "title": "Day Selection",
-            "type": "string"
-          },
           "default_pricing_scheme_id": {
             "anyOf": [
               {
@@ -24454,21 +24221,6 @@
               }
             ],
             "title": "Day Capacity Source"
-          },
-          "day_selection": {
-            "anyOf": [
-              {
-                "enum": [
-                  "parent_all",
-                  "parent_subset"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Day Selection"
           },
           "default_pricing_scheme_id": {
             "anyOf": [
@@ -28001,98 +27753,6 @@
           "code"
         ],
         "title": "ResolveIn",
-        "type": "object"
-      },
-      "ResolveOut": {
-        "properties": {
-          "board": {
-            "title": "Board",
-            "type": "string"
-          },
-          "operators": {
-            "items": {
-              "$ref": "#/components/schemas/ResolvedOperator"
-            },
-            "title": "Operators",
-            "type": "array"
-          }
-        },
-        "required": [
-          "board",
-          "operators"
-        ],
-        "title": "ResolveOut",
-        "type": "object"
-      },
-      "ResolvedOperator": {
-        "properties": {
-          "is_default": {
-            "title": "Is Default",
-            "type": "boolean"
-          },
-          "link_id": {
-            "title": "Link Id",
-            "type": "string"
-          },
-          "operator_id": {
-            "title": "Operator Id",
-            "type": "string"
-          },
-          "operator_name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Operator Name"
-          },
-          "operator_slug": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Operator Slug"
-          },
-          "trello_member_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Trello Member Id"
-          },
-          "trello_member_username": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Trello Member Username"
-          }
-        },
-        "required": [
-          "link_id",
-          "operator_id",
-          "operator_slug",
-          "operator_name",
-          "trello_member_username",
-          "trello_member_id",
-          "is_default"
-        ],
-        "title": "ResolvedOperator",
         "type": "object"
       },
       "ResourceDayStateIn": {
@@ -34960,197 +34620,6 @@
         "title": "TodayMessagePostIn",
         "type": "object"
       },
-      "TrelloBoardLinkCreate": {
-        "properties": {
-          "board_name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Board Name"
-          },
-          "is_default": {
-            "default": false,
-            "title": "Is Default",
-            "type": "boolean"
-          },
-          "operator_id": {
-            "title": "Operator Id",
-            "type": "string"
-          },
-          "trello_board_id": {
-            "title": "Trello Board Id",
-            "type": "string"
-          },
-          "trello_member_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Trello Member Id"
-          },
-          "trello_member_username": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Trello Member Username"
-          }
-        },
-        "required": [
-          "trello_board_id",
-          "operator_id"
-        ],
-        "title": "TrelloBoardLinkCreate",
-        "type": "object"
-      },
-      "TrelloBoardLinkOut": {
-        "properties": {
-          "board_name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Board Name"
-          },
-          "created_at": {
-            "title": "Created At",
-            "type": "string"
-          },
-          "id": {
-            "title": "Id",
-            "type": "string"
-          },
-          "is_default": {
-            "title": "Is Default",
-            "type": "boolean"
-          },
-          "operator_id": {
-            "title": "Operator Id",
-            "type": "string"
-          },
-          "trello_board_id": {
-            "title": "Trello Board Id",
-            "type": "string"
-          },
-          "trello_member_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Trello Member Id"
-          },
-          "trello_member_username": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Trello Member Username"
-          },
-          "updated_at": {
-            "title": "Updated At",
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "trello_board_id",
-          "board_name",
-          "operator_id",
-          "trello_member_username",
-          "trello_member_id",
-          "is_default",
-          "created_at",
-          "updated_at"
-        ],
-        "title": "TrelloBoardLinkOut",
-        "type": "object"
-      },
-      "TrelloBoardLinkPatch": {
-        "properties": {
-          "board_name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Board Name"
-          },
-          "is_default": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Is Default"
-          },
-          "trello_board_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Trello Board Id"
-          },
-          "trello_member_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Trello Member Id"
-          },
-          "trello_member_username": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Trello Member Username"
-          }
-        },
-        "title": "TrelloBoardLinkPatch",
-        "type": "object"
-      },
       "TrelloSyncIn": {
         "description": "Context only the browser knows \u2014 never trust reporter identity from here.\n\npage_url:      absolute URL of the page the report was filed from.\nrelated_link:  the optional link field from the report form, if filled in.\n\nAttachments are NOT passed here \u2014 the endpoint reads ticket_attachments\ndirectly (the dashboard uploads them to Storage before calling this\nendpoint), so there is nothing for the client to pass and no way for it\nto lie about what got attached.",
         "properties": {
@@ -37394,8 +36863,7 @@
               "time_of_day_surcharge",
               "manual_override",
               "slot_time_adjustment",
-              "weekday_adjustment",
-              "occupancy_pricing"
+              "weekday_adjustment"
             ],
             "title": "Rule Kind",
             "type": "string"
@@ -37470,8 +36938,7 @@
                   "time_of_day_surcharge",
                   "manual_override",
                   "slot_time_adjustment",
-                  "weekday_adjustment",
-                  "occupancy_pricing"
+                  "weekday_adjustment"
                 ],
                 "type": "string"
               },
@@ -47523,82 +46990,6 @@
           }
         },
         "summary": "Get Product Addons",
-        "tags": [
-          "public-operators"
-        ]
-      }
-    },
-    "/api/public/products/{product_id}/addons/stock": {
-      "get": {
-        "description": "Per-day stock of the day-pickable (``parent_subset``) companion add-ons\nof a parent product, in ONE call instead of one add-ons call per day.\n\nSame verdict as ``GET /products/{id}/addons`` with a single-day\n``selected_days`` (the add-on's minimum quantity, at least 1, judged in the\nparent's own stock scope), for every day asked. Hidden parent / no\ncompanion add-ons: an empty list. At most 31 distinct days (422\n``too_many_days``).",
-        "operationId": "get_product_addons_stock_by_day",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "product_id",
-            "required": true,
-            "schema": {
-              "title": "Product Id",
-              "type": "string"
-            }
-          },
-          {
-            "description": "landr-a27k9.6: the days to judge (repeat the param). Each day is judged on its own, unlike GET .../addons, which reports the lowest remaining over all the days it is sent.",
-            "in": "query",
-            "name": "days",
-            "required": true,
-            "schema": {
-              "description": "landr-a27k9.6: the days to judge (repeat the param). Each day is judged on its own, unlike GET .../addons, which reports the lowest remaining over all the days it is sent.",
-              "items": {
-                "format": "date",
-                "type": "string"
-              },
-              "minItems": 1,
-              "title": "Days",
-              "type": "array"
-            }
-          },
-          {
-            "description": "Guiding participants of the booking, as on GET .../addons",
-            "in": "query",
-            "name": "participants",
-            "required": true,
-            "schema": {
-              "description": "Guiding participants of the booking, as on GET .../addons",
-              "maximum": 200,
-              "minimum": 1,
-              "title": "Participants",
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/AddonDayStock"
-                  },
-                  "title": "Response Get Product Addons Stock By Day",
-                  "type": "array"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Get Product Addons Stock By Day",
         "tags": [
           "public-operators"
         ]
@@ -76084,250 +75475,6 @@
         "summary": "Delete Assignment",
         "tags": [
           "staff-providers"
-        ]
-      }
-    },
-    "/api/staff/trello-board-links": {
-      "get": {
-        "operationId": "staff_trello_list_links",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "operator_id",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Operator Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/TrelloBoardLinkOut"
-                  },
-                  "title": "Response Staff Trello List Links",
-                  "type": "array"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Staff Trello List Links",
-        "tags": [
-          "staff-trello-board-links"
-        ]
-      },
-      "post": {
-        "operationId": "staff_trello_create_link",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/TrelloBoardLinkCreate"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TrelloBoardLinkOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Staff Trello Create Link",
-        "tags": [
-          "staff-trello-board-links"
-        ]
-      }
-    },
-    "/api/staff/trello-board-links/resolve": {
-      "get": {
-        "operationId": "staff_trello_resolve_board",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "board",
-            "required": true,
-            "schema": {
-              "title": "Board",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ResolveOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Staff Trello Resolve Board",
-        "tags": [
-          "staff-trello-board-links"
-        ]
-      }
-    },
-    "/api/staff/trello-board-links/{link_id}": {
-      "delete": {
-        "operationId": "staff_trello_delete_link",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "link_id",
-            "required": true,
-            "schema": {
-              "title": "Link Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Staff Trello Delete Link",
-        "tags": [
-          "staff-trello-board-links"
-        ]
-      },
-      "patch": {
-        "operationId": "staff_trello_patch_link",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "link_id",
-            "required": true,
-            "schema": {
-              "title": "Link Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/TrelloBoardLinkPatch"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TrelloBoardLinkOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Staff Trello Patch Link",
-        "tags": [
-          "staff-trello-board-links"
         ]
       }
     },
