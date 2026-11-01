@@ -11301,6 +11301,11 @@
       "EvaluatedLine": {
         "description": "One request line: may it be booked (a top-level line: its product's\neligibility_rules; a child line: does its parent line offer it), and the\noffers it shows. ``eligibility_reason_key`` (null when eligible):\n``attribute_missing.<key>``, ``guest_attr.<key>``, ``guest_attr_all.<key>``,\n``<cond>``, ``no_rule_matched``, ``not_offered`` or ``invalid_rules``.",
         "properties": {
+          "draft": {
+            "default": false,
+            "title": "Draft",
+            "type": "boolean"
+          },
           "eligibility_reason_key": {
             "anyOf": [
               {
@@ -11370,6 +11375,11 @@
               }
             ],
             "title": "Day Selection"
+          },
+          "draft": {
+            "default": false,
+            "title": "Draft",
+            "type": "boolean"
           },
           "id": {
             "format": "uuid",
@@ -18700,6 +18710,50 @@
           "in_offer"
         ],
         "title": "OfferPositionOut",
+        "type": "object"
+      },
+      "OfferPreviewIn": {
+        "additionalProperties": false,
+        "description": "POST /api/operators/{operator_id}/offers/preview body: the evaluate\nrequest without the widget token (the operator comes from the session).",
+        "properties": {
+          "guests": {
+            "items": {
+              "$ref": "#/components/schemas/EvaluateGuestIn"
+            },
+            "maxItems": 50,
+            "title": "Guests",
+            "type": "array"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/EvaluateLineIn"
+            },
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "Lines",
+            "type": "array"
+          },
+          "season_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                "maxItems": 200,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Season Ids"
+          }
+        },
+        "required": [
+          "lines"
+        ],
+        "title": "OfferPreviewIn",
         "type": "object"
       },
       "OfferPricePreview": {
@@ -47290,6 +47344,64 @@
           }
         ],
         "summary": "Create Offer",
+        "tags": [
+          "staff-product-offers"
+        ]
+      }
+    },
+    "/api/operators/{operator_id}/offers/preview": {
+      "post": {
+        "description": "Preview as guest (landr-tm48v.7): the offers and prices the public\nevaluate endpoint returns for this party, through the SAME evaluator and\npricing path, but authenticated as the operator (no widget token) and with\ndraft (inactive / unlisted) products and offers included, flagged ``draft``.\nThe operator is the principal's; a product that is not theirs is a 404.",
+        "operationId": "preview_product_offers",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OfferPreviewIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OfferEvaluateOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Preview Offers",
         "tags": [
           "staff-product-offers"
         ]

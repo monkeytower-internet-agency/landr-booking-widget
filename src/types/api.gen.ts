@@ -3114,6 +3114,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/operators/{operator_id}/offers/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview Offers
+         * @description Preview as guest (landr-tm48v.7): the offers and prices the public
+         *     evaluate endpoint returns for this party, through the SAME evaluator and
+         *     pricing path, but authenticated as the operator (no widget token) and with
+         *     draft (inactive / unlisted) products and offers included, flagged ``draft``.
+         *     The operator is the principal's; a product that is not theirs is a 404.
+         */
+        post: operations["preview_product_offers"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/operators/{operator_id}/offers/{offer_id}": {
         parameters: {
             query?: never;
@@ -17185,6 +17209,11 @@ export interface components {
          *     ``<cond>``, ``no_rule_matched``, ``not_offered`` or ``invalid_rules``.
          */
         EvaluatedLine: {
+            /**
+             * Draft
+             * @default false
+             */
+            draft: boolean;
             /** Eligibility Reason Key */
             eligibility_reason_key?: string | null;
             /** Eligible */
@@ -17211,6 +17240,11 @@ export interface components {
             collection: "online" | "on_site" | "free";
             /** Day Selection */
             day_selection?: ("parent_all" | "parent_subset") | null;
+            /**
+             * Draft
+             * @default false
+             */
+            draft: boolean;
             /**
              * Id
              * Format: uuid
@@ -19836,6 +19870,19 @@ export interface components {
             unit_price: string;
             /** Units */
             units: string;
+        };
+        /**
+         * OfferPreviewIn
+         * @description POST /api/operators/{operator_id}/offers/preview body: the evaluate
+         *     request without the widget token (the operator comes from the session).
+         */
+        OfferPreviewIn: {
+            /** Guests */
+            guests?: components["schemas"]["EvaluateGuestIn"][];
+            /** Lines */
+            lines: components["schemas"]["EvaluateLineIn"][];
+            /** Season Ids */
+            season_ids?: string[] | null;
         };
         /**
          * OfferPricePreview
@@ -31746,6 +31793,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProductOffer"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_product_offers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OfferPreviewIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OfferEvaluateOut"];
                 };
             };
             /** @description Validation Error */
