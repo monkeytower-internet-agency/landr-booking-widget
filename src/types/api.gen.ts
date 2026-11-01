@@ -3126,15 +3126,20 @@ export interface paths {
         post?: never;
         /**
          * Delete Offer
-         * @description Delete a native offer; a mirrored (legacy) row is 409.
+         * @description Delete an offer. A migrated add-on is removed by deleting its
+         *     product_addons link; a cross-sell row is deleted directly.
          */
         delete: operations["delete_product_offer"];
         options?: never;
         head?: never;
         /**
          * Patch Offer
-         * @description Update the fields sent. 409 ``offer_owned_by_legacy_source`` for a column
-         *     a mirrored row's source owns.
+         * @description Update the fields sent. A migrated add-on writes them through to its
+         *     product_addons link in one transaction (409 ``addon_link_exists`` for a
+         *     duplicate parent/add-on pair, ``binding_not_applicable``,
+         *     ``product_cap_overrides`` for a cleared max_qty under the product's own cap);
+         *     409 ``offer_owned_by_legacy_source`` for parent / product of a cross-sell row
+         *     or a null parent on a migrated add-on.
          */
         patch: operations["patch_product_offer"];
         trace?: never;
