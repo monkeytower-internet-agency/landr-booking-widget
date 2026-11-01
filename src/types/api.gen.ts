@@ -17967,6 +17967,11 @@ export interface components {
             /** Occupant Age Band */
             occupant_age_band: string;
             /**
+             * Offer Lines Attached
+             * @default 0
+             */
+            offer_lines_attached: number;
+            /**
              * Participant Id
              * Format: uuid
              */
