@@ -1,0 +1,5282 @@
+{
+ "_doc": "landr-tm48v.1/.2: offer rule fixtures, ONE file for every evaluator. `validity`: is the rule set well-formed (SQL offer_rules_valid == app.models.offers.OfferRules). `matches`: offer_rule_matches(rules, ctx) == expected for SQL, Python (app/services/offer_rules.py) and TS (landr-booking-widget src/lib/offerRules.ts); a JSON null `rules` stands for SQL NULL. The widget checks in a verbatim copy (src/lib/__fixtures__/offerRules.cases.json); both repos pin this file's sha256 in offer_rules_cases.sha256 -- change both copies and both pins together.",
+ "validity": [
+  {
+   "name": "empty all",
+   "rules": {
+    "mode": "all",
+    "items": []
+   },
+   "valid": true
+  },
+  {
+   "name": "empty any",
+   "rules": {
+    "mode": "any",
+    "items": []
+   },
+   "valid": true
+  },
+  {
+   "name": "parent_in",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "parent_in",
+      "op": "in",
+      "value": [
+       "11111111-1111-4111-8111-111111111111",
+       "22222222-2222-4222-8222-222222222222"
+      ]
+     }
+    ]
+   },
+   "valid": true
+  },
+  {
+   "name": "guest_attr gte",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "guest_attr",
+      "key": "age",
+      "op": "gte",
+      "value": 10
+     }
+    ]
+   },
+   "valid": true
+  },
+  {
+   "name": "guest_attr in strings",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "guest_attr",
+      "key": "clothing_size",
+      "op": "in",
+      "value": [
+       "S",
+       "M"
+      ]
+     }
+    ]
+   },
+   "valid": true
+  },
+  {
+   "name": "guest_attr eq string",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "guest_attr",
+      "key": "clothing_size",
+      "op": "eq",
+      "value": "M"
+     }
+    ]
+   },
+   "valid": true
+  },
+  {
+   "name": "guest_attr eq bool",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "guest_attr",
+      "key": "has_licence",
+      "op": "eq",
+      "value": true
+     }
+    ]
+   },
+   "valid": true
+  },
+  {
+   "name": "guest_attr between",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "guest_attr",
+      "key": "age",
+      "op": "between",
+      "value": [
+       10,
+       17
+      ]
+     }
+    ]
+   },
+   "valid": true
+  },
+  {
+   "name": "guest_attr lte float",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "guest_attr",
+      "key": "weight_kg",
+      "op": "lte",
+      "value": 99.5
+     }
+    ]
+   },
+   "valid": true
+  },
+  {
+   "name": "date_window",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "date_window",
+      "op": "between",
+      "value": [
+       "03-01",
+       "10-31"
+      ]
+     }
+    ]
+   },
+   "valid": true
+  },
+  {
+   "name": "date_window wrap",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "date_window",
+      "op": "between",
+      "value": [
+       "11-01",
+       "03-31"
+      ]
+     }
+    ]
+   },
+   "valid": true
+  },
+  {
+   "name": "date_window leap day",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "date_window",
+      "op": "between",
+      "value": [
+       "02-29",
+       "02-29"
+      ]
+     }
+    ]
+   },
+   "valid": true
+  },
+  {
+   "name": "season_in",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "season_in",
+      "op": "in",
+      "value": [
+       "33333333-3333-4333-8333-333333333333"
+      ]
+     }
+    ]
+   },
+   "valid": true
+  },
+  {
+   "name": "stay_nights gte",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 7
+     }
+    ]
+   },
+   "valid": true
+  },
+  {
+   "name": "stay_nights between",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "stay_nights",
+      "op": "between",
+      "value": [
+       2,
+       5
+      ]
+     }
+    ]
+   },
+   "valid": true
+  },
+  {
+   "name": "stay_nights whole float",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "stay_nights",
+      "op": "eq",
+      "value": 7.0
+     }
+    ]
+   },
+   "valid": true
+  },
+  {
+   "name": "parent_unavailable",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "parent_unavailable",
+      "op": "eq",
+      "value": true
+     }
+    ]
+   },
+   "valid": true
+  },
+  {
+   "name": "decided example",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "parent_in",
+      "op": "in",
+      "value": [
+       "11111111-1111-4111-8111-111111111111"
+      ]
+     },
+     {
+      "cond": "guest_attr",
+      "key": "age",
+      "op": "gte",
+      "value": 10
+     },
+     {
+      "cond": "date_window",
+      "op": "between",
+      "value": [
+       "03-01",
+       "10-31"
+      ]
+     },
+     {
+      "cond": "season_in",
+      "op": "in",
+      "value": [
+       "33333333-3333-4333-8333-333333333333"
+      ]
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 7
+     },
+     {
+      "cond": "parent_unavailable",
+      "op": "eq",
+      "value": true
+     }
+    ]
+   },
+   "valid": true
+  },
+  {
+   "name": "uppercase uuid",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "parent_in",
+      "op": "in",
+      "value": [
+       "11111111-1111-4111-8111-111111111111"
+      ]
+     }
+    ]
+   },
+   "valid": true
+  },
+  {
+   "name": "mode missing",
+   "rules": {
+    "items": []
+   },
+   "valid": false
+  },
+  {
+   "name": "mode unknown",
+   "rules": {
+    "mode": "xor",
+    "items": []
+   },
+   "valid": false
+  },
+  {
+   "name": "items missing",
+   "rules": {
+    "mode": "all"
+   },
+   "valid": false
+  },
+  {
+   "name": "items not array",
+   "rules": {
+    "mode": "all",
+    "items": {}
+   },
+   "valid": false
+  },
+  {
+   "name": "extra top key",
+   "rules": {
+    "mode": "all",
+    "items": [],
+    "groups": []
+   },
+   "valid": false
+  },
+  {
+   "name": "rules an array",
+   "rules": [],
+   "valid": false
+  },
+  {
+   "name": "rules a string",
+   "rules": "all",
+   "valid": false
+  },
+  {
+   "name": "unknown cond",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "weather",
+      "op": "eq",
+      "value": "sunny"
+     }
+    ]
+   },
+   "valid": false
+  },
+  {
+   "name": "cond not a string",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": 1,
+      "op": "eq",
+      "value": 1
+     }
+    ]
+   },
+   "valid": false
+  },
+  {
+   "name": "parent_in with eq",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "parent_in",
+      "op": "eq",
+      "value": "11111111-1111-4111-8111-111111111111"
+     }
+    ]
+   },
+   "valid": false
+  },
+  {
+   "name": "date_window with gte",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "date_window",
+      "op": "gte",
+      "value": "03-01"
+     }
+    ]
+   },
+   "valid": false
+  },
+  {
+   "name": "between one element",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "guest_attr",
+      "key": "age",
+      "op": "between",
+      "value": [
+       1
+      ]
+     }
+    ]
+   },
+   "valid": false
+  },
+  {
+   "name": "between three elements",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "guest_attr",
+      "key": "age",
+      "op": "between",
+      "value": [
+       1,
+       2,
+       3
+      ]
+     }
+    ]
+   },
+   "valid": false
+  },
+  {
+   "name": "between reversed",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "guest_attr",
+      "key": "age",
+      "op": "between",
+      "value": [
+       17,
+       10
+      ]
+     }
+    ]
+   },
+   "valid": false
+  },
+  {
+   "name": "guest_attr without key",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "guest_attr",
+      "op": "gte",
+      "value": 10
+     }
+    ]
+   },
+   "valid": false
+  },
+  {
+   "name": "key on stay_nights",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 7,
+      "key": "age"
+     }
+    ]
+   },
+   "valid": false
+  },
+  {
+   "name": "guest_attr key null",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "guest_attr",
+      "op": "gte",
+      "value": 10,
+      "key": null
+     }
+    ]
+   },
+   "valid": false
+  },
+  {
+   "name": "guest_attr bad key",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "guest_attr",
+      "key": "Age",
+      "op": "gte",
+      "value": 10
+     }
+    ]
+   },
+   "valid": false
+  },
+  {
+   "name": "guest_attr key with newline",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "guest_attr",
+      "key": "age\n",
+      "op": "gte",
+      "value": 10
+     }
+    ]
+   },
+   "valid": false
+  },
+  {
+   "name": "date one digit month",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "date_window",
+      "op": "between",
+      "value": [
+       "3-1",
+       "10-31"
+      ]
+     }
+    ]
+   },
+   "valid": false
+  },
+  {
+   "name": "date feb 30",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "date_window",
+      "op": "between",
+      "value": [
+       "02-30",
+       "03-01"
+      ]
+     }
+    ]
+   },
+   "valid": false
+  },
+  {
+   "name": "date month 13",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "date_window",
+      "op": "between",
+      "value": [
+       "13-01",
+       "03-01"
+      ]
+     }
+    ]
+   },
+   "valid": false
+  },
+  {
+   "name": "date non-ascii digits",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "date_window",
+      "op": "between",
+      "value": [
+       "\u0660\u0663-\u0660\u0661",
+       "10-31"
+      ]
+     }
+    ]
+   },
+   "valid": false
+  },
+  {
+   "name": "parent_in not uuid",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "parent_in",
+      "op": "in",
+      "value": [
+       "abc"
+      ]
+     }
+    ]
+   },
+   "valid": false
+  },
+  {
+   "name": "parent_in empty",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "parent_in",
+      "op": "in",
+      "value": []
+     }
+    ]
+   },
+   "valid": false
+  },
+  {
+   "name": "season_in number",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "season_in",
+      "op": "in",
+      "value": [
+       1
+      ]
+     }
+    ]
+   },
+   "valid": false
+  },
+  {
+   "name": "stay_nights negative",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": -1
+     }
+    ]
+   },
+   "valid": false
+  },
+  {
+   "name": "stay_nights fraction",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1.5
+     }
+    ]
+   },
+   "valid": false
+  },
+  {
+   "name": "stay_nights between reversed",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "stay_nights",
+      "op": "between",
+      "value": [
+       5,
+       2
+      ]
+     }
+    ]
+   },
+   "valid": false
+  },
+  {
+   "name": "stay_nights in",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "stay_nights",
+      "op": "in",
+      "value": [
+       1,
+       2
+      ]
+     }
+    ]
+   },
+   "valid": false
+  },
+  {
+   "name": "guest_attr gte string",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "guest_attr",
+      "key": "age",
+      "op": "gte",
+      "value": "10"
+     }
+    ]
+   },
+   "valid": false
+  },
+  {
+   "name": "guest_attr gte bool",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "guest_attr",
+      "key": "age",
+      "op": "gte",
+      "value": true
+     }
+    ]
+   },
+   "valid": false
+  },
+  {
+   "name": "parent_unavailable string",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "parent_unavailable",
+      "op": "eq",
+      "value": "true"
+     }
+    ]
+   },
+   "valid": false
+  },
+  {
+   "name": "parent_unavailable gte",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "parent_unavailable",
+      "op": "gte",
+      "value": 1
+     }
+    ]
+   },
+   "valid": false
+  },
+  {
+   "name": "item extra field",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 7,
+      "label": "x"
+     }
+    ]
+   },
+   "valid": false
+  },
+  {
+   "name": "item value missing",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "stay_nights",
+      "op": "gte"
+     }
+    ]
+   },
+   "valid": false
+  },
+  {
+   "name": "guest_attr eq null",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "guest_attr",
+      "key": "age",
+      "op": "eq",
+      "value": null
+     }
+    ]
+   },
+   "valid": false
+  },
+  {
+   "name": "guest_attr in nested",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "guest_attr",
+      "key": "age",
+      "op": "in",
+      "value": [
+       [
+        1
+       ]
+      ]
+     }
+    ]
+   },
+   "valid": false
+  },
+  {
+   "name": "guest_attr in empty",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "guest_attr",
+      "key": "age",
+      "op": "in",
+      "value": []
+     }
+    ]
+   },
+   "valid": false
+  },
+  {
+   "name": "item not an object",
+   "rules": {
+    "mode": "all",
+    "items": [
+     "stay_nights"
+    ]
+   },
+   "valid": false
+  },
+  {
+   "name": "50 items",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     }
+    ]
+   },
+   "valid": true
+  },
+  {
+   "name": "51 items",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     }
+    ]
+   },
+   "valid": false
+  }
+ ],
+ "matches": [
+  {
+   "name": "null rules",
+   "rules": null,
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": {
+       "age": 8,
+       "clothing_size": "M"
+      }
+     },
+     {
+      "id": "b",
+      "guest_attributes": {
+       "age": 12,
+       "weight_kg": 80.5
+      }
+     },
+     {
+      "id": "c",
+      "guest_attributes": {}
+     }
+    ],
+    "arrival": "2026-07-10",
+    "departure": "2026-07-17",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": true
+  },
+  {
+   "name": "empty items",
+   "rules": {
+    "mode": "all",
+    "items": []
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": {
+       "age": 8,
+       "clothing_size": "M"
+      }
+     },
+     {
+      "id": "b",
+      "guest_attributes": {
+       "age": 12,
+       "weight_kg": 80.5
+      }
+     },
+     {
+      "id": "c",
+      "guest_attributes": {}
+     }
+    ],
+    "arrival": "2026-07-10",
+    "departure": "2026-07-17",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": true
+  },
+  {
+   "name": "empty any items",
+   "rules": {
+    "mode": "any",
+    "items": []
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": {
+       "age": 8,
+       "clothing_size": "M"
+      }
+     },
+     {
+      "id": "b",
+      "guest_attributes": {
+       "age": 12,
+       "weight_kg": 80.5
+      }
+     },
+     {
+      "id": "c",
+      "guest_attributes": {}
+     }
+    ],
+    "arrival": "2026-07-10",
+    "departure": "2026-07-17",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": true
+  },
+  {
+   "name": "parent_in hit",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "parent_in",
+      "op": "in",
+      "value": [
+       "22222222-2222-4222-8222-222222222222",
+       "11111111-1111-4111-8111-111111111111"
+      ]
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": {
+       "age": 8,
+       "clothing_size": "M"
+      }
+     },
+     {
+      "id": "b",
+      "guest_attributes": {
+       "age": 12,
+       "weight_kg": 80.5
+      }
+     },
+     {
+      "id": "c",
+      "guest_attributes": {}
+     }
+    ],
+    "arrival": "2026-07-10",
+    "departure": "2026-07-17",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": true
+  },
+  {
+   "name": "parent_in miss",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "parent_in",
+      "op": "in",
+      "value": [
+       "22222222-2222-4222-8222-222222222222"
+      ]
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": {
+       "age": 8,
+       "clothing_size": "M"
+      }
+     },
+     {
+      "id": "b",
+      "guest_attributes": {
+       "age": 12,
+       "weight_kg": 80.5
+      }
+     },
+     {
+      "id": "c",
+      "guest_attributes": {}
+     }
+    ],
+    "arrival": "2026-07-10",
+    "departure": "2026-07-17",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": false
+  },
+  {
+   "name": "parent_in uppercase",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "parent_in",
+      "op": "in",
+      "value": [
+       "11111111-1111-4111-8111-111111111111"
+      ]
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": {
+       "age": 8,
+       "clothing_size": "M"
+      }
+     },
+     {
+      "id": "b",
+      "guest_attributes": {
+       "age": 12,
+       "weight_kg": 80.5
+      }
+     },
+     {
+      "id": "c",
+      "guest_attributes": {}
+     }
+    ],
+    "arrival": "2026-07-10",
+    "departure": "2026-07-17",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": true
+  },
+  {
+   "name": "parent_in no parent",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "parent_in",
+      "op": "in",
+      "value": [
+       "11111111-1111-4111-8111-111111111111"
+      ]
+     }
+    ]
+   },
+   "ctx": {
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": {
+       "age": 8,
+       "clothing_size": "M"
+      }
+     },
+     {
+      "id": "b",
+      "guest_attributes": {
+       "age": 12,
+       "weight_kg": 80.5
+      }
+     },
+     {
+      "id": "c",
+      "guest_attributes": {}
+     }
+    ],
+    "arrival": "2026-07-10",
+    "departure": "2026-07-17",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": false
+  },
+  {
+   "name": "parent_in null parent",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "parent_in",
+      "op": "in",
+      "value": [
+       "11111111-1111-4111-8111-111111111111"
+      ]
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": null,
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": {
+       "age": 8,
+       "clothing_size": "M"
+      }
+     },
+     {
+      "id": "b",
+      "guest_attributes": {
+       "age": 12,
+       "weight_kg": 80.5
+      }
+     },
+     {
+      "id": "c",
+      "guest_attributes": {}
+     }
+    ],
+    "arrival": "2026-07-10",
+    "departure": "2026-07-17",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": false
+  },
+  {
+   "name": "ages 8,12 gte 10",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "guest_attr",
+      "key": "age",
+      "op": "gte",
+      "value": 10
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": {
+       "age": 8,
+       "clothing_size": "M"
+      }
+     },
+     {
+      "id": "b",
+      "guest_attributes": {
+       "age": 12,
+       "weight_kg": 80.5
+      }
+     },
+     {
+      "id": "c",
+      "guest_attributes": {}
+     }
+    ],
+    "arrival": "2026-07-10",
+    "departure": "2026-07-17",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": true
+  },
+  {
+   "name": "age 8 only gte 10",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "guest_attr",
+      "key": "age",
+      "op": "gte",
+      "value": 10
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": {
+       "age": 8
+      }
+     }
+    ],
+    "arrival": "2026-07-10",
+    "departure": "2026-07-17",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": false
+  },
+  {
+   "name": "missing key never matches",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "guest_attr",
+      "key": "height_cm",
+      "op": "lte",
+      "value": 200
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": {
+       "age": 8,
+       "clothing_size": "M"
+      }
+     },
+     {
+      "id": "b",
+      "guest_attributes": {
+       "age": 12,
+       "weight_kg": 80.5
+      }
+     },
+     {
+      "id": "c",
+      "guest_attributes": {}
+     }
+    ],
+    "arrival": "2026-07-10",
+    "departure": "2026-07-17",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": false
+  },
+  {
+   "name": "missing key lte age",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "guest_attr",
+      "key": "age",
+      "op": "lte",
+      "value": 120
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "c",
+      "guest_attributes": {}
+     }
+    ],
+    "arrival": "2026-07-10",
+    "departure": "2026-07-17",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": false
+  },
+  {
+   "name": "null value never matches",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "guest_attr",
+      "key": "age",
+      "op": "eq",
+      "value": 1
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "c",
+      "guest_attributes": {
+       "age": null
+      }
+     }
+    ],
+    "arrival": "2026-07-10",
+    "departure": "2026-07-17",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": false
+  },
+  {
+   "name": "no participants",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "guest_attr",
+      "key": "age",
+      "op": "gte",
+      "value": 0
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [],
+    "arrival": "2026-07-10",
+    "departure": "2026-07-17",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": false
+  },
+  {
+   "name": "participants missing",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "guest_attr",
+      "key": "age",
+      "op": "gte",
+      "value": 0
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "arrival": "2026-07-10",
+    "departure": "2026-07-17",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": false
+  },
+  {
+   "name": "lte inclusive",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "guest_attr",
+      "key": "age",
+      "op": "lte",
+      "value": 8
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": {
+       "age": 8,
+       "clothing_size": "M"
+      }
+     },
+     {
+      "id": "b",
+      "guest_attributes": {
+       "age": 12,
+       "weight_kg": 80.5
+      }
+     },
+     {
+      "id": "c",
+      "guest_attributes": {}
+     }
+    ],
+    "arrival": "2026-07-10",
+    "departure": "2026-07-17",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": true
+  },
+  {
+   "name": "gte inclusive",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "guest_attr",
+      "key": "age",
+      "op": "gte",
+      "value": 12
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": {
+       "age": 8,
+       "clothing_size": "M"
+      }
+     },
+     {
+      "id": "b",
+      "guest_attributes": {
+       "age": 12,
+       "weight_kg": 80.5
+      }
+     },
+     {
+      "id": "c",
+      "guest_attributes": {}
+     }
+    ],
+    "arrival": "2026-07-10",
+    "departure": "2026-07-17",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": true
+  },
+  {
+   "name": "between hit",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "guest_attr",
+      "key": "age",
+      "op": "between",
+      "value": [
+       10,
+       17
+      ]
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": {
+       "age": 8,
+       "clothing_size": "M"
+      }
+     },
+     {
+      "id": "b",
+      "guest_attributes": {
+       "age": 12,
+       "weight_kg": 80.5
+      }
+     },
+     {
+      "id": "c",
+      "guest_attributes": {}
+     }
+    ],
+    "arrival": "2026-07-10",
+    "departure": "2026-07-17",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": true
+  },
+  {
+   "name": "between miss",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "guest_attr",
+      "key": "age",
+      "op": "between",
+      "value": [
+       13,
+       17
+      ]
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": {
+       "age": 8,
+       "clothing_size": "M"
+      }
+     },
+     {
+      "id": "b",
+      "guest_attributes": {
+       "age": 12,
+       "weight_kg": 80.5
+      }
+     },
+     {
+      "id": "c",
+      "guest_attributes": {}
+     }
+    ],
+    "arrival": "2026-07-10",
+    "departure": "2026-07-17",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": false
+  },
+  {
+   "name": "eq numeric 12.0",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "guest_attr",
+      "key": "age",
+      "op": "eq",
+      "value": 12.0
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": {
+       "age": 8,
+       "clothing_size": "M"
+      }
+     },
+     {
+      "id": "b",
+      "guest_attributes": {
+       "age": 12,
+       "weight_kg": 80.5
+      }
+     },
+     {
+      "id": "c",
+      "guest_attributes": {}
+     }
+    ],
+    "arrival": "2026-07-10",
+    "departure": "2026-07-17",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": true
+  },
+  {
+   "name": "eq choice",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "guest_attr",
+      "key": "clothing_size",
+      "op": "eq",
+      "value": "M"
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": {
+       "age": 8,
+       "clothing_size": "M"
+      }
+     },
+     {
+      "id": "b",
+      "guest_attributes": {
+       "age": 12,
+       "weight_kg": 80.5
+      }
+     },
+     {
+      "id": "c",
+      "guest_attributes": {}
+     }
+    ],
+    "arrival": "2026-07-10",
+    "departure": "2026-07-17",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": true
+  },
+  {
+   "name": "in choice",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "guest_attr",
+      "key": "clothing_size",
+      "op": "in",
+      "value": [
+       "L",
+       "M"
+      ]
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": {
+       "age": 8,
+       "clothing_size": "M"
+      }
+     },
+     {
+      "id": "b",
+      "guest_attributes": {
+       "age": 12,
+       "weight_kg": 80.5
+      }
+     },
+     {
+      "id": "c",
+      "guest_attributes": {}
+     }
+    ],
+    "arrival": "2026-07-10",
+    "departure": "2026-07-17",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": true
+  },
+  {
+   "name": "in choice miss",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "guest_attr",
+      "key": "clothing_size",
+      "op": "in",
+      "value": [
+       "L",
+       "XL"
+      ]
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": {
+       "age": 8,
+       "clothing_size": "M"
+      }
+     },
+     {
+      "id": "b",
+      "guest_attributes": {
+       "age": 12,
+       "weight_kg": 80.5
+      }
+     },
+     {
+      "id": "c",
+      "guest_attributes": {}
+     }
+    ],
+    "arrival": "2026-07-10",
+    "departure": "2026-07-17",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": false
+  },
+  {
+   "name": "numeric op on string value",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "guest_attr",
+      "key": "clothing_size",
+      "op": "gte",
+      "value": 1
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": {
+       "age": 8,
+       "clothing_size": "M"
+      }
+     },
+     {
+      "id": "b",
+      "guest_attributes": {
+       "age": 12,
+       "weight_kg": 80.5
+      }
+     },
+     {
+      "id": "c",
+      "guest_attributes": {}
+     }
+    ],
+    "arrival": "2026-07-10",
+    "departure": "2026-07-17",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": false
+  },
+  {
+   "name": "string age is not a number",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "guest_attr",
+      "key": "age",
+      "op": "gte",
+      "value": 10
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": {
+       "age": "12"
+      }
+     }
+    ],
+    "arrival": "2026-07-10",
+    "departure": "2026-07-17",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": false
+  },
+  {
+   "name": "float weight",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "guest_attr",
+      "key": "weight_kg",
+      "op": "between",
+      "value": [
+       80,
+       81
+      ]
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": {
+       "age": 8,
+       "clothing_size": "M"
+      }
+     },
+     {
+      "id": "b",
+      "guest_attributes": {
+       "age": 12,
+       "weight_kg": 80.5
+      }
+     },
+     {
+      "id": "c",
+      "guest_attributes": {}
+     }
+    ],
+    "arrival": "2026-07-10",
+    "departure": "2026-07-17",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": true
+  },
+  {
+   "name": "summer window inside",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "date_window",
+      "op": "between",
+      "value": [
+       "03-01",
+       "10-31"
+      ]
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": {
+       "age": 8,
+       "clothing_size": "M"
+      }
+     },
+     {
+      "id": "b",
+      "guest_attributes": {
+       "age": 12,
+       "weight_kg": 80.5
+      }
+     },
+     {
+      "id": "c",
+      "guest_attributes": {}
+     }
+    ],
+    "arrival": "2026-07-10",
+    "departure": "2026-07-17",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": true
+  },
+  {
+   "name": "winter wrap Dec 30 - Jan 2",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "date_window",
+      "op": "between",
+      "value": [
+       "11-01",
+       "03-31"
+      ]
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": {
+       "age": 8,
+       "clothing_size": "M"
+      }
+     },
+     {
+      "id": "b",
+      "guest_attributes": {
+       "age": 12,
+       "weight_kg": 80.5
+      }
+     },
+     {
+      "id": "c",
+      "guest_attributes": {}
+     }
+    ],
+    "arrival": "2026-12-30",
+    "departure": "2027-01-03",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": true
+  },
+  {
+   "name": "winter wrap Mar 30 - Apr 2 fails",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "date_window",
+      "op": "between",
+      "value": [
+       "11-01",
+       "03-31"
+      ]
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": {
+       "age": 8,
+       "clothing_size": "M"
+      }
+     },
+     {
+      "id": "b",
+      "guest_attributes": {
+       "age": 12,
+       "weight_kg": 80.5
+      }
+     },
+     {
+      "id": "c",
+      "guest_attributes": {}
+     }
+    ],
+    "arrival": "2027-03-30",
+    "departure": "2027-04-03",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": false
+  },
+  {
+   "name": "Mar 31 as last night passes",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "date_window",
+      "op": "between",
+      "value": [
+       "11-01",
+       "03-31"
+      ]
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": {
+       "age": 8,
+       "clothing_size": "M"
+      }
+     },
+     {
+      "id": "b",
+      "guest_attributes": {
+       "age": 12,
+       "weight_kg": 80.5
+      }
+     },
+     {
+      "id": "c",
+      "guest_attributes": {}
+     }
+    ],
+    "arrival": "2027-03-29",
+    "departure": "2027-04-01",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": true
+  },
+  {
+   "name": "lower bound inclusive",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "date_window",
+      "op": "between",
+      "value": [
+       "03-01",
+       "10-31"
+      ]
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": {
+       "age": 8,
+       "clothing_size": "M"
+      }
+     },
+     {
+      "id": "b",
+      "guest_attributes": {
+       "age": 12,
+       "weight_kg": 80.5
+      }
+     },
+     {
+      "id": "c",
+      "guest_attributes": {}
+     }
+    ],
+    "arrival": "2026-03-01",
+    "departure": "2026-03-03",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": true
+  },
+  {
+   "name": "one night before window fails",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "date_window",
+      "op": "between",
+      "value": [
+       "03-01",
+       "10-31"
+      ]
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": {
+       "age": 8,
+       "clothing_size": "M"
+      }
+     },
+     {
+      "id": "b",
+      "guest_attributes": {
+       "age": 12,
+       "weight_kg": 80.5
+      }
+     },
+     {
+      "id": "c",
+      "guest_attributes": {}
+     }
+    ],
+    "arrival": "2026-02-28",
+    "departure": "2026-03-02",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": false
+  },
+  {
+   "name": "upper bound inclusive (departure after)",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "date_window",
+      "op": "between",
+      "value": [
+       "03-01",
+       "10-31"
+      ]
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": {
+       "age": 8,
+       "clothing_size": "M"
+      }
+     },
+     {
+      "id": "b",
+      "guest_attributes": {
+       "age": 12,
+       "weight_kg": 80.5
+      }
+     },
+     {
+      "id": "c",
+      "guest_attributes": {}
+     }
+    ],
+    "arrival": "2026-10-30",
+    "departure": "2026-11-01",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": true
+  },
+  {
+   "name": "night past upper bound fails",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "date_window",
+      "op": "between",
+      "value": [
+       "03-01",
+       "10-31"
+      ]
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": {
+       "age": 8,
+       "clothing_size": "M"
+      }
+     },
+     {
+      "id": "b",
+      "guest_attributes": {
+       "age": 12,
+       "weight_kg": 80.5
+      }
+     },
+     {
+      "id": "c",
+      "guest_attributes": {}
+     }
+    ],
+    "arrival": "2026-10-30",
+    "departure": "2026-11-02",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": false
+  },
+  {
+   "name": "no departure judges arrival",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "date_window",
+      "op": "between",
+      "value": [
+       "03-01",
+       "10-31"
+      ]
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": {
+       "age": 8,
+       "clothing_size": "M"
+      }
+     },
+     {
+      "id": "b",
+      "guest_attributes": {
+       "age": 12,
+       "weight_kg": 80.5
+      }
+     },
+     {
+      "id": "c",
+      "guest_attributes": {}
+     }
+    ],
+    "arrival": "2026-10-31",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": true
+  },
+  {
+   "name": "departure equals arrival judges arrival",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "date_window",
+      "op": "between",
+      "value": [
+       "03-01",
+       "10-31"
+      ]
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": {
+       "age": 8,
+       "clothing_size": "M"
+      }
+     },
+     {
+      "id": "b",
+      "guest_attributes": {
+       "age": 12,
+       "weight_kg": 80.5
+      }
+     },
+     {
+      "id": "c",
+      "guest_attributes": {}
+     }
+    ],
+    "arrival": "2026-11-01",
+    "departure": "2026-11-01",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": false
+  },
+  {
+   "name": "missing arrival",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "date_window",
+      "op": "between",
+      "value": [
+       "01-01",
+       "12-31"
+      ]
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": {
+       "age": 8,
+       "clothing_size": "M"
+      }
+     },
+     {
+      "id": "b",
+      "guest_attributes": {
+       "age": 12,
+       "weight_kg": 80.5
+      }
+     },
+     {
+      "id": "c",
+      "guest_attributes": {}
+     }
+    ],
+    "departure": "2026-07-17",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": false
+  },
+  {
+   "name": "malformed arrival",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "date_window",
+      "op": "between",
+      "value": [
+       "01-01",
+       "12-31"
+      ]
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": {
+       "age": 8,
+       "clothing_size": "M"
+      }
+     },
+     {
+      "id": "b",
+      "guest_attributes": {
+       "age": 12,
+       "weight_kg": 80.5
+      }
+     },
+     {
+      "id": "c",
+      "guest_attributes": {}
+     }
+    ],
+    "arrival": "2026-02-30",
+    "departure": "2026-07-17",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": false
+  },
+  {
+   "name": "single-day window",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "date_window",
+      "op": "between",
+      "value": [
+       "08-15",
+       "08-15"
+      ]
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": {
+       "age": 8,
+       "clothing_size": "M"
+      }
+     },
+     {
+      "id": "b",
+      "guest_attributes": {
+       "age": 12,
+       "weight_kg": 80.5
+      }
+     },
+     {
+      "id": "c",
+      "guest_attributes": {}
+     }
+    ],
+    "arrival": "2026-08-15",
+    "departure": "2026-08-16",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": true
+  },
+  {
+   "name": "leap day stay",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "date_window",
+      "op": "between",
+      "value": [
+       "02-28",
+       "03-01"
+      ]
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": {
+       "age": 8,
+       "clothing_size": "M"
+      }
+     },
+     {
+      "id": "b",
+      "guest_attributes": {
+       "age": 12,
+       "weight_kg": 80.5
+      }
+     },
+     {
+      "id": "c",
+      "guest_attributes": {}
+     }
+    ],
+    "arrival": "2028-02-28",
+    "departure": "2028-03-02",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": true
+  },
+  {
+   "name": "season overlap",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "season_in",
+      "op": "in",
+      "value": [
+       "44444444-4444-4444-8444-444444444444",
+       "33333333-3333-4333-8333-333333333333"
+      ]
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": {
+       "age": 8,
+       "clothing_size": "M"
+      }
+     },
+     {
+      "id": "b",
+      "guest_attributes": {
+       "age": 12,
+       "weight_kg": 80.5
+      }
+     },
+     {
+      "id": "c",
+      "guest_attributes": {}
+     }
+    ],
+    "arrival": "2026-07-10",
+    "departure": "2026-07-17",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": true
+  },
+  {
+   "name": "season no overlap",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "season_in",
+      "op": "in",
+      "value": [
+       "44444444-4444-4444-8444-444444444444"
+      ]
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": {
+       "age": 8,
+       "clothing_size": "M"
+      }
+     },
+     {
+      "id": "b",
+      "guest_attributes": {
+       "age": 12,
+       "weight_kg": 80.5
+      }
+     },
+     {
+      "id": "c",
+      "guest_attributes": {}
+     }
+    ],
+    "arrival": "2026-07-10",
+    "departure": "2026-07-17",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": false
+  },
+  {
+   "name": "season ids missing",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "season_in",
+      "op": "in",
+      "value": [
+       "33333333-3333-4333-8333-333333333333"
+      ]
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": {
+       "age": 8,
+       "clothing_size": "M"
+      }
+     },
+     {
+      "id": "b",
+      "guest_attributes": {
+       "age": 12,
+       "weight_kg": 80.5
+      }
+     },
+     {
+      "id": "c",
+      "guest_attributes": {}
+     }
+    ],
+    "arrival": "2026-07-10",
+    "departure": "2026-07-17",
+    "nights": 7
+   },
+   "expected": false
+  },
+  {
+   "name": "season ids empty",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "season_in",
+      "op": "in",
+      "value": [
+       "33333333-3333-4333-8333-333333333333"
+      ]
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": {
+       "age": 8,
+       "clothing_size": "M"
+      }
+     },
+     {
+      "id": "b",
+      "guest_attributes": {
+       "age": 12,
+       "weight_kg": 80.5
+      }
+     },
+     {
+      "id": "c",
+      "guest_attributes": {}
+     }
+    ],
+    "arrival": "2026-07-10",
+    "departure": "2026-07-17",
+    "nights": 7,
+    "season_ids": []
+   },
+   "expected": false
+  },
+  {
+   "name": "nights gte hit",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 7
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": {
+       "age": 8,
+       "clothing_size": "M"
+      }
+     },
+     {
+      "id": "b",
+      "guest_attributes": {
+       "age": 12,
+       "weight_kg": 80.5
+      }
+     },
+     {
+      "id": "c",
+      "guest_attributes": {}
+     }
+    ],
+    "arrival": "2026-07-10",
+    "departure": "2026-07-17",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": true
+  },
+  {
+   "name": "nights gte miss",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 8
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": {
+       "age": 8,
+       "clothing_size": "M"
+      }
+     },
+     {
+      "id": "b",
+      "guest_attributes": {
+       "age": 12,
+       "weight_kg": 80.5
+      }
+     },
+     {
+      "id": "c",
+      "guest_attributes": {}
+     }
+    ],
+    "arrival": "2026-07-10",
+    "departure": "2026-07-17",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": false
+  },
+  {
+   "name": "nights eq",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "stay_nights",
+      "op": "eq",
+      "value": 7
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": {
+       "age": 8,
+       "clothing_size": "M"
+      }
+     },
+     {
+      "id": "b",
+      "guest_attributes": {
+       "age": 12,
+       "weight_kg": 80.5
+      }
+     },
+     {
+      "id": "c",
+      "guest_attributes": {}
+     }
+    ],
+    "arrival": "2026-07-10",
+    "departure": "2026-07-17",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": true
+  },
+  {
+   "name": "nights lte",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "stay_nights",
+      "op": "lte",
+      "value": 6
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": {
+       "age": 8,
+       "clothing_size": "M"
+      }
+     },
+     {
+      "id": "b",
+      "guest_attributes": {
+       "age": 12,
+       "weight_kg": 80.5
+      }
+     },
+     {
+      "id": "c",
+      "guest_attributes": {}
+     }
+    ],
+    "arrival": "2026-07-10",
+    "departure": "2026-07-17",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": false
+  },
+  {
+   "name": "nights between inclusive",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "stay_nights",
+      "op": "between",
+      "value": [
+       2,
+       7
+      ]
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": {
+       "age": 8,
+       "clothing_size": "M"
+      }
+     },
+     {
+      "id": "b",
+      "guest_attributes": {
+       "age": 12,
+       "weight_kg": 80.5
+      }
+     },
+     {
+      "id": "c",
+      "guest_attributes": {}
+     }
+    ],
+    "arrival": "2026-07-10",
+    "departure": "2026-07-17",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": true
+  },
+  {
+   "name": "nights missing",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 0
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": {
+       "age": 8,
+       "clothing_size": "M"
+      }
+     },
+     {
+      "id": "b",
+      "guest_attributes": {
+       "age": 12,
+       "weight_kg": 80.5
+      }
+     },
+     {
+      "id": "c",
+      "guest_attributes": {}
+     }
+    ],
+    "arrival": "2026-07-10",
+    "departure": "2026-07-17",
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": false
+  },
+  {
+   "name": "parent unavailable true when unavailable",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "parent_unavailable",
+      "op": "eq",
+      "value": true
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": false,
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": {
+       "age": 8,
+       "clothing_size": "M"
+      }
+     },
+     {
+      "id": "b",
+      "guest_attributes": {
+       "age": 12,
+       "weight_kg": 80.5
+      }
+     },
+     {
+      "id": "c",
+      "guest_attributes": {}
+     }
+    ],
+    "arrival": "2026-07-10",
+    "departure": "2026-07-17",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": true
+  },
+  {
+   "name": "parent unavailable true when available",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "parent_unavailable",
+      "op": "eq",
+      "value": true
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": {
+       "age": 8,
+       "clothing_size": "M"
+      }
+     },
+     {
+      "id": "b",
+      "guest_attributes": {
+       "age": 12,
+       "weight_kg": 80.5
+      }
+     },
+     {
+      "id": "c",
+      "guest_attributes": {}
+     }
+    ],
+    "arrival": "2026-07-10",
+    "departure": "2026-07-17",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": false
+  },
+  {
+   "name": "parent unavailable false when available",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "parent_unavailable",
+      "op": "eq",
+      "value": false
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": {
+       "age": 8,
+       "clothing_size": "M"
+      }
+     },
+     {
+      "id": "b",
+      "guest_attributes": {
+       "age": 12,
+       "weight_kg": 80.5
+      }
+     },
+     {
+      "id": "c",
+      "guest_attributes": {}
+     }
+    ],
+    "arrival": "2026-07-10",
+    "departure": "2026-07-17",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": true
+  },
+  {
+   "name": "parent_available missing (true)",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "parent_unavailable",
+      "op": "eq",
+      "value": true
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": {
+       "age": 8,
+       "clothing_size": "M"
+      }
+     },
+     {
+      "id": "b",
+      "guest_attributes": {
+       "age": 12,
+       "weight_kg": 80.5
+      }
+     },
+     {
+      "id": "c",
+      "guest_attributes": {}
+     }
+    ],
+    "arrival": "2026-07-10",
+    "departure": "2026-07-17",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": false
+  },
+  {
+   "name": "parent_available missing (false)",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "parent_unavailable",
+      "op": "eq",
+      "value": false
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": {
+       "age": 8,
+       "clothing_size": "M"
+      }
+     },
+     {
+      "id": "b",
+      "guest_attributes": {
+       "age": 12,
+       "weight_kg": 80.5
+      }
+     },
+     {
+      "id": "c",
+      "guest_attributes": {}
+     }
+    ],
+    "arrival": "2026-07-10",
+    "departure": "2026-07-17",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": false
+  },
+  {
+   "name": "any: unknown cond or nights",
+   "rules": {
+    "mode": "any",
+    "items": [
+     {
+      "cond": "weather",
+      "op": "eq",
+      "value": 1
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 4
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": {
+       "age": 8,
+       "clothing_size": "M"
+      }
+     },
+     {
+      "id": "b",
+      "guest_attributes": {
+       "age": 12,
+       "weight_kg": 80.5
+      }
+     },
+     {
+      "id": "c",
+      "guest_attributes": {}
+     }
+    ],
+    "arrival": "2026-07-10",
+    "departure": "2026-07-17",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": true
+  },
+  {
+   "name": "any: all false",
+   "rules": {
+    "mode": "any",
+    "items": [
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 30
+     },
+     {
+      "cond": "parent_unavailable",
+      "op": "eq",
+      "value": true
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": {
+       "age": 8,
+       "clothing_size": "M"
+      }
+     },
+     {
+      "id": "b",
+      "guest_attributes": {
+       "age": 12,
+       "weight_kg": 80.5
+      }
+     },
+     {
+      "id": "c",
+      "guest_attributes": {}
+     }
+    ],
+    "arrival": "2026-07-10",
+    "departure": "2026-07-17",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": false
+  },
+  {
+   "name": "all: one false",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 1
+     },
+     {
+      "cond": "parent_unavailable",
+      "op": "eq",
+      "value": true
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": {
+       "age": 8,
+       "clothing_size": "M"
+      }
+     },
+     {
+      "id": "b",
+      "guest_attributes": {
+       "age": 12,
+       "weight_kg": 80.5
+      }
+     },
+     {
+      "id": "c",
+      "guest_attributes": {}
+     }
+    ],
+    "arrival": "2026-07-10",
+    "departure": "2026-07-17",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": false
+  },
+  {
+   "name": "all: every true",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "parent_in",
+      "op": "in",
+      "value": [
+       "11111111-1111-4111-8111-111111111111"
+      ]
+     },
+     {
+      "cond": "guest_attr",
+      "key": "age",
+      "op": "gte",
+      "value": 10
+     },
+     {
+      "cond": "date_window",
+      "op": "between",
+      "value": [
+       "03-01",
+       "10-31"
+      ]
+     },
+     {
+      "cond": "season_in",
+      "op": "in",
+      "value": [
+       "33333333-3333-4333-8333-333333333333"
+      ]
+     },
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 7
+     },
+     {
+      "cond": "parent_unavailable",
+      "op": "eq",
+      "value": false
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": {
+       "age": 8,
+       "clothing_size": "M"
+      }
+     },
+     {
+      "id": "b",
+      "guest_attributes": {
+       "age": 12,
+       "weight_kg": 80.5
+      }
+     },
+     {
+      "id": "c",
+      "guest_attributes": {}
+     }
+    ],
+    "arrival": "2026-07-10",
+    "departure": "2026-07-17",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": true
+  },
+  {
+   "name": "unknown cond never",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "weather",
+      "op": "eq",
+      "value": 1
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": {
+       "age": 8,
+       "clothing_size": "M"
+      }
+     },
+     {
+      "id": "b",
+      "guest_attributes": {
+       "age": 12,
+       "weight_kg": 80.5
+      }
+     },
+     {
+      "id": "c",
+      "guest_attributes": {}
+     }
+    ],
+    "arrival": "2026-07-10",
+    "departure": "2026-07-17",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": false
+  },
+  {
+   "name": "wrong op never",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "parent_in",
+      "op": "eq",
+      "value": "11111111-1111-4111-8111-111111111111"
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": {
+       "age": 8,
+       "clothing_size": "M"
+      }
+     },
+     {
+      "id": "b",
+      "guest_attributes": {
+       "age": 12,
+       "weight_kg": 80.5
+      }
+     },
+     {
+      "id": "c",
+      "guest_attributes": {}
+     }
+    ],
+    "arrival": "2026-07-10",
+    "departure": "2026-07-17",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": false
+  },
+  {
+   "name": "malformed rules fail closed",
+   "rules": {
+    "mode": "all"
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": {
+       "age": 8,
+       "clothing_size": "M"
+      }
+     },
+     {
+      "id": "b",
+      "guest_attributes": {
+       "age": 12,
+       "weight_kg": 80.5
+      }
+     },
+     {
+      "id": "c",
+      "guest_attributes": {}
+     }
+    ],
+    "arrival": "2026-07-10",
+    "departure": "2026-07-17",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": false
+  },
+  {
+   "name": "gte boundary: age 9 vs gte 10",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "guest_attr",
+      "key": "age",
+      "op": "gte",
+      "value": 10
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "p0",
+      "guest_attributes": {
+       "age": 9
+      }
+     }
+    ],
+    "arrival": "2026-07-10",
+    "departure": "2026-07-17",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": false
+  },
+  {
+   "name": "gte boundary: age 10 vs gte 10",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "guest_attr",
+      "key": "age",
+      "op": "gte",
+      "value": 10
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "p0",
+      "guest_attributes": {
+       "age": 10
+      }
+     }
+    ],
+    "arrival": "2026-07-10",
+    "departure": "2026-07-17",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": true
+  },
+  {
+   "name": "lte boundary: age 11 vs lte 10",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "guest_attr",
+      "key": "age",
+      "op": "lte",
+      "value": 10
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "p0",
+      "guest_attributes": {
+       "age": 11
+      }
+     }
+    ],
+    "arrival": "2026-07-10",
+    "departure": "2026-07-17",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": false
+  },
+  {
+   "name": "DST spring stay Mar 27-30 vs window from 03-28",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "date_window",
+      "op": "between",
+      "value": [
+       "03-28",
+       "10-31"
+      ]
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": {
+       "age": 8,
+       "clothing_size": "M"
+      }
+     },
+     {
+      "id": "b",
+      "guest_attributes": {
+       "age": 12,
+       "weight_kg": 80.5
+      }
+     },
+     {
+      "id": "c",
+      "guest_attributes": {}
+     }
+    ],
+    "arrival": "2026-03-27",
+    "departure": "2026-03-30",
+    "nights": 3,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": false
+  },
+  {
+   "name": "DST spring stay Mar 27-30 vs window from 03-27",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "date_window",
+      "op": "between",
+      "value": [
+       "03-27",
+       "10-31"
+      ]
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": {
+       "age": 8,
+       "clothing_size": "M"
+      }
+     },
+     {
+      "id": "b",
+      "guest_attributes": {
+       "age": 12,
+       "weight_kg": 80.5
+      }
+     },
+     {
+      "id": "c",
+      "guest_attributes": {}
+     }
+    ],
+    "arrival": "2026-03-27",
+    "departure": "2026-03-30",
+    "nights": 3,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": true
+  },
+  {
+   "name": "DST autumn stay Oct 24-27 vs window to 10-26",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "date_window",
+      "op": "between",
+      "value": [
+       "10-01",
+       "10-26"
+      ]
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": {
+       "age": 8,
+       "clothing_size": "M"
+      }
+     },
+     {
+      "id": "b",
+      "guest_attributes": {
+       "age": 12,
+       "weight_kg": 80.5
+      }
+     },
+     {
+      "id": "c",
+      "guest_attributes": {}
+     }
+    ],
+    "arrival": "2026-10-24",
+    "departure": "2026-10-27",
+    "nights": 3,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": true
+  },
+  {
+   "name": "DST autumn stay Oct 24-27 vs window to 10-25",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "date_window",
+      "op": "between",
+      "value": [
+       "10-01",
+       "10-25"
+      ]
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": {
+       "age": 8,
+       "clothing_size": "M"
+      }
+     },
+     {
+      "id": "b",
+      "guest_attributes": {
+       "age": 12,
+       "weight_kg": 80.5
+      }
+     },
+     {
+      "id": "c",
+      "guest_attributes": {}
+     }
+    ],
+    "arrival": "2026-10-24",
+    "departure": "2026-10-27",
+    "nights": 3,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": false
+  },
+  {
+   "name": "wrap-around window stay across New Year inside",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "date_window",
+      "op": "between",
+      "value": [
+       "12-15",
+       "01-15"
+      ]
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": {
+       "age": 8,
+       "clothing_size": "M"
+      }
+     },
+     {
+      "id": "b",
+      "guest_attributes": {
+       "age": 12,
+       "weight_kg": 80.5
+      }
+     },
+     {
+      "id": "c",
+      "guest_attributes": {}
+     }
+    ],
+    "arrival": "2026-12-28",
+    "departure": "2027-01-04",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": true
+  },
+  {
+   "name": "wrap-around window stay leaving it",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "date_window",
+      "op": "between",
+      "value": [
+       "12-15",
+       "01-15"
+      ]
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": {
+       "age": 8,
+       "clothing_size": "M"
+      }
+     },
+     {
+      "id": "b",
+      "guest_attributes": {
+       "age": 12,
+       "weight_kg": 80.5
+      }
+     },
+     {
+      "id": "c",
+      "guest_attributes": {}
+     }
+    ],
+    "arrival": "2027-01-14",
+    "departure": "2027-01-17",
+    "nights": 3,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": false
+  },
+  {
+   "name": "impossible arrival date never matches",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "date_window",
+      "op": "between",
+      "value": [
+       "01-01",
+       "12-31"
+      ]
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": {
+       "age": 8,
+       "clothing_size": "M"
+      }
+     },
+     {
+      "id": "b",
+      "guest_attributes": {
+       "age": 12,
+       "weight_kg": 80.5
+      }
+     },
+     {
+      "id": "c",
+      "guest_attributes": {}
+     }
+    ],
+    "arrival": "2026-02-30",
+    "departure": "2026-03-02",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": false
+  },
+  {
+   "name": "boolean true is not eq 1",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "guest_attr",
+      "key": "member",
+      "op": "eq",
+      "value": 1
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "p0",
+      "guest_attributes": {
+       "member": true
+      }
+     }
+    ],
+    "arrival": "2026-07-10",
+    "departure": "2026-07-17",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": false
+  },
+  {
+   "name": "boolean eq true",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "guest_attr",
+      "key": "member",
+      "op": "eq",
+      "value": true
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "p0",
+      "guest_attributes": {
+       "member": true
+      }
+     }
+    ],
+    "arrival": "2026-07-10",
+    "departure": "2026-07-17",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": true
+  },
+  {
+   "name": "eq whole number vs 12.0 value",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "guest_attr",
+      "key": "age",
+      "op": "eq",
+      "value": 12
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "p0",
+      "guest_attributes": {
+       "age": 12.0
+      }
+     }
+    ],
+    "arrival": "2026-07-10",
+    "departure": "2026-07-17",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": true
+  },
+  {
+   "name": "string '12' is not eq 12",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "guest_attr",
+      "key": "age",
+      "op": "eq",
+      "value": 12
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "p0",
+      "guest_attributes": {
+       "age": "12"
+      }
+     }
+    ],
+    "arrival": "2026-07-10",
+    "departure": "2026-07-17",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": false
+  },
+  {
+   "name": "in mixes types: true not in [1, 'true']",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "guest_attr",
+      "key": "member",
+      "op": "in",
+      "value": [
+       1,
+       "true"
+      ]
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "p0",
+      "guest_attributes": {
+       "member": true
+      }
+     }
+    ],
+    "arrival": "2026-07-10",
+    "departure": "2026-07-17",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": false
+  },
+  {
+   "name": "reversed between never matches",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "guest_attr",
+      "key": "age",
+      "op": "between",
+      "value": [
+       12,
+       8
+      ]
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "p0",
+      "guest_attributes": {
+       "age": 10
+      }
+     }
+    ],
+    "arrival": "2026-07-10",
+    "departure": "2026-07-17",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": false
+  },
+  {
+   "name": "non-object participant is skipped",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "guest_attr",
+      "key": "age",
+      "op": "gte",
+      "value": 10
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     "x",
+     7,
+     {
+      "id": "b",
+      "guest_attributes": {
+       "age": 12
+      }
+     }
+    ],
+    "arrival": "2026-07-10",
+    "departure": "2026-07-17",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": true
+  },
+  {
+   "name": "only non-object participants never match",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "guest_attr",
+      "key": "age",
+      "op": "gte",
+      "value": 10
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     "x",
+     null
+    ],
+    "arrival": "2026-07-10",
+    "departure": "2026-07-17",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": false
+  },
+  {
+   "name": "guest_attributes not an object is skipped",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "guest_attr",
+      "key": "age",
+      "op": "gte",
+      "value": 10
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": [
+       12
+      ]
+     }
+    ],
+    "arrival": "2026-07-10",
+    "departure": "2026-07-17",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": false
+  },
+  {
+   "name": "guest_attr without key never matches",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "guest_attr",
+      "op": "gte",
+      "value": 10
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": {
+       "age": 8,
+       "clothing_size": "M"
+      }
+     },
+     {
+      "id": "b",
+      "guest_attributes": {
+       "age": 12,
+       "weight_kg": 80.5
+      }
+     },
+     {
+      "id": "c",
+      "guest_attributes": {}
+     }
+    ],
+    "arrival": "2026-07-10",
+    "departure": "2026-07-17",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": false
+  },
+  {
+   "name": "uppercase season id overlaps",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "season_in",
+      "op": "in",
+      "value": [
+       "33333333-3333-4333-8333-333333333333"
+      ]
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": {
+       "age": 8,
+       "clothing_size": "M"
+      }
+     },
+     {
+      "id": "b",
+      "guest_attributes": {
+       "age": 12,
+       "weight_kg": 80.5
+      }
+     },
+     {
+      "id": "c",
+      "guest_attributes": {}
+     }
+    ],
+    "arrival": "2026-07-10",
+    "departure": "2026-07-17",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": true
+  },
+  {
+   "name": "stay_nights eq 7.0 vs nights 7",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "stay_nights",
+      "op": "eq",
+      "value": 7.0
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": {
+       "age": 8,
+       "clothing_size": "M"
+      }
+     },
+     {
+      "id": "b",
+      "guest_attributes": {
+       "age": 12,
+       "weight_kg": 80.5
+      }
+     },
+     {
+      "id": "c",
+      "guest_attributes": {}
+     }
+    ],
+    "arrival": "2026-07-10",
+    "departure": "2026-07-17",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": true
+  },
+  {
+   "name": "parent_in non-string elements never match",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "parent_in",
+      "op": "in",
+      "value": [
+       1,
+       null
+      ]
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": {
+       "age": 8,
+       "clothing_size": "M"
+      }
+     },
+     {
+      "id": "b",
+      "guest_attributes": {
+       "age": 12,
+       "weight_kg": 80.5
+      }
+     },
+     {
+      "id": "c",
+      "guest_attributes": {}
+     }
+    ],
+    "arrival": "2026-07-10",
+    "departure": "2026-07-17",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": false
+  },
+  {
+   "name": "any: non-object item ignored, next item matches",
+   "rules": {
+    "mode": "any",
+    "items": [
+     "junk",
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 3
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": {
+       "age": 8,
+       "clothing_size": "M"
+      }
+     },
+     {
+      "id": "b",
+      "guest_attributes": {
+       "age": 12,
+       "weight_kg": 80.5
+      }
+     },
+     {
+      "id": "c",
+      "guest_attributes": {}
+     }
+    ],
+    "arrival": "2026-07-10",
+    "departure": "2026-07-17",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": true
+  },
+  {
+   "name": "all: non-object item fails",
+   "rules": {
+    "mode": "all",
+    "items": [
+     "junk",
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 3
+     }
+    ]
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": {
+       "age": 8,
+       "clothing_size": "M"
+      }
+     },
+     {
+      "id": "b",
+      "guest_attributes": {
+       "age": 12,
+       "weight_kg": 80.5
+      }
+     },
+     {
+      "id": "c",
+      "guest_attributes": {}
+     }
+    ],
+    "arrival": "2026-07-10",
+    "departure": "2026-07-17",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": false
+  },
+  {
+   "name": "empty items with unknown mode fails closed",
+   "rules": {
+    "mode": "most",
+    "items": []
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": {
+       "age": 8,
+       "clothing_size": "M"
+      }
+     },
+     {
+      "id": "b",
+      "guest_attributes": {
+       "age": 12,
+       "weight_kg": 80.5
+      }
+     },
+     {
+      "id": "c",
+      "guest_attributes": {}
+     }
+    ],
+    "arrival": "2026-07-10",
+    "departure": "2026-07-17",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": false
+  },
+  {
+   "name": "empty items without mode fails closed",
+   "rules": {
+    "items": []
+   },
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": {
+       "age": 8,
+       "clothing_size": "M"
+      }
+     },
+     {
+      "id": "b",
+      "guest_attributes": {
+       "age": 12,
+       "weight_kg": 80.5
+      }
+     },
+     {
+      "id": "c",
+      "guest_attributes": {}
+     }
+    ],
+    "arrival": "2026-07-10",
+    "departure": "2026-07-17",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": false
+  },
+  {
+   "name": "rules array fails closed",
+   "rules": [],
+   "ctx": {
+    "parent_product_id": "11111111-1111-4111-8111-111111111111",
+    "parent_available": true,
+    "participants": [
+     {
+      "id": "a",
+      "guest_attributes": {
+       "age": 8,
+       "clothing_size": "M"
+      }
+     },
+     {
+      "id": "b",
+      "guest_attributes": {
+       "age": 12,
+       "weight_kg": 80.5
+      }
+     },
+     {
+      "id": "c",
+      "guest_attributes": {}
+     }
+    ],
+    "arrival": "2026-07-10",
+    "departure": "2026-07-17",
+    "nights": 7,
+    "season_ids": [
+     "33333333-3333-4333-8333-333333333333"
+    ]
+   },
+   "expected": false
+  },
+  {
+   "name": "null ctx: items never match",
+   "rules": {
+    "mode": "all",
+    "items": [
+     {
+      "cond": "stay_nights",
+      "op": "gte",
+      "value": 0
+     }
+    ]
+   },
+   "ctx": null,
+   "expected": false
+  },
+  {
+   "name": "null ctx: empty items still match",
+   "rules": {
+    "mode": "any",
+    "items": []
+   },
+   "ctx": null,
+   "expected": true
+  }
+ ]
+}
