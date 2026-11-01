@@ -43,6 +43,8 @@ import { DetailsPage } from '@/components/booking/DetailsPage'
 import { ApprovalReplyPage } from '@/components/booking/ApprovalReplyPage'
 import { Confirmation } from '@/components/booking/Confirmation'
 import { DetailsStep } from '@/components/booking/DetailsStep'
+import { GuestAttributesStep } from '@/components/booking/GuestAttributesStep'
+import { unansweredCount, unionAttributes } from '@/components/booking/guestAttributes'
 import {
   bookerJoins,
   emptyBilling,
@@ -1665,6 +1667,50 @@ function BookingFlowApp() {
     comment: string,
   ) => {
     commitDetails(product, booker, participants, companions, comment)
+    // The 'About your guests' step: once per booking, right after the party
+    // step and before the extras, only when the product (or an offer that can
+    // be shown for it) asks per-guest attributes. The flow is normally cached
+    // by now (it is fetched when the product is picked); if not, wait for it.
+    const gate = (flow: ProductFlowResponse | null) => {
+      const attributes = flow?.guest_attributes ?? []
+      if (attributes.length > 0) {
+        setStep({
+          name: 'guest-attributes',
+          product,
+          selection,
+          booker,
+          participants,
+          companions,
+          attributes,
+        })
+        return
+      }
+      continueAfterDetails(product, selection, booker, participants, companions)
+    }
+    const cached = resolvedFlowForProduct(product.product_id)
+    if (cached !== undefined) gate(cached)
+    else withResolvedFlow(product.product_id, gate)
+  }
+
+  /** The guest step confirmed: keep the answers in the draft, then run on. */
+  const afterGuestAttributes = (
+    product: Product,
+    selection: BookingSelection,
+    booker: BookerDetails,
+    participants: ParticipantDetails[],
+    companions: CompanionDetails[],
+  ) => {
+    mergeDraft({ participants, companions })
+    continueAfterDetails(product, selection, booker, participants, companions)
+  }
+
+  const continueAfterDetails = (
+    product: Product,
+    selection: BookingSelection,
+    booker: BookerDetails,
+    participants: ParticipantDetails[],
+    companions: CompanionDetails[],
+  ) => {
     const offering = product.hotel_offering ?? 'none'
     if (product.product_kind === 'service' && offering !== 'none') {
       // landr-nmed: re-seed the AccommodationStep from the draft so a customer
@@ -2179,6 +2225,22 @@ function BookingFlowApp() {
   // "still resolving" (see its declaration); once it settles to an object
   // (success, already past this step) or `null` (404 → plain wizard is the
   // intended fallback, so let it through) this gate no longer applies.
+  // A line added on the review step can ask attributes the guest step never
+  // asked (its product, or an offer for it, lists more keys). Until every guest
+  // has them the review is replaced by the same 'About your guests' step.
+  const cartGuestAttributes =
+    step.name === 'fill-form'
+      ? unionAttributes(
+          resolvedFlowForProduct(step.product.product_id)?.guest_attributes,
+          ...extraLines.map((l) => l.flow?.guest_attributes),
+        )
+      : []
+  const reviewGuests =
+    step.name === 'fill-form' ? [...step.participants, ...step.companions] : []
+  const reviewNeedsAttributes =
+    cartGuestAttributes.length > 0 &&
+    unansweredCount(cartGuestAttributes, reviewGuests, {}) > 0
+
   if (invite && inviteData === undefined && step.name === 'pick-product') {
     return (
       <div
@@ -3020,6 +3082,38 @@ function BookingFlowApp() {
           />
         ) : null}
 
+        {step.name === 'guest-attributes' ? (
+          <GuestAttributesStep
+            productName={pickLocalized(
+              step.product.name,
+              step.product.name_localized,
+              browserLocale(),
+            )}
+            attributes={step.attributes}
+            participants={step.participants}
+            companions={step.companions}
+            onBack={() =>
+              setStep({
+                name: 'details',
+                product: step.product,
+                selection: step.selection,
+                booker: step.booker,
+                participants: step.participants,
+                companions: step.companions,
+              })
+            }
+            onConfirm={(participants, companions) =>
+              afterGuestAttributes(
+                step.product,
+                step.selection,
+                step.booker,
+                participants,
+                companions,
+              )
+            }
+          />
+        ) : null}
+
         {step.name === 'pick-accommodation' ? (
           <AccommodationStep
             product={step.product}
@@ -3628,7 +3722,33 @@ function BookingFlowApp() {
           />
         ) : null}
 
-        {step.name === 'fill-form' ? (
+        {step.name === 'fill-form' && reviewNeedsAttributes ? (
+          <GuestAttributesStep
+            productName={pickLocalized(
+              step.product.name,
+              step.product.name_localized,
+              browserLocale(),
+            )}
+            attributes={cartGuestAttributes}
+            participants={step.participants}
+            companions={step.companions}
+            onBack={() =>
+              // Take the lines that need more answers back off the cart.
+              setExtraLines((lines) =>
+                lines.filter(
+                  (l) =>
+                    unansweredCount(unionAttributes(l.flow?.guest_attributes), reviewGuests, {}) === 0,
+                ),
+              )
+            }
+            onConfirm={(participants, companions) => {
+              mergeDraft({ participants, companions })
+              setStep({ ...step, participants, companions })
+            }}
+          />
+        ) : null}
+
+        {step.name === 'fill-form' && !reviewNeedsAttributes ? (
           <BookingForm
             widgetToken={token!}
             previewToken={previewToken ?? undefined}

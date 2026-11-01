@@ -70,6 +70,9 @@ export function bookerJoins(b: Pick<BookerDetails, 'joins'> | undefined): boolea
   return b?.joins !== false
 }
 
+/** {attribute key: number | text} — what the step collects per guest. */
+export type GuestAttributeValues = Record<string, number | string>
+
 export interface ParticipantDetails {
   /**
    * landr-uwvl: STABLE client-side identity. Optional only so the many
@@ -110,6 +113,12 @@ export interface ParticipantDetails {
    */
   occupant_age_band?: 'adult' | 'child'
   occupant_age?: number | null
+  /**
+   * Per-guest attribute values ({key: value}) collected on the "About your
+   * guests" step when the product or its offers ask for them. Sent on submit
+   * as `guest_attributes`; `age` mirrors occupant_age.
+   */
+  guest_attributes?: GuestAttributeValues
 }
 
 /**
@@ -152,6 +161,8 @@ export interface CompanionDetails {
    * accommodation; see ownAccommodation.ts. Absent = false.
    */
   own_accommodation?: boolean
+  /** See ParticipantDetails.guest_attributes. */
+  guest_attributes?: GuestAttributeValues
 }
 
 /**

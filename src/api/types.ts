@@ -1084,6 +1084,12 @@ export interface Participant {
    */
   occupant_age?: number | null
   /**
+   * Per-guest attribute values ({key: value}) the product asked for; the
+   * server validates them against the operator's attribute catalogue. `age`
+   * is the same value as occupant_age.
+   */
+  guest_attributes?: Record<string, number | string>
+  /**
    * landr-a4fy: per-occupant breakfast flag. true when this participant
    * has breakfast included (tied to the breakfast add-on selection in
    * the room-assignment UI). false / omitted = no breakfast. Persisted
@@ -1147,6 +1153,12 @@ export interface Companion {
    * occupant_age_band === 'child'. null / omitted otherwise.
    */
   occupant_age?: number | null
+  /**
+   * Per-guest attribute values ({key: value}) the product asked for; the
+   * server validates them against the operator's attribute catalogue. `age`
+   * is the same value as occupant_age.
+   */
+  guest_attributes?: Record<string, number | string>
   /**
    * landr-a4fy: per-occupant breakfast flag for companions. Mirrors the
    * Participant field exactly — true when this companion has breakfast.
