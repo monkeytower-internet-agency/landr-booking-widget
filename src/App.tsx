@@ -310,7 +310,7 @@ function App() {
               of this scroll container from triggering the browser's
               pull-to-refresh, which would reload the iframe. */}
           <div className="min-h-screen embedded:min-h-0 overscroll-y-contain bg-background text-foreground">
-            <div className="mx-auto flex max-w-md flex-col gap-6 p-6">
+            <div className="mx-auto flex max-w-md flex-col gap-6 p-6 md:max-w-4xl">
               <CancelPage token={route.token} />
               <LegalFooter />
             </div>
@@ -326,7 +326,7 @@ function App() {
         <StaffModeProvider>
           <TierBadge />
           <div className="min-h-screen embedded:min-h-0 overscroll-y-contain bg-background text-foreground">
-            <div className="mx-auto flex max-w-md flex-col gap-6 p-6 md:max-w-3xl">
+            <div className="mx-auto flex max-w-md flex-col gap-6 p-6 md:max-w-4xl">
               <OfferPage token={route.token} />
               <LegalFooter />
             </div>
@@ -343,7 +343,7 @@ function App() {
         <StaffModeProvider>
           <TierBadge />
           <div className="min-h-screen embedded:min-h-0 overscroll-y-contain bg-background text-foreground">
-            <div className="mx-auto flex max-w-md flex-col gap-6 p-6 md:max-w-3xl">
+            <div className="mx-auto flex max-w-md flex-col gap-6 p-6 md:max-w-4xl">
               <OfferPage token={route.token} mode="pay" />
               <LegalFooter />
             </div>
@@ -360,7 +360,7 @@ function App() {
         <StaffModeProvider>
           <TierBadge />
           <div className="min-h-screen embedded:min-h-0 overscroll-y-contain bg-background text-foreground">
-            <div className="mx-auto flex max-w-md flex-col gap-6 p-6 md:max-w-3xl">
+            <div className="mx-auto flex max-w-md flex-col gap-6 p-6 md:max-w-4xl">
               <DetailsPage token={route.token} />
               <LegalFooter />
             </div>
@@ -379,7 +379,7 @@ function App() {
         <StaffModeProvider>
           <TierBadge />
           <div className="min-h-screen embedded:min-h-0 overscroll-y-contain bg-background text-foreground">
-            <div className="mx-auto flex max-w-md flex-col gap-6 p-6">
+            <div className="mx-auto flex max-w-md flex-col gap-6 p-6 md:max-w-4xl">
               <ApprovalReplyPage token={route.token} intent={route.intent} />
               <LegalFooter />
             </div>
@@ -402,7 +402,7 @@ function App() {
         <StaffModeProvider>
           <TierBadge />
           <div className="min-h-screen embedded:min-h-0 overscroll-y-contain bg-background text-foreground">
-            <div className="mx-auto flex max-w-md flex-col gap-6 p-6">
+            <div className="mx-auto flex max-w-md flex-col gap-6 p-6 md:max-w-4xl">
               <MembershipReturnPage
                 status={memberParam === '1' ? 'success' : 'cancelled'}
               />
