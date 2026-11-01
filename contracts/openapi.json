@@ -4813,6 +4813,21 @@
             ],
             "title": "Addon Quantity Rule"
           },
+          "collection": {
+            "default": "online",
+            "enum": [
+              "online",
+              "on_site",
+              "free"
+            ],
+            "title": "Collection",
+            "type": "string"
+          },
+          "conditional": {
+            "default": false,
+            "title": "Conditional",
+            "type": "boolean"
+          },
           "currency": {
             "anyOf": [
               {
@@ -4900,6 +4915,14 @@
               }
             ],
             "title": "Name Localized"
+          },
+          "options": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/CatalogueAddonOption"
+            },
+            "title": "Options",
+            "type": "array"
           },
           "paid_to": {
             "enum": [
@@ -5004,6 +5027,42 @@
           "paid_to"
         ],
         "title": "CatalogueAddon",
+        "type": "object"
+      },
+      "CatalogueAddonOption": {
+        "description": "A pick inside an offer (shuttle: one way / both ways) with its price delta.",
+        "properties": {
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "label_localized": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label Localized"
+          },
+          "price_delta_cents": {
+            "default": 0,
+            "title": "Price Delta Cents",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "key",
+          "label"
+        ],
+        "title": "CatalogueAddonOption",
         "type": "object"
       },
       "CatalogueAlternative": {
