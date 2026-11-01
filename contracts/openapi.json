@@ -6081,6 +6081,11 @@
             "title": "First Name",
             "type": "string"
           },
+          "guest_attributes": {
+            "additionalProperties": true,
+            "title": "Guest Attributes",
+            "type": "object"
+          },
           "has_breakfast": {
             "default": false,
             "title": "Has Breakfast",
@@ -11476,6 +11481,90 @@
         "title": "FlowFormDef",
         "type": "object"
       },
+      "FlowGuestAttribute": {
+        "description": "One guest attribute the product's cart asks per guest (landr-tm48v.4):\na guest_attribute_definitions row, widget-facing fields only.",
+        "properties": {
+          "choices": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Choices"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "label_localized": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Label Localized",
+            "type": "object"
+          },
+          "max_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Value"
+          },
+          "min_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Value"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          },
+          "value_type": {
+            "enum": [
+              "number",
+              "integer",
+              "text",
+              "choice"
+            ],
+            "title": "Value Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "value_type"
+        ],
+        "title": "FlowGuestAttribute",
+        "type": "object"
+      },
       "FlowModuleDef": {
         "additionalProperties": true,
         "description": "One module from the public_get_product_flow RPC. Mirrors the\nwidget's ``FlowModuleDef`` TypeScript interface.",
@@ -12346,6 +12435,407 @@
           "email"
         ],
         "title": "GroupInquiryRequest",
+        "type": "object"
+      },
+      "GuestAttributeDefinition": {
+        "description": "A guest_attribute_definitions row as the API returns it.",
+        "properties": {
+          "active": {
+            "title": "Active",
+            "type": "boolean"
+          },
+          "choices": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Choices"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "label_localized": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Label Localized",
+            "type": "object"
+          },
+          "max_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Value"
+          },
+          "min_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Value"
+          },
+          "operator_id": {
+            "format": "uuid",
+            "title": "Operator Id",
+            "type": "string"
+          },
+          "sort_order": {
+            "title": "Sort Order",
+            "type": "integer"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "value_type": {
+            "enum": [
+              "number",
+              "integer",
+              "text",
+              "choice"
+            ],
+            "title": "Value Type",
+            "type": "string"
+          },
+          "well_known": {
+            "title": "Well Known",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "operator_id",
+          "key",
+          "label",
+          "label_localized",
+          "value_type",
+          "unit",
+          "choices",
+          "min_value",
+          "max_value",
+          "well_known",
+          "active",
+          "sort_order",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "GuestAttributeDefinition",
+        "type": "object"
+      },
+      "GuestAttributeDefinitionIn": {
+        "additionalProperties": false,
+        "description": "POST body: a custom (never well-known) attribute.",
+        "properties": {
+          "active": {
+            "default": true,
+            "title": "Active",
+            "type": "boolean"
+          },
+          "choices": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Choices"
+          },
+          "key": {
+            "pattern": "^[a-z][a-z0-9_]{0,39}$",
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          },
+          "label_localized": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Label Localized",
+            "type": "object"
+          },
+          "max_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Value"
+          },
+          "min_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Value"
+          },
+          "sort_order": {
+            "default": 0,
+            "title": "Sort Order",
+            "type": "integer"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          },
+          "value_type": {
+            "enum": [
+              "number",
+              "integer",
+              "text",
+              "choice"
+            ],
+            "title": "Value Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "value_type"
+        ],
+        "title": "GuestAttributeDefinitionIn",
+        "type": "object"
+      },
+      "GuestAttributeDefinitionPatch": {
+        "additionalProperties": false,
+        "description": "PATCH body. key, value_type and well_known are fixed (a 422 for every\ncaller); on a well-known row unit / choices / bounds are fixed too.",
+        "properties": {
+          "active": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active"
+          },
+          "choices": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Choices"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "label_localized": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label Localized"
+          },
+          "max_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Value"
+          },
+          "min_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Value"
+          },
+          "sort_order": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sort Order"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          }
+        },
+        "title": "GuestAttributeDefinitionPatch",
+        "type": "object"
+      },
+      "GuestAttributesOut": {
+        "properties": {
+          "guest_attributes": {
+            "additionalProperties": true,
+            "title": "Guest Attributes",
+            "type": "object"
+          },
+          "occupant_age": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Occupant Age"
+          },
+          "occupant_age_band": {
+            "title": "Occupant Age Band",
+            "type": "string"
+          },
+          "participant_id": {
+            "format": "uuid",
+            "title": "Participant Id",
+            "type": "string"
+          },
+          "reprice_skipped": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reprice Skipped"
+          },
+          "repriced": {
+            "title": "Repriced",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "participant_id",
+          "guest_attributes",
+          "occupant_age",
+          "occupant_age_band",
+          "repriced"
+        ],
+        "title": "GuestAttributesOut",
+        "type": "object"
+      },
+      "GuestAttributesPatchIn": {
+        "additionalProperties": false,
+        "properties": {
+          "attributes": {
+            "additionalProperties": true,
+            "maxProperties": 32,
+            "title": "Attributes",
+            "type": "object"
+          }
+        },
+        "required": [
+          "attributes"
+        ],
+        "title": "GuestAttributesPatchIn",
         "type": "object"
       },
       "HTTPValidationError": {
@@ -16602,6 +17092,114 @@
         "title": "OfferEmailPreview",
         "type": "object"
       },
+      "OfferIn": {
+        "additionalProperties": false,
+        "description": "POST body (and the merged row a PATCH is validated as). No operator_id:\nthe path's operator is stamped server-side.",
+        "properties": {
+          "binding": {
+            "default": "free",
+            "enum": [
+              "booking",
+              "person",
+              "free"
+            ],
+            "title": "Binding",
+            "type": "string"
+          },
+          "collection": {
+            "default": "online",
+            "enum": [
+              "online",
+              "on_site",
+              "free"
+            ],
+            "title": "Collection",
+            "type": "string"
+          },
+          "max_qty": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Qty"
+          },
+          "min_qty": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Min Qty",
+            "type": "integer"
+          },
+          "mode": {
+            "default": "optional",
+            "enum": [
+              "optional",
+              "mandatory",
+              "info"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "options": {
+            "items": {
+              "$ref": "#/components/schemas/OfferOption"
+            },
+            "title": "Options",
+            "type": "array"
+          },
+          "parent_product_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Product Id"
+          },
+          "product_id": {
+            "format": "uuid",
+            "title": "Product Id",
+            "type": "string"
+          },
+          "required_attributes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Required Attributes",
+            "type": "array"
+          },
+          "rules": {
+            "$ref": "#/components/schemas/OfferRules"
+          },
+          "schedule": {
+            "default": "locked",
+            "enum": [
+              "locked",
+              "subset",
+              "own"
+            ],
+            "title": "Schedule",
+            "type": "string"
+          },
+          "sort_order": {
+            "default": 0,
+            "title": "Sort Order",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "product_id"
+        ],
+        "title": "OfferIn",
+        "type": "object"
+      },
       "OfferLineItem": {
         "description": "One priced product line of the offer (landr-b48i5), same order as\n``product_lines``. Read from the persisted ``computed_price_breakdown``\nvia ``booking_line_items`` \u2014 never recomputed.\n\n``participants`` / ``per_person_price`` are set only when the line is\npriced per head (a ``per_participant_tier`` rule, or any rule whose\ndetail has ``per_participant`` true) AND ``line_total / qty /\nparticipants`` divides to whole cents; otherwise both are ``None`` and\nthe page shows the line total alone.",
         "properties": {
@@ -16695,6 +17293,51 @@
         "title": "OfferLineItem",
         "type": "object"
       },
+      "OfferOption": {
+        "additionalProperties": false,
+        "description": "One priced choice of an offer (shuttle one way / both, jacket S/M/L).",
+        "properties": {
+          "key": {
+            "pattern": "^[a-z0-9_]{1,40}$",
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "label_localized": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Label Localized",
+            "type": "object"
+          },
+          "price_delta_cents": {
+            "title": "Price Delta Cents",
+            "type": "integer"
+          },
+          "stock": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stock"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "price_delta_cents"
+        ],
+        "title": "OfferOption",
+        "type": "object"
+      },
       "OfferParticipant": {
         "additionalProperties": true,
         "description": "One entry of the RPC's ``participants`` array. Mirrors the widget's\n``OfferParticipant`` TypeScript interface.",
@@ -16744,6 +17387,175 @@
           }
         },
         "title": "OfferParticipant",
+        "type": "object"
+      },
+      "OfferPatch": {
+        "additionalProperties": false,
+        "description": "PATCH body: only the fields set are written (``model_fields_set``).",
+        "properties": {
+          "binding": {
+            "anyOf": [
+              {
+                "enum": [
+                  "booking",
+                  "person",
+                  "free"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Binding"
+          },
+          "collection": {
+            "anyOf": [
+              {
+                "enum": [
+                  "online",
+                  "on_site",
+                  "free"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection"
+          },
+          "max_qty": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Qty"
+          },
+          "min_qty": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Qty"
+          },
+          "mode": {
+            "anyOf": [
+              {
+                "enum": [
+                  "optional",
+                  "mandatory",
+                  "info"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mode"
+          },
+          "options": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/OfferOption"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Options"
+          },
+          "parent_product_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Product Id"
+          },
+          "product_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Id"
+          },
+          "required_attributes": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Required Attributes"
+          },
+          "rules": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OfferRules"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "schedule": {
+            "anyOf": [
+              {
+                "enum": [
+                  "locked",
+                  "subset",
+                  "own"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Schedule"
+          },
+          "sort_order": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sort Order"
+          }
+        },
+        "title": "OfferPatch",
         "type": "object"
       },
       "OfferPatchIn": {
@@ -17183,6 +17995,34 @@
           "quantity"
         ],
         "title": "OfferProductLine",
+        "type": "object"
+      },
+      "OfferRules": {
+        "additionalProperties": false,
+        "description": "``{\"mode\": \"all\"|\"any\", \"items\": [...]}``; empty items = offered to everyone.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RuleItem"
+            },
+            "maxItems": 50,
+            "title": "Items",
+            "type": "array"
+          },
+          "mode": {
+            "enum": [
+              "all",
+              "any"
+            ],
+            "title": "Mode",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mode",
+          "items"
+        ],
+        "title": "OfferRules",
         "type": "object"
       },
       "OfferSendOut": {
@@ -19324,6 +20164,11 @@
           "first_name": {
             "title": "First Name",
             "type": "string"
+          },
+          "guest_attributes": {
+            "additionalProperties": true,
+            "title": "Guest Attributes",
+            "type": "object"
           },
           "has_breakfast": {
             "default": false,
@@ -23286,6 +24131,13 @@
         "additionalProperties": true,
         "description": "Response of GET \u2026/products/{id}/flow. Mirrors the widget's\n``ProductFlowResponse`` TypeScript interface (src/api/flowTypes.ts).\n``modules`` is null for products with no configured flow (legacy\nshape) or list of modules otherwise.",
         "properties": {
+          "guest_attributes": {
+            "items": {
+              "$ref": "#/components/schemas/FlowGuestAttribute"
+            },
+            "title": "Guest Attributes",
+            "type": "array"
+          },
           "modules": {
             "anyOf": [
               {
@@ -24264,6 +25116,167 @@
           "product_id"
         ],
         "title": "ProductLineIn",
+        "type": "object"
+      },
+      "ProductOffer": {
+        "description": "An offers row as the API returns it. Exported as ``Offer``; the class\nname keeps the OpenAPI component distinct from the widget-flow ``Offer``\nenum that already exists in the schema.",
+        "properties": {
+          "binding": {
+            "enum": [
+              "booking",
+              "person",
+              "free"
+            ],
+            "title": "Binding",
+            "type": "string"
+          },
+          "collection": {
+            "enum": [
+              "online",
+              "on_site",
+              "free"
+            ],
+            "title": "Collection",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "legacy_addon_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Legacy Addon Id"
+          },
+          "legacy_source": {
+            "anyOf": [
+              {
+                "enum": [
+                  "product_addons",
+                  "cross_sell"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Legacy Source"
+          },
+          "max_qty": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Qty"
+          },
+          "min_qty": {
+            "title": "Min Qty",
+            "type": "integer"
+          },
+          "mode": {
+            "enum": [
+              "optional",
+              "mandatory",
+              "info"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "operator_id": {
+            "format": "uuid",
+            "title": "Operator Id",
+            "type": "string"
+          },
+          "options": {
+            "items": {
+              "$ref": "#/components/schemas/OfferOption"
+            },
+            "title": "Options",
+            "type": "array"
+          },
+          "parent_product_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Product Id"
+          },
+          "product_id": {
+            "format": "uuid",
+            "title": "Product Id",
+            "type": "string"
+          },
+          "required_attributes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Required Attributes",
+            "type": "array"
+          },
+          "rules": {
+            "$ref": "#/components/schemas/OfferRules"
+          },
+          "schedule": {
+            "enum": [
+              "locked",
+              "subset",
+              "own"
+            ],
+            "title": "Schedule",
+            "type": "string"
+          },
+          "sort_order": {
+            "title": "Sort Order",
+            "type": "integer"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "operator_id",
+          "parent_product_id",
+          "product_id",
+          "rules",
+          "binding",
+          "schedule",
+          "collection",
+          "mode",
+          "options",
+          "required_attributes",
+          "min_qty",
+          "max_qty",
+          "sort_order",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "ProductOffer",
         "type": "object"
       },
       "ProductPatch": {
@@ -30607,6 +31620,56 @@
           "date_rule"
         ],
         "title": "RollForwardSeasonOut",
+        "type": "object"
+      },
+      "RuleItem": {
+        "additionalProperties": false,
+        "description": "One condition: ``{\"cond\", \"op\", \"value\"[, \"key\"]}`` (``key`` on guest_attr only).",
+        "properties": {
+          "cond": {
+            "enum": [
+              "parent_in",
+              "guest_attr",
+              "date_window",
+              "season_in",
+              "stay_nights",
+              "parent_unavailable"
+            ],
+            "title": "Cond",
+            "type": "string"
+          },
+          "key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Key"
+          },
+          "op": {
+            "enum": [
+              "eq",
+              "in",
+              "gte",
+              "lte",
+              "between"
+            ],
+            "title": "Op",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value"
+          }
+        },
+        "required": [
+          "cond",
+          "op",
+          "value"
+        ],
+        "title": "RuleItem",
         "type": "object"
       },
       "RunIn": {
@@ -44468,6 +45531,83 @@
         ]
       }
     },
+    "/api/operators/{operator_id}/bookings/{booking_id}/participants/{participant_id}/attributes": {
+      "patch": {
+        "operationId": "patch_participant_attributes",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Booking Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "participant_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Participant Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GuestAttributesPatchIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GuestAttributesOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Patch Participant Attributes",
+        "tags": [
+          "staff-booking-guest-attributes"
+        ]
+      }
+    },
     "/api/operators/{operator_id}/emails/compose": {
       "post": {
         "operationId": "compose_email",
@@ -44695,6 +45835,182 @@
         ]
       }
     },
+    "/api/operators/{operator_id}/guest-attribute-definitions": {
+      "get": {
+        "description": "The operator's attribute catalogue: the five well-known keys plus custom ones.",
+        "operationId": "list_guest_attribute_definitions",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/GuestAttributeDefinition"
+                  },
+                  "title": "Response List Guest Attribute Definitions",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Guest Attribute Definitions",
+        "tags": [
+          "staff-product-offers"
+        ]
+      },
+      "post": {
+        "description": "Add a custom attribute. 409 ``attribute_key_taken`` for a duplicate key.",
+        "operationId": "create_guest_attribute_definition",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GuestAttributeDefinitionIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GuestAttributeDefinition"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Guest Attribute Definition",
+        "tags": [
+          "staff-product-offers"
+        ]
+      }
+    },
+    "/api/operators/{operator_id}/guest-attribute-definitions/{definition_id}": {
+      "patch": {
+        "description": "Edit label / translations / order / active (and unit, choices, bounds of a\ncustom key). 422 ``well_known_locked`` for the platform shape of a well-known key.",
+        "operationId": "patch_guest_attribute_definition",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "definition_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Definition Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GuestAttributeDefinitionPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GuestAttributeDefinition"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Patch Guest Attribute Definition",
+        "tags": [
+          "staff-product-offers"
+        ]
+      }
+    },
     "/api/operators/{operator_id}/holded/pending-decisions": {
       "get": {
         "description": "Paginated list of unresolved Holded contact decisions for an operator.\n\nOrdered by created_at ASC (FIFO). Includes a short booking summary\ndenormalised from external_sync_log + bookings.",
@@ -44887,6 +46203,265 @@
         "summary": "Resolve Pending Decision",
         "tags": [
           "Holded"
+        ]
+      }
+    },
+    "/api/operators/{operator_id}/offers": {
+      "get": {
+        "description": "The operator's offers, optionally narrowed to one parent or one offered product.",
+        "operationId": "list_product_offers",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "parent_product_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Parent Product Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "product_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Product Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProductOffer"
+                  },
+                  "title": "Response List Product Offers",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Offers",
+        "tags": [
+          "staff-product-offers"
+        ]
+      },
+      "post": {
+        "description": "Create an offer. 404 ``referenced_row_not_found`` when a product, parent,\nrule product / season or attribute key is not this operator's.",
+        "operationId": "create_product_offer",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OfferIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductOffer"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Offer",
+        "tags": [
+          "staff-product-offers"
+        ]
+      }
+    },
+    "/api/operators/{operator_id}/offers/{offer_id}": {
+      "delete": {
+        "description": "Delete a native offer; a mirrored (legacy) row is 409.",
+        "operationId": "delete_product_offer",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "offer_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Offer Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Delete Offer",
+        "tags": [
+          "staff-product-offers"
+        ]
+      },
+      "patch": {
+        "description": "Update the fields sent. 409 ``offer_owned_by_legacy_source`` for a column\na mirrored row's source owns.",
+        "operationId": "patch_product_offer",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "offer_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Offer Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OfferPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductOffer"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Patch Offer",
+        "tags": [
+          "staff-product-offers"
         ]
       }
     },

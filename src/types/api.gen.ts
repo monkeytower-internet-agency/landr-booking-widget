@@ -2875,6 +2875,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/operators/{operator_id}/bookings/{booking_id}/participants/{participant_id}/attributes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Patch Participant Attributes */
+        patch: operations["patch_participant_attributes"];
+        trace?: never;
+    };
     "/api/operators/{operator_id}/emails/compose": {
         parameters: {
             query?: never;
@@ -2947,6 +2964,51 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/operators/{operator_id}/guest-attribute-definitions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Guest Attribute Definitions
+         * @description The operator's attribute catalogue: the five well-known keys plus custom ones.
+         */
+        get: operations["list_guest_attribute_definitions"];
+        put?: never;
+        /**
+         * Create Guest Attribute Definition
+         * @description Add a custom attribute. 409 ``attribute_key_taken`` for a duplicate key.
+         */
+        post: operations["create_guest_attribute_definition"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/operators/{operator_id}/guest-attribute-definitions/{definition_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Patch Guest Attribute Definition
+         * @description Edit label / translations / order / active (and unit, choices, bounds of a
+         *     custom key). 422 ``well_known_locked`` for the platform shape of a well-known key.
+         */
+        patch: operations["patch_guest_attribute_definition"];
         trace?: never;
     };
     "/api/operators/{operator_id}/holded/pending-decisions": {
@@ -3025,6 +3087,56 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/operators/{operator_id}/offers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Offers
+         * @description The operator's offers, optionally narrowed to one parent or one offered product.
+         */
+        get: operations["list_product_offers"];
+        put?: never;
+        /**
+         * Create Offer
+         * @description Create an offer. 404 ``referenced_row_not_found`` when a product, parent,
+         *     rule product / season or attribute key is not this operator's.
+         */
+        post: operations["create_product_offer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/operators/{operator_id}/offers/{offer_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Offer
+         * @description Delete a native offer; a mirrored (legacy) row is 409.
+         */
+        delete: operations["delete_product_offer"];
+        options?: never;
+        head?: never;
+        /**
+         * Patch Offer
+         * @description Update the fields sent. 409 ``offer_owned_by_legacy_source`` for a column
+         *     a mirrored row's source owns.
+         */
+        patch: operations["patch_product_offer"];
         trace?: never;
     };
     "/api/public/approval-requests/{token}": {
@@ -15303,6 +15415,10 @@ export interface components {
             email?: string | null;
             /** First Name */
             first_name: string;
+            /** Guest Attributes */
+            guest_attributes?: {
+                [key: string]: unknown;
+            };
             /**
              * Has Breakfast
              * @default false
@@ -17160,6 +17276,34 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * FlowGuestAttribute
+         * @description One guest attribute the product's cart asks per guest (landr-tm48v.4):
+         *     a guest_attribute_definitions row, widget-facing fields only.
+         */
+        FlowGuestAttribute: {
+            /** Choices */
+            choices?: string[] | null;
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /** Label Localized */
+            label_localized?: {
+                [key: string]: string;
+            };
+            /** Max Value */
+            max_value?: number | null;
+            /** Min Value */
+            min_value?: number | null;
+            /** Unit */
+            unit?: string | null;
+            /**
+             * Value Type
+             * @enum {string}
+             */
+            value_type: "number" | "integer" | "text" | "choice";
+        };
+        /**
          * FlowModuleDef
          * @description One module from the public_get_product_flow RPC. Mirrors the
          *     widget's ``FlowModuleDef`` TypeScript interface.
@@ -17434,6 +17578,148 @@ export interface components {
             phone?: string | null;
             /** Product Slug */
             product_slug?: string | null;
+        };
+        /**
+         * GuestAttributeDefinition
+         * @description A guest_attribute_definitions row as the API returns it.
+         */
+        GuestAttributeDefinition: {
+            /** Active */
+            active: boolean;
+            /** Choices */
+            choices: string[] | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /** Label Localized */
+            label_localized: {
+                [key: string]: string;
+            };
+            /** Max Value */
+            max_value: number | null;
+            /** Min Value */
+            min_value: number | null;
+            /**
+             * Operator Id
+             * Format: uuid
+             */
+            operator_id: string;
+            /** Sort Order */
+            sort_order: number;
+            /** Unit */
+            unit: string | null;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /**
+             * Value Type
+             * @enum {string}
+             */
+            value_type: "number" | "integer" | "text" | "choice";
+            /** Well Known */
+            well_known: boolean;
+        };
+        /**
+         * GuestAttributeDefinitionIn
+         * @description POST body: a custom (never well-known) attribute.
+         */
+        GuestAttributeDefinitionIn: {
+            /**
+             * Active
+             * @default true
+             */
+            active: boolean;
+            /** Choices */
+            choices?: string[] | null;
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /** Label Localized */
+            label_localized?: {
+                [key: string]: string;
+            };
+            /** Max Value */
+            max_value?: number | null;
+            /** Min Value */
+            min_value?: number | null;
+            /**
+             * Sort Order
+             * @default 0
+             */
+            sort_order: number;
+            /** Unit */
+            unit?: string | null;
+            /**
+             * Value Type
+             * @enum {string}
+             */
+            value_type: "number" | "integer" | "text" | "choice";
+        };
+        /**
+         * GuestAttributeDefinitionPatch
+         * @description PATCH body. key, value_type and well_known are fixed (a 422 for every
+         *     caller); on a well-known row unit / choices / bounds are fixed too.
+         */
+        GuestAttributeDefinitionPatch: {
+            /** Active */
+            active?: boolean | null;
+            /** Choices */
+            choices?: string[] | null;
+            /** Label */
+            label?: string | null;
+            /** Label Localized */
+            label_localized?: {
+                [key: string]: string;
+            } | null;
+            /** Max Value */
+            max_value?: number | null;
+            /** Min Value */
+            min_value?: number | null;
+            /** Sort Order */
+            sort_order?: number | null;
+            /** Unit */
+            unit?: string | null;
+        };
+        /** GuestAttributesOut */
+        GuestAttributesOut: {
+            /** Guest Attributes */
+            guest_attributes: {
+                [key: string]: unknown;
+            };
+            /** Occupant Age */
+            occupant_age: number | null;
+            /** Occupant Age Band */
+            occupant_age_band: string;
+            /**
+             * Participant Id
+             * Format: uuid
+             */
+            participant_id: string;
+            /** Reprice Skipped */
+            reprice_skipped?: string | null;
+            /** Repriced */
+            repriced: boolean;
+        };
+        /** GuestAttributesPatchIn */
+        GuestAttributesPatchIn: {
+            /** Attributes */
+            attributes: {
+                [key: string]: unknown;
+            };
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -18962,6 +19248,61 @@ export interface components {
             to_address: string;
         };
         /**
+         * OfferIn
+         * @description POST body (and the merged row a PATCH is validated as). No operator_id:
+         *     the path's operator is stamped server-side.
+         */
+        OfferIn: {
+            /**
+             * Binding
+             * @default free
+             * @enum {string}
+             */
+            binding: "booking" | "person" | "free";
+            /**
+             * Collection
+             * @default online
+             * @enum {string}
+             */
+            collection: "online" | "on_site" | "free";
+            /** Max Qty */
+            max_qty?: number | null;
+            /**
+             * Min Qty
+             * @default 0
+             */
+            min_qty: number;
+            /**
+             * Mode
+             * @default optional
+             * @enum {string}
+             */
+            mode: "optional" | "mandatory" | "info";
+            /** Options */
+            options?: components["schemas"]["OfferOption"][];
+            /** Parent Product Id */
+            parent_product_id?: string | null;
+            /**
+             * Product Id
+             * Format: uuid
+             */
+            product_id: string;
+            /** Required Attributes */
+            required_attributes?: string[];
+            rules?: components["schemas"]["OfferRules"];
+            /**
+             * Schedule
+             * @default locked
+             * @enum {string}
+             */
+            schedule: "locked" | "subset" | "own";
+            /**
+             * Sort Order
+             * @default 0
+             */
+            sort_order: number;
+        };
+        /**
          * OfferLineItem
          * @description One priced product line of the offer (landr-b48i5), same order as
          *     ``product_lines``. Read from the persisted ``computed_price_breakdown``
@@ -19001,6 +19342,24 @@ export interface components {
             units: number;
         };
         /**
+         * OfferOption
+         * @description One priced choice of an offer (shuttle one way / both, jacket S/M/L).
+         */
+        OfferOption: {
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /** Label Localized */
+            label_localized?: {
+                [key: string]: string;
+            };
+            /** Price Delta Cents */
+            price_delta_cents: number;
+            /** Stock */
+            stock?: number | null;
+        };
+        /**
          * OfferParticipant
          * @description One entry of the RPC's ``participants`` array. Mirrors the widget's
          *     ``OfferParticipant`` TypeScript interface.
@@ -19015,6 +19374,35 @@ export interface components {
             service_role_label?: string | null;
         } & {
             [key: string]: unknown;
+        };
+        /**
+         * OfferPatch
+         * @description PATCH body: only the fields set are written (``model_fields_set``).
+         */
+        OfferPatch: {
+            /** Binding */
+            binding?: ("booking" | "person" | "free") | null;
+            /** Collection */
+            collection?: ("online" | "on_site" | "free") | null;
+            /** Max Qty */
+            max_qty?: number | null;
+            /** Min Qty */
+            min_qty?: number | null;
+            /** Mode */
+            mode?: ("optional" | "mandatory" | "info") | null;
+            /** Options */
+            options?: components["schemas"]["OfferOption"][] | null;
+            /** Parent Product Id */
+            parent_product_id?: string | null;
+            /** Product Id */
+            product_id?: string | null;
+            /** Required Attributes */
+            required_attributes?: string[] | null;
+            rules?: components["schemas"]["OfferRules"] | null;
+            /** Schedule */
+            schedule?: ("locked" | "subset" | "own") | null;
+            /** Sort Order */
+            sort_order?: number | null;
         };
         /**
          * OfferPatchIn
@@ -19173,6 +19561,19 @@ export interface components {
             selected_days?: string[] | null;
         } & {
             [key: string]: unknown;
+        };
+        /**
+         * OfferRules
+         * @description ``{"mode": "all"|"any", "items": [...]}``; empty items = offered to everyone.
+         */
+        OfferRules: {
+            /** Items */
+            items: components["schemas"]["RuleItem"][];
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "all" | "any";
         };
         /**
          * OfferSendOut
@@ -19816,6 +20217,10 @@ export interface components {
             email?: string | null;
             /** First Name */
             first_name: string;
+            /** Guest Attributes */
+            guest_attributes?: {
+                [key: string]: unknown;
+            };
             /**
              * Has Breakfast
              * @default false
@@ -21188,6 +21593,8 @@ export interface components {
          *     shape) or list of modules otherwise.
          */
         ProductFlowResponse: {
+            /** Guest Attributes */
+            guest_attributes?: components["schemas"]["FlowGuestAttribute"][];
             /** Modules */
             modules?: components["schemas"]["FlowModuleDef"][] | null;
         } & {
@@ -21471,6 +21878,76 @@ export interface components {
             selected_days?: string[] | null;
             /** Slot Start Time */
             slot_start_time?: string | null;
+        };
+        /**
+         * ProductOffer
+         * @description An offers row as the API returns it. Exported as ``Offer``; the class
+         *     name keeps the OpenAPI component distinct from the widget-flow ``Offer``
+         *     enum that already exists in the schema.
+         */
+        ProductOffer: {
+            /**
+             * Binding
+             * @enum {string}
+             */
+            binding: "booking" | "person" | "free";
+            /**
+             * Collection
+             * @enum {string}
+             */
+            collection: "online" | "on_site" | "free";
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Legacy Addon Id */
+            legacy_addon_id?: string | null;
+            /** Legacy Source */
+            legacy_source?: ("product_addons" | "cross_sell") | null;
+            /** Max Qty */
+            max_qty: number | null;
+            /** Min Qty */
+            min_qty: number;
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "optional" | "mandatory" | "info";
+            /**
+             * Operator Id
+             * Format: uuid
+             */
+            operator_id: string;
+            /** Options */
+            options: components["schemas"]["OfferOption"][];
+            /** Parent Product Id */
+            parent_product_id: string | null;
+            /**
+             * Product Id
+             * Format: uuid
+             */
+            product_id: string;
+            /** Required Attributes */
+            required_attributes: string[];
+            rules: components["schemas"]["OfferRules"];
+            /**
+             * Schedule
+             * @enum {string}
+             */
+            schedule: "locked" | "subset" | "own";
+            /** Sort Order */
+            sort_order: number;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
         };
         /** ProductPatch */
         ProductPatch: {
@@ -23500,6 +23977,26 @@ export interface components {
              * Format: date
              */
             starts_on: string;
+        };
+        /**
+         * RuleItem
+         * @description One condition: ``{"cond", "op", "value"[, "key"]}`` (``key`` on guest_attr only).
+         */
+        RuleItem: {
+            /**
+             * Cond
+             * @enum {string}
+             */
+            cond: "parent_in" | "guest_attr" | "date_window" | "season_in" | "stay_nights" | "parent_unavailable";
+            /** Key */
+            key?: string | null;
+            /**
+             * Op
+             * @enum {string}
+             */
+            op: "eq" | "in" | "gte" | "lte" | "between";
+            /** Value */
+            value: unknown;
         };
         /** RunIn */
         RunIn: {
@@ -30472,6 +30969,43 @@ export interface operations {
             };
         };
     };
+    patch_participant_attributes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                booking_id: string;
+                participant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GuestAttributesPatchIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GuestAttributesOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     compose_email: {
         parameters: {
             query?: never;
@@ -30606,6 +31140,108 @@ export interface operations {
             };
         };
     };
+    list_guest_attribute_definitions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GuestAttributeDefinition"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_guest_attribute_definition: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GuestAttributeDefinitionIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GuestAttributeDefinition"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_guest_attribute_definition: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                definition_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GuestAttributeDefinitionPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GuestAttributeDefinition"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_pending_decisions: {
         parameters: {
             query?: {
@@ -30695,6 +31331,141 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ResolveDecisionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_product_offers: {
+        parameters: {
+            query?: {
+                parent_product_id?: string | null;
+                product_id?: string | null;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductOffer"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_product_offer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OfferIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductOffer"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_product_offer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                offer_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_product_offer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                offer_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OfferPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductOffer"];
                 };
             };
             /** @description Validation Error */
