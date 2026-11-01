@@ -13486,6 +13486,11 @@
             "title": "Occupant Age Band",
             "type": "string"
           },
+          "offer_lines_attached": {
+            "default": 0,
+            "title": "Offer Lines Attached",
+            "type": "integer"
+          },
           "participant_id": {
             "format": "uuid",
             "title": "Participant Id",
