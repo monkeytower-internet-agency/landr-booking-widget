@@ -7,7 +7,7 @@
  * Offers booked with their own dates (`schedule = own`) are not rows here:
  * the caller books them as added products (`onAddOwn`).
  */
-import type { Dispatch, SetStateAction } from 'react'
+import { useEffect, type Dispatch, type ReactNode, type SetStateAction } from 'react'
 import type { EstimateLineItem, EvaluatedLine, EvaluatedOffer } from '@/api/types'
 import { Button } from '@/components/ui/button'
 import { pickLocalized } from '@/lib/locale'
@@ -24,6 +24,27 @@ import {
 } from './offerCart'
 import { IncludedList } from './IncludedList'
 import { OfferRow } from './OfferRow'
+
+/** The indent of a level under its parent (child offers, nested extras). */
+export const NESTED_CLASS = 'ml-4 border-l border-border pl-3'
+
+/** Reports which pick rows this tree rendered (and clears on unmount). */
+function RenderedReport({
+  treeId,
+  ids,
+  onReport,
+}: {
+  treeId: string
+  ids: string[]
+  onReport: (treeId: string, ids: string[]) => void
+}) {
+  const key = ids.join(',')
+  useEffect(() => {
+    onReport(treeId, key ? key.split(',') : [])
+    return () => onReport(treeId, [])
+  }, [treeId, key, onReport])
+  return null
+}
 
 export interface OfferTreeProps {
   parentLineId: string
@@ -48,6 +69,10 @@ export interface OfferTreeProps {
   /** Show the parent-NULL (cross-sell) offers of this line (default true). */
   showParentless?: boolean
   disabled?: boolean
+  /** Own-dated extras added from a pick, rendered one level under its row. */
+  renderExtras?: (parentLineId: string) => ReactNode
+  /** Which pick rows (line ids) this tree rendered, so extras only nest under visible rows. */
+  onRenderedPicks?: (treeId: string, pickIds: string[]) => void
   /** Guests assigned to the room type of a room parent line; caps its free extras. */
   maxOccupancy?: number
   /** Units of that room type in the cart. */
@@ -91,15 +116,26 @@ export function OfferTree(props: OfferTreeProps) {
       o.mode === 'optional' && effectiveSchedule(o) === 'own' && !o.in_cart && (ownAllowed?.(o) ?? true),
   )
   const rows = all.filter((o) => o.mode !== 'info' && effectiveSchedule(o) !== 'own')
-  if (info.length === 0 && rows.length === 0 && (own.length === 0 || !onAddOwn)) return null
+  const extras = props.renderExtras?.(parentLineId) ?? null
+  if (info.length === 0 && rows.length === 0 && !extras && (own.length === 0 || !onAddOwn)) return null
+  const renderedPickIds =
+    depth + 2 <= MAX_OFFER_DEPTH
+      ? rows.flatMap((o) => {
+          const pk = picks.find((p) => p.offerId === o.id && p.parentLineId === parentLineId)
+          return pk ? [pk.lineId] : []
+        })
+      : []
   const parentDays = lineDays(parentLineId, tree, picks)
 
   return (
     <div
       data-testid={`offer-tree-${parentLineId}`}
       aria-busy={isPending ? true : undefined}
-      className={`space-y-2 ${depth > 0 ? 'ml-4 border-l border-border pl-3' : ''}`}
+      className={`space-y-2 ${depth > 0 ? NESTED_CLASS : ''}`}
     >
+      {props.onRenderedPicks ? (
+        <RenderedReport treeId={parentLineId} ids={renderedPickIds} onReport={props.onRenderedPicks} />
+      ) : null}
       {rows.map((offer) => {
         const pick = picks.find((p) => p.offerId === offer.id && p.parentLineId === parentLineId)
         const serverLines =
@@ -157,6 +193,7 @@ export function OfferTree(props: OfferTreeProps) {
           ))}
         </ul>
       ) : null}
+      {extras}
       <IncludedList offers={info} locale={locale} />
     </div>
   )

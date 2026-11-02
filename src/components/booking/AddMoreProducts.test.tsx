@@ -11,6 +11,8 @@ import {
   listProducts,
   submitBooking,
 } from '@/api/client'
+import { AddMoreProducts } from './AddMoreProducts'
+import { newPick } from './offerCart'
 import { BookingForm, type BookingSelection, type InlineAnswers } from './BookingForm'
 import type { ExtraLine } from './crossSell'
 import type { BookerDetails } from './detailsTypes'
@@ -531,6 +533,8 @@ describe('Add more to this booking (review step)', () => {
     })
     const line = await screen.findByTestId('add-more-line-camping')
     await waitFor(() => expect(line).not.toHaveTextContent(/Checking availability/))
+    // Indented under its pick, not in the flat list.
+    expect(within(screen.getByTestId('offer-tree-o1')).getByTestId('add-more-line-camping')).toBe(line)
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
     })
@@ -548,6 +552,78 @@ describe('Add more to this booking (review step)', () => {
       offer_id: 'offer-guided-p',
       parent_line_id: 'o1',
     })
+  })
+
+  it('keeps an extra whose parent is the main line in the flat list', async () => {
+    vi.mocked(getAvailability).mockResolvedValue([])
+    render(<Harness />)
+    const line = await addAndSettle('camping')
+    expect(line.closest('[data-testid^="add-more-nested-"]')).toBeNull()
+    expect(line.closest('[data-testid="add-more-products"]')).not.toBeNull()
+  })
+
+  it('keeps a nested extra visible in the flat list while its pick row is hidden by the pending check', async () => {
+    vi.mocked(getAvailability).mockResolvedValue([])
+    const towel = offer('towel', {
+      parent_product_id: 'main',
+      schedule: 'locked',
+      rules: { mode: 'all', items: [{ cond: 'guest_attr', key: 'age', op: 'gte', value: 10 }] },
+    })
+    const pick = newPick(towel, 'main', 'o1', ['2026-11-02'])
+    const extra: ExtraLine = {
+      key: 'x-o2',
+      lineId: 'o2',
+      offerId: 'offer-camp',
+      parentLineId: 'o1',
+      product: CAMPING,
+      mode: 'days',
+      days: ['2026-11-02'],
+      slot: null,
+      windowId: null,
+      quantity: 1,
+      unavailableDays: [],
+      checking: false,
+    }
+    const member = { key: 'm1', ref: 'g1', name: 'Kid', attributes: { age: 5 } }
+    const tree = { main: { lineId: 'main', productId: 'main', parentLineId: null, days: ['2026-11-02'] } }
+    const base = {
+      operatorToken: 'tok',
+      mainDays: ['2026-11-02'],
+      partySize: 1,
+      lines: [extra],
+      onLinesChange: vi.fn(),
+      locale: 'en',
+      context: { participantLanguages: {}, participantCount: 1, mainLanguages: [], answeredFormKeys: [], hasPickup: false },
+      modules: {
+        state: { languages: null, formKeys: [], pickupLocationId: null },
+        formAnswers: {},
+        participantLabels: [],
+        participants: [],
+        companions: [],
+        onLanguages: vi.fn(),
+        onForm: vi.fn(),
+        onPickup: vi.fn(),
+        onAges: vi.fn(),
+      },
+    } as unknown as React.ComponentProps<typeof AddMoreProducts>
+    const offers = (isPending: boolean) => ({
+      verdicts: { main: { line_id: 'main', eligible: true, offers: [towel], draft: false } },
+      picks: [pick],
+      onPicksChange: vi.fn(),
+      tree: { ...tree, o1: { lineId: 'o1', productId: towel.product_id, parentLineId: 'main', days: [] } },
+      members: [member],
+      isPending,
+      checkFailed: false,
+      removedNotice: false,
+      currency: 'EUR',
+    })
+    const { rerender } = render(<AddMoreProducts {...base} offers={offers(false) as never} />)
+    await waitFor(() =>
+      expect(within(screen.getByTestId('add-more-nested-o1')).getByTestId('add-more-line-camping')).toBeInTheDocument(),
+    )
+    rerender(<AddMoreProducts {...base} offers={offers(true) as never} />)
+    await waitFor(() => expect(screen.queryByTestId('add-more-nested-o1')).toBeNull())
+    expect(screen.getByTestId('add-more-line-camping')).toBeInTheDocument()
   })
 
   it('nests an own-dated child under an own-dated extra (depth 3) with its own days', async () => {
@@ -570,6 +646,8 @@ describe('Add more to this booking (review step)', () => {
       fireEvent.click(within(campLine).getByTestId('add-more-candidate-shoes'))
     })
     const shoesLine = await screen.findByTestId('add-more-line-shoes')
+    // Depth 3: nested inside the extra's own card.
+    expect(within(campLine).getByTestId('offer-tree-o1')).toContainElement(shoesLine)
     await waitFor(() => expect(shoesLine).not.toHaveTextContent(/Checking availability/))
     // Its own days: drop one of the two it inherited.
     const removeDay = within(shoesLine).getAllByRole('button', { name: /^Remove / })

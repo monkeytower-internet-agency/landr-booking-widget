@@ -12,7 +12,7 @@
  * removes it. An added line shows the offers of its own product under it.
  */
 import { InlineGuestAges } from './InlineGuestAges'
-import { useEffect, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react'
+import { useCallback, useEffect, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react'
 import { getAvailability, getFixedDateWindows, getProductFlow, listProducts } from '@/api/client'
 import type { FormResponseEntry, ProductFlowResponse } from '@/api/flowTypes'
 import type { AvailabilitySlot, EstimateLineItem, EvaluatedLine, EvaluatedOffer, FixedDateWindow, Product } from '@/api/types'
@@ -144,6 +144,19 @@ export function AddMoreProducts({
   const [windowsByKey, setWindowsByKey] = useState<Record<string, FixedDateWindow[]>>({})
   // Inline modules the customer re-opened with "Change" (ids: language,
   // pickup, form:<key>).
+  // Pick rows each OfferTree actually rendered, by tree: extras nest only
+  // under a visible row, otherwise they stay in the flat list.
+  const [shownPicks, setShownPicks] = useState<Record<string, string[]>>({})
+  const onRenderedPicks = useCallback((treeId: string, ids: string[]) => {
+    setShownPicks((prev) => {
+      const cur = prev[treeId] ?? []
+      if (cur.join(',') === ids.join(',')) return prev
+      const next = { ...prev }
+      if (ids.length === 0) delete next[treeId]
+      else next[treeId] = ids
+      return next
+    })
+  }, [])
   const [editing, setEditing] = useState<ReadonlySet<string>>(() => new Set())
   const inflight = useRef(new Set<string>())
   const canAddOwn = !!onLinesChangeProp
@@ -367,6 +380,8 @@ export function AddMoreProducts({
     onLinesChange((prev) => prev.filter((l) => !gone.has(l.key)))
   }
   const treeProps = {
+    renderExtras: (id: string) => renderExtras(id),
+    onRenderedPicks,
     verdicts: offers.verdicts,
     picks: offers.picks,
     onPicksChange: offers.onPicksChange,
@@ -434,34 +449,7 @@ export function AddMoreProducts({
     onLinesChange((prev) => prev.map((l) => (l.key === key ? { ...l, ...patch } : l)))
   const name = (p: Product) => pickLocalized(p.name, p.name_localized, locale)
 
-  return (
-    <section
-      data-testid="add-more-products"
-      className="space-y-3 rounded-lg border border-border bg-surface-raised p-4"
-    >
-      <div>
-        <h3 className="text-base font-semibold">{tr('addMoreTitle', locale)}</h3>
-        <p className="text-sm text-muted-foreground">{tr('addMoreIntro', locale)}</p>
-      </div>
-
-      {offers.removedNotice ? (
-        <p role="status" data-testid="offer-removed-notice" className="text-sm text-muted-foreground">
-          {tr('offerRemovedNotice', locale)}
-        </p>
-      ) : null}
-      {offers.checkFailed ? (
-        <p role="status" data-testid="offer-check-failed" className="text-sm text-muted-foreground">
-          {tr('offerCheckFailed', locale)}
-        </p>
-      ) : offers.isPending ? (
-        <p role="status" data-testid="offer-checking" className="text-xs text-muted-foreground">
-          {tr('offerChecking', locale)}
-        </p>
-      ) : null}
-
-      <OfferTree {...treeProps} parentLineId={MAIN_LINE_ID} showParentless={crossSellEnabled} />
-
-      {lines.map((line) => {
+  const renderLine = (line: ExtraLine): ReactNode => {
         const issue = lineIssue(line)
         const slots = (slotsByKey[line.key] ?? []).filter((s) =>
           slotFree(s, seatsForLine(line, partySize)),
@@ -732,7 +720,53 @@ export function AddMoreProducts({
             ) : null}
           </div>
         )
-      })}
+  }
+  // Own-dated extras added from an offer sit one level under the pick (or the
+  // extra) they belong to; only those on the main line, or whose parent is not
+  // on this step, stay in the flat list.
+  const parentIds = new Set([
+    ...Object.values(shownPicks).flat(),
+    ...lines.flatMap((l) => (l.lineId ? [l.lineId] : [])),
+  ])
+  const nestedUnder = (l: ExtraLine) =>
+    !!l.parentLineId && l.parentLineId !== MAIN_LINE_ID && parentIds.has(l.parentLineId)
+  const renderExtras = (parentLineId: string): ReactNode => {
+    const kids = lines.filter((l) => l.parentLineId === parentLineId && nestedUnder(l))
+    return kids.length > 0 ? (
+      <div data-testid={`add-more-nested-${parentLineId}`} className="space-y-2">
+        {kids.map(renderLine)}
+      </div>
+    ) : null
+  }
+
+  return (
+    <section
+      data-testid="add-more-products"
+      className="space-y-3 rounded-lg border border-border bg-surface-raised p-4"
+    >
+      <div>
+        <h3 className="text-base font-semibold">{tr('addMoreTitle', locale)}</h3>
+        <p className="text-sm text-muted-foreground">{tr('addMoreIntro', locale)}</p>
+      </div>
+
+      {offers.removedNotice ? (
+        <p role="status" data-testid="offer-removed-notice" className="text-sm text-muted-foreground">
+          {tr('offerRemovedNotice', locale)}
+        </p>
+      ) : null}
+      {offers.checkFailed ? (
+        <p role="status" data-testid="offer-check-failed" className="text-sm text-muted-foreground">
+          {tr('offerCheckFailed', locale)}
+        </p>
+      ) : offers.isPending ? (
+        <p role="status" data-testid="offer-checking" className="text-xs text-muted-foreground">
+          {tr('offerChecking', locale)}
+        </p>
+      ) : null}
+
+      <OfferTree {...treeProps} parentLineId={MAIN_LINE_ID} showParentless={crossSellEnabled} />
+
+      {lines.filter((l) => !nestedUnder(l)).map(renderLine)}
 
     </section>
   )

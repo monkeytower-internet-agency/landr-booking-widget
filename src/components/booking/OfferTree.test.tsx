@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 
 import type { EvaluatedLine, EvaluatedOffer } from '@/api/types'
@@ -29,6 +29,8 @@ function Tree({
   showParentless,
   isPending,
   members = PARTY,
+  renderExtras,
+  onRenderedPicks,
 }: {
   verdicts: Record<string, EvaluatedLine>
   initial?: OfferPick[]
@@ -37,6 +39,8 @@ function Tree({
   showParentless?: boolean
   isPending?: boolean
   members?: PartyMember[]
+  renderExtras?: (parentLineId: string) => ReactNode
+  onRenderedPicks?: (treeId: string, ids: string[]) => void
 }) {
   const [picks, setPicks] = useState<OfferPick[]>(initial)
   return (
@@ -54,6 +58,8 @@ function Tree({
         onAddOwn={onAddOwn}
         showParentless={showParentless}
         isPending={isPending}
+        renderExtras={renderExtras}
+        onRenderedPicks={onRenderedPicks}
       />
       <output data-testid="picks">{JSON.stringify(picks.map((p) => [p.lineId, p.parentLineId]))}</output>
     </>
@@ -66,6 +72,48 @@ const poncho = evalOffer('poncho', { parent_product_id: 'shoes-p', product_id: '
 const lamp = evalOffer('lamp', { parent_product_id: 'poncho-p', product_id: 'lamp-p', name: 'Lamp' })
 
 describe('OfferTree', () => {
+  it('renders extras inside the picked row\'s subtree only, once, and reports the rendered picks', () => {
+    const second = evalOffer('second', { product_id: 'second-p', sort_order: 2 })
+    const renderExtras = vi.fn((id: string) => (id === 'o1' ? <p data-testid="extra">Extra</p> : null))
+    const onRenderedPicks = vi.fn()
+    render(
+      <Tree
+        verdicts={{ main: line('main', [tour, second]) }}
+        renderExtras={renderExtras}
+        onRenderedPicks={onRenderedPicks}
+      />,
+    )
+    expect(screen.queryByTestId('extra')).toBeNull()
+    fireEvent.click(screen.getByTestId('offer-toggle-tour'))
+    const nested = screen.getByTestId('offer-tree-o1')
+    expect(within(nested).getByTestId('extra')).toBeInTheDocument()
+    expect(screen.getAllByTestId('extra')).toHaveLength(1)
+    expect(nested.className).toMatch(/ml-4 border-l/)
+    expect(renderExtras).toHaveBeenCalledWith('o1')
+    expect(renderExtras).not.toHaveBeenCalledWith('o2')
+    expect(onRenderedPicks).toHaveBeenCalledWith('main', ['o1'])
+  })
+
+  it('reports no rendered pick for a row hidden while the check is pending', () => {
+    const onRenderedPicks = vi.fn()
+    const gated = evalOffer('gated', {
+      rules: { mode: 'all', items: [{ cond: 'guest_attr', key: 'age', op: 'gte', value: 10 }] },
+    })
+    const kid = PARTY.map((m) => ({ ...m, attributes: { age: 5 } }))
+    render(
+      <Tree
+        verdicts={{ main: line('main', [gated, tour]) }}
+        isPending
+        initial={[newPick(gated, 'main', 'o1', [])]}
+        members={kid}
+        onRenderedPicks={onRenderedPicks}
+      />,
+    )
+    expect(screen.queryByTestId('offer-row-gated')).toBeNull()
+    expect(onRenderedPicks).toHaveBeenCalledWith('main', [])
+    expect(onRenderedPicks).not.toHaveBeenCalledWith('main', ['o1'])
+  })
+
   it('lists what is included without controls', () => {
     const info = evalOffer('wifi', { mode: 'info', name: 'Wi-Fi', short_description: 'Fast' })
     render(<Tree verdicts={{ main: line('main', [info]) }} />)
