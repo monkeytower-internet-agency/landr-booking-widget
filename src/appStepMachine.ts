@@ -88,7 +88,6 @@ export interface BookingDraft {
   breakfastMap?: PartyBreakfastMap
   // Intermediate-step provenance + their entered values.
   pickupLocationId?: string | null
-  hadServiceAddons?: boolean
   // Declarations slice — re-seeds DeclarationsStep on the way forward.
   customerDeclarations?: Record<string, true> | null
   customerLanguages?: string[] | null
@@ -292,8 +291,7 @@ export type Step =
       breakfastMap?: PartyBreakfastMap
     }
   // landr-yf0n: optional pickupLocationId lets PickupLocationPicker re-
-  // seed its radio selection on back-nav re-entry. hadServiceAddons +
-  // hotelLocationId remember which upstream step the customer originally
+  // seed its radio selection on back-nav re-entry. hotelLocationId remembers which upstream step the customer originally
   // confirmed through so the back-nav routing can hop back through the
   // same intermediate steps instead of jumping straight to DetailsStep.
   // landr-sbhz.4: isSharedDouble threads through for back-nav restoration.
@@ -309,7 +307,6 @@ export type Step =
       addons: OfferPick[]
       pickupLocationId?: string | null
       hotelLocationId?: string | null
-      hadServiceAddons?: boolean
       includeHotel?: boolean
       isSharedDouble?: boolean
       accommodationMode?: AccommodationMode
@@ -348,7 +345,6 @@ export type Step =
       accommodationRooms: RoomSelection[]
       addons: OfferPick[]
       hotelLocationId?: string | null
-      hadServiceAddons?: boolean
       includeHotel?: boolean
       isSharedDouble?: boolean
       accommodationMode?: AccommodationMode
@@ -361,7 +357,7 @@ export type Step =
       // landr-71kz.4 (forward-compat): prior answers for back-nav restoration.
       initialAnswers?: Record<string, unknown>
     }
-  // landr-yf0n: hotelLocationId / hadServiceAddons / includeHotel remember
+  // landr-yf0n: hotelLocationId / includeHotel remember
   // the upstream path so the BookingForm back button can restore the
   // intermediate steps with their previously confirmed state.
   // landr-sbhz.4: isSharedDouble threads through so the back button
@@ -401,7 +397,6 @@ export type Step =
       accommodationRooms: RoomSelection[]
       addons: OfferPick[]
       hotelLocationId?: string | null
-      hadServiceAddons?: boolean
       includeHotel?: boolean
       isSharedDouble?: boolean
       accommodationMode?: AccommodationMode
@@ -425,7 +420,6 @@ export type Step =
       accommodationRooms: RoomSelection[]
       addons: OfferPick[]
       hotelLocationId?: string | null
-      hadServiceAddons?: boolean
       includeHotel?: boolean
       isSharedDouble?: boolean
       accommodationMode?: AccommodationMode
@@ -515,11 +509,6 @@ export function deriveAccommodationMode(
 //     accommodation even on the guiding-only opt-out (matching today's
 //     stepBeforeReview, which routes guiding-only opt-outs back to accommodation).
 //
-// `service_addons` is listed in every legacy plan but its visibility is a
-// runtime add-on probe in App.tsx; the back-nav walk consults the
-// `hadServiceAddons` provenance flag (set true only when the step actually
-// showed), so a product with no add-ons never routes Back to it — identical to
-// today.
 
 /**
  * The middle module kinds (everything strictly between participants and review)
@@ -633,17 +622,12 @@ function isModuleLive(
   kind: FlowModuleKind,
   ctx: {
     hotelLocationId?: string | null
-    hadServiceAddons?: boolean
   },
 ): boolean {
   switch (kind) {
     case 'pickup':
       // Hotel booked → the hotel IS the pickup; the free picker is skipped.
       return ctx.hotelLocationId == null
-    case 'service_addons':
-      // The add-ons step is gone: a product's offers are picked on the
-      // review step (AddMoreProducts), so this module is never a step.
-      return false
     default:
       return true
   }
@@ -658,7 +642,7 @@ function isModuleLive(
 function liveModuleBefore(
   product: Product,
   remoteFlow: RemoteFlow | null | undefined,
-  ctx: { hotelLocationId?: string | null; hadServiceAddons?: boolean },
+  ctx: { hotelLocationId?: string | null },
   fromKind?: FlowModuleKind,
 ): FlowModuleKind | null {
   const kinds = planMiddleKinds(product, remoteFlow)
@@ -701,10 +685,7 @@ export function stepAfterAccommodation(
   hotelLocationId: string | null,
   addons: OfferPick[] = [],
   // landr-yf0n: optional provenance flags so downstream steps can hand
-  // them back when the customer hits Back. hadServiceAddons distinguishes
-  // a customer who confirmed an empty add-ons step (gone now) from one who
-  // never saw it; includeHotel preserves the optional-mode Yes/No state.
-  hadServiceAddons: boolean = false,
+  // them back when the customer hits Back. includeHotel preserves the optional-mode Yes/No state.
   includeHotel: boolean | undefined = undefined,
   // landr-sbhz.4: shared-double flag for back-nav restoration.
   isSharedDouble: boolean | undefined = undefined,
@@ -721,16 +702,14 @@ export function stepAfterAccommodation(
 ): Step {
   // landr-71kz.3: plan walk for the post-accommodation forward target. The
   // legacy forward contract out of this call is EXACTLY three branches, and
-  // add-ons ALWAYS precede this call (App.tsx runs the add-ons probe before
-  // afterAccommodation), so `service_addons` must NEVER be a forward target
-  // here:
+  // no other module may be a forward target here:
   //   1. hotel booked (hotelLocationId != null) → fill-form (hotel is pickup);
   //   2. else needs_pickup → pick-pickup;
   //   3. else fill-form (pickup null).
   // The ONLY middle module that can terminate the post-accommodation search is
   // `pickup`. It is "live forward" iff it is in the plan (needs_pickup) AND no
   // hotel was booked (landr-4r80: a booked hotel becomes the pickup point, so
-  // the free picker is skipped). Any other module (service_addons, custom_form,
+  // the free picker is skipped). Any other module (custom_form,
   // declarations) is upstream-of or layered-on and must not divert this branch.
   //
   // REGRESSION FIX (PR #119 review): the previous walk let ANY live module
@@ -756,7 +735,6 @@ export function stepAfterAccommodation(
       accommodationRooms,
       addons,
       hotelLocationId: null,
-      hadServiceAddons,
       includeHotel,
       isSharedDouble,
       accommodationMode,
@@ -785,7 +763,6 @@ export function stepAfterAccommodation(
     accommodationRooms,
     addons,
     hotelLocationId,
-    hadServiceAddons,
     includeHotel,
     isSharedDouble,
     accommodationMode,
@@ -818,8 +795,7 @@ export function stepAfterAccommodation(
  *   3. else if a hotel offering exists (service + hotel_offering != 'none')
  *      → the customer passed through pick-accommodation (guiding-only
  *      opt-out) → Back goes to pick-accommodation.
- *   4. else if hadServiceAddons → Back goes to pick-service-addons.
- *   5. else → details.
+ *   4. else → details.
  *
  * `args` carries every field the upstream steps need to be reconstructed
  * with their previously-confirmed state restored (the same provenance
@@ -836,7 +812,6 @@ export interface StepBeforeReviewArgs {
   accommodationRooms: RoomSelection[]
   addons: OfferPick[]
   hotelLocationId?: string | null
-  hadServiceAddons?: boolean
   includeHotel?: boolean
   isSharedDouble?: boolean
   accommodationMode?: AccommodationMode
@@ -882,7 +857,6 @@ function reconstructCustomFormStep(
     accommodationRooms: args.accommodationRooms,
     addons: args.addons,
     hotelLocationId: args.hotelLocationId,
-    hadServiceAddons: args.hadServiceAddons,
     includeHotel: args.includeHotel,
     isSharedDouble: args.isSharedDouble,
     accommodationMode: args.accommodationMode,
@@ -939,7 +913,6 @@ function reconstructStepForModule(
         addons: args.addons,
         pickupLocationId: args.pickupLocationId,
         hotelLocationId: args.hotelLocationId,
-        hadServiceAddons: args.hadServiceAddons,
         includeHotel: args.includeHotel,
         isSharedDouble: args.isSharedDouble,
         accommodationMode: args.accommodationMode,
@@ -969,7 +942,6 @@ function reconstructStepForModule(
  *
  *   - hotel offering present (accommodation in the plan) → accommodation.
  *   - else pickup live (needs_pickup, no hotel) → pickup.
- *   - else service_addons shown → service_addons.
  *   - else details.
  */
 function reviewBackModule(args: StepBeforeReviewArgs): FlowModuleKind | null {
@@ -984,7 +956,6 @@ function reviewBackModule(args: StepBeforeReviewArgs): FlowModuleKind | null {
   // No hotel offering: the standard mirror over the remaining live middles.
   return liveModuleBefore(args.product, null, {
     hotelLocationId: args.hotelLocationId,
-    hadServiceAddons: args.hadServiceAddons,
   })
 }
 
@@ -1050,7 +1021,6 @@ export interface PreReviewArgs {
   accommodationRooms: RoomSelection[]
   addons: OfferPick[]
   hotelLocationId?: string | null
-  hadServiceAddons?: boolean
   includeHotel?: boolean
   isSharedDouble?: boolean
   accommodationMode?: AccommodationMode
@@ -1082,7 +1052,6 @@ function assignLanguagesStep(args: PreReviewArgs): Step {
     accommodationRooms: args.accommodationRooms,
     addons: args.addons,
     hotelLocationId: args.hotelLocationId,
-    hadServiceAddons: args.hadServiceAddons,
     includeHotel: args.includeHotel,
     isSharedDouble: args.isSharedDouble,
     accommodationMode: args.accommodationMode,
@@ -1365,7 +1334,7 @@ const BREADCRUMB_STEPS: ReadonlySet<Step['name']> = new Set([
  * with its prior state. landr-71kz.3: a backward plan walk from the `pickup`
  * module over the preceding live middles — hotel offering → accommodation (the
  * `accommodation` module is always present + live when the product offers a
- * hotel); else service add-ons → that step (live iff hadServiceAddons); else
+ * hotel); else
  * details. Reuses reconstructStepForModule so the back-nav Step shapes live in
  * one place.
  */
@@ -1383,7 +1352,6 @@ function stepBeforePickup(
         null,
         {
           hotelLocationId: step.hotelLocationId,
-          hadServiceAddons: step.hadServiceAddons,
         },
         'pickup',
       )
@@ -1399,7 +1367,6 @@ function stepBeforePickup(
     accommodationRooms: step.accommodationRooms,
     addons: step.addons,
     hotelLocationId: step.hotelLocationId,
-    hadServiceAddons: step.hadServiceAddons,
     includeHotel: step.includeHotel,
     isSharedDouble: step.isSharedDouble,
     accommodationMode: step.accommodationMode,
@@ -1441,7 +1408,6 @@ export function draftFromStep(step: Step): BookingDraft | undefined {
   if ('roomProductNames' in step) d.roomProductNames = step.roomProductNames
   if ('breakfastMap' in step) d.breakfastMap = step.breakfastMap
   if ('pickupLocationId' in step) d.pickupLocationId = step.pickupLocationId
-  if ('hadServiceAddons' in step) d.hadServiceAddons = step.hadServiceAddons
   if ('customerDeclarations' in step)
     d.customerDeclarations = step.customerDeclarations
   if ('customerLanguages' in step) d.customerLanguages = step.customerLanguages
@@ -1619,7 +1585,6 @@ export function stepBefore(step: Step, opts: BreadcrumbOptions): Step | null {
           accommodationRooms: step.accommodationRooms,
           addons: step.addons,
           hotelLocationId: step.hotelLocationId,
-          hadServiceAddons: step.hadServiceAddons,
           includeHotel: step.includeHotel,
           isSharedDouble: step.isSharedDouble,
           accommodationMode: step.accommodationMode,
@@ -1646,7 +1611,6 @@ export function stepBefore(step: Step, opts: BreadcrumbOptions): Step | null {
         accommodationRooms: step.accommodationRooms,
         addons: step.addons,
         hotelLocationId: step.hotelLocationId,
-        hadServiceAddons: step.hadServiceAddons,
         includeHotel: step.includeHotel,
         isSharedDouble: step.isSharedDouble,
         accommodationMode: step.accommodationMode,
@@ -1672,7 +1636,6 @@ export function stepBefore(step: Step, opts: BreadcrumbOptions): Step | null {
         accommodationRooms: step.accommodationRooms,
         addons: step.addons,
         hotelLocationId: step.hotelLocationId,
-        hadServiceAddons: step.hadServiceAddons,
         includeHotel: step.includeHotel,
         isSharedDouble: step.isSharedDouble,
         accommodationMode: step.accommodationMode,

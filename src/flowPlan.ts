@@ -28,8 +28,9 @@ import type { HotelOffering, ProductKind } from '@/api/types'
  * The module kinds a flow can be composed of. Mirrors
  * `public.product_flow_modules.module_kind` CHECK
  * (`selection, participants, accommodation, service_addons, pickup,
- * custom_form`) plus `review`, a widget-internal frame module the DB does not
- * store as a row:
+ * custom_form`) minus `service_addons` (retired: offers are picked on the
+ * review step, so a stored `service_addons` row is skipped) plus `review`, a
+ * widget-internal frame module the DB does not store as a row:
  *
  *   - `selection` — date / slot picker (always present; first, unless the
  *                   operator stored `participants` ahead of it — landr-rmcsu.6)
@@ -37,7 +38,6 @@ import type { HotelOffering, ProductKind } from '@/api/types'
  *                   its stored position, right after `selection` when the
  *                   remote flow has no participants row)
  *   - `accommodation` — hotel rooms (gated: service + hotel_offering != none)
- *   - `service_addons` — per-product add-ons (gated: probed at runtime)
  *   - `pickup` — free pickup-location picker (gated: needs_pickup, no hotel)
  *   - `custom_form` — operator-defined form (carries formKey)
  *   - `review` — the fill-form submit screen (pinned last, always present)
@@ -50,7 +50,6 @@ export type FlowModuleKind =
   | 'selection'
   | 'participants'
   | 'accommodation'
-  | 'service_addons'
   | 'pickup'
   | 'custom_form'
   | 'review'
@@ -139,10 +138,6 @@ export function productHasHotelOffering(product: {
  * Order (pinned frame + gated middles):
  *   selection → participants
  *     → accommodation   iff productHasHotelOffering(product)
- *     → service_addons  (always listed; the funnel probes for add-ons at
- *                        runtime and skips the step when there are none — the
- *                        plan models the POTENTIAL step, the runtime gate
- *                        decides visibility, identical to today)
  *     → pickup          iff needs_pickup (the hotel-skips-pickup rule from
  *                        landr-4r80 is a RUNTIME decision — when a hotel is
  *                        booked the hotel becomes the pickup and this step is
@@ -150,9 +145,8 @@ export function productHasHotelOffering(product: {
  *                        walk applies the runtime hotel gate, exactly as today)
  *   → review
  *
- * NOTE: `service_addons` and `pickup` are listed as POTENTIAL modules; their
- * runtime gates (has-add-ons probe; hotel-is-pickup) are applied by the
- * step-machine walk, NOT by pruning them from the plan — this keeps the plan a
+ * NOTE: `pickup` is listed as a POTENTIAL module; its runtime gate
+ * (hotel-is-pickup) is applied by the step-machine walk, NOT by pruning them from the plan — this keeps the plan a
  * faithful description of the configured order while the dynamic skips stay
  * where they already live (and stay testable in isolation).
  */
@@ -163,8 +157,6 @@ function buildLegacyPlan(
   void settings // retained for API stability; no longer influences the legacy plan (landr-71kz.10).
   const plan: FlowModule[] = [{ kind: 'selection' }, { kind: 'participants' }]
   if (productHasHotelOffering(product)) plan.push({ kind: 'accommodation' })
-  // service_addons is always a potential module (runtime add-on probe gates it).
-  plan.push({ kind: 'service_addons' })
   // pickup is a potential module whenever the product needs a pickup; the
   // hotel-is-pickup runtime skip (landr-4r80) is applied by the walk.
   if (product.needs_pickup) plan.push({ kind: 'pickup' })
@@ -182,7 +174,6 @@ function buildLegacyPlan(
  */
 const REMOTE_MIDDLE_KINDS: ReadonlySet<string> = new Set([
   'accommodation',
-  'service_addons',
   'pickup',
   'custom_form',
 ])
@@ -227,7 +218,7 @@ function parseRemoteModule(raw: RemoteFlowModule): FlowModule | null {
  *         already knows the group size.
  *       · a flow holding only the selection/participants rows keeps the legacy
  *         middles (only the participants-first reorder applies) — the
- *         service_addons/pickup auto-injection question is landr-ws0ce.
+ *         pickup auto-injection question is landr-ws0ce.
  *     The plan is the DECLARED order. The step machine realises every middle
  *     after both frame steps, whatever participants' position among them:
  *     each middle needs the dates and the party (room assignment, add-on
@@ -315,8 +306,8 @@ function buildFlowPlanRaw(
       if (!parsed) return // unknown / malformed module → skip silently.
       parsedCount += 1
       // Product gate: accommodation only when the product actually offers a
-      // hotel. Other gated modules (service_addons probe, pickup hotel-skip)
-      // remain runtime decisions in the walk, identical to the legacy path.
+      // hotel. Other gated modules (pickup hotel-skip)
+      // remains a runtime decision in the walk, identical to the legacy path.
       if (parsed.kind === 'accommodation' && !productHasHotelOffering(product)) {
         return
       }
