@@ -13,9 +13,9 @@ import type { EstimateRequestBody, OfferEvaluateRequest } from '../src/api/types
 /**
  * Offer lines on the review step, end to end: the demo courtyard apartment
  * for 2 adults + a child of 8 over 4 nights shows the tourist tax (mandatory,
- * paid on arrival, attached by the server), air conditioning on picked
- * nights, a free cot for a guest, bed linen and a garage per booking, and
- * Wi-Fi as included. The submit carries offer lines with their ids, the
+ * charged online, attached by the server), air conditioning on picked
+ * nights, a free cot for a guest, bed linen per booking, a garage paid on
+ * arrival, and Wi-Fi as included. The submit carries offer lines with their ids, the
  * guests' refs, and never a price, collection or mode.
  *
  * Hermetic: every /api/public call is fulfilled in-spec from the mock
@@ -155,13 +155,14 @@ test('the demo apartment shows its offers and submits offer lines', async ({ pag
   const seen = await mockApi(page)
   await page.goto(`/?w=${TOKEN}`)
 
-  await expect(row(page, MOCK_OFFER_IDS.touristTax)).toContainText('€20.00 · Pay on arrival')
+  await expect(row(page, MOCK_OFFER_IDS.touristTax)).toContainText('€20.00')
+  await expect(row(page, MOCK_OFFER_IDS.touristTax)).not.toContainText('Pay on arrival')
   await expect(row(page, MOCK_OFFER_IDS.touristTax).getByTestId('offer-mandatory-badge')).toBeVisible()
   await expect(row(page, MOCK_OFFER_IDS.touristTax).getByRole('checkbox')).toHaveCount(0)
   await expect(row(page, MOCK_OFFER_IDS.airCon)).toContainText('€40.00')
   await expect(row(page, MOCK_OFFER_IDS.cot)).toContainText('Free')
   await expect(row(page, MOCK_OFFER_IDS.bedding)).toContainText('€35.00')
-  await expect(row(page, MOCK_OFFER_IDS.garage)).toContainText('€40.00')
+  await expect(row(page, MOCK_OFFER_IDS.garage)).toContainText('€40.00 · Pay on arrival')
   await expect(page.getByTestId(`offer-included-${MOCK_OFFER_IDS.wifi}`)).toContainText('Wi-Fi')
 
   // The party went to the evaluator by ref; the child's age with it.
@@ -175,6 +176,7 @@ test('the demo apartment shows its offers and submits offer lines', async ({ pag
   await page.getByTestId(`offer-toggle-${MOCK_OFFER_IDS.airCon}`).check()
   await page.getByTestId(`offer-day-${MOCK_OFFER_IDS.airCon}-${NIGHTS[1]}`).click()
   await page.getByTestId(`offer-who-${MOCK_OFFER_IDS.cot}-g3`).check()
+  await page.getByTestId(`offer-toggle-${MOCK_OFFER_IDS.garage}`).check()
   await expect
     .poll(() =>
       seen.estimate.some((b) =>
@@ -183,12 +185,17 @@ test('the demo apartment shows its offers and submits offer lines', async ({ pag
     )
     .toBe(true)
 
-  // The tourist tax is paid on arrival, outside the amount due now.
+  // The tourist tax is in the amount due (charged online): stay 4 x 90 +
+  // tax 20 + air conditioning 30 = 410; the garage is paid on arrival, outside it.
   const toggle = page.getByTestId('price-sidebar-mobile-toggle')
   if (await toggle.isVisible()) await toggle.click()
-  const onSite = page.getByTestId('price-sidebar-on-site').first()
-  await expect(onSite).toContainText('Tourist tax')
-  await expect(onSite).toContainText('€20.00')
+  const panel = page.getByTestId('price-sidebar-mobile-panel')
+  await expect(panel).toContainText('Tourist tax')
+  await expect(panel).toContainText('€410.00')
+  const onSite = panel.getByTestId('price-sidebar-on-site')
+  await expect(onSite).toContainText('Garage')
+  await expect(onSite).toContainText('€40.00')
+  await expect(onSite).not.toContainText('Tourist tax')
   // Close the drawer again: open, it covers the form's Confirm button.
   if (await toggle.isVisible()) await toggle.click()
 
@@ -205,6 +212,7 @@ test('the demo apartment shows its offers and submits offer lines', async ({ pag
   expect(ac).toMatchObject({ parent_line_id: 'main', selected_days: [NIGHTS[0], NIGHTS[2], NIGHTS[3]] })
   expect(typeof ac.line_id).toBe('string')
   expect(cot).toMatchObject({ parent_line_id: 'main', participant_id: 'g3', quantity: 1 })
+  expect(lines[0]).toMatchObject({ line_id: 'main' })
   expect(lines.some((l) => l.offer_id === MOCK_OFFER_IDS.touristTax)).toBe(false)
   for (const l of lines) {
     for (const k of ['price', 'collection', 'mode', 'schedule', 'binding']) expect(l).not.toHaveProperty(k)

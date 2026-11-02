@@ -53,6 +53,8 @@ export interface ExtraLine {
   lineId?: string
   offerId?: string
   parentLineId?: string
+  /** Added from a mandatory offer: the guest cannot remove it. */
+  mandatory?: boolean
   product: Product
   mode: ExtraLineMode
   /** Booked days ('days'), nights ('nights'), the slot date ('slot') or the window's days. */

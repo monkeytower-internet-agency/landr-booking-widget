@@ -11450,6 +11450,22 @@
             "title": "Draft",
             "type": "boolean"
           },
+          "effective_schedule": {
+            "anyOf": [
+              {
+                "enum": [
+                  "locked",
+                  "subset",
+                  "own"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective Schedule"
+          },
           "id": {
             "format": "uuid",
             "title": "Id",

@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 
 import type { EstimateLineItem, EvaluatedOffer } from '@/api/types'
-import { tr } from '@/lib/strings'
+import { qtyAdjustAriaLabel, tr } from '@/lib/strings'
 import { evalOffer, PARTY, STAY_DAYS } from './offerFixtures'
 import { newPick, type OfferPick, type OfferTreeInput, type PartyMember } from './offerCart'
 import { OfferRow } from './OfferRow'
@@ -202,7 +202,7 @@ describe('OfferRow: mode', () => {
   })
 
   it('shows who a server-attached mandatory person offer is added for', () => {
-    const offer = evalOffer('pass', { mode: 'mandatory', binding: 'person' })
+    const offer = evalOffer('pass', { mode: 'mandatory', binding: 'person', server_attached: true })
     const estimate = [
       { auto_attached: true, product_id: offer.product_id, participant_ids: ['g2'], line_total: '5.00' },
     ] as unknown as EstimateLineItem[]
@@ -212,9 +212,56 @@ describe('OfferRow: mode', () => {
   })
 
   it('names every admitted guest when the estimate has no attached lines yet', () => {
-    const offer = evalOffer('pass', { mode: 'mandatory', binding: 'person' })
+    const offer = evalOffer('pass', { mode: 'mandatory', binding: 'person', server_attached: true })
     render(<Row offer={offer} />)
     expect(screen.getByTestId('offer-auto-for')).toHaveTextContent('Added for Ada Lovelace, Bo Berg')
+  })
+})
+
+describe('OfferRow: migrated mandatory person offer', () => {
+  const offer = evalOffer('pass', {
+    mode: 'mandatory',
+    binding: 'person',
+    server_attached: false,
+    options: OPTIONS,
+  })
+  const seeded = () => picked(offer, { memberIds: ['m1', 'm2'] })
+
+  it('asks every ticked guest for an option, preselects none and locks the ticks', () => {
+    render(<Row offer={offer} initial={[seeded()]} />)
+    expect(screen.getByTestId('offer-who-pass-g1')).toBeDisabled()
+    expect(screen.getByTestId('offer-who-pass-g2')).toBeDisabled()
+    expect(screen.getByTestId('offer-option-pass-g1')).toHaveValue('')
+    expect(screen.getByTestId('offer-option-pass-g2')).toHaveValue('')
+    expect(screen.getByTestId('offer-option-required-pass')).toBeInTheDocument()
+  })
+
+  it('clears the warning once every guest has chosen', () => {
+    render(<Row offer={offer} initial={[seeded()]} />)
+    fireEvent.change(screen.getByTestId('offer-option-pass-g1'), { target: { value: 'one' } })
+    expect(screen.getByTestId('offer-option-required-pass')).toBeInTheDocument()
+    fireEvent.change(screen.getByTestId('offer-option-pass-g2'), { target: { value: 'both' } })
+    expect(screen.queryByTestId('offer-option-required-pass')).toBeNull()
+    expect(picksOf()[0]!.options).toEqual({ m1: 'one', m2: 'both' })
+  })
+})
+
+describe('OfferRow: stepper labels', () => {
+  it('names the offer in the German aria-labels', () => {
+    const offer = evalOffer('bikes', { binding: 'free', name: 'Fahrrad' })
+    render(<Row offer={offer} locale="de" initial={[picked(offer)]} />)
+    expect(screen.getByTestId('offer-qty-minus-bikes')).toHaveAttribute(
+      'aria-label',
+      qtyAdjustAriaLabel('decrease', 'Fahrrad', 'de'),
+    )
+    expect(screen.getByTestId('offer-qty-plus-bikes')).toHaveAttribute(
+      'aria-label',
+      qtyAdjustAriaLabel('increase', 'Fahrrad', 'de'),
+    )
+    expect(qtyAdjustAriaLabel('increase', 'Fahrrad', 'de')).toContain('Fahrrad')
+    expect(qtyAdjustAriaLabel('increase', 'Fahrrad', 'de')).not.toBe(
+      qtyAdjustAriaLabel('increase', 'Fahrrad', 'en'),
+    )
   })
 })
 

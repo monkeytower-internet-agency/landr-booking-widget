@@ -473,6 +473,61 @@ describe('Add more to this booking (review step)', () => {
     })
   })
 
+  it('drops an added product when the pick it hangs under is unticked', async () => {
+    const towel = offer('towel', { parent_product_id: 'main', schedule: 'locked', name: 'Towel' })
+    const guided = offer('guided-p', { parent_product_id: 'towel', product_id: 'camping', name: 'Camping' })
+    vi.mocked(getOffers).mockResolvedValue({
+      lines: [
+        { line_id: 'main', eligible: true, offers: [towel], draft: false },
+        { line_id: 'o1', eligible: true, offers: [guided], draft: false },
+      ],
+    })
+    vi.mocked(getAvailability).mockResolvedValue([])
+    vi.mocked(submitBooking).mockResolvedValue({ booking_id: 'b-8', semantic_state: 'pending' })
+    render(<Harness />)
+
+    const toggle = await screen.findByTestId('offer-toggle-offer-towel')
+    await act(async () => {
+      fireEvent.click(toggle)
+    })
+    const nested = await screen.findByTestId('offer-tree-o1')
+    await act(async () => {
+      fireEvent.click(within(nested).getByTestId('add-more-candidate-camping'))
+    })
+    await screen.findByTestId('add-more-line-camping')
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('offer-toggle-offer-towel'))
+    })
+    await waitFor(() => expect(screen.queryByTestId('add-more-line-camping')).toBeNull())
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+    })
+    await waitFor(() => expect(submitBooking).toHaveBeenCalledTimes(1))
+    const body = vi.mocked(submitBooking).mock.calls[0]![0]
+    expect(body.products.map((p) => p.product_id)).toEqual(['main'])
+  })
+
+  it('adds a mandatory own-dated offer on its own, with no way to remove it', async () => {
+    offerOnMain(offer('camping', { mode: 'mandatory', product_kind: 'stay' }))
+    vi.mocked(getAvailability).mockResolvedValue([])
+    vi.mocked(submitBooking).mockResolvedValue({ booking_id: 'b-9', semantic_state: 'pending' })
+    render(<Harness />)
+    const line = await screen.findByTestId('add-more-line-camping')
+    await waitFor(() => expect(line).not.toHaveTextContent(/Checking availability/))
+    expect(within(line).getByTestId('offer-mandatory-badge')).toBeInTheDocument()
+    expect(within(line).queryByRole('button', { name: 'Remove' })).toBeNull()
+    expect(screen.queryByTestId('add-more-candidate-camping')).toBeNull()
+    expect(getAvailability).toHaveBeenCalledWith('camping', '2026-11-02', '2026-11-03', undefined)
+    await confirm()
+    await waitFor(() => expect(submitBooking).toHaveBeenCalledTimes(1))
+    expect(vi.mocked(submitBooking).mock.calls[0]![0].products[1]).toMatchObject({
+      product_id: 'camping',
+      selected_days: ['2026-11-02', '2026-11-03'],
+      parent_line_id: 'main',
+    })
+  })
+
   it('adds only the products offered on the main line', async () => {
     const other = product('other', { name: 'Other' })
     vi.mocked(listProducts).mockResolvedValue([MAIN, CAMPING, other])

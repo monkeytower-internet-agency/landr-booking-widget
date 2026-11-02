@@ -630,10 +630,10 @@ const preview = (totalCents: number, priceUnit: 'booking' | 'night' | 'guest_nig
 /**
  * A neutral demo stay with offers on every binding / schedule / collection:
  * the "demo courtyard apartment". For 2 adults + a child of 8 over 4 nights:
- * tourist tax EUR 20 (mandatory, per person, paid on arrival, attached by the
+ * tourist tax EUR 20 (mandatory, per person, charged online, attached by the
  * server), air conditioning EUR 40 (optional, pick the nights), cot free
- * (optional, per person), bedding EUR 35 and garage EUR 40 (optional, per
- * booking), Wi-Fi included (info).
+ * (optional, per person), bedding EUR 35 (optional, per booking), garage
+ * EUR 40 (optional, per booking, paid on arrival), Wi-Fi included (info).
  */
 export const mockOfferStay: Product = {
   ...mockOccupancyStay,
@@ -673,7 +673,7 @@ export function mockOfferStayOffers(): EvaluatedOffer[] {
     mockOffer(MOCK_OFFER_IDS.touristTax, stay, MOCK_OFFER_PRODUCTS.touristTax, 'Tourist tax', {
       mode: 'mandatory',
       binding: 'person',
-      collection: 'on_site',
+      collection: 'online',
       server_attached: true,
       sort_order: 1,
       rules: { mode: 'all', items: [{ cond: 'guest_attr', key: 'age', op: 'gte', value: 10 }] },
@@ -695,6 +695,7 @@ export function mockOfferStayOffers(): EvaluatedOffer[] {
       price_preview: preview(3500),
     }),
     mockOffer(MOCK_OFFER_IDS.garage, stay, MOCK_OFFER_PRODUCTS.garage, 'Garage', {
+      collection: 'on_site',
       sort_order: 5,
       price_preview: preview(4000),
     }),
@@ -938,6 +939,7 @@ export const mockEstimate = (
   // Offer lines of the demo courtyard apartment, priced like the evaluator's
   // preview (per night for a day-pick), echoed with their offer fields.
   const stayOffers = new Map(mockOfferStayOffers().map((o) => [o.id, o]))
+  let onSite = 0
   for (const addon of body.addon_lines) {
     const offer = addon.offer_id ? stayOffers.get(addon.offer_id) : undefined
     if (!offer) continue
@@ -961,28 +963,28 @@ export const mockEstimate = (
       collection: offer.collection,
       mode: offer.mode,
       participant_ids: addon.participant_id ? [addon.participant_id] : null,
+      ...(offer.collection === 'on_site' ? { collection_amount: total.toFixed(2) } : {}),
     })
+    if (offer.collection === 'on_site') onSite += total
   }
   // The server attaches the tourist tax itself: EUR 2.50 per night for each
   // guest of 10 or more (an unanswered age counts as an adult here).
-  let onSite = 0
   if (productId === mockOfferStay.product_id && body.guests && body.guests.length > 0) {
     const tax = stayOffers.get(MOCK_OFFER_IDS.touristTax)!
     const covered = body.guests.filter((g) => typeof g.attributes.age !== 'number' || g.attributes.age >= 10)
     if (covered.length > 0) {
-      onSite = 2.5 * days * covered.length
+      const tourist = 2.5 * days * covered.length
       lineItems.push({
         product_id: tax.product_id,
         label: tax.name,
         qty: covered.length,
         units: days,
         unit_price: '2.50',
-        line_total: onSite.toFixed(2),
+        line_total: tourist.toFixed(2),
         paid_to: 'operator',
         offer_id: tax.id,
         parent_line_id: body.main_line_id ?? 'main',
-        collection: 'on_site',
-        collection_amount: onSite.toFixed(2),
+        collection: 'online',
         mode: 'mandatory',
         auto_attached: true,
         participant_ids: covered.map((g) => g.id),

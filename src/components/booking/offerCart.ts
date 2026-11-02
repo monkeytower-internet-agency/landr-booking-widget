@@ -151,8 +151,11 @@ export function guestsWire(members: readonly PartyMember[]): OfferEvaluateGuest[
  * whose product is `parent_subset`) picks its days like a `subset` one.
  */
 export function effectiveSchedule(
-  o: Pick<EvaluatedOffer, 'schedule' | 'day_selection'>,
+  o: Pick<EvaluatedOffer, 'schedule' | 'day_selection' | 'effective_schedule'>,
 ): OfferSchedule {
+  // The server's word (offer_lines.schedule_days); inferred only from an
+  // older API that does not send it.
+  if (o.effective_schedule) return o.effective_schedule
   if (o.schedule === 'locked' && o.day_selection === 'parent_subset') return 'subset'
   return o.schedule
 }
@@ -249,7 +252,6 @@ export function newPick(
   parentDays: readonly string[],
 ): OfferPick {
   const schedule = effectiveSchedule(offer)
-  const firstOption = offer.mode === 'mandatory' ? offer.options?.[0]?.key : undefined
   return {
     lineId,
     parentLineId,
@@ -259,8 +261,8 @@ export function newPick(
     schedule,
     mode: offer.mode,
     memberIds: [],
-    options:
-      offer.binding !== 'person' && firstOption ? { [WHOLE_BOOKING]: firstOption } : {},
+    // Never a default option: the guest chooses (picksBlocking holds Confirm).
+    options: {},
     quantity: offer.binding === 'free' ? clampOfferQty(offer, Math.max(1, offer.min_qty)) : 1,
     days: schedule === 'subset' ? [...parentDays] : [],
     seen: offer,
@@ -519,8 +521,9 @@ export type VerdictsByLine = Readonly<Record<string, EvaluatedLine>>
 /**
  * Mandatory offers start picked (and cannot be removed): booking / free ones
  * at `max(1, min_qty)` with their first option. A mandatory per-person offer
- * is attached by the server itself (`server_attached`, the default when the
- * API does not say) and is never seeded; a migrated one (`server_attached`
+ * is attached by the server itself (`server_attached` true) and is never
+ * seeded; any other (`server_attached` false, or absent on an older API, so a
+ * line is never silently dropped; the server replaces copies it attaches) (`server_attached`
  * false) becomes a read-only pick ticking every guest its rules admit.
  * Idempotent; offers already in the cart (`in_cart`) are left alone.
  */
@@ -540,15 +543,13 @@ export function seedMandatory(
       if (offer.mode !== 'mandatory' || offer.in_cart) continue
       if (effectiveSchedule(offer) === 'own' || isOfferSoldOut(offer)) continue
       if (out.some((p) => p.offerId === offer.id && p.parentLineId === parentLineId)) continue
-      if (offer.binding === 'person' && offer.server_attached !== false) continue
+      if (offer.binding === 'person' && offer.server_attached === true) continue
       const id = nextLineId(prefix, treeLineIds(tree, out))
       const pick = newPick(offer, parentLineId, id, lineDays(parentLineId, tree, out))
       if (offer.binding === 'person') {
         const admitted = admittedMembers(offer, members)
         if (admitted.length === 0) continue
-        const first = offer.options?.[0]?.key
         pick.memberIds = admitted.map((m) => m.key)
-        pick.options = first ? Object.fromEntries(admitted.map((m) => [m.key, first])) : {}
       }
       out = addPick(out, pick, tree)
     }
@@ -597,7 +598,17 @@ export function reconcile(
       continue
     }
     let next: OfferPick = { ...p, seen }
-    if (p.binding === 'person') {
+    if (p.binding === 'person' && p.mode === 'mandatory') {
+      // A mandatory per-person pick covers every guest its rules admit: one
+      // who joined since is added, one who left or no longer matches goes.
+      const memberIds = admittedMembers(seen, members).map((m) => m.key)
+      if (memberIds.length === 0) {
+        drop.add(p.lineId)
+        continue
+      }
+      const options = Object.fromEntries(Object.entries(p.options).filter(([k]) => memberIds.includes(k)))
+      next = { ...next, memberIds, options }
+    } else if (p.binding === 'person') {
       const memberIds = p.memberIds.filter((k) => memberKeys.has(k))
       if (memberIds.length === 0) {
         drop.add(p.lineId)
@@ -690,7 +701,7 @@ function pickWireLines(
   const out: PickWireLine[] = []
   for (const p of picks) {
     if (p.mode === 'info') continue
-    if (p.binding === 'person' && p.seen.server_attached !== false && p.mode === 'mandatory') {
+    if (p.binding === 'person' && p.seen.server_attached === true && p.mode === 'mandatory') {
       continue
     }
     const days = lineDays(p.lineId, tree, picks)
@@ -827,6 +838,33 @@ export function cartTree(
   }
 }
 
+/**
+ * The added products whose parent left the cart (a pick unticked, an
+ * added product removed), with everything under them: their keys. Such a
+ * line would be refused at submit (`offer_parent_unknown`).
+ */
+export function orphanExtraKeys(
+  extras: readonly ExtraLine[],
+  tree: OfferTreeInput,
+  picks: readonly OfferPick[],
+): Set<string> {
+  const base = new Set([tree.main.lineId, ...(tree.rooms ?? []).map((r) => r.lineId), ...picks.map((p) => p.lineId)])
+  const alive = new Set<string>()
+  let grew = true
+  while (grew) {
+    grew = false
+    for (const e of extras) {
+      if (!e.lineId || alive.has(e.lineId)) continue
+      const parent = e.parentLineId ?? MAIN_LINE_ID
+      if (base.has(parent) || alive.has(parent)) {
+        alive.add(e.lineId)
+        grew = true
+      }
+    }
+  }
+  return new Set(extras.filter((e) => e.lineId && !alive.has(e.lineId)).map((e) => e.key))
+}
+
 /** The tree line (main, a room type, an added product) a pick hangs under. */
 export function ownerLineOf(pick: OfferPick, picks: readonly OfferPick[]): string {
   let cur = pick
@@ -942,7 +980,18 @@ export function reasonText(
 ): string {
   if (!key) return tr('eligGeneric', locale)
   if (key.startsWith('attribute_missing.')) return tr('eligAnswerNeeded', locale)
-  if (key === 'guest_attr_all.age' || key === 'guest_attr.age') {
+  if (key === 'guest_attr.age') {
+    // "Some guest matches": at least one guest must fit the bound.
+    const op = params?.op
+    const value = params?.value
+    if (op === 'gte' && num(value) !== null) return fmt(tr('eligNeedsGuestAtLeast', locale), { n: num(value)! })
+    if (op === 'lte' && num(value) !== null) return fmt(tr('eligNeedsGuestAtMost', locale), { n: num(value)! })
+    if (op === 'between' && Array.isArray(value) && num(value[0]) !== null && num(value[1]) !== null) {
+      return fmt(tr('eligNeedsGuestBetween', locale), { min: num(value[0])!, max: num(value[1])! })
+    }
+    return tr('eligAgeGeneric', locale)
+  }
+  if (key === 'guest_attr_all.age') {
     const op = params?.op
     const value = params?.value
     if (op === 'gte' && num(value) !== null) {

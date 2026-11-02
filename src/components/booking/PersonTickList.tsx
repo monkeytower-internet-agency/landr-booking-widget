@@ -18,6 +18,8 @@ interface Props {
   currency: string
   locale: string
   disabled?: boolean
+  /** The option selects' own disabled state (default: `disabled`). */
+  optionsDisabled?: boolean
   onToggle: (memberKey: string) => void
   onOption: (memberKey: string, optionKey: string) => void
 }
@@ -32,6 +34,7 @@ export function PersonTickList({
   currency,
   locale,
   disabled,
+  optionsDisabled = disabled,
   onToggle,
   onOption,
 }: Props) {
@@ -59,7 +62,7 @@ export function PersonTickList({
                 data-testid={`offer-option-${offerId}-${m.ref}`}
                 className="rounded border border-border px-2 py-0.5 text-sm"
                 value={picked[m.key] ?? ''}
-                disabled={disabled}
+                disabled={optionsDisabled}
                 onChange={(e) => e.target.value && onOption(m.key, e.target.value)}
               >
                 {picked[m.key] ? null : <option value="">{tr('offerOptionPlaceholder', locale)}</option>}

@@ -31,6 +31,7 @@ import {
   cartTree,
   evaluateLines,
   guestsWire,
+  orphanExtraKeys,
   MAIN_LINE_ID,
   partyMembers,
   picksBlocking,
@@ -1288,6 +1289,14 @@ export function BookingForm({
       return onConfirmRef.current?.(opts)
     })
   }, [offers.isPending])
+  // An added product whose parent pick went (unticked, quantity 0, dropped by
+  // a verdict) goes too, with everything under it: it would be refused.
+  const orphanKey = [...orphanExtraKeys(crossSellLines, offerTree, allPicks)].sort().join(',')
+  useEffect(() => {
+    if (!orphanKey || !setExtraLines) return
+    const gone = new Set(orphanKey.split(','))
+    void Promise.resolve().then(() => setExtraLines((prev) => prev.filter((l) => !gone.has(l.key))))
+  }, [orphanKey, setExtraLines])
   const mainVerdict = offers.byLine[MAIN_LINE_ID]
   const mainIneligible = !offers.isPending && mainVerdict?.eligible === false
   const offersBlocked = picksBlocking(offerPicks)
@@ -1709,9 +1718,7 @@ export function BookingForm({
           quantity: 1,
           selected_days: selectedDaysForSubmit,
           // The cart tree's root: every offer line names it (or a line under it).
-          ...(offerLines.length > 0 || crossSellLines.some((l) => l.lineId && l.offerId)
-            ? { line_id: MAIN_LINE_ID }
-            : {}),
+          line_id: MAIN_LINE_ID,
           // landr-6stj: forward the exact product_availability row the
           // customer clicked (AvailabilityPicker/FixedDateWindowPicker both
           // populate slot.availability_id) so the RPC can persist it instead
@@ -1803,7 +1810,7 @@ export function BookingForm({
           const hasBreakfast = breakfastMap[idx] === true
           return {
             // The person's id inside this body; offer lines name it.
-            ...(offerLines.length > 0 ? { ref: offerMembers[idx]?.ref } : {}),
+            ref: offerMembers[idx]?.ref,
             first_name: p.first_name,
             last_name: p.last_name || null,
             email: p.email || null,
@@ -1870,7 +1877,7 @@ export function BookingForm({
                 // landr-a4fy: per-occupant breakfast flag for companions.
                 const hasBreakfast = breakfastMap[memberIdx] === true
                 return {
-                  ...(offerLines.length > 0 ? { ref: offerMembers[memberIdx]?.ref } : {}),
+                  ref: offerMembers[memberIdx]?.ref,
                   first_name: c.first_name,
                   last_name: c.last_name || null,
                   email: c.email || null,

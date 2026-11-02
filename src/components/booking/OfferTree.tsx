@@ -71,6 +71,8 @@ export function OfferTree(props: OfferTreeProps) {
   } = props
   const verdict = verdicts[parentLineId]
   const depth = depthOf(parentLineId, tree, picks)
+  // A row sits one level under its parent: none past the deepest level.
+  if (depth + 1 > MAX_OFFER_DEPTH) return null
   const all = [...(verdict?.offers ?? [])]
     .filter((o) => showParentless || o.parent_product_id != null)
     // While the party changed and the answer is in flight: hide what this
@@ -79,7 +81,9 @@ export function OfferTree(props: OfferTreeProps) {
     .sort((a, b) => a.sort_order - b.sort_order)
   const info = all.filter((o) => o.mode === 'info')
   const own = all.filter(
-    (o) => o.mode !== 'info' && effectiveSchedule(o) === 'own' && !o.in_cart && (ownAllowed?.(o) ?? true),
+    // A mandatory one is added by the caller itself, never offered as a button.
+    (o) =>
+      o.mode === 'optional' && effectiveSchedule(o) === 'own' && !o.in_cart && (ownAllowed?.(o) ?? true),
   )
   const rows = all.filter((o) => o.mode !== 'info' && effectiveSchedule(o) !== 'own')
   if (info.length === 0 && rows.length === 0 && (own.length === 0 || !onAddOwn)) return null

@@ -14,13 +14,14 @@ import type { Dispatch, SetStateAction } from 'react'
 import type { EstimateLineItem, EvaluatedOffer } from '@/api/types'
 import { Button } from '@/components/ui/button'
 import { pickLocalized } from '@/lib/locale'
-import { fmt, tr } from '@/lib/strings'
+import { fmt, qtyAdjustAriaLabel, tr } from '@/lib/strings'
 import { useCompanionDayStock } from './companionStock'
 import { formatDayLabel } from './dateLabel'
 import {
   addPick,
   admittedMembers,
   clampOfferQty,
+  effectiveSchedule,
   isOfferSoldOut,
   missingOption,
   newPick,
@@ -82,8 +83,9 @@ export function OfferRow({
 }: Props) {
   const mandatory = offer.mode === 'mandatory'
   const readOnlyPerson = mandatory && offer.binding === 'person'
-  const serverAttached = readOnlyPerson && offer.server_attached !== false
-  const subset = (pick?.schedule ?? offer.schedule) === 'subset' || offer.day_selection === 'parent_subset'
+  const serverAttached = readOnlyPerson && offer.server_attached === true
+  const schedule = effectiveSchedule(offer)
+  const subset = schedule === 'subset'
   const soldOut = !pick && isOfferSoldOut(offer)
   const off = disabled || soldOut
   const admitted = admittedMembers(offer, members)
@@ -169,7 +171,24 @@ export function OfferRow({
         <OfferPrice offer={offer} locale={locale} estimate={estimate} currency={currency} />
       </div>
 
-      {readOnlyPerson ? (
+      {readOnlyPerson && pick && !serverAttached && options.length > 0 ? (
+        // A migrated mandatory per-person extra with options: every admitted
+        // guest is in, each picks their option (nothing preselected).
+        <PersonTickList
+          offerId={offer.id}
+          members={members.filter((m) => pick.memberIds.includes(m.key))}
+          ticked={pick.memberIds}
+          admitted={admittedKeys}
+          options={options}
+          picked={pick.options}
+          currency={currency}
+          locale={locale}
+          disabled
+          optionsDisabled={disabled}
+          onToggle={() => {}}
+          onOption={onOption}
+        />
+      ) : readOnlyPerson ? (
         autoNames.length > 0 ? (
           <p className="text-sm text-muted-foreground" data-testid="offer-auto-for">
             {fmt(tr('offerAutoFor', locale), { names: autoNames.join(', ') })}
@@ -228,7 +247,7 @@ export function OfferRow({
             type="button"
             size="icon-sm"
             variant="outline"
-            aria-label="−"
+            aria-label={qtyAdjustAriaLabel('decrease', name, locale)}
             data-testid={`offer-qty-minus-${offer.id}`}
             disabled={off || qty <= (mandatory ? Math.max(1, offer.min_qty) : 0)}
             onClick={() => onQuantity(qty - 1 < offer.min_qty ? 0 : qty - 1)}
@@ -240,7 +259,7 @@ export function OfferRow({
             type="button"
             size="icon-sm"
             variant="outline"
-            aria-label="+"
+            aria-label={qtyAdjustAriaLabel('increase', name, locale)}
             data-testid={`offer-qty-plus-${offer.id}`}
             disabled={off || qty >= maxQty}
             onClick={() => onQuantity(Math.max(qty + 1, offer.min_qty))}
@@ -261,7 +280,7 @@ export function OfferRow({
           disabled={disabled}
           onToggle={onDay}
         />
-      ) : (pick || serverAttached) && parentDays.length > 0 && offer.schedule === 'locked' ? (
+      ) : (pick || serverAttached) && parentDays.length > 0 && schedule === 'locked' ? (
         <p className="text-xs text-muted-foreground" data-testid={`offer-period-${offer.id}`}>
           {fmt(tr('offerPeriodLocked', locale), {
             period:

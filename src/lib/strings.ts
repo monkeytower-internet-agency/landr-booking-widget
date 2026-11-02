@@ -1018,6 +1018,9 @@ export type Bundle = {
   eligNoGuestsUnder: string
   eligGuestsUpTo: string
   eligGuestsBetween: string
+  eligNeedsGuestAtLeast: string
+  eligNeedsGuestAtMost: string
+  eligNeedsGuestBetween: string
   eligAgeGeneric: string
   eligAnswerNeeded: string
   eligNotOnDates: string
@@ -2029,6 +2032,9 @@ const en: Bundle = {
   eligNoGuestsUnder: 'No guests under {n}',
   eligGuestsUpTo: 'Only for guests up to {n}',
   eligGuestsBetween: 'Only for guests aged {min} to {max}',
+  eligNeedsGuestAtLeast: 'At least one guest must be {n} or older',
+  eligNeedsGuestAtMost: 'At least one guest must be {n} or younger',
+  eligNeedsGuestBetween: 'At least one guest must be aged {min} to {max}',
   eligAgeGeneric: 'Not available for the ages in your party',
   eligAnswerNeeded: 'Please answer the guest questions first',
   eligNotOnDates: 'Not available on your dates',

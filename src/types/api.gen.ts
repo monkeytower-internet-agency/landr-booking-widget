@@ -17295,6 +17295,8 @@ export interface components {
              * @default false
              */
             draft: boolean;
+            /** Effective Schedule */
+            effective_schedule?: ("locked" | "subset" | "own") | null;
             /**
              * Id
              * Format: uuid

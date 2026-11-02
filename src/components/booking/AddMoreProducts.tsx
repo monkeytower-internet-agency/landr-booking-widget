@@ -46,8 +46,11 @@ import { PickupLocationPicker } from './PickupLocationPicker'
 import type { FormPersonSource } from './formScopes'
 import { toHHMM } from './slotKey'
 import {
+  depthOf,
+  effectiveSchedule,
   lineDays,
   MAIN_LINE_ID,
+  MAX_OFFER_DEPTH,
   nextLineId,
   removeLine,
   treeLineIds,
@@ -178,7 +181,7 @@ export function AddMoreProducts({
   const ownOfferProducts = canAddOwn
     ? Object.values(offers.verdicts)
         .flatMap((v) => v.offers ?? [])
-        .filter((o) => o.schedule === 'own' && o.mode !== 'info')
+        .filter((o) => effectiveSchedule(o) === 'own' && o.mode !== 'info')
         .map((o) => o.product_id)
     : []
   const flowIds = [...new Set(ownOfferProducts)]
@@ -301,6 +304,7 @@ export function AddMoreProducts({
     const p = productOf(o)
     if (!p) return
     onLinesChange((prev) => {
+      if (prev.some((l) => l.offerId === o.id && (l.parentLineId ?? MAIN_LINE_ID) === parentLineId)) return prev
       const taken = [...treeLineIds(offers.tree, offers.picks), ...prev.flatMap((l) => (l.lineId ? [l.lineId] : []))]
       const lineId = nextLineId('o', taken)
       const days = parentLineId === MAIN_LINE_ID ? mainDays : lineDays(parentLineId, offers.tree, offers.picks)
@@ -311,11 +315,39 @@ export function AddMoreProducts({
           lineId,
           offerId: o.id,
           parentLineId,
+          ...(o.mode === 'mandatory' ? { mandatory: true } : {}),
           checking: true,
         },
       ]
     })
   }
+  // A mandatory own-dated offer is added on its own, inheriting its parent's
+  // days, once its product (and flow) is known; the guest cannot remove it.
+  const mandatoryOwn = canAddOwn
+    ? Object.entries(offers.verdicts).flatMap(([parentLineId, v]) =>
+        treeLineIds(offers.tree, offers.picks).has(parentLineId) &&
+        depthOf(parentLineId, offers.tree, offers.picks) + 1 <= MAX_OFFER_DEPTH
+          ? (v.offers ?? [])
+              .filter((o) => o.mode === 'mandatory' && effectiveSchedule(o) === 'own' && !o.in_cart)
+              .map((o) => ({ o, parentLineId }))
+          : [],
+      )
+    : []
+  const missingMandatory = mandatoryOwn.filter(
+    ({ o, parentLineId }) =>
+      !lines.some((l) => l.offerId === o.id && (l.parentLineId ?? MAIN_LINE_ID) === parentLineId) &&
+      productOf(o) &&
+      productOf(o)!.product_id in flows,
+  )
+  const missingKey = missingMandatory.map(({ o, parentLineId }) => `${parentLineId}:${o.id}`).join(',')
+  useEffect(() => {
+    if (!missingKey) return
+    void Promise.resolve().then(() => {
+      for (const { o, parentLineId } of missingMandatory) addOwn(o, parentLineId)
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on the missing set
+  }, [missingKey])
+
   const removeExtra = (line: ExtraLine) => {
     const gone = new Set<string>([line.key])
     if (line.lineId) {
@@ -446,14 +478,20 @@ export function AddMoreProducts({
           >
             <div className="flex items-center justify-between gap-2">
               <span className="font-medium">{name(line.product)}</span>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => removeExtra(line)}
-              >
-                {tr('addMoreRemove', locale)}
-              </Button>
+              {line.mandatory ? (
+                <span data-testid="offer-mandatory-badge" className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                  {tr('offerMandatoryBadge', locale)}
+                </span>
+              ) : (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => removeExtra(line)}
+                >
+                  {tr('addMoreRemove', locale)}
+                </Button>
+              )}
             </div>
 
             {line.mode === 'days' || line.mode === 'nights' ? (

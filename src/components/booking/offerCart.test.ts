@@ -292,7 +292,9 @@ describe('seedMandatory', () => {
     const linen = picks.find((p) => p.offerId === 'linen')!
     // The 8-year-old fails age >= 10; the unanswered adults may still match.
     expect(linen.memberIds).toEqual(['m-ada', 'm-bob'])
-    expect(linen.options).toEqual({ 'm-ada': 'single', 'm-bob': 'single' })
+    // No option is preselected: each guest chooses (Confirm waits for it).
+    expect(linen.options).toEqual({})
+    expect(picksBlocking(picks)).toBe(true)
     expect(picks.find((p) => p.offerId === 'fee')!.quantity).toBe(2)
   })
 
@@ -373,9 +375,15 @@ describe('display', () => {
   it('says why a line cannot be booked', () => {
     expect(reasonText('guest_attr_all.age', { op: 'gte', value: 10 }, 'en')).toBe('No guests under 10')
     expect(reasonText('guest_attr_all.age', { op: 'gte', value: 10 }, 'de')).toBe('Keine Gäste unter 10')
-    expect(reasonText('guest_attr.age', { op: 'lte', value: 12 }, 'en')).toBe('Only for guests up to 12')
-    expect(reasonText('guest_attr.age', { op: 'between', value: [3, 11] }, 'en')).toBe(
+    expect(reasonText('guest_attr_all.age', { op: 'lte', value: 12 }, 'en')).toBe('Only for guests up to 12')
+    expect(reasonText('guest_attr_all.age', { op: 'between', value: [3, 11] }, 'en')).toBe(
       'Only for guests aged 3 to 11',
+    )
+    // "Some guest" rules read differently from "every guest" ones.
+    expect(reasonText('guest_attr.age', { op: 'gte', value: 18 }, 'en')).toBe('At least one guest must be 18 or older')
+    expect(reasonText('guest_attr.age', { op: 'lte', value: 2 }, 'de')).toBe('Mindestens ein Gast muss 2 Jahre oder jünger sein')
+    expect(reasonText('guest_attr.age', { op: 'between', value: [3, 11] }, 'en')).toBe(
+      'At least one guest must be aged 3 to 11',
     )
     expect(reasonText('guest_attr_all.age', null, 'en')).toBe('Not available for the ages in your party')
     expect(reasonText('attribute_missing.age', null, 'en')).toBe('Please answer the guest questions first')
@@ -391,5 +399,42 @@ describe('display', () => {
     expect(instantGate(rules, members.slice(0, 2))).toBe(true) // nobody answered yet
     expect(instantGate({ mode: 'any', items: [] }, members)).toBe(true)
     expect(instantGate(null, members)).toBe(true)
+  })
+})
+
+describe('review fixes', () => {
+  it('reads the server effective schedule over the inference', () => {
+    expect(effectiveSchedule({ schedule: 'locked', day_selection: 'parent_subset', effective_schedule: 'locked' })).toBe('locked')
+    expect(effectiveSchedule({ schedule: 'locked', effective_schedule: 'subset' })).toBe('subset')
+  })
+
+  it('sends one line per guest when the API does not say server_attached', () => {
+    const o = offer('linen', { binding: 'person', mode: 'mandatory' })
+    delete (o as Partial<EvaluatedOffer>).server_attached
+    const picks = seedMandatory([], { main: verdict(MAIN_LINE_ID, [o]) }, tree, members)
+    expect(toProductLines(picks, tree, members)).toHaveLength(3)
+  })
+
+  it('a mandatory per-person pick follows the party: 3 guests then 4', () => {
+    const linen = offer('linen', { binding: 'person', mode: 'mandatory', server_attached: false })
+    const v = { main: verdict(MAIN_LINE_ID, [linen]) }
+    let picks = seedMandatory([], v, tree, members)
+    expect(toProductLines(picks, tree, members)).toHaveLength(3)
+    const four = partyMembers(
+      [{ id: 'm-ada' }, { id: 'm-bob' }],
+      [{ id: 'm-kid', occupant_age_band: 'child', occupant_age: 8 }, { id: 'm-new' }],
+    )
+    picks = reconcile(picks, v, tree, four).picks
+    expect(toProductLines(picks, tree, four).map((l) => l.participant_id)).toEqual(['g1', 'g2', 'g3', 'g4'])
+  })
+
+  it('finds the added products hung off a pick that went, and their own', async () => {
+    const { orphanExtraKeys } = await import('./offerCart')
+    const extra = (key: string, lineId: string, parentLineId: string) =>
+      ({ key, lineId, parentLineId, offerId: 'x', product: { product_id: key } }) as never
+    const extras = [extra('tour', 'o2', 'o1'), extra('shoes', 'o3', 'o2'), extra('kayak', 'o4', MAIN_LINE_ID)]
+    const withPick = [newPick(offer('pass'), MAIN_LINE_ID, 'o1', DAYS)]
+    expect([...orphanExtraKeys(extras, tree, withPick)]).toEqual([])
+    expect([...orphanExtraKeys(extras, tree, [])].sort()).toEqual(['shoes', 'tour'])
   })
 })

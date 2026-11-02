@@ -939,10 +939,13 @@ export interface EvaluatedOffer {
   in_cart: boolean
   price_preview?: OfferPricePreview | null
   stock?: OfferStock | null
+  /** The schedule the server prices by (a migrated day-picking row is `subset`). */
+  effective_schedule?: OfferSchedule | null
   /**
    * The server attaches this offer's lines itself on every estimate and
    * submit (a mandatory per-person offer): the widget never sends them.
-   * Absent on an older API: read as attached (the behaviour before).
+   * Absent on an older API: read as not attached (one line per guest is
+   * sent; the server replaces copies of what it attaches).
    */
   server_attached?: boolean
   draft: boolean

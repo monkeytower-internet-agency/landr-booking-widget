@@ -157,6 +157,31 @@ describe('OfferTree', () => {
     expect(screen.getByTestId('offer-row-adults')).toBeInTheDocument()
   })
 
+  it('renders no rows and no add button for a parent at depth 3', () => {
+    const p1 = newPick(tour, 'main', 'o1', STAY_DAYS)
+    const p2 = newPick(shoes, 'o1', 'o2', STAY_DAYS)
+    const p3 = newPick(poncho, 'o2', 'o3', STAY_DAYS)
+    const camping = evalOffer('camp', { schedule: 'own', parent_product_id: null, product_id: 'camping', name: 'Camping' })
+    const verdicts = { o3: line('o3', [lamp, camping]) }
+    render(
+      <OfferTree
+        parentLineId="o3"
+        verdicts={verdicts}
+        picks={[p1, p2, p3]}
+        onPicksChange={() => {}}
+        tree={TREE}
+        members={PARTY}
+        idPrefix="o"
+        locale="en"
+        currency="EUR"
+        onAddOwn={vi.fn()}
+      />,
+    )
+    expect(screen.queryByTestId('offer-row-lamp')).toBeNull()
+    expect(screen.queryByTestId('add-more-candidate-camping')).toBeNull()
+    expect(screen.queryByTestId('offer-tree-o3')).toBeNull()
+  })
+
   it.each(['de', 'es', 'tr'])('shows the badge and pay-on-arrival copy in %s', (locale) => {
     const fee = evalOffer('fee', {
       mode: 'mandatory',
