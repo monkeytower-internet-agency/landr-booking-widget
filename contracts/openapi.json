@@ -9958,6 +9958,48 @@
         "title": "DomainEligibility",
         "type": "object"
       },
+      "EligibilityRulesBody-Input": {
+        "additionalProperties": false,
+        "description": "PATCH body of a product's \"who can book\" document; null = everyone.",
+        "properties": {
+          "eligibility_rules": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OfferRules"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "eligibility_rules"
+        ],
+        "title": "EligibilityRulesBody",
+        "type": "object"
+      },
+      "EligibilityRulesBody-Output": {
+        "additionalProperties": false,
+        "description": "PATCH body of a product's \"who can book\" document; null = everyone.",
+        "properties": {
+          "eligibility_rules": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OfferRules"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "eligibility_rules"
+        ],
+        "title": "EligibilityRulesBody",
+        "type": "object"
+      },
       "EmailCollisionOut": {
         "properties": {
           "contact_id": {
@@ -47519,6 +47561,74 @@
           }
         ],
         "summary": "Patch Offer",
+        "tags": [
+          "staff-product-offers"
+        ]
+      }
+    },
+    "/api/operators/{operator_id}/products/{product_id}/eligibility-rules": {
+      "patch": {
+        "description": "Set \"who can book\" (``products.eligibility_rules``; null = everyone). 404\n``referenced_row_not_found`` for a product that is not this operator's, or\n(field ``rules``) a guest-attribute key outside the operator's catalogue or a\nproduct / season of another operator.",
+        "operationId": "patch_product_eligibility_rules",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Product Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EligibilityRulesBody-Input"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EligibilityRulesBody-Output"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Patch Product Eligibility Rules",
         "tags": [
           "staff-product-offers"
         ]
