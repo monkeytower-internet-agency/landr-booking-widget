@@ -14,7 +14,7 @@ import type { Dispatch, SetStateAction } from 'react'
 import type { EstimateLineItem, EvaluatedOffer } from '@/api/types'
 import { Button } from '@/components/ui/button'
 import { pickLocalized } from '@/lib/locale'
-import { fmt, qtyAdjustAriaLabel, tr } from '@/lib/strings'
+import { addonDeviationMessage, fmt, qtyAdjustAriaLabel, tr } from '@/lib/strings'
 import { useCompanionDayStock } from './companionStock'
 import { formatDayLabel } from './dateLabel'
 import {
@@ -64,6 +64,16 @@ interface Props {
   /** The submit refused this line: highlighted and scrolled to. */
   hasError?: boolean
   disabled?: boolean
+  /**
+   * Guests assigned to the room type this row's parent line stands for. Caps a
+   * free (quantity) offer under a room line (`r-<roomProductId>`) and drives the
+   * over/under hint; ignored for booking/person-bound offers and non-room parents.
+   */
+  maxOccupancy?: number
+  /** Units of that room type in the cart (picks the single- or multi-room copy). */
+  roomQty?: number
+  /** What the cap counts: assigned guests (default) or the room's sleeping capacity. */
+  occupancyBasis?: 'guests' | 'capacity'
 }
 
 export function OfferRow({
@@ -80,6 +90,9 @@ export function OfferRow({
   estimate,
   hasError,
   disabled,
+  maxOccupancy,
+  roomQty = 1,
+  occupancyBasis = 'guests',
 }: Props) {
   const mandatory = offer.mode === 'mandatory'
   const readOnlyPerson = mandatory && offer.binding === 'person'
@@ -124,16 +137,32 @@ export function OfferRow({
   const onQuantity = (q: number) =>
     onPicksChange((prev) =>
       pick
-        ? setQuantity(prev, pick.lineId, q)
+        ? setQuantity(prev, pick.lineId, Math.min(q, occupancyCap ?? q))
         : q > 0
-          ? withPick(prev, (p) => ({ ...p, quantity: clampOfferQty(offer, q) }))
+          ? withPick(prev, (p) => ({ ...p, quantity: clampOfferQty(offer, Math.min(q, occupancyCap ?? q)) }))
           : prev,
     )
   const onDay = (day: string) =>
     onPicksChange((prev) => (pick ? toggleSubsetDay(prev, pick.lineId, day, parentDays) : prev))
 
   const qty = pick?.quantity ?? 0
-  const maxQty = Math.min(offer.max_qty ?? Number.POSITIVE_INFINITY, offerStockCeiling(offer))
+  const occupancyCap =
+    offer.binding === 'free' && parentLineId.startsWith('r-') && maxOccupancy !== undefined
+      ? maxOccupancy
+      : undefined
+  const maxQty = Math.min(
+    offer.max_qty ?? Number.POSITIVE_INFINITY,
+    offerStockCeiling(offer),
+    occupancyCap ?? Number.POSITIVE_INFINITY,
+  )
+  const deviation =
+    occupancyCap === undefined || qty === 0
+      ? null
+      : qty > occupancyCap
+        ? 'over'
+        : qty < occupancyCap
+          ? 'under'
+          : null
   const remaining = offer.stock?.stock_remaining
   const autoRefs = serverAttached
     ? (estimate ?? []).filter((li) => li.auto_attached).flatMap((li) => li.participant_ids ?? [])
@@ -268,6 +297,21 @@ export function OfferRow({
           </Button>
         </div>
       )}
+
+      {occupancyCap !== undefined && !deviation && qty > 0 && qty >= occupancyCap ? (
+        <p className="text-xs text-muted-foreground" data-testid={`offer-occupancy-cap-${offer.id}`}>
+          {fmt(tr('offerOccupancyCap', locale), { expected: occupancyCap })}
+        </p>
+      ) : null}
+
+      {deviation ? (
+        <p
+          className="rounded-sm border border-orange-300 bg-orange-50 px-2 py-1 text-xs text-orange-900 dark:border-orange-700 dark:bg-orange-950 dark:text-orange-100"
+          data-testid={`offer-${deviation === 'over' ? 'overbook' : 'underbook'}-${offer.id}`}
+        >
+          {addonDeviationMessage(deviation, name, qty, occupancyCap ?? 0, roomQty, locale, occupancyBasis)}
+        </p>
+      ) : null}
 
       {pick && subset ? (
         <SubsetDayChips

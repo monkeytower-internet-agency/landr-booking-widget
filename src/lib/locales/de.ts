@@ -713,6 +713,11 @@ export const de: Bundle = {
   overbookOneRoomTemplate: 'Mehr {addon} ({qty}) als dieses Zimmer fasst ({expected}) — bringen Sie zusätzliche Gäste mit?',
   underbookManyRoomsTemplate: 'Nur {qty} {addon} für {roomQty} Zimmer ({expected} Gäste) — eines pro Zimmer?',
   underbookOneRoomTemplate: 'Nur {qty} {addon} für ein Zimmer mit Platz für {expected} — eines pro Gast?',
+  overbookGuestsManyRoomsTemplate: 'Mehr {addon} ({qty}) als die {expected} Gäste in diesen {roomQty} Zimmern — bringen Sie zusätzliche Gäste mit?',
+  overbookGuestsOneRoomTemplate: 'Mehr {addon} ({qty}) als die {expected} Gäste in diesem Zimmer — bringen Sie zusätzliche Gäste mit?',
+  underbookGuestsManyRoomsTemplate: 'Nur {qty} {addon} für {roomQty} Zimmer mit {expected} Gästen — eines pro Gast?',
+  underbookGuestsOneRoomTemplate: 'Nur {qty} {addon} für {expected} Gäste in diesem Zimmer — eines pro Gast?',
+  offerOccupancyCap: 'Begrenzt auf die Belegung des Zimmers ({expected})',
 
   fullyBookedLabel: 'Ausgebucht',
   fullyBookedBlurb: 'Für dieses Angebot sind derzeit keine bevorstehenden Termine verfügbar. Bitte schauen Sie später wieder vorbei.',

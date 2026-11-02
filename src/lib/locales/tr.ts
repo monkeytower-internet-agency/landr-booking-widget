@@ -708,6 +708,11 @@ export const tr: Bundle = {
   overbookOneRoomTemplate: 'Bu odanın alabileceğinden ({expected}) fazla {addon} ({qty}) — fazladan mı getiriyorsunuz?',
   underbookManyRoomsTemplate: '{roomQty} oda ({expected} misafir) için yalnızca {qty} {addon} — oda başına bir tane mi?',
   underbookOneRoomTemplate: '{expected} kişilik bir oda için yalnızca {qty} {addon} — kişi başına bir tane mi?',
+  overbookGuestsManyRoomsTemplate: 'Bu {roomQty} odadaki {expected} misafirden fazla {addon} ({qty}) — fazladan mı getiriyorsunuz?',
+  overbookGuestsOneRoomTemplate: 'Bu odadaki {expected} misafirden fazla {addon} ({qty}) — fazladan mı getiriyorsunuz?',
+  underbookGuestsManyRoomsTemplate: '{roomQty} oda ({expected} misafir) için yalnızca {qty} {addon} — kişi başına bir tane mi?',
+  underbookGuestsOneRoomTemplate: 'Bu odadaki {expected} misafir için yalnızca {qty} {addon} — kişi başına bir tane mi?',
+  offerOccupancyCap: 'Odanın doluluğuyla sınırlı ({expected})',
 
   fullyBookedLabel: 'Tamamen dolu',
   fullyBookedBlurb: 'Bu ürün için şu anda yaklaşan uygun tarih yok. Lütfen daha sonra tekrar kontrol edin.',

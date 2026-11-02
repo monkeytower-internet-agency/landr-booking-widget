@@ -704,6 +704,11 @@ export const it: Bundle = {
   overbookOneRoomTemplate: 'Più {addon} ({qty}) di quanti ne stiano in questa camera ({expected}): portate degli extra?',
   underbookManyRoomsTemplate: 'Solo {qty} {addon} per {roomQty} camere ({expected} ospiti): uno per camera?',
   underbookOneRoomTemplate: 'Solo {qty} {addon} per una camera da {expected}: uno per ospite?',
+  overbookGuestsManyRoomsTemplate: 'Più {addon} ({qty}) dei {expected} ospiti di queste {roomQty} camere: portate degli extra?',
+  overbookGuestsOneRoomTemplate: 'Più {addon} ({qty}) dei {expected} ospiti di questa camera: portate degli extra?',
+  underbookGuestsManyRoomsTemplate: 'Solo {qty} {addon} per {roomQty} camere con {expected} ospiti: uno per ospite?',
+  underbookGuestsOneRoomTemplate: 'Solo {qty} {addon} per {expected} ospiti in questa camera: uno per ospite?',
+  offerOccupancyCap: "Limitato all'occupazione della camera ({expected})",
 
   fullyBookedLabel: 'Al completo',
   fullyBookedBlurb: 'Al momento non ci sono date disponibili in arrivo per questa attività. Ricontrolla più tardi.',
