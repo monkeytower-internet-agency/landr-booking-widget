@@ -1786,7 +1786,6 @@ function BookingFlowApp() {
       [],
       null,
       [],
-      false,
     )
   }
 
@@ -1802,7 +1801,6 @@ function BookingFlowApp() {
     addons: OfferPick[] = [],
     // landr-yf0n: provenance flags so back-nav can hop back through the
     // upstream intermediate steps with their previously confirmed state.
-    hadServiceAddons: boolean = false,
     includeHotel: boolean | undefined = undefined,
     // landr-sbhz.4: shared-double flag for back-nav restoration.
     isSharedDouble: boolean | undefined = undefined,
@@ -1849,7 +1847,6 @@ function BookingFlowApp() {
       accommodationRooms,
       hotelLocationId,
       addons,
-      hadServiceAddons,
       includeHotel,
       isSharedDouble,
       accommodationMode,
@@ -1868,7 +1865,6 @@ function BookingFlowApp() {
       accommodationRooms,
       hotelLocationId,
       addons,
-      hadServiceAddons,
       includeHotel,
       // landr-sbhz.4: shared-double flag threads through for back-nav.
       isSharedDouble,
@@ -3249,9 +3245,6 @@ function BookingFlowApp() {
                 rooms,
                 hotelLocationId,
                 roomPicks,
-                // No add-ons step ran (it is gone: offers are picked on the
-                // review step).
-                false,
                 includeHotel,
                 isSharedDouble,
                 // landr-ffyg.2: derive the top-level mode from the confirm
@@ -3343,7 +3336,6 @@ function BookingFlowApp() {
                 // upstream intermediate steps with their state.
                 // landr-sbhz.4: also carry isSharedDouble.
                 hotelLocationId: step.hotelLocationId,
-                hadServiceAddons: step.hadServiceAddons,
                 includeHotel: step.includeHotel,
                 isSharedDouble: step.isSharedDouble,
                 accommodationMode: step.accommodationMode,
@@ -3435,7 +3427,6 @@ function BookingFlowApp() {
                   accommodationRooms: step.accommodationRooms,
                   addons: step.addons,
                   hotelLocationId: step.hotelLocationId,
-                  hadServiceAddons: step.hadServiceAddons,
                   includeHotel: step.includeHotel,
                   isSharedDouble: step.isSharedDouble,
                   accommodationMode: step.accommodationMode,
@@ -3470,7 +3461,6 @@ function BookingFlowApp() {
                     accommodationRooms: step.accommodationRooms,
                     addons: step.addons,
                     hotelLocationId: step.hotelLocationId,
-                    hadServiceAddons: step.hadServiceAddons,
                     includeHotel: step.includeHotel,
                     isSharedDouble: step.isSharedDouble,
                     accommodationMode: step.accommodationMode,
@@ -3531,7 +3521,6 @@ function BookingFlowApp() {
                     accommodationRooms: step.accommodationRooms,
                     addons: step.addons,
                     hotelLocationId: step.hotelLocationId,
-                    hadServiceAddons: step.hadServiceAddons,
                     includeHotel: step.includeHotel,
                     isSharedDouble: step.isSharedDouble,
                     accommodationMode: step.accommodationMode,
@@ -3567,7 +3556,6 @@ function BookingFlowApp() {
                     accommodationRooms: step.accommodationRooms,
                     addons: step.addons,
                     hotelLocationId: step.hotelLocationId,
-                    hadServiceAddons: step.hadServiceAddons,
                     includeHotel: step.includeHotel,
                     isSharedDouble: step.isSharedDouble,
                     accommodationMode: step.accommodationMode,
@@ -3607,7 +3595,6 @@ function BookingFlowApp() {
                     accommodationRooms: step.accommodationRooms,
                     addons: step.addons,
                     hotelLocationId: step.hotelLocationId,
-                    hadServiceAddons: step.hadServiceAddons,
                     includeHotel: step.includeHotel,
                     isSharedDouble: step.isSharedDouble,
                     accommodationMode: step.accommodationMode,
@@ -3816,7 +3803,6 @@ function BookingFlowApp() {
                   accommodationRooms: step.accommodationRooms,
                   addons: step.addons,
                   hotelLocationId: step.hotelLocationId,
-                  hadServiceAddons: step.hadServiceAddons,
                   includeHotel: step.includeHotel,
                   isSharedDouble: step.isSharedDouble,
                   accommodationMode: step.accommodationMode,

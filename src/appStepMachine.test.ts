@@ -327,26 +327,12 @@ describe('stepBeforeReview (landr-87n9.1 — back-nav mirrors the forward machin
     expect(prev.pickupLocationId).toBe('loc-hauptplatz')
   })
 
-  it('no hotel, no pickup, even with the legacy hadServiceAddons flag → Back returns to details (the add-ons step is gone)', () => {
+  it('no hotel, no pickup → Back returns to details', () => {
     const prev = stepBeforeReview(
       baseArgs({
         product: makeProduct({ needs_pickup: false, hotel_offering: 'none' }),
         hotelLocationId: null,
         accommodationRooms: [],
-        addons: [roomPick('p1', 1)],
-        hadServiceAddons: true,
-      }),
-    )
-    expect(prev.name).toBe('details')
-  })
-
-  it('no hotel, no pickup, no service add-ons → Back returns to details', () => {
-    const prev = stepBeforeReview(
-      baseArgs({
-        product: makeProduct({ needs_pickup: false, hotel_offering: 'none' }),
-        hotelLocationId: null,
-        accommodationRooms: [],
-        hadServiceAddons: false,
       }),
     )
     expect(prev.name).toBe('details')
@@ -462,7 +448,6 @@ describe('stepAfterAccommodation — shared-double bypass (landr-ffyg.2)', () =>
       [], // NO room lines for a shared-double booking
       'loc-shared-hotel',
       [],
-      false,
       true, // includeHotel
       true, // isSharedDouble
       'shared-double',
@@ -489,7 +474,6 @@ describe('stepAfterAccommodation — shared-double bypass (landr-ffyg.2)', () =>
       [],
       null,
       [],
-      false,
       false,
       false,
       'guiding-only',
@@ -938,7 +922,6 @@ describe('booking-draft preservation (landr-nmed)', () => {
         accommodationRooms: [],
         hotelLocationId: null,
         addons: [],
-        hadServiceAddons: false,
         roomAssignment: undefined,
       }
       const merged = mergeDraftPatch(prev, patch)
@@ -1048,7 +1031,6 @@ describe('language step routing (landr-r6e5x.4)', () => {
       preReviewArgs({
         hotelLocationId: 'loc-hotel',
         accommodationRooms: [{ productId: 'room-1', quantity: 2 }],
-        hadServiceAddons: true,
       }),
       null,
       undefined,
@@ -1057,7 +1039,6 @@ describe('language step routing (landr-r6e5x.4)', () => {
     if (next.name !== 'assign-languages') throw new Error('narrowing')
     expect(next.hotelLocationId).toBe('loc-hotel')
     expect(next.accommodationRooms).toEqual([{ productId: 'room-1', quantity: 2 }])
-    expect(next.hadServiceAddons).toBe(true)
     expect(next.companions).toHaveLength(1)
   })
 

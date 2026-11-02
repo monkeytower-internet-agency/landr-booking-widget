@@ -20,8 +20,6 @@ import { describe, expect, it } from 'vitest'
 
 import type { HotelOffering, Product } from '@/api/types'
 import type { BookingSelection } from '@/components/booking/BookingForm'
-import { newPick } from '@/components/booking/offerCart'
-import { evalOffer } from '@/components/booking/offerFixtures'
 import type {
   BookerDetails,
   CompanionDetails,
@@ -103,9 +101,6 @@ function makeParticipants(n: number): ParticipantDetails[] {
 
 const NO_COMPANIONS: CompanionDetails[] = []
 
-/** A room-type pick, for the legacy "add-ons were shown upstream" provenance. */
-const ROOM_PICKS = [newPick(evalOffer('of-1', { product_id: 'extra-1' }), 'r-room-1', 'a1', [])]
-
 // All permutations of the routing axes. landr-71kz.10: the declarations axis is
 // retired (the hardcoded declarations step is gone — declarations are now a
 // remote-flow custom_form), so the legacy-plan oracle no longer varies on it.
@@ -124,14 +119,12 @@ function offeringHasHotel(o: HotelOffering): boolean {
 
 /**
  * What the funnel's PROVENANCE looks like after the upstream steps, for a given
- * permutation. `hadServiceAddons` mirrors App.tsx: the add-ons probe only runs
- * for NON-hotel service products, so a hotel-offering product never has it.
+ * permutation.
  */
 interface FunnelCtx {
   offering: HotelOffering
   needsPickup: boolean
   hotelBooked: boolean
-  hadServiceAddons: boolean
 }
 
 /** The hotel location id for the permutation (null when no hotel booked). */
@@ -157,7 +150,7 @@ function oracleStepAfterAccommodation(ctx: FunnelCtx): Step['name'] {
  * stepBeforeReview ladder):
  *   hotel booked OR product offers a hotel → pick-accommodation;
  *   else needs_pickup → pick-pickup;
- *   else details (the add-ons step is gone: hadServiceAddons never routes).
+ *   else details.
  */
 function oracleStepBeforeReview(ctx: FunnelCtx): Step['name'] {
   if (ctx.hotelBooked || offeringHasHotel(ctx.offering)) return 'pick-accommodation'
@@ -179,11 +172,8 @@ function reviewArgs(ctx: FunnelCtx) {
     accommodationRooms: ctx.hotelBooked
       ? [{ productId: 'room-1', quantity: 1 }]
       : [],
-    addons: ctx.hadServiceAddons
-      ? ROOM_PICKS
-      : [],
+    addons: [],
     hotelLocationId: hotelLocId(ctx),
-    hadServiceAddons: ctx.hadServiceAddons,
   }
 }
 
@@ -195,19 +185,14 @@ function* permutations(): Generator<FunnelCtx> {
       for (const hotelBooked of HOTEL_BOOKED) {
         // A hotel can't be booked on a product that offers none.
         if (hotelBooked && !offeringHasHotel(offering)) continue
-        // Hotel-offering products never run the add-ons probe; non-hotel
-        // service products may or may not have add-ons.
-        const addonStates = offeringHasHotel(offering) ? [false] : [true, false]
-        for (const hadServiceAddons of addonStates) {
-          yield { offering, needsPickup, hotelBooked, hadServiceAddons }
-        }
+        yield { offering, needsPickup, hotelBooked }
       }
     }
   }
 }
 
 function permLabel(ctx: FunnelCtx): string {
-  return `offering=${ctx.offering} pickup=${ctx.needsPickup} hotelBooked=${ctx.hotelBooked} addons=${ctx.hadServiceAddons}`
+  return `offering=${ctx.offering} pickup=${ctx.needsPickup} hotelBooked=${ctx.hotelBooked}`
 }
 
 // ─── EQUIVALENCE: forward routing ───────────────────────────────────────────
@@ -227,12 +212,6 @@ describe('legacy-plan ≡ current routing — stepAfterAccommodation (all permut
         NO_COMPANIONS,
         ctx.hotelBooked ? [{ productId: 'room-1', quantity: 1 }] : [],
         hotelLocId(ctx),
-        // PR #119 review fix: the forward test MUST thread hadServiceAddons —
-        // the regression only manifests when service add-ons were shown
-        // upstream (hadServiceAddons=true). The previous test omitted these two
-        // args so hadServiceAddons defaulted to false and the bug stayed hidden.
-        ctx.hadServiceAddons ? ROOM_PICKS : [],
-        ctx.hadServiceAddons,
       )
       expect(next.name, permLabel(ctx)).toBe(oracleStepAfterAccommodation(ctx))
       // When a hotel was booked, the hotel must be locked in as the pickup.
@@ -243,12 +222,9 @@ describe('legacy-plan ≡ current routing — stepAfterAccommodation (all permut
       if (!ctx.hotelBooked && !ctx.needsPickup && next.name === 'fill-form') {
         expect(next.pickupLocationId, permLabel(ctx)).toBeNull()
       }
-      // REGRESSION: a needs_pickup product must still route to the PICKUP
-      // picker whatever add-on provenance is threaded in.
+      // A needs_pickup product with no hotel booked must route to the PICKUP picker.
       if (!ctx.hotelBooked && ctx.needsPickup) {
-        expect(next.name, `${permLabel(ctx)} [pickup must survive add-ons]`).toBe(
-          'pick-pickup',
-        )
+        expect(next.name, permLabel(ctx)).toBe('pick-pickup')
       }
     }
   })
@@ -284,7 +260,7 @@ function oracleBreadcrumb(ctx: FunnelCtx): string[] {
     // exactly today's behaviour and the equivalence net pins it.
     trail.push('pick-accommodation')
   } else {
-    // No hotel offering: pickup (if needed). A stale hadServiceAddons adds no crumb.
+    // No hotel offering: pickup (if needed).
     if (ctx.needsPickup) trail.push('pick-pickup')
   }
   // landr-71kz.10: the legacy hardcoded declarations crumb is retired — the
@@ -311,11 +287,8 @@ describe('legacy-plan ≡ current routing — breadcrumb trail (all permutations
         accommodationRooms: ctx.hotelBooked
           ? [{ productId: 'room-1', quantity: 1 }]
           : [],
-        addons: ctx.hadServiceAddons
-          ? ROOM_PICKS
-          : [],
+        addons: [],
         hotelLocationId: hotelLocId(ctx),
-        hadServiceAddons: ctx.hadServiceAddons,
       }
       // No remote flow → legacy plan → no custom-form crumb.
       const crumbs = buildBreadcrumb(fillForm, {})
@@ -345,9 +318,8 @@ describe('legacy-plan ≡ current routing — stepBefore mirrors the trail (all 
         accommodationRooms: ctx.hotelBooked
           ? [{ productId: 'room-1', quantity: 1 }]
           : [],
-        addons: ctx.hadServiceAddons ? ROOM_PICKS : [],
+        addons: [],
         hotelLocationId: hotelLocId(ctx),
-        hadServiceAddons: ctx.hadServiceAddons,
       }
       // stepBefore from fill-form (no remote flow) must equal the back-review
       // oracle.
@@ -364,12 +336,11 @@ describe('buildFlowPlan — legacy plan (remoteFlow === null)', () => {
     return plan.map((m) => m.kind)
   }
 
-  it('plain product: selection → participants → service_addons → review', () => {
+  it('plain product: selection → participants → review', () => {
     const plan = buildFlowPlan(makeProduct(), {}, null)
     expect(kinds(plan)).toEqual([
       'selection',
       'participants',
-      'service_addons',
       'review',
     ])
   })
@@ -414,7 +385,7 @@ describe('buildFlowPlan — legacy plan (remoteFlow === null)', () => {
     ).not.toContain('declarations')
   })
 
-  it('full-featured product: order is selection, participants, accommodation, service_addons, pickup, review (no declarations)', () => {
+  it('full-featured product: order is selection, participants, accommodation, pickup, review (no declarations)', () => {
     const plan = buildFlowPlan(
       makeProduct({ hotel_offering: 'optional', needs_pickup: true }),
       { slug: 'para42' },
@@ -424,7 +395,6 @@ describe('buildFlowPlan — legacy plan (remoteFlow === null)', () => {
       'selection',
       'participants',
       'accommodation',
-      'service_addons',
       'pickup',
       'review',
     ])
@@ -460,6 +430,14 @@ describe('buildFlowPlan — tolerant parse (malformed remoteFlow → legacy, nev
     expect(build({ modules: 'oops' })).toEqual(legacy)
     expect(build({ modules: 42 })).toEqual(legacy)
     expect(build({ modules: { 0: 'x' } })).toEqual(legacy)
+  })
+
+  it('a retired service_addons-only flow is a deliberate minimal flow: no legacy fallback, nothing injected', () => {
+    const plan = build({ modules: [{ kind: 'service_addons', position: 1 }] })
+    const kinds = plan.map((m) => m.kind)
+    expect(kinds).not.toContain('service_addons')
+    expect(kinds).not.toContain('accommodation')
+    expect(kinds).not.toContain('pickup')
   })
 
   it('a non-object remoteFlow → legacy plan (no throw)', () => {
