@@ -550,6 +550,51 @@ describe('Add more to this booking (review step)', () => {
     })
   })
 
+  it('nests an own-dated child under an own-dated extra (depth 3) with its own days', async () => {
+    const SHOES = product('shoes')
+    vi.mocked(listProducts).mockResolvedValue([MAIN, CAMPING, SHOES])
+    const camp = offer('camping', { product_kind: 'stay' })
+    const shoes = offer('shoes', { parent_product_id: 'camping', name: 'Water shoes' })
+    vi.mocked(getOffers).mockResolvedValue({
+      lines: [
+        { line_id: 'main', eligible: true, offers: [camp], draft: false },
+        { line_id: 'o1', eligible: true, offers: [shoes], draft: false },
+      ],
+    })
+    vi.mocked(getAvailability).mockResolvedValue([])
+    vi.mocked(submitBooking).mockResolvedValue({ booking_id: 'b-11', semantic_state: 'pending' })
+    render(<Harness />)
+
+    const campLine = await addAndSettle('camping')
+    await act(async () => {
+      fireEvent.click(within(campLine).getByTestId('add-more-candidate-shoes'))
+    })
+    const shoesLine = await screen.findByTestId('add-more-line-shoes')
+    await waitFor(() => expect(shoesLine).not.toHaveTextContent(/Checking availability/))
+    // Its own days: drop one of the two it inherited.
+    const removeDay = within(shoesLine).getAllByRole('button', { name: /^Remove / })
+    await act(async () => {
+      fireEvent.click(removeDay[removeDay.length - 1]!)
+    })
+    await waitFor(() => expect(shoesLine).not.toHaveTextContent(/Checking availability/))
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+    })
+    await waitFor(() => expect(submitBooking).toHaveBeenCalledTimes(1))
+    const products = vi.mocked(submitBooking).mock.calls[0]![0].products
+    const campingLine = products.find((p) => p.product_id === 'camping')!
+    expect(campingLine).toMatchObject({ line_id: 'o1', parent_line_id: 'main' })
+    expect(campingLine.selected_days).toEqual(['2026-11-02', '2026-11-03'])
+    expect(products.find((p) => p.product_id === 'shoes')).toEqual({
+      product_id: 'shoes',
+      quantity: 1,
+      selected_days: ['2026-11-02'],
+      line_id: 'o2',
+      offer_id: 'offer-shoes',
+      parent_line_id: 'o1',
+    })
+  })
+
   it('adds a mandatory own-dated offer on its own, with no way to remove it', async () => {
     offerOnMain(offer('camping', { mode: 'mandatory', product_kind: 'stay' }))
     vi.mocked(getAvailability).mockResolvedValue([])
