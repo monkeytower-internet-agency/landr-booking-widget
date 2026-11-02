@@ -596,6 +596,7 @@ export function AccommodationStep({
   const [assignment, setAssignment] = useState<RoomAssignmentMap>(
     () => initialAssignment ?? {},
   )
+  const occupantsByProduct = useMemo(() => occupantsByRoomProduct(assignment), [assignment])
 
   // landr-doam.1: per-occupant age band + age (hotel-informational only).
   // Seeded from initialAgeMap on back-nav re-entry; otherwise all occupants
@@ -1907,7 +1908,6 @@ export function AccommodationStep({
               </p>
             ) : null}
             {rooms?.map((room) => {
-              const occupantsByProduct = occupantsByRoomProduct(assignment)
               const qty = selection[room.product_id] ?? 0
               const roomName = pickLocalized(room.name, room.name_localized, locale)
               const subtotal = roomSubtotal(room, qty, nights)
@@ -2008,10 +2008,14 @@ export function AccommodationStep({
                       isPending={roomOffers.isPending}
                       showParentless={false}
                       maxOccupancy={
-                        // No assignment yet (not seeded): leave the extras uncapped.
-                        Object.keys(assignment).length > 0
-                          ? (occupantsByProduct.get(room.product_id)?.length ?? 0)
-                          : undefined
+                        // Assigned guests; none assigned to this room type yet
+                        // falls back to what the booked units sleep.
+                        (occupantsByProduct.get(room.product_id)?.length ?? 0) > 0
+                          ? occupantsByProduct.get(room.product_id)!.length
+                          : (room.capacity_per_unit ?? 1) * qty
+                      }
+                      occupancyBasis={
+                        (occupantsByProduct.get(room.product_id)?.length ?? 0) > 0 ? 'guests' : 'capacity'
                       }
                       roomQty={qty}
                     />

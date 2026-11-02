@@ -2005,6 +2005,22 @@ describe('AccommodationStep — restored state survives re-entry (landr-abme)', 
     expect(within(double).getByTestId('occupant-row-2')).toBeInTheDocument()
   })
 
+  it('caps free room extras at the guests assigned to each room type (landr-pa3mg)', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue(TWO_ROOMS())
+    mockRoomOffers(true)
+
+    renderRestored({
+      initialRoomPicks: [bfPick('single-room', 1, 'a1'), bfPick('double-room', 1, 'a2')],
+    })
+
+    // One guest in the Single: the extra is at its cap; two in the Double: room left.
+    await waitFor(() => expect(bfPlus('single-room')).toBeDisabled())
+    expect(bfPlus('double-room')).not.toBeDisabled()
+    fireEvent.click(bfPlus('single-room'))
+    expect(bfQty('single-room')).toHaveTextContent('1')
+  })
+
   it('submits the restored assignment verbatim, slots intact (never rebuilt)', async () => {
     mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
     mocks.getHotelRoomsForHotel.mockResolvedValue(TWO_ROOMS())

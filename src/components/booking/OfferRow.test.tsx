@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { useState } from 'react'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { EstimateLineItem, EvaluatedOffer } from '@/api/types'
 import { qtyAdjustAriaLabel, tr } from '@/lib/strings'
@@ -324,6 +324,8 @@ describe('OfferRow: languages', () => {
 
 describe('OfferRow room-tied free extras (occupancy cap)', () => {
   const cot = evalOffer('cot', { binding: 'free', max_qty: 9 })
+  const onChange = vi.fn()
+  beforeEach(() => onChange.mockClear())
   const renderRoom = (maxOccupancy: number | undefined, quantity: number, parentLineId = 'r-room1') => {
     const pick = { ...picked(cot, { quantity }), parentLineId }
     render(
@@ -335,7 +337,7 @@ describe('OfferRow room-tied free extras (occupancy cap)', () => {
         members={PARTY}
         tree={TREE}
         idPrefix="o"
-        onPicksChange={vi.fn()}
+        onPicksChange={onChange}
         locale="en"
         currency="EUR"
         maxOccupancy={maxOccupancy}
@@ -344,15 +346,19 @@ describe('OfferRow room-tied free extras (occupancy cap)', () => {
     )
   }
 
-  it('disables + at the room occupancy and warns when under', () => {
+  it('warns under and leaves + enabled below the room occupancy', () => {
     renderRoom(2, 1)
     expect(screen.getByTestId('offer-underbook-cot')).toBeTruthy()
     expect(screen.getByTestId('offer-qty-plus-cot')).not.toHaveProperty('disabled', true)
   })
 
-  it('caps at occupancy with no warning at parity', () => {
+  it('caps at occupancy, explains the cap, and ignores clicks at the cap', () => {
     renderRoom(2, 2)
     expect((screen.getByTestId('offer-qty-plus-cot') as HTMLButtonElement).disabled).toBe(true)
+    expect(screen.getByTestId('offer-occupancy-cap-cot')).toBeTruthy()
+    expect(onChange).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByTestId('offer-qty-plus-cot'))
+    expect(onChange).not.toHaveBeenCalled()
     expect(screen.queryByTestId('offer-underbook-cot')).toBeNull()
     expect(screen.queryByTestId('offer-overbook-cot')).toBeNull()
   })
@@ -366,5 +372,32 @@ describe('OfferRow room-tied free extras (occupancy cap)', () => {
     renderRoom(1, 2, 'main')
     expect((screen.getByTestId('offer-qty-plus-cot') as HTMLButtonElement).disabled).toBe(false)
     expect(screen.queryByTestId('offer-overbook-cot')).toBeNull()
+  })
+
+  it('does not cap or hint a booking-bound offer under a room line', () => {
+    const toggle = evalOffer('late', { binding: 'booking' })
+    render(
+      <OfferRow
+        offer={toggle}
+        parentLineId="r-room1"
+        parentDays={STAY_DAYS}
+        pick={{ ...picked(toggle), parentLineId: 'r-room1' }}
+        members={PARTY}
+        tree={TREE}
+        idPrefix="o"
+        onPicksChange={vi.fn()}
+        locale="en"
+        currency="EUR"
+        maxOccupancy={1}
+      />,
+    )
+    expect(screen.queryByTestId('offer-occupancy-cap-late')).toBeNull()
+    expect(screen.queryByTestId('offer-overbook-late')).toBeNull()
+    expect(screen.queryByTestId('offer-underbook-late')).toBeNull()
+  })
+
+  it('uses guest wording for the assigned-guest cap', () => {
+    renderRoom(3, 1)
+    expect(screen.getByTestId('offer-underbook-cot').textContent).toContain('3 guests')
   })
 })

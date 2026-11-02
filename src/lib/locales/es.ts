@@ -704,6 +704,11 @@ export const es: Bundle = {
   overbookOneRoomTemplate: 'Más {addon} ({qty}) de los que caben en esta habitación ({expected}): ¿traéis extras?',
   underbookManyRoomsTemplate: 'Solo {qty} {addon} para {roomQty} habitaciones ({expected} huéspedes): ¿uno por habitación?',
   underbookOneRoomTemplate: 'Solo {qty} {addon} para una habitación con capacidad para {expected}: ¿uno por huésped?',
+  overbookGuestsManyRoomsTemplate: 'Más {addon} ({qty}) que los {expected} huéspedes de estas {roomQty} habitaciones: ¿traéis extras?',
+  overbookGuestsOneRoomTemplate: 'Más {addon} ({qty}) que los {expected} huéspedes de esta habitación: ¿traéis extras?',
+  underbookGuestsManyRoomsTemplate: 'Solo {qty} {addon} para {roomQty} habitaciones con {expected} huéspedes: ¿uno por huésped?',
+  underbookGuestsOneRoomTemplate: 'Solo {qty} {addon} para {expected} huéspedes en esta habitación: ¿uno por huésped?',
+  offerOccupancyCap: 'Limitado a la ocupación de la habitación ({expected})',
 
   fullyBookedLabel: 'Completo',
   fullyBookedBlurb: 'Ahora mismo no hay próximas fechas disponibles para esta actividad. Vuelve a mirar más tarde.',

@@ -748,6 +748,11 @@ export type Bundle = {
   overbookOneRoomTemplate: string
   underbookManyRoomsTemplate: string
   underbookOneRoomTemplate: string
+  overbookGuestsManyRoomsTemplate: string
+  overbookGuestsOneRoomTemplate: string
+  underbookGuestsManyRoomsTemplate: string
+  underbookGuestsOneRoomTemplate: string
+  offerOccupancyCap: string
 
   // ---- FullyBookedNotice / ViewToggle / catalog ----
   fullyBookedLabel: string
@@ -1771,6 +1776,11 @@ const en: Bundle = {
   overbookOneRoomTemplate: 'More {addon} ({qty}) than this room sleeps ({expected}) — bringing extras?',
   underbookManyRoomsTemplate: 'Only {qty} {addon} for {roomQty} rooms ({expected} guests) — one per room?',
   underbookOneRoomTemplate: 'Only {qty} {addon} for a room that sleeps {expected} — one per guest?',
+  overbookGuestsManyRoomsTemplate: 'More {addon} ({qty}) than the {expected} guests in these {roomQty} rooms — bringing extras?',
+  overbookGuestsOneRoomTemplate: 'More {addon} ({qty}) than the {expected} guests in this room — bringing extras?',
+  underbookGuestsManyRoomsTemplate: 'Only {qty} {addon} for {roomQty} rooms with {expected} guests — one per guest?',
+  underbookGuestsOneRoomTemplate: 'Only {qty} {addon} for {expected} guests in this room — one per guest?',
+  offerOccupancyCap: "Limited to the room's occupancy ({expected})",
 
   fullyBookedLabel: 'Fully booked',
   fullyBookedBlurb: 'There are no upcoming dates available for this product right now. Please check back later.',
@@ -2470,16 +2480,19 @@ export function addonDeviationMessage(
   expected: number,
   roomQty: number,
   locale?: string,
+  basis: 'capacity' | 'guests' = 'capacity',
 ): string {
   const t = pickBundle(locale)
+  const g = basis === 'guests'
+  const many = roomQty > 1
   const template =
     kind === 'over'
-      ? roomQty > 1
-        ? t.overbookManyRoomsTemplate
-        : t.overbookOneRoomTemplate
-      : roomQty > 1
-        ? t.underbookManyRoomsTemplate
-        : t.underbookOneRoomTemplate
+      ? many
+        ? g ? t.overbookGuestsManyRoomsTemplate : t.overbookManyRoomsTemplate
+        : g ? t.overbookGuestsOneRoomTemplate : t.overbookOneRoomTemplate
+      : many
+        ? g ? t.underbookGuestsManyRoomsTemplate : t.underbookManyRoomsTemplate
+        : g ? t.underbookGuestsOneRoomTemplate : t.underbookOneRoomTemplate
   return template
     .replace('{addon}', addonName.toLowerCase())
     .replace('{qty}', String(qty))

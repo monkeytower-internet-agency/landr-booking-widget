@@ -72,6 +72,8 @@ interface Props {
   maxOccupancy?: number
   /** Units of that room type in the cart (picks the single- or multi-room copy). */
   roomQty?: number
+  /** What the cap counts: assigned guests (default) or the room's sleeping capacity. */
+  occupancyBasis?: 'guests' | 'capacity'
 }
 
 export function OfferRow({
@@ -90,6 +92,7 @@ export function OfferRow({
   disabled,
   maxOccupancy,
   roomQty = 1,
+  occupancyBasis = 'guests',
 }: Props) {
   const mandatory = offer.mode === 'mandatory'
   const readOnlyPerson = mandatory && offer.binding === 'person'
@@ -295,12 +298,18 @@ export function OfferRow({
         </div>
       )}
 
+      {occupancyCap !== undefined && !deviation && qty > 0 && qty >= occupancyCap ? (
+        <p className="text-xs text-muted-foreground" data-testid={`offer-occupancy-cap-${offer.id}`}>
+          {fmt(tr('offerOccupancyCap', locale), { expected: occupancyCap })}
+        </p>
+      ) : null}
+
       {deviation ? (
         <p
           className="rounded-sm border border-orange-300 bg-orange-50 px-2 py-1 text-xs text-orange-900 dark:border-orange-700 dark:bg-orange-950 dark:text-orange-100"
           data-testid={`offer-${deviation === 'over' ? 'overbook' : 'underbook'}-${offer.id}`}
         >
-          {addonDeviationMessage(deviation, name, qty, occupancyCap ?? 0, roomQty, locale)}
+          {addonDeviationMessage(deviation, name, qty, occupancyCap ?? 0, roomQty, locale, occupancyBasis)}
         </p>
       ) : null}
 

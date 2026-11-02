@@ -52,6 +52,7 @@ export interface OfferTreeProps {
   maxOccupancy?: number
   /** Units of that room type in the cart. */
   roomQty?: number
+  occupancyBasis?: 'guests' | 'capacity'
 }
 
 export function OfferTree(props: OfferTreeProps) {
@@ -130,6 +131,7 @@ export function OfferTree(props: OfferTreeProps) {
               disabled={disabled}
               maxOccupancy={props.maxOccupancy}
               roomQty={props.roomQty}
+              occupancyBasis={props.occupancyBasis}
             />
             {pick && depth + 2 <= MAX_OFFER_DEPTH ? (
               <OfferTree {...props} parentLineId={pick.lineId} showParentless={false} />
