@@ -4813,6 +4813,21 @@
             ],
             "title": "Addon Quantity Rule"
           },
+          "collection": {
+            "default": "online",
+            "enum": [
+              "online",
+              "on_site",
+              "free"
+            ],
+            "title": "Collection",
+            "type": "string"
+          },
+          "conditional": {
+            "default": false,
+            "title": "Conditional",
+            "type": "boolean"
+          },
           "currency": {
             "anyOf": [
               {
@@ -4900,6 +4915,14 @@
               }
             ],
             "title": "Name Localized"
+          },
+          "options": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/CatalogueAddonOption"
+            },
+            "title": "Options",
+            "type": "array"
           },
           "paid_to": {
             "enum": [
@@ -5004,6 +5027,42 @@
           "paid_to"
         ],
         "title": "CatalogueAddon",
+        "type": "object"
+      },
+      "CatalogueAddonOption": {
+        "description": "A pick inside an offer (shuttle: one way / both ways) with its price delta.",
+        "properties": {
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "label_localized": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label Localized"
+          },
+          "price_delta_cents": {
+            "default": 0,
+            "title": "Price Delta Cents",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "key",
+          "label"
+        ],
+        "title": "CatalogueAddonOption",
         "type": "object"
       },
       "CatalogueAlternative": {
@@ -6081,6 +6140,11 @@
             "title": "First Name",
             "type": "string"
           },
+          "guest_attributes": {
+            "additionalProperties": true,
+            "title": "Guest Attributes",
+            "type": "object"
+          },
           "has_breakfast": {
             "default": false,
             "title": "Has Breakfast",
@@ -6145,6 +6209,19 @@
               }
             ],
             "title": "Phone"
+          },
+          "ref": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ref"
           },
           "room_product_id": {
             "anyOf": [
@@ -8619,6 +8696,17 @@
             "title": "Held Seats",
             "type": "array"
           },
+          "on_site_total": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "On Site Total"
+          },
           "rows": {
             "items": {
               "$ref": "#/components/schemas/DayManifestRow"
@@ -8842,6 +8930,13 @@
               }
             ],
             "title": "Note"
+          },
+          "on_site_lines": {
+            "items": {
+              "$ref": "#/components/schemas/ManifestOnSiteLine"
+            },
+            "title": "On Site Lines",
+            "type": "array"
           },
           "part_of_day": {
             "anyOf": [
@@ -9357,6 +9452,16 @@
             "title": "Changed",
             "type": "boolean"
           },
+          "customer_notification": {
+            "default": "none",
+            "enum": [
+              "queued",
+              "disabled",
+              "none"
+            ],
+            "title": "Customer Notification",
+            "type": "string"
+          },
           "day_date": {
             "title": "Day Date",
             "type": "string"
@@ -9871,6 +9976,65 @@
         "title": "DomainEligibility",
         "type": "object"
       },
+      "EligibilityReasonParams": {
+        "description": "The failing rule item behind a ``guest_attr.<key>`` /\n``guest_attr_all.<key>`` reason, so the widget can say \"No guests under 10\"\nwithout the rules (they are not on the public product wire).",
+        "properties": {
+          "op": {
+            "title": "Op",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value"
+          }
+        },
+        "required": [
+          "op"
+        ],
+        "title": "EligibilityReasonParams",
+        "type": "object"
+      },
+      "EligibilityRulesBody-Input": {
+        "additionalProperties": false,
+        "description": "PATCH body of a product's \"who can book\" document; null = everyone.",
+        "properties": {
+          "eligibility_rules": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OfferRules"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "eligibility_rules"
+        ],
+        "title": "EligibilityRulesBody",
+        "type": "object"
+      },
+      "EligibilityRulesBody-Output": {
+        "additionalProperties": false,
+        "description": "PATCH body of a product's \"who can book\" document; null = everyone.",
+        "properties": {
+          "eligibility_rules": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OfferRules"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "eligibility_rules"
+        ],
+        "title": "EligibilityRulesBody",
+        "type": "object"
+      },
       "EmailCollisionOut": {
         "properties": {
           "contact_id": {
@@ -10338,6 +10502,67 @@
       },
       "EstimateAddonLineIn": {
         "properties": {
+          "line_id": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9_-]{1,40}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Line Id"
+          },
+          "offer_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Offer Id"
+          },
+          "option_key": {
+            "anyOf": [
+              {
+                "pattern": "^[a-z0-9_]{1,40}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Option Key"
+          },
+          "parent_line_id": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9_-]{1,40}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Line Id"
+          },
+          "participant_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Participant Id"
+          },
           "product_id": {
             "title": "Product Id",
             "type": "string"
@@ -10451,6 +10676,28 @@
         "additionalProperties": true,
         "description": "One row in the PriceSidebar breakdown (landr-qez0). Mirrors the\nwidget's ``EstimateLineItem`` TypeScript interface (src/api/types.ts)\nand the dashboard's ``SimulateLineItem`` (src/lib/pricing-simulator.ts)\nfield-for-field. ``unit_price``/``line_total`` are decimal strings\n(e.g. \"60.00\"), matching ``_compute_line``'s wire format exactly.",
         "properties": {
+          "attribute_missing": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attribute Missing"
+          },
+          "auto_attached": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Auto Attached"
+          },
           "cleaning_fee": {
             "anyOf": [
               {
@@ -10462,13 +10709,103 @@
             ],
             "title": "Cleaning Fee"
           },
+          "collection": {
+            "anyOf": [
+              {
+                "enum": [
+                  "online",
+                  "on_site",
+                  "free"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection"
+          },
+          "collection_amount": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection Amount"
+          },
           "label": {
             "title": "Label",
             "type": "string"
           },
+          "line_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Line Id"
+          },
           "line_total": {
             "title": "Line Total",
             "type": "string"
+          },
+          "missing_attribute_keys": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Missing Attribute Keys"
+          },
+          "mode": {
+            "anyOf": [
+              {
+                "enum": [
+                  "optional",
+                  "mandatory",
+                  "info"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mode"
+          },
+          "offer_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Offer Id"
+          },
+          "option_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Option Key"
           },
           "paid_to": {
             "enum": [
@@ -10478,6 +10815,31 @@
             ],
             "title": "Paid To",
             "type": "string"
+          },
+          "parent_line_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Line Id"
+          },
+          "participant_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Participant Ids"
           },
           "payee_label": {
             "anyOf": [
@@ -10526,6 +10888,22 @@
             "title": "Qty",
             "type": "integer"
           },
+          "schedule": {
+            "anyOf": [
+              {
+                "enum": [
+                  "locked",
+                  "subset",
+                  "own"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Schedule"
+          },
           "unit_price": {
             "title": "Unit Price",
             "type": "string"
@@ -10553,6 +10931,7 @@
             "items": {
               "$ref": "#/components/schemas/EstimateAddonLineIn"
             },
+            "maxItems": 50,
             "title": "Addon Lines",
             "type": "array"
           },
@@ -10573,6 +10952,21 @@
             ],
             "title": "Child Ages"
           },
+          "guests": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/EvaluateGuestIn"
+                },
+                "maxItems": 50,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Guests"
+          },
           "locale": {
             "anyOf": [
               {
@@ -10584,6 +10978,18 @@
               }
             ],
             "title": "Locale"
+          },
+          "main_line_id": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9_-]{1,40}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Main Line Id"
           },
           "participants_count": {
             "default": 1,
@@ -10661,6 +11067,17 @@
             "title": "Applied Rules",
             "type": "array"
           },
+          "attribute_missing": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attribute Missing"
+          },
           "currency": {
             "title": "Currency",
             "type": "string"
@@ -10680,6 +11097,21 @@
             "title": "Line Items",
             "type": "array"
           },
+          "missing_attributes": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Missing Attributes"
+          },
           "multi_day_savings": {
             "anyOf": [
               {
@@ -10689,6 +11121,17 @@
                 "type": "null"
               }
             ]
+          },
+          "on_site_total": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "On Site Total"
           },
           "operator_total": {
             "title": "Operator Total",
@@ -10816,6 +11259,401 @@
           "currency"
         ],
         "title": "EstimateResponse",
+        "type": "object"
+      },
+      "EvaluateGuestIn": {
+        "additionalProperties": false,
+        "description": "One guest of the party and the attributes answered so far\n(keys of the operator's guest_attribute_definitions).",
+        "properties": {
+          "attributes": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "string"
+                }
+              ]
+            },
+            "title": "Attributes",
+            "type": "object"
+          },
+          "id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "title": "EvaluateGuestIn",
+        "type": "object"
+      },
+      "EvaluateLineIn": {
+        "additionalProperties": false,
+        "description": "One cart line. ``parent_line_id`` names the line this one hangs off (an\nadd-on under its main product); null = a top-level line. Dates are the\noperator-local calendar: ``selected_days`` (the booked days / nights) win,\nelse ``arrival`` .. ``departure`` (exclusive); an undated line is judged\nwithout dates (date rules fail closed).",
+        "properties": {
+          "arrival": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Arrival"
+          },
+          "departure": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Departure"
+          },
+          "line_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Line Id",
+            "type": "string"
+          },
+          "parent_line_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Line Id"
+          },
+          "product_id": {
+            "format": "uuid",
+            "title": "Product Id",
+            "type": "string"
+          },
+          "selected_days": {
+            "anyOf": [
+              {
+                "items": {
+                  "format": "date",
+                  "type": "string"
+                },
+                "maxItems": 62,
+                "minItems": 1,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selected Days"
+          }
+        },
+        "required": [
+          "line_id",
+          "product_id"
+        ],
+        "title": "EvaluateLineIn",
+        "type": "object"
+      },
+      "EvaluatedLine": {
+        "description": "One request line: may it be booked (a top-level line: its product's\neligibility_rules; a child line: does its parent line offer it), and the\noffers it shows. ``eligibility_reason_key`` (null when eligible):\n``attribute_missing.<key>``, ``guest_attr.<key>``, ``guest_attr_all.<key>``,\n``<cond>``, ``no_rule_matched``, ``not_offered`` or ``invalid_rules``.",
+        "properties": {
+          "draft": {
+            "default": false,
+            "title": "Draft",
+            "type": "boolean"
+          },
+          "eligibility_reason_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Eligibility Reason Key"
+          },
+          "eligibility_reason_params": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EligibilityReasonParams"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "eligible": {
+            "title": "Eligible",
+            "type": "boolean"
+          },
+          "line_id": {
+            "title": "Line Id",
+            "type": "string"
+          },
+          "offers": {
+            "items": {
+              "$ref": "#/components/schemas/EvaluatedOffer"
+            },
+            "title": "Offers",
+            "type": "array"
+          }
+        },
+        "required": [
+          "line_id",
+          "eligible"
+        ],
+        "title": "EvaluatedLine",
+        "type": "object"
+      },
+      "EvaluatedOffer": {
+        "description": "An offer row a line sees, with the offered product's display fields.",
+        "properties": {
+          "binding": {
+            "enum": [
+              "booking",
+              "person",
+              "free"
+            ],
+            "title": "Binding",
+            "type": "string"
+          },
+          "collection": {
+            "enum": [
+              "online",
+              "on_site",
+              "free"
+            ],
+            "title": "Collection",
+            "type": "string"
+          },
+          "day_selection": {
+            "anyOf": [
+              {
+                "enum": [
+                  "parent_all",
+                  "parent_subset"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Day Selection"
+          },
+          "draft": {
+            "default": false,
+            "title": "Draft",
+            "type": "boolean"
+          },
+          "effective_schedule": {
+            "anyOf": [
+              {
+                "enum": [
+                  "locked",
+                  "subset",
+                  "own"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective Schedule"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "in_cart": {
+            "default": false,
+            "title": "In Cart",
+            "type": "boolean"
+          },
+          "max_qty": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Qty"
+          },
+          "min_qty": {
+            "title": "Min Qty",
+            "type": "integer"
+          },
+          "mode": {
+            "enum": [
+              "optional",
+              "mandatory",
+              "info"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "name_localized": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name Localized"
+          },
+          "options": {
+            "items": {
+              "$ref": "#/components/schemas/OfferOption"
+            },
+            "title": "Options",
+            "type": "array"
+          },
+          "parent_product_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Product Id"
+          },
+          "price_preview": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OfferPricePreview"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "product_id": {
+            "format": "uuid",
+            "title": "Product Id",
+            "type": "string"
+          },
+          "product_kind": {
+            "title": "Product Kind",
+            "type": "string"
+          },
+          "required_attributes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Required Attributes",
+            "type": "array"
+          },
+          "rules": {
+            "additionalProperties": true,
+            "title": "Rules",
+            "type": "object"
+          },
+          "schedule": {
+            "enum": [
+              "locked",
+              "subset",
+              "own"
+            ],
+            "title": "Schedule",
+            "type": "string"
+          },
+          "server_attached": {
+            "default": false,
+            "title": "Server Attached",
+            "type": "boolean"
+          },
+          "short_description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Short Description"
+          },
+          "short_description_localized": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Short Description Localized"
+          },
+          "sort_order": {
+            "title": "Sort Order",
+            "type": "integer"
+          },
+          "stock": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OfferStock"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "product_id",
+          "rules",
+          "binding",
+          "schedule",
+          "collection",
+          "mode",
+          "min_qty",
+          "sort_order",
+          "name",
+          "product_kind"
+        ],
+        "title": "EvaluatedOffer",
         "type": "object"
       },
       "EventOccurrence": {
@@ -11464,6 +12302,90 @@
           "name"
         ],
         "title": "FlowFormDef",
+        "type": "object"
+      },
+      "FlowGuestAttribute": {
+        "description": "One guest attribute the product's cart asks per guest (landr-tm48v.4):\na guest_attribute_definitions row, widget-facing fields only.",
+        "properties": {
+          "choices": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Choices"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "label_localized": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Label Localized",
+            "type": "object"
+          },
+          "max_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Value"
+          },
+          "min_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Value"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          },
+          "value_type": {
+            "enum": [
+              "number",
+              "integer",
+              "text",
+              "choice"
+            ],
+            "title": "Value Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "value_type"
+        ],
+        "title": "FlowGuestAttribute",
         "type": "object"
       },
       "FlowModuleDef": {
@@ -12336,6 +13258,467 @@
           "email"
         ],
         "title": "GroupInquiryRequest",
+        "type": "object"
+      },
+      "GuestAttributeDefinition": {
+        "description": "A guest_attribute_definitions row as the API returns it.",
+        "properties": {
+          "active": {
+            "title": "Active",
+            "type": "boolean"
+          },
+          "choices": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Choices"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "label_localized": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Label Localized",
+            "type": "object"
+          },
+          "max_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Value"
+          },
+          "min_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Value"
+          },
+          "operator_id": {
+            "format": "uuid",
+            "title": "Operator Id",
+            "type": "string"
+          },
+          "sort_order": {
+            "title": "Sort Order",
+            "type": "integer"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "value_type": {
+            "enum": [
+              "number",
+              "integer",
+              "text",
+              "choice"
+            ],
+            "title": "Value Type",
+            "type": "string"
+          },
+          "well_known": {
+            "title": "Well Known",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "operator_id",
+          "key",
+          "label",
+          "label_localized",
+          "value_type",
+          "unit",
+          "choices",
+          "min_value",
+          "max_value",
+          "well_known",
+          "active",
+          "sort_order",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "GuestAttributeDefinition",
+        "type": "object"
+      },
+      "GuestAttributeDefinitionIn": {
+        "additionalProperties": false,
+        "description": "POST body: a custom (never well-known) attribute.",
+        "properties": {
+          "active": {
+            "default": true,
+            "title": "Active",
+            "type": "boolean"
+          },
+          "choices": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Choices"
+          },
+          "key": {
+            "pattern": "^[a-z][a-z0-9_]{0,39}$",
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          },
+          "label_localized": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Label Localized",
+            "type": "object"
+          },
+          "max_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Value"
+          },
+          "min_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Value"
+          },
+          "sort_order": {
+            "default": 0,
+            "title": "Sort Order",
+            "type": "integer"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          },
+          "value_type": {
+            "enum": [
+              "number",
+              "integer",
+              "text",
+              "choice"
+            ],
+            "title": "Value Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "value_type"
+        ],
+        "title": "GuestAttributeDefinitionIn",
+        "type": "object"
+      },
+      "GuestAttributeDefinitionPatch": {
+        "additionalProperties": false,
+        "description": "PATCH body. key, value_type and well_known are fixed (a 422 for every\ncaller); on a well-known row unit / choices / bounds are fixed too.",
+        "properties": {
+          "active": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active"
+          },
+          "choices": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Choices"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "label_localized": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label Localized"
+          },
+          "max_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Value"
+          },
+          "min_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Value"
+          },
+          "sort_order": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sort Order"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          }
+        },
+        "title": "GuestAttributeDefinitionPatch",
+        "type": "object"
+      },
+      "GuestAttributeInUse": {
+        "properties": {
+          "error": {
+            "const": "guest_attribute_in_use",
+            "title": "Error",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "offers": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Offers",
+            "type": "array"
+          },
+          "products": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Products",
+            "type": "array"
+          }
+        },
+        "required": [
+          "error",
+          "key",
+          "products",
+          "offers"
+        ],
+        "title": "GuestAttributeInUse",
+        "type": "object"
+      },
+      "GuestAttributeInUseError": {
+        "description": "The 409 body of DELETE guest-attribute-definitions: ``detail`` names the referencing rows.",
+        "properties": {
+          "detail": {
+            "$ref": "#/components/schemas/GuestAttributeInUse"
+          }
+        },
+        "required": [
+          "detail"
+        ],
+        "title": "GuestAttributeInUseError",
+        "type": "object"
+      },
+      "GuestAttributesOut": {
+        "properties": {
+          "guest_attributes": {
+            "additionalProperties": true,
+            "title": "Guest Attributes",
+            "type": "object"
+          },
+          "occupant_age": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Occupant Age"
+          },
+          "occupant_age_band": {
+            "title": "Occupant Age Band",
+            "type": "string"
+          },
+          "offer_lines_attached": {
+            "default": 0,
+            "title": "Offer Lines Attached",
+            "type": "integer"
+          },
+          "offer_lines_removed": {
+            "default": 0,
+            "title": "Offer Lines Removed",
+            "type": "integer"
+          },
+          "participant_id": {
+            "format": "uuid",
+            "title": "Participant Id",
+            "type": "string"
+          },
+          "reprice_skipped": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reprice Skipped"
+          },
+          "repriced": {
+            "title": "Repriced",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "participant_id",
+          "guest_attributes",
+          "occupant_age",
+          "occupant_age_band",
+          "repriced"
+        ],
+        "title": "GuestAttributesOut",
+        "type": "object"
+      },
+      "GuestAttributesPatchIn": {
+        "additionalProperties": false,
+        "properties": {
+          "attributes": {
+            "additionalProperties": true,
+            "maxProperties": 32,
+            "title": "Attributes",
+            "type": "object"
+          }
+        },
+        "required": [
+          "attributes"
+        ],
+        "title": "GuestAttributesPatchIn",
         "type": "object"
       },
       "HTTPValidationError": {
@@ -15273,6 +16656,70 @@
         "title": "MachineDecideResult",
         "type": "object"
       },
+      "ManifestOnSiteLine": {
+        "description": "One pay-on-arrival offer line the participant-day owes (landr-tm48v.8).\n\nRead from the ``booking_products`` columns (collection = on_site). A\nperson-bound line lists under each guest it covers; a booking-bound line\n(``booking_bound``) under every guest of its booking. ``collection_amount``\nis money: absent (None) for a role that cannot see money (field).",
+        "properties": {
+          "booking_bound": {
+            "default": false,
+            "title": "Booking Bound",
+            "type": "boolean"
+          },
+          "booking_product_id": {
+            "title": "Booking Product Id",
+            "type": "string"
+          },
+          "collection_amount": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection Amount"
+          },
+          "currency": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Currency"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "option_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Option Label"
+          },
+          "participant_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Participant Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "booking_product_id",
+          "label"
+        ],
+        "title": "ManifestOnSiteLine",
+        "type": "object"
+      },
       "ManifestProductRef": {
         "properties": {
           "id": {
@@ -16592,6 +18039,189 @@
         "title": "OfferEmailPreview",
         "type": "object"
       },
+      "OfferEvaluateIn": {
+        "additionalProperties": false,
+        "description": "POST /api/public/offers/evaluate body. ``season_ids`` only judges\n``season_in`` on an UNDATED line (a dated line's seasons are computed from\nits dates); ids that are not the operator's own are ignored.",
+        "properties": {
+          "guests": {
+            "items": {
+              "$ref": "#/components/schemas/EvaluateGuestIn"
+            },
+            "maxItems": 50,
+            "title": "Guests",
+            "type": "array"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/EvaluateLineIn"
+            },
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "Lines",
+            "type": "array"
+          },
+          "season_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                "maxItems": 200,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Season Ids"
+          },
+          "widget_token": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Widget Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "widget_token",
+          "lines"
+        ],
+        "title": "OfferEvaluateIn",
+        "type": "object"
+      },
+      "OfferEvaluateOut": {
+        "description": "Per request line, in request order. ``required_attribute_keys``: every\nguest attribute the cart's products and their candidate offers read -- the\nkeys the widget asks per guest before offers needing them can show.",
+        "properties": {
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/EvaluatedLine"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "required_attribute_keys": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Required Attribute Keys",
+            "type": "array"
+          }
+        },
+        "required": [
+          "lines"
+        ],
+        "title": "OfferEvaluateOut",
+        "type": "object"
+      },
+      "OfferIn": {
+        "additionalProperties": false,
+        "description": "POST body (and the merged row a PATCH is validated as). No operator_id:\nthe path's operator is stamped server-side.",
+        "properties": {
+          "binding": {
+            "default": "free",
+            "enum": [
+              "booking",
+              "person",
+              "free"
+            ],
+            "title": "Binding",
+            "type": "string"
+          },
+          "collection": {
+            "default": "online",
+            "enum": [
+              "online",
+              "on_site",
+              "free"
+            ],
+            "title": "Collection",
+            "type": "string"
+          },
+          "max_qty": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Qty"
+          },
+          "min_qty": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Min Qty",
+            "type": "integer"
+          },
+          "mode": {
+            "default": "optional",
+            "enum": [
+              "optional",
+              "mandatory",
+              "info"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "options": {
+            "items": {
+              "$ref": "#/components/schemas/OfferOption"
+            },
+            "title": "Options",
+            "type": "array"
+          },
+          "parent_product_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Product Id"
+          },
+          "product_id": {
+            "format": "uuid",
+            "title": "Product Id",
+            "type": "string"
+          },
+          "required_attributes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Required Attributes",
+            "type": "array"
+          },
+          "rules": {
+            "$ref": "#/components/schemas/OfferRules"
+          },
+          "schedule": {
+            "default": "locked",
+            "enum": [
+              "locked",
+              "subset",
+              "own"
+            ],
+            "title": "Schedule",
+            "type": "string"
+          },
+          "sort_order": {
+            "default": 0,
+            "title": "Sort Order",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "product_id"
+        ],
+        "title": "OfferIn",
+        "type": "object"
+      },
       "OfferLineItem": {
         "description": "One priced product line of the offer (landr-b48i5), same order as\n``product_lines``. Read from the persisted ``computed_price_breakdown``\nvia ``booking_line_items`` \u2014 never recomputed.\n\n``participants`` / ``per_person_price`` are set only when the line is\npriced per head (a ``per_participant_tier`` rule, or any rule whose\ndetail has ``per_participant`` true) AND ``line_total / qty /\nparticipants`` divides to whole cents; otherwise both are ``None`` and\nthe page shows the line total alone.",
         "properties": {
@@ -16685,6 +18315,51 @@
         "title": "OfferLineItem",
         "type": "object"
       },
+      "OfferOption": {
+        "additionalProperties": false,
+        "description": "One priced choice of an offer (shuttle one way / both, jacket S/M/L).",
+        "properties": {
+          "key": {
+            "pattern": "^[a-z0-9_]{1,40}$",
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "label_localized": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Label Localized",
+            "type": "object"
+          },
+          "price_delta_cents": {
+            "title": "Price Delta Cents",
+            "type": "integer"
+          },
+          "stock": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stock"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "price_delta_cents"
+        ],
+        "title": "OfferOption",
+        "type": "object"
+      },
       "OfferParticipant": {
         "additionalProperties": true,
         "description": "One entry of the RPC's ``participants`` array. Mirrors the widget's\n``OfferParticipant`` TypeScript interface.",
@@ -16734,6 +18409,175 @@
           }
         },
         "title": "OfferParticipant",
+        "type": "object"
+      },
+      "OfferPatch": {
+        "additionalProperties": false,
+        "description": "PATCH body: only the fields set are written (``model_fields_set``).",
+        "properties": {
+          "binding": {
+            "anyOf": [
+              {
+                "enum": [
+                  "booking",
+                  "person",
+                  "free"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Binding"
+          },
+          "collection": {
+            "anyOf": [
+              {
+                "enum": [
+                  "online",
+                  "on_site",
+                  "free"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection"
+          },
+          "max_qty": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Qty"
+          },
+          "min_qty": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Qty"
+          },
+          "mode": {
+            "anyOf": [
+              {
+                "enum": [
+                  "optional",
+                  "mandatory",
+                  "info"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mode"
+          },
+          "options": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/OfferOption"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Options"
+          },
+          "parent_product_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Product Id"
+          },
+          "product_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Id"
+          },
+          "required_attributes": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Required Attributes"
+          },
+          "rules": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OfferRules"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "schedule": {
+            "anyOf": [
+              {
+                "enum": [
+                  "locked",
+                  "subset",
+                  "own"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Schedule"
+          },
+          "sort_order": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sort Order"
+          }
+        },
+        "title": "OfferPatch",
         "type": "object"
       },
       "OfferPatchIn": {
@@ -17100,6 +18944,109 @@
         "title": "OfferPositionOut",
         "type": "object"
       },
+      "OfferPreviewIn": {
+        "additionalProperties": false,
+        "description": "POST /api/operators/{operator_id}/offers/preview body: the evaluate\nrequest without the widget token (the operator comes from the session).",
+        "properties": {
+          "guests": {
+            "items": {
+              "$ref": "#/components/schemas/EvaluateGuestIn"
+            },
+            "maxItems": 50,
+            "title": "Guests",
+            "type": "array"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/EvaluateLineIn"
+            },
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "Lines",
+            "type": "array"
+          },
+          "season_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                "maxItems": 200,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Season Ids"
+          }
+        },
+        "required": [
+          "lines"
+        ],
+        "title": "OfferPreviewIn",
+        "type": "object"
+      },
+      "OfferPricePreview": {
+        "description": "What the offer would cost on its parent line's days for this party, at\n``quantity`` (its minimum, at least 1). ``unit_price_cents`` / ``total_cents``\nare null when it cannot be quoted here (own dates, an un-priceable list);\n0 for ``collection = 'free'``.",
+        "properties": {
+          "currency": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Currency"
+          },
+          "price_unit": {
+            "default": "booking",
+            "enum": [
+              "booking",
+              "night",
+              "stay",
+              "guest",
+              "guest_night"
+            ],
+            "title": "Price Unit",
+            "type": "string"
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "total_cents": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Cents"
+          },
+          "unit_price_cents": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit Price Cents"
+          }
+        },
+        "required": [
+          "quantity"
+        ],
+        "title": "OfferPricePreview",
+        "type": "object"
+      },
       "OfferProductLine": {
         "additionalProperties": true,
         "description": "One entry of the RPC's ``product_lines`` array. Mirrors the\nwidget's ``OfferProductLine`` TypeScript interface.",
@@ -17173,6 +19120,34 @@
           "quantity"
         ],
         "title": "OfferProductLine",
+        "type": "object"
+      },
+      "OfferRules": {
+        "additionalProperties": false,
+        "description": "``{\"mode\": \"all\"|\"any\", \"items\": [...]}``; empty items = offered to everyone.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RuleItem"
+            },
+            "maxItems": 50,
+            "title": "Items",
+            "type": "array"
+          },
+          "mode": {
+            "enum": [
+              "all",
+              "any"
+            ],
+            "title": "Mode",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mode",
+          "items"
+        ],
+        "title": "OfferRules",
         "type": "object"
       },
       "OfferSendOut": {
@@ -17293,6 +19268,73 @@
           "offer_discount"
         ],
         "title": "OfferSnapshotOut",
+        "type": "object"
+      },
+      "OfferStock": {
+        "description": "landr-tm48v.5: the offered product's stock on its parent line's days for\nthis party, at the offer's minimum quantity (at least 1) -- the verdict of\nGET /products/{id}/addons (``rentals.addon_stock``). ``stock_remaining``\nlets the widget judge any other quantity; null when nothing limits it.",
+        "properties": {
+          "available": {
+            "default": true,
+            "title": "Available",
+            "type": "boolean"
+          },
+          "pool_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Pool Ids",
+            "type": "array"
+          },
+          "stock_remaining": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stock Remaining"
+          },
+          "stock_scope": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stock Scope"
+          },
+          "stock_unit_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stock Unit Label"
+          },
+          "unavailable_reason": {
+            "anyOf": [
+              {
+                "enum": [
+                  "sold_out",
+                  "unit_taken"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unavailable Reason"
+          }
+        },
+        "title": "OfferStock",
         "type": "object"
       },
       "OfferSuggestionOut": {
@@ -17591,6 +19633,17 @@
               }
             ],
             "title": "Date Format Short"
+          },
+          "day_update_emails_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Day Update Emails Enabled"
           },
           "default_locale": {
             "anyOf": [
@@ -19304,6 +21357,11 @@
             "title": "First Name",
             "type": "string"
           },
+          "guest_attributes": {
+            "additionalProperties": true,
+            "title": "Guest Attributes",
+            "type": "object"
+          },
           "has_breakfast": {
             "default": false,
             "title": "Has Breakfast",
@@ -19374,6 +21432,19 @@
               }
             ],
             "title": "Pickup Location Id"
+          },
+          "ref": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ref"
           },
           "room_product_id": {
             "anyOf": [
@@ -21616,6 +23687,39 @@
             ],
             "title": "Applied Rules"
           },
+          "booking_product_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Booking Product Id"
+          },
+          "collection": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection"
+          },
+          "collection_amount": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection Amount"
+          },
           "label": {
             "title": "Label",
             "type": "string"
@@ -21623,6 +23727,50 @@
           "line_total": {
             "title": "Line Total",
             "type": "string"
+          },
+          "offer_mode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Offer Mode"
+          },
+          "offer_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Offer Status"
+          },
+          "option_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Option Key"
+          },
+          "option_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Option Label"
           },
           "paid_to": {
             "enum": [
@@ -21632,6 +23780,20 @@
             ],
             "title": "Paid To",
             "type": "string"
+          },
+          "participant_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Participant Ids",
+            "type": "array"
+          },
+          "participant_names": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Participant Names",
+            "type": "array"
           },
           "payment_note": {
             "anyOf": [
@@ -21742,6 +23904,11 @@
               }
             ],
             "title": "Offer"
+          },
+          "on_site_total": {
+            "default": "0.00",
+            "title": "On Site Total",
+            "type": "string"
           },
           "operator_total": {
             "title": "Operator Total",
@@ -21924,7 +24091,8 @@
               "manual_override",
               "slot_time_adjustment",
               "weekday_adjustment",
-              "occupancy_pricing"
+              "occupancy_pricing",
+              "attribute_bands"
             ],
             "title": "Rule Kind",
             "type": "string"
@@ -23265,6 +25433,35 @@
         "additionalProperties": true,
         "description": "Response of GET \u2026/products/{id}/flow. Mirrors the widget's\n``ProductFlowResponse`` TypeScript interface (src/api/flowTypes.ts).\n``modules`` is null for products with no configured flow (legacy\nshape) or list of modules otherwise.",
         "properties": {
+          "eligibility_reason_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Eligibility Reason Key"
+          },
+          "eligible": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Eligible"
+          },
+          "guest_attributes": {
+            "items": {
+              "$ref": "#/components/schemas/FlowGuestAttribute"
+            },
+            "title": "Guest Attributes",
+            "type": "array"
+          },
           "modules": {
             "anyOf": [
               {
@@ -24178,6 +26375,67 @@
             ],
             "title": "Fixed Date Window Id"
           },
+          "line_id": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9_-]{1,40}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Line Id"
+          },
+          "offer_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Offer Id"
+          },
+          "option_key": {
+            "anyOf": [
+              {
+                "pattern": "^[a-z0-9_]{1,40}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Option Key"
+          },
+          "parent_line_id": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9_-]{1,40}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Line Id"
+          },
+          "participant_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Participant Id"
+          },
           "pass_tier_id": {
             "anyOf": [
               {
@@ -24243,6 +26501,167 @@
           "product_id"
         ],
         "title": "ProductLineIn",
+        "type": "object"
+      },
+      "ProductOffer": {
+        "description": "An offers row as the API returns it. Exported as ``Offer``; the class\nname keeps the OpenAPI component distinct from the widget-flow ``Offer``\nenum that already exists in the schema.",
+        "properties": {
+          "binding": {
+            "enum": [
+              "booking",
+              "person",
+              "free"
+            ],
+            "title": "Binding",
+            "type": "string"
+          },
+          "collection": {
+            "enum": [
+              "online",
+              "on_site",
+              "free"
+            ],
+            "title": "Collection",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "legacy_addon_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Legacy Addon Id"
+          },
+          "legacy_source": {
+            "anyOf": [
+              {
+                "enum": [
+                  "product_addons",
+                  "cross_sell"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Legacy Source"
+          },
+          "max_qty": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Qty"
+          },
+          "min_qty": {
+            "title": "Min Qty",
+            "type": "integer"
+          },
+          "mode": {
+            "enum": [
+              "optional",
+              "mandatory",
+              "info"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "operator_id": {
+            "format": "uuid",
+            "title": "Operator Id",
+            "type": "string"
+          },
+          "options": {
+            "items": {
+              "$ref": "#/components/schemas/OfferOption"
+            },
+            "title": "Options",
+            "type": "array"
+          },
+          "parent_product_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Product Id"
+          },
+          "product_id": {
+            "format": "uuid",
+            "title": "Product Id",
+            "type": "string"
+          },
+          "required_attributes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Required Attributes",
+            "type": "array"
+          },
+          "rules": {
+            "$ref": "#/components/schemas/OfferRules"
+          },
+          "schedule": {
+            "enum": [
+              "locked",
+              "subset",
+              "own"
+            ],
+            "title": "Schedule",
+            "type": "string"
+          },
+          "sort_order": {
+            "title": "Sort Order",
+            "type": "integer"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "operator_id",
+          "parent_product_id",
+          "product_id",
+          "rules",
+          "binding",
+          "schedule",
+          "collection",
+          "mode",
+          "options",
+          "required_attributes",
+          "min_qty",
+          "max_qty",
+          "sort_order",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "ProductOffer",
         "type": "object"
       },
       "ProductPatch": {
@@ -27016,6 +29435,18 @@
       "RenderIn": {
         "additionalProperties": false,
         "properties": {
+          "booking_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Booking Id"
+          },
           "template_id": {
             "maxLength": 64,
             "minLength": 1,
@@ -30586,6 +33017,65 @@
           "date_rule"
         ],
         "title": "RollForwardSeasonOut",
+        "type": "object"
+      },
+      "RuleItem": {
+        "additionalProperties": false,
+        "description": "One condition: ``{\"cond\", \"op\", \"value\"[, \"key\"][, \"anchor\"]}`` (``key`` on\nguest_attr / guest_attr_all only, required there; ``anchor`` on date_window\nonly, optional).",
+        "properties": {
+          "anchor": {
+            "enum": [
+              "every_night",
+              "arrival"
+            ],
+            "title": "Anchor",
+            "type": "string"
+          },
+          "cond": {
+            "enum": [
+              "parent_in",
+              "guest_attr",
+              "guest_attr_all",
+              "date_window",
+              "season_in",
+              "stay_nights",
+              "parent_unavailable"
+            ],
+            "title": "Cond",
+            "type": "string"
+          },
+          "key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Key"
+          },
+          "op": {
+            "enum": [
+              "eq",
+              "in",
+              "gte",
+              "lte",
+              "between"
+            ],
+            "title": "Op",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value"
+          }
+        },
+        "required": [
+          "cond",
+          "op",
+          "value"
+        ],
+        "title": "RuleItem",
         "type": "object"
       },
       "RunIn": {
@@ -37395,7 +39885,8 @@
               "manual_override",
               "slot_time_adjustment",
               "weekday_adjustment",
-              "occupancy_pricing"
+              "occupancy_pricing",
+              "attribute_bands"
             ],
             "title": "Rule Kind",
             "type": "string"
@@ -37471,7 +39962,8 @@
                   "manual_override",
                   "slot_time_adjustment",
                   "weekday_adjustment",
-                  "occupancy_pricing"
+                  "occupancy_pricing",
+                  "attribute_bands"
                 ],
                 "type": "string"
               },
@@ -44447,6 +46939,83 @@
         ]
       }
     },
+    "/api/operators/{operator_id}/bookings/{booking_id}/participants/{participant_id}/attributes": {
+      "patch": {
+        "operationId": "patch_participant_attributes",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Booking Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "participant_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Participant Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GuestAttributesPatchIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GuestAttributesOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Patch Participant Attributes",
+        "tags": [
+          "staff-booking-guest-attributes"
+        ]
+      }
+    },
     "/api/operators/{operator_id}/emails/compose": {
       "post": {
         "operationId": "compose_email",
@@ -44674,6 +47243,241 @@
         ]
       }
     },
+    "/api/operators/{operator_id}/guest-attribute-definitions": {
+      "get": {
+        "description": "The operator's attribute catalogue: the five well-known keys plus custom ones.",
+        "operationId": "list_guest_attribute_definitions",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/GuestAttributeDefinition"
+                  },
+                  "title": "Response List Guest Attribute Definitions",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Guest Attribute Definitions",
+        "tags": [
+          "staff-product-offers"
+        ]
+      },
+      "post": {
+        "description": "Add a custom attribute. 409 ``attribute_key_taken`` for a duplicate key.",
+        "operationId": "create_guest_attribute_definition",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GuestAttributeDefinitionIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GuestAttributeDefinition"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Guest Attribute Definition",
+        "tags": [
+          "staff-product-offers"
+        ]
+      }
+    },
+    "/api/operators/{operator_id}/guest-attribute-definitions/{definition_id}": {
+      "delete": {
+        "description": "Delete a custom attribute. 409 ``guest_attribute_in_use`` (``key``, ``products``,\n``offers`` ids) while a live rule / required_attributes still names it; 422\n``well_known_locked`` for a well-known key; 404 ``attribute_not_found``.",
+        "operationId": "delete_guest_attribute_definition",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "definition_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Definition Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GuestAttributeInUseError"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Delete Guest Attribute Definition",
+        "tags": [
+          "staff-product-offers"
+        ]
+      },
+      "patch": {
+        "description": "Edit label / translations / order / active (and unit, choices, bounds of a\ncustom key). 422 ``well_known_locked`` for the platform shape of a well-known key.",
+        "operationId": "patch_guest_attribute_definition",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "definition_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Definition Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GuestAttributeDefinitionPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GuestAttributeDefinition"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Patch Guest Attribute Definition",
+        "tags": [
+          "staff-product-offers"
+        ]
+      }
+    },
     "/api/operators/{operator_id}/holded/pending-decisions": {
       "get": {
         "description": "Paginated list of unresolved Holded contact decisions for an operator.\n\nOrdered by created_at ASC (FIFO). Includes a short booking summary\ndenormalised from external_sync_log + bookings.",
@@ -44866,6 +47670,391 @@
         "summary": "Resolve Pending Decision",
         "tags": [
           "Holded"
+        ]
+      }
+    },
+    "/api/operators/{operator_id}/offers": {
+      "get": {
+        "description": "The operator's offers, optionally narrowed to one parent or one offered product.",
+        "operationId": "list_product_offers",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "parent_product_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Parent Product Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "product_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Product Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProductOffer"
+                  },
+                  "title": "Response List Product Offers",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Offers",
+        "tags": [
+          "staff-product-offers"
+        ]
+      },
+      "post": {
+        "description": "Create an offer. 404 ``referenced_row_not_found`` when a product, parent,\nrule product / season or attribute key is not this operator's.",
+        "operationId": "create_product_offer",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OfferIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductOffer"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Offer",
+        "tags": [
+          "staff-product-offers"
+        ]
+      }
+    },
+    "/api/operators/{operator_id}/offers/preview": {
+      "post": {
+        "description": "Preview as guest (landr-tm48v.7): the offers and prices the public\nevaluate endpoint returns for this party, through the SAME evaluator and\npricing path, but authenticated as the operator (no widget token) and with\ndraft (inactive / unlisted) products and offers included, flagged ``draft``.\nThe operator is the principal's; a product that is not theirs is a 404.",
+        "operationId": "preview_product_offers",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OfferPreviewIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OfferEvaluateOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Preview Offers",
+        "tags": [
+          "staff-product-offers"
+        ]
+      }
+    },
+    "/api/operators/{operator_id}/offers/{offer_id}": {
+      "delete": {
+        "description": "Delete an offer. A migrated add-on is removed by deleting its\nproduct_addons link; a cross-sell row is deleted directly.",
+        "operationId": "delete_product_offer",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "offer_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Offer Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Delete Offer",
+        "tags": [
+          "staff-product-offers"
+        ]
+      },
+      "patch": {
+        "description": "Update the fields sent. A migrated add-on writes them through to its\nproduct_addons link in one transaction (409 ``addon_link_exists`` for a\nduplicate parent/add-on pair, ``binding_not_applicable``,\n``product_cap_overrides`` for a cleared max_qty under the product's own cap);\n409 ``offer_owned_by_legacy_source`` for parent / product of a cross-sell row\nor a null parent on a migrated add-on.",
+        "operationId": "patch_product_offer",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "offer_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Offer Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OfferPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductOffer"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Patch Offer",
+        "tags": [
+          "staff-product-offers"
+        ]
+      }
+    },
+    "/api/operators/{operator_id}/products/{product_id}/eligibility-rules": {
+      "patch": {
+        "description": "Set \"who can book\" (``products.eligibility_rules``; null = everyone). 404\n``referenced_row_not_found`` for a product that is not this operator's, or\n(field ``rules``) a guest-attribute key outside the operator's catalogue or a\nproduct / season of another operator.",
+        "operationId": "patch_product_eligibility_rules",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Product Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EligibilityRulesBody-Input"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EligibilityRulesBody-Output"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Patch Product Eligibility Rules",
+        "tags": [
+          "staff-product-offers"
         ]
       }
     },
@@ -46454,6 +49643,48 @@
         ]
       }
     },
+    "/api/public/offers/evaluate": {
+      "post": {
+        "description": "landr-tm48v.2: which offers each cart line shows this party, and may\neach line be booked -- the ONE evaluator (app/services/offer_rules.py)\nwith the facts only the server knows (capacity for ``parent_unavailable``,\nthe seasons the dates touch). The widget (landr-tm48v.5) reads this\ninstead of GET /products/{id}/addons; submit re-judges the same way.\n\nKeyed on the widget token in the body: every line's product must be that\noperator's active, publicly listed, not-deleted product, else one uniform\n404. Per line, in request order: ``eligible`` -- the verdict submit\nenforces (offer_enforcement.judge_lines: the product's eligibility_rules,\nand offered by a parent line where the cart has one) -- and the offers\n(``visible_offers_for``: parent-linked ones always, flagged ``in_cart``\nwhen already this line's child; on a top-level line also the cross-sell\nones not yet in the cart) with a price preview.",
+        "operationId": "evaluate_offers",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OfferEvaluateIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OfferEvaluateOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Evaluate Offers",
+        "tags": [
+          "public-operators"
+        ]
+      }
+    },
     "/api/public/operator-invites/{token}": {
       "get": {
         "operationId": "get_invite",
@@ -47115,7 +50346,7 @@
     },
     "/api/public/operators/{token}/products/{product_id}/flow": {
       "get": {
-        "description": "landr-71kz.2 / EPIC A: the product's ordered booking-flow modules.\n\nThin FastAPI wrapper over the SECURITY DEFINER RPC\n``public_get_product_flow``. The widget calls this after the customer picks a\nproduct to learn which modules (selection, participants, accommodation,\ncustom_form, \u2026) to render in which order, with the attached form definition\n(key/version/name + ordered fields) inlined for custom_form modules.\n\nReturns ``{\"modules\": null}`` when the product has no configured flow \u2014 the\nLEGACY path the widget reproduces bit-for-bit (zero config = today's\nhardcoded flow). Keyed on the opaque widget_token (resolved to the slug\nhere); an unknown token 404s via ``_resolve_operator_by_token``.",
+        "description": "landr-71kz.2 / EPIC A: the product's ordered booking-flow modules.\n\nThin FastAPI wrapper over the SECURITY DEFINER RPC\n``public_get_product_flow``. The widget calls this after the customer picks a\nproduct to learn which modules (selection, participants, accommodation,\ncustom_form, \u2026) to render in which order, with the attached form definition\n(key/version/name + ordered fields) inlined for custom_form modules.\n\nReturns ``{\"modules\": null}`` when the product has no configured flow \u2014 the\nLEGACY path the widget reproduces bit-for-bit (zero config = today's\nhardcoded flow). Keyed on the opaque widget_token (resolved to the slug\nhere); an unknown token 404s via ``_resolve_operator_by_token``.\n\nlandr-tm48v.2: ``eligible`` + ``eligibility_reason_key`` -- may the product\nbe booked on these dates (``products.eligibility_rules`` through the offer\nevaluator, without a party: ``attribute_missing.<key>`` = ask the guests,\nthen judge them with POST /offers/evaluate, which never puts guest data in\na URL). Present when the product has eligibility rules or the caller sent\n``arrival`` / ``departure``; absent otherwise, so the legacy wire shape\nstays as it was. 422 ``bad_dates`` for a departure without an arrival,\nbefore it, or more than a year after it.",
         "operationId": "get_product_flow",
         "parameters": [
           {
@@ -47134,6 +50365,44 @@
             "schema": {
               "title": "Product Id",
               "type": "string"
+            }
+          },
+          {
+            "description": "landr-tm48v.2: first booked day, for the eligibility verdict",
+            "in": "query",
+            "name": "arrival",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "landr-tm48v.2: first booked day, for the eligibility verdict",
+              "title": "Arrival"
+            }
+          },
+          {
+            "description": "landr-tm48v.2: day after the last booked day / night",
+            "in": "query",
+            "name": "departure",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "landr-tm48v.2: day after the last booked day / night",
+              "title": "Departure"
             }
           }
         ],
@@ -47441,7 +50710,7 @@
     },
     "/api/public/products/{product_id}/addons": {
       "get": {
-        "description": "Add-ons configured for a parent product (landr-cip6 / epic landr-ie8g).\n\nThin FastAPI wrapper over the SECURITY DEFINER RPC\n`public_get_product_addons`. Returns one row per linked add-on\nproduct, including the add-on's display name, per-unit price (when\nthe scheme exposes a per_day_base rule), and the product_addons\nconfig (is_required, min_qty, max_qty, sort_order). The widget\ncalls this after the customer picks a parent product to render\nqty steppers + the orange overbook warning + required-min gating.\n\nReturns an empty list when the parent has no add-ons (including\nwhen the parent itself is hidden \u2014 see RPC docstring); the widget\ntreats an empty list as \"no add-ons\" and skips the add-on UI.",
+        "description": "Add-ons configured for a parent product (landr-cip6 / epic landr-ie8g).\n\nThin FastAPI wrapper over the SECURITY DEFINER RPC\n`public_get_product_addons`. Returns one row per linked add-on\nproduct, including the add-on's display name, per-unit price (when\nthe scheme exposes a per_day_base rule), and the offer's config\n(is_required = mandatory, min_qty, max_qty, sort_order; landr-tm48v.2:\nthe RPC reads ``offers`` -- rows needing guests or dates are left out,\nPOST /offers/evaluate judges those). The widget\ncalls this after the customer picks a parent product to render\nqty steppers + the orange overbook warning + required-min gating.\n\nReturns an empty list when the parent has no add-ons (including\nwhen the parent itself is hidden \u2014 see RPC docstring); the widget\ntreats an empty list as \"no add-ons\" and skips the add-on UI.",
         "operationId": "get_product_addons",
         "parameters": [
           {

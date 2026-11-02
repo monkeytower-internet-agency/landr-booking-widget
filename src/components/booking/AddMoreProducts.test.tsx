@@ -2,14 +2,17 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { useState } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { Location, Product } from '@/api/types'
+import type { EvaluatedOffer, Location, Product } from '@/api/types'
 import {
   getAvailability,
+  getOffers,
   getProductFlow,
   listPickupLocationsForOperator,
   listProducts,
   submitBooking,
 } from '@/api/client'
+import { AddMoreProducts } from './AddMoreProducts'
+import { newPick } from './offerCart'
 import { BookingForm, type BookingSelection, type InlineAnswers } from './BookingForm'
 import type { ExtraLine } from './crossSell'
 import type { BookerDetails } from './detailsTypes'
@@ -23,6 +26,7 @@ vi.mock('@/api/client', async (importOriginal) => {
     listProducts: vi.fn(),
     getFixedDateWindows: vi.fn(),
     getProductFlow: vi.fn(),
+    getOffers: vi.fn(),
     listPickupLocationsForOperator: vi.fn(),
   }
 })
@@ -53,6 +57,34 @@ function product(id: string, over: Partial<Product> = {}): Product {
   }
 }
 
+/** An offer of the main line; `own` = the product is added with its own dates. */
+function offer(productId: string, over: Partial<EvaluatedOffer> = {}): EvaluatedOffer {
+  return {
+    id: `offer-${productId}`,
+    parent_product_id: null,
+    product_id: productId,
+    rules: {},
+    binding: 'booking',
+    schedule: 'own',
+    collection: 'online',
+    mode: 'optional',
+    min_qty: 1,
+    sort_order: 0,
+    name: productId,
+    product_kind: 'service',
+    in_cart: false,
+    draft: false,
+    ...over,
+  }
+}
+
+/** The evaluator answers with these offers on the main line. */
+function offerOnMain(...offers: EvaluatedOffer[]) {
+  vi.mocked(getOffers).mockResolvedValue({
+    lines: [{ line_id: 'main', eligible: true, offers, draft: false }],
+  })
+}
+
 const MAIN = product('main')
 const CAMPING = product('camping', { product_kind: 'stay', service_time_shape: null })
 const SELECTION: BookingSelection = { kind: 'days', selectedDays: ['2026-11-02', '2026-11-03'] }
@@ -77,12 +109,10 @@ const BOOKER: BookerDetails = {
 function Harness({
   main = MAIN,
   participantLanguages,
-  allowed,
   off,
 }: {
   main?: Product
   participantLanguages?: Record<number, string>
-  allowed?: string[]
   off?: boolean
 }) {
   const [lines, setLines] = useState<ExtraLine[]>([])
@@ -96,8 +126,8 @@ function Harness({
       participants={[{ ...BOOKER, service_role_code: '' }]}
       pickupLocationId={null}
       extraLines={lines}
-      onExtraLinesChange={off ? undefined : setLines}
-      crossSellProductIds={allowed}
+      onExtraLinesChange={setLines}
+      crossSellEnabled={!off}
       onBack={vi.fn()}
       onConfirmed={vi.fn()}
     />
@@ -140,6 +170,8 @@ describe('Add more to this booking (review step)', () => {
     vi.mocked(getAvailability).mockReset()
     vi.mocked(listProducts).mockReset()
     vi.mocked(listProducts).mockResolvedValue([MAIN, CAMPING])
+    vi.mocked(getOffers).mockReset()
+    offerOnMain(offer('camping', { product_kind: 'stay' }))
     vi.mocked(getProductFlow).mockReset()
     vi.mocked(getProductFlow).mockResolvedValue({ modules: null })
     vi.mocked(listPickupLocationsForOperator).mockReset()
@@ -181,6 +213,7 @@ describe('Add more to this booking (review step)', () => {
   it('asks for verification inline when the added product requires it', async () => {
     const verified = product('verified', { name: 'Test event', requires_verification: true })
     vi.mocked(listProducts).mockResolvedValue([MAIN, CAMPING, verified])
+    offerOnMain(offer('camping'), offer('verified'))
     vi.mocked(getAvailability).mockResolvedValue([])
     render(<Harness />)
     await addAndSettle('verified')
@@ -191,6 +224,7 @@ describe('Add more to this booking (review step)', () => {
     const mainEn = product('main', { guide_languages: ['en'] })
     const guided = product('guided', { name: 'Guided tour', guide_languages: ['de'] })
     vi.mocked(listProducts).mockResolvedValue([mainEn, CAMPING, guided])
+    offerOnMain(offer('camping'), offer('guided'))
     vi.mocked(getAvailability).mockResolvedValue([])
     render(<Harness main={mainEn} participantLanguages={{ 0: 'en' }} />)
     await screen.findByTestId('add-more-candidate-camping')
@@ -200,6 +234,7 @@ describe('Add more to this booking (review step)', () => {
   it('renders the guide-language board inline and submits the picked language', async () => {
     const guided = product('guided', { name: 'Guided tour', guide_languages: ['de', 'en'] })
     vi.mocked(listProducts).mockResolvedValue([MAIN, guided])
+    offerOnMain(offer('guided'))
     vi.mocked(getAvailability).mockResolvedValue([])
     vi.mocked(submitBooking).mockResolvedValue({ booking_id: 'b-3', semantic_state: 'pending' })
     render(<Harness />)
@@ -227,6 +262,7 @@ describe('Add more to this booking (review step)', () => {
   it('keeps the inline language answer across Back and return to review', async () => {
     const guided = product('guided', { name: 'Guided tour', guide_languages: ['de', 'en'] })
     vi.mocked(listProducts).mockResolvedValue([MAIN, guided])
+    offerOnMain(offer('guided'))
     vi.mocked(getAvailability).mockResolvedValue([])
     render(<RoundTripHarness />)
     const line = await addAndSettle('guided')
@@ -250,6 +286,7 @@ describe('Add more to this booking (review step)', () => {
   it('needs no board when one language is shared: the whole party gets it', async () => {
     const guided = product('guided', { name: 'Guided tour', guide_languages: ['fr'] })
     vi.mocked(listProducts).mockResolvedValue([MAIN, guided])
+    offerOnMain(offer('guided'))
     vi.mocked(getAvailability).mockResolvedValue([])
     vi.mocked(submitBooking).mockResolvedValue({ booking_id: 'b-4', semantic_state: 'pending' })
     render(<Harness />)
@@ -265,6 +302,7 @@ describe('Add more to this booking (review step)', () => {
   it('renders the added product\'s custom form inline and submits its answers', async () => {
     const formed = product('formed', { name: 'Course' })
     vi.mocked(listProducts).mockResolvedValue([MAIN, formed])
+    offerOnMain(offer('formed'))
     vi.mocked(getAvailability).mockResolvedValue([])
     vi.mocked(getProductFlow).mockResolvedValue(
       flowWith('medical', [
@@ -307,6 +345,7 @@ describe('Add more to this booking (review step)', () => {
   it('drops the inline form answers when the product is removed', async () => {
     const formed = product('formed', { name: 'Course' })
     vi.mocked(listProducts).mockResolvedValue([MAIN, formed])
+    offerOnMain(offer('formed'))
     vi.mocked(getAvailability).mockResolvedValue([])
     vi.mocked(getProductFlow).mockResolvedValue(flowWith('medical') as never)
     vi.mocked(submitBooking).mockResolvedValue({ booking_id: 'b-6', semantic_state: 'pending' })
@@ -326,6 +365,7 @@ describe('Add more to this booking (review step)', () => {
   it('renders the pickup picker inline and submits the picked point', async () => {
     const shuttle = product('shuttle', { name: 'Shuttle tour', needs_pickup: true })
     vi.mocked(listProducts).mockResolvedValue([MAIN, shuttle])
+    offerOnMain(offer('shuttle'))
     vi.mocked(getAvailability).mockResolvedValue([])
     vi.mocked(listPickupLocationsForOperator).mockResolvedValue([
       { location_id: 'loc-1', name: 'Harbour', name_localized: null },
@@ -371,8 +411,20 @@ describe('Add more to this booking (review step)', () => {
     await waitFor(() => expect(submitBooking).toHaveBeenCalledTimes(1))
     const body = vi.mocked(submitBooking).mock.calls[0]![0]
     expect(body.products).toEqual([
-      expect.objectContaining({ product_id: 'main', quantity: 1, selected_days: ['2026-11-02', '2026-11-03'] }),
-      { product_id: 'camping', quantity: 1, selected_days: ['2026-11-02', '2026-11-03'] },
+      expect.objectContaining({
+        product_id: 'main',
+        quantity: 1,
+        selected_days: ['2026-11-02', '2026-11-03'],
+        line_id: 'main',
+      }),
+      {
+        product_id: 'camping',
+        quantity: 1,
+        selected_days: ['2026-11-02', '2026-11-03'],
+        line_id: 'o1',
+        offer_id: 'offer-camping',
+        parent_line_id: 'main',
+      },
     ])
   })
 
@@ -417,28 +469,261 @@ describe('Add more to this booking (review step)', () => {
       product_id: 'camping',
       quantity: 1,
       selected_days: ['2026-11-02'],
+      line_id: 'o1',
+      offer_id: 'offer-camping',
+      parent_line_id: 'main',
     })
   })
 
-  it('offers only the curated products when the operator lists some', async () => {
+  it('drops an added product when the pick it hangs under is unticked', async () => {
+    const towel = offer('towel', { parent_product_id: 'main', schedule: 'locked', name: 'Towel' })
+    const guided = offer('guided-p', { parent_product_id: 'towel', product_id: 'camping', name: 'Camping' })
+    vi.mocked(getOffers).mockResolvedValue({
+      lines: [
+        { line_id: 'main', eligible: true, offers: [towel], draft: false },
+        { line_id: 'o1', eligible: true, offers: [guided], draft: false },
+      ],
+    })
+    vi.mocked(getAvailability).mockResolvedValue([])
+    vi.mocked(submitBooking).mockResolvedValue({ booking_id: 'b-8', semantic_state: 'pending' })
+    render(<Harness />)
+
+    const toggle = await screen.findByTestId('offer-toggle-offer-towel')
+    await act(async () => {
+      fireEvent.click(toggle)
+    })
+    const nested = await screen.findByTestId('offer-tree-o1')
+    await act(async () => {
+      fireEvent.click(within(nested).getByTestId('add-more-candidate-camping'))
+    })
+    await screen.findByTestId('add-more-line-camping')
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('offer-toggle-offer-towel'))
+    })
+    await waitFor(() => expect(screen.queryByTestId('add-more-line-camping')).toBeNull())
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+    })
+    await waitFor(() => expect(submitBooking).toHaveBeenCalledTimes(1))
+    const body = vi.mocked(submitBooking).mock.calls[0]![0]
+    expect(body.products.map((p) => p.product_id)).toEqual(['main'])
+  })
+
+  it('submits an own-dated child offer under a pick with its own days and parent_line_id', async () => {
+    const towel = offer('towel', { parent_product_id: 'main', schedule: 'locked', name: 'Towel' })
+    const guided = offer('guided-p', { parent_product_id: 'towel', product_id: 'camping', name: 'Camping' })
+    vi.mocked(getOffers).mockResolvedValue({
+      lines: [
+        { line_id: 'main', eligible: true, offers: [towel], draft: false },
+        { line_id: 'o1', eligible: true, offers: [guided], draft: false },
+      ],
+    })
+    vi.mocked(getAvailability).mockResolvedValue([])
+    vi.mocked(submitBooking).mockResolvedValue({ booking_id: 'b-10', semantic_state: 'pending' })
+    render(<Harness />)
+
+    const toggle = await screen.findByTestId('offer-toggle-offer-towel')
+    await act(async () => {
+      fireEvent.click(toggle)
+    })
+    const nested = await screen.findByTestId('offer-tree-o1')
+    await act(async () => {
+      fireEvent.click(within(nested).getByTestId('add-more-candidate-camping'))
+    })
+    const line = await screen.findByTestId('add-more-line-camping')
+    await waitFor(() => expect(line).not.toHaveTextContent(/Checking availability/))
+    // Indented under its pick, not in the flat list.
+    expect(within(screen.getByTestId('offer-tree-o1')).getByTestId('add-more-line-camping')).toBe(line)
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+    })
+    await waitFor(() => expect(submitBooking).toHaveBeenCalledTimes(1))
+    const products = vi.mocked(submitBooking).mock.calls[0]![0].products
+    expect(products.find((p) => p.offer_id === 'offer-towel')).toMatchObject({
+      line_id: 'o1',
+      parent_line_id: 'main',
+    })
+    expect(products.find((p) => p.product_id === 'camping')).toEqual({
+      product_id: 'camping',
+      quantity: 1,
+      selected_days: ['2026-11-02', '2026-11-03'],
+      line_id: 'o2',
+      offer_id: 'offer-guided-p',
+      parent_line_id: 'o1',
+    })
+  })
+
+  it('keeps an extra whose parent is the main line in the flat list', async () => {
+    vi.mocked(getAvailability).mockResolvedValue([])
+    render(<Harness />)
+    const line = await addAndSettle('camping')
+    expect(line.closest('[data-testid^="add-more-nested-"]')).toBeNull()
+    expect(line.closest('[data-testid="add-more-products"]')).not.toBeNull()
+  })
+
+  it('keeps a nested extra visible in the flat list while its pick row is hidden by the pending check', async () => {
+    vi.mocked(getAvailability).mockResolvedValue([])
+    const towel = offer('towel', {
+      parent_product_id: 'main',
+      schedule: 'locked',
+      rules: { mode: 'all', items: [{ cond: 'guest_attr', key: 'age', op: 'gte', value: 10 }] },
+    })
+    const pick = newPick(towel, 'main', 'o1', ['2026-11-02'])
+    const extra: ExtraLine = {
+      key: 'x-o2',
+      lineId: 'o2',
+      offerId: 'offer-camp',
+      parentLineId: 'o1',
+      product: CAMPING,
+      mode: 'days',
+      days: ['2026-11-02'],
+      slot: null,
+      windowId: null,
+      quantity: 1,
+      unavailableDays: [],
+      checking: false,
+    }
+    const member = { key: 'm1', ref: 'g1', name: 'Kid', attributes: { age: 5 } }
+    const tree = { main: { lineId: 'main', productId: 'main', parentLineId: null, days: ['2026-11-02'] } }
+    const base = {
+      operatorToken: 'tok',
+      mainDays: ['2026-11-02'],
+      partySize: 1,
+      lines: [extra],
+      onLinesChange: vi.fn(),
+      locale: 'en',
+      context: { participantLanguages: {}, participantCount: 1, mainLanguages: [], answeredFormKeys: [], hasPickup: false },
+      modules: {
+        state: { languages: null, formKeys: [], pickupLocationId: null },
+        formAnswers: {},
+        participantLabels: [],
+        participants: [],
+        companions: [],
+        onLanguages: vi.fn(),
+        onForm: vi.fn(),
+        onPickup: vi.fn(),
+        onAges: vi.fn(),
+      },
+    } as unknown as React.ComponentProps<typeof AddMoreProducts>
+    const offers = (isPending: boolean) => ({
+      verdicts: { main: { line_id: 'main', eligible: true, offers: [towel], draft: false } },
+      picks: [pick],
+      onPicksChange: vi.fn(),
+      tree: { ...tree, o1: { lineId: 'o1', productId: towel.product_id, parentLineId: 'main', days: [] } },
+      members: [member],
+      isPending,
+      checkFailed: false,
+      removedNotice: false,
+      currency: 'EUR',
+    })
+    const { rerender } = render(<AddMoreProducts {...base} offers={offers(false) as never} />)
+    await waitFor(() =>
+      expect(within(screen.getByTestId('add-more-nested-o1')).getByTestId('add-more-line-camping')).toBeInTheDocument(),
+    )
+    rerender(<AddMoreProducts {...base} offers={offers(true) as never} />)
+    await waitFor(() => expect(screen.queryByTestId('add-more-nested-o1')).toBeNull())
+    expect(screen.getByTestId('add-more-line-camping')).toBeInTheDocument()
+  })
+
+  it('nests an own-dated child under an own-dated extra (depth 3) with its own days', async () => {
+    const SHOES = product('shoes')
+    vi.mocked(listProducts).mockResolvedValue([MAIN, CAMPING, SHOES])
+    const camp = offer('camping', { product_kind: 'stay' })
+    const shoes = offer('shoes', { parent_product_id: 'camping', name: 'Water shoes' })
+    vi.mocked(getOffers).mockResolvedValue({
+      lines: [
+        { line_id: 'main', eligible: true, offers: [camp], draft: false },
+        { line_id: 'o1', eligible: true, offers: [shoes], draft: false },
+      ],
+    })
+    vi.mocked(getAvailability).mockResolvedValue([])
+    vi.mocked(submitBooking).mockResolvedValue({ booking_id: 'b-11', semantic_state: 'pending' })
+    render(<Harness />)
+
+    const campLine = await addAndSettle('camping')
+    await act(async () => {
+      fireEvent.click(within(campLine).getByTestId('add-more-candidate-shoes'))
+    })
+    const shoesLine = await screen.findByTestId('add-more-line-shoes')
+    // Depth 3: nested inside the extra's own card.
+    expect(within(campLine).getByTestId('offer-tree-o1')).toContainElement(shoesLine)
+    await waitFor(() => expect(shoesLine).not.toHaveTextContent(/Checking availability/))
+    // Its own days: drop one of the two it inherited.
+    const removeDay = within(shoesLine).getAllByRole('button', { name: /^Remove / })
+    await act(async () => {
+      fireEvent.click(removeDay[removeDay.length - 1]!)
+    })
+    await waitFor(() => expect(shoesLine).not.toHaveTextContent(/Checking availability/))
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+    })
+    await waitFor(() => expect(submitBooking).toHaveBeenCalledTimes(1))
+    const products = vi.mocked(submitBooking).mock.calls[0]![0].products
+    const campingLine = products.find((p) => p.product_id === 'camping')!
+    expect(campingLine).toMatchObject({ line_id: 'o1', parent_line_id: 'main' })
+    expect(campingLine.selected_days).toEqual(['2026-11-02', '2026-11-03'])
+    expect(products.find((p) => p.product_id === 'shoes')).toEqual({
+      product_id: 'shoes',
+      quantity: 1,
+      selected_days: ['2026-11-02'],
+      line_id: 'o2',
+      offer_id: 'offer-shoes',
+      parent_line_id: 'o1',
+    })
+  })
+
+  it('adds a mandatory own-dated offer on its own, with no way to remove it', async () => {
+    offerOnMain(offer('camping', { mode: 'mandatory', product_kind: 'stay' }))
+    vi.mocked(getAvailability).mockResolvedValue([])
+    vi.mocked(submitBooking).mockResolvedValue({ booking_id: 'b-9', semantic_state: 'pending' })
+    render(<Harness />)
+    const line = await screen.findByTestId('add-more-line-camping')
+    await waitFor(() => expect(line).not.toHaveTextContent(/Checking availability/))
+    expect(within(line).getByTestId('offer-mandatory-badge')).toBeInTheDocument()
+    expect(within(line).queryByRole('button', { name: 'Remove' })).toBeNull()
+    expect(screen.queryByTestId('add-more-candidate-camping')).toBeNull()
+    expect(getAvailability).toHaveBeenCalledWith('camping', '2026-11-02', '2026-11-03', undefined)
+    await confirm()
+    await waitFor(() => expect(submitBooking).toHaveBeenCalledTimes(1))
+    expect(vi.mocked(submitBooking).mock.calls[0]![0].products[1]).toMatchObject({
+      product_id: 'camping',
+      selected_days: ['2026-11-02', '2026-11-03'],
+      parent_line_id: 'main',
+    })
+  })
+
+  it('adds only the products offered on the main line', async () => {
     const other = product('other', { name: 'Other' })
     vi.mocked(listProducts).mockResolvedValue([MAIN, CAMPING, other])
+    offerOnMain(offer('other'))
     vi.mocked(getAvailability).mockResolvedValue([])
-    render(<Harness allowed={['other']} />)
+    render(<Harness />)
     expect(await screen.findByTestId('add-more-candidate-other')).toBeInTheDocument()
     expect(screen.queryByTestId('add-more-candidate-camping')).toBeNull()
   })
 
-  it('offers every eligible product when the curated list is empty', async () => {
+  it('offers nothing to add when the main line has no offers', async () => {
+    offerOnMain()
     vi.mocked(getAvailability).mockResolvedValue([])
-    render(<Harness allowed={[]} />)
-    expect(await screen.findByTestId('add-more-candidate-camping')).toBeInTheDocument()
+    render(<Harness />)
+    await screen.findByRole('button', { name: /Confirm booking/i })
+    await waitFor(() => expect(getOffers).toHaveBeenCalled())
+    expect(screen.queryByTestId('add-more-candidate-camping')).toBeNull()
   })
 
-  it('hides the section entirely when the operator turned cross-sell off', async () => {
+  it('hides the cross-sell offers when the operator turned cross-sell off, keeping the main product\'s own', async () => {
+    offerOnMain(
+      offer('camping'),
+      offer('towel', {
+        parent_product_id: 'main',
+        schedule: 'locked',
+        name: 'Towel',
+        sort_order: 1,
+      }),
+    )
     render(<Harness off />)
-    await screen.findByRole('button', { name: /Confirm booking/i })
+    expect(await screen.findByTestId('offer-row-offer-towel')).toBeInTheDocument()
     expect(screen.queryByTestId('add-more-candidate-camping')).toBeNull()
-    expect(listProducts).not.toHaveBeenCalled()
   })
 })

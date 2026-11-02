@@ -17,7 +17,7 @@ import type {
   PartyLanguageMap,
   PartyOccupantAgeMap,
 } from '@/components/booking/partyIdentity'
-import type { AddonSelection } from '@/components/booking/addonsState'
+import type { OfferPick } from '@/components/booking/offerCart'
 import type { BookingSelection } from '@/components/booking/BookingForm'
 
 import type {
@@ -28,7 +28,11 @@ import type {
 import { hasFixedStartTimes } from '@/components/booking/slotKey'
 import { maxPartySize, seatsNeeded } from '@/lib/seatHold'
 import type { Product, ProductGroup, SubmitBookingResponse } from '@/api/types'
-import type { FormResponseEntry, ProductFlowResponse } from '@/api/flowTypes'
+import type {
+  FlowGuestAttribute,
+  FormResponseEntry,
+  ProductFlowResponse,
+} from '@/api/flowTypes'
 import {
   buildFlowPlan,
   isBookableKind,
@@ -38,15 +42,6 @@ import {
   type FlowModuleKind,
   type RemoteFlow,
 } from './flowPlan'
-
-/**
- * landr-gb2f.5: the raw per-room add-on selection carried through the step
- * machine. Keyed by roomProductId → { addon_product_id → qty }. This is the
- * UNFLATTENED form from AccommodationStep's internal addonSelection state, so
- * the review screen can reconstruct which room unit has breakfast vs not.
- * Empty map for guiding-only / shared-double modes (no room add-ons).
- */
-export type PerRoomAddons = Record<string, Record<string, number>>
 
 /**
  * landr-nmed: the persistent booking-draft of all downstream data the
@@ -83,18 +78,16 @@ export interface BookingDraft {
   // Accommodation slice — re-seeds AccommodationStep on the way forward.
   hotelLocationId?: string | null
   accommodationRooms?: RoomSelection[]
-  addons?: AddonSelection[]
+  addons?: OfferPick[]
   includeHotel?: boolean
   isSharedDouble?: boolean
   accommodationMode?: AccommodationMode
   roomAssignment?: PartyAssignmentMap
   occupantAgeMap?: PartyOccupantAgeMap
-  perRoomAddons?: PerRoomAddons
   roomProductNames?: Record<string, string>
   breakfastMap?: PartyBreakfastMap
   // Intermediate-step provenance + their entered values.
   pickupLocationId?: string | null
-  hadServiceAddons?: boolean
   // Declarations slice — re-seeds DeclarationsStep on the way forward.
   customerDeclarations?: Record<string, true> | null
   customerLanguages?: string[] | null
@@ -105,7 +98,7 @@ export interface BookingDraft {
    *
    * landr-n6ii3: unlike booker/participants/companions it is NOT threaded
    * through the Step union at all — every step from 'details' onward
-   * (pick-accommodation, pick-service-addons, pick-pickup, assign-languages,
+   * (pick-accommodation, pick-pickup, assign-languages,
    * custom-form, fill-form) renders the shared CustomerCommentField reading
    * and writing this slot DIRECTLY via App.tsx's mergeDraft, on every
    * keystroke (not gated behind that step's Continue), so an edit made on
@@ -175,7 +168,7 @@ export interface SidebarInputs {
   participantCount: number
   participantNames: string[]
   accommodationRooms: RoomSelection[]
-  addons: AddonSelection[]
+  addons: OfferPick[]
 }
 
 export type Step =
@@ -250,6 +243,19 @@ export type Step =
        */
       carry?: AlternativeCarry
     }
+  // The 'About your guests' interstitial: right after the party step, once
+  // per booking, only when the product (or an offer that can be shown for it)
+  // asks for per-guest attributes. Not a breadcrumb crumb: it is part of
+  // finishing the party step, and Back returns to it.
+  | {
+      name: 'guest-attributes'
+      product: Product
+      selection: BookingSelection
+      booker: BookerDetails
+      participants: ParticipantDetails[]
+      companions: CompanionDetails[]
+      attributes: FlowGuestAttribute[]
+    }
   // landr-yf0n: optional initialHotelLocationId / accommodationRooms /
   // addons / includeHotel let AccommodationStep re-seed its internal
   // state when the customer hits Back from a downstream step. Undefined
@@ -269,7 +275,7 @@ export type Step =
       companions: CompanionDetails[]
       hotelLocationId?: string | null
       accommodationRooms?: RoomSelection[]
-      addons?: AddonSelection[]
+      addons?: OfferPick[]
       includeHotel?: boolean
       isSharedDouble?: boolean
       accommodationMode?: AccommodationMode
@@ -279,31 +285,16 @@ export type Step =
       roomAssignment?: PartyAssignmentMap
       // landr-doam.1: per-occupant age band + age for back-nav restoration.
       occupantAgeMap?: PartyOccupantAgeMap
-      // landr-gb2f.5: raw per-room add-on selection for back-nav restoration.
-      perRoomAddons?: PerRoomAddons
       // landr-gb2f.5: room product display names for the review labels.
       roomProductNames?: Record<string, string>
       // landr-a4fy: per-occupant breakfast flag map for back-nav restoration.
       breakfastMap?: PartyBreakfastMap
     }
-  // landr-yf0n: optional addons lets ServiceAddonsStep re-seed its
-  // selection map on back-nav re-entry.
-  | {
-      name: 'pick-service-addons'
-      product: Product
-      selection: BookingSelection
-      booker: BookerDetails
-      participants: ParticipantDetails[]
-      // landr-87n9.3: carry companions through the service-addons branch
-      // (no room units here, but the roster must survive to fill-form).
-      companions: CompanionDetails[]
-      addons?: AddonSelection[]
-    }
   // landr-yf0n: optional pickupLocationId lets PickupLocationPicker re-
-  // seed its radio selection on back-nav re-entry. hadServiceAddons +
-  // hotelLocationId remember which upstream step the customer originally
-  // confirmed through so the back-nav routing can hop back through the
-  // same intermediate steps instead of jumping straight to DetailsStep.
+  // seed its radio selection on back-nav re-entry. hotelLocationId remembers
+  // which upstream step the customer originally confirmed through so the
+  // back-nav routing can hop back through the same intermediate steps instead
+  // of jumping straight to DetailsStep.
   // landr-sbhz.4: isSharedDouble threads through for back-nav restoration.
   | {
       name: 'pick-pickup'
@@ -314,10 +305,9 @@ export type Step =
       // landr-87n9.3: companions roster threads through.
       companions: CompanionDetails[]
       accommodationRooms: RoomSelection[]
-      addons: AddonSelection[]
+      addons: OfferPick[]
       pickupLocationId?: string | null
       hotelLocationId?: string | null
-      hadServiceAddons?: boolean
       includeHotel?: boolean
       isSharedDouble?: boolean
       accommodationMode?: AccommodationMode
@@ -326,8 +316,6 @@ export type Step =
       roomAssignment?: PartyAssignmentMap
       // landr-doam.1: carry the age map through the pickup step.
       occupantAgeMap?: PartyOccupantAgeMap
-      // landr-gb2f.5: carry the per-room add-on map through the pickup step.
-      perRoomAddons?: PerRoomAddons
       // landr-gb2f.5: room product display names for the review labels.
       roomProductNames?: Record<string, string>
       // landr-a4fy: carry the breakfast map through the pickup step.
@@ -356,15 +344,13 @@ export type Step =
       companions: CompanionDetails[]
       pickupLocationId: string | null
       accommodationRooms: RoomSelection[]
-      addons: AddonSelection[]
+      addons: OfferPick[]
       hotelLocationId?: string | null
-      hadServiceAddons?: boolean
       includeHotel?: boolean
       isSharedDouble?: boolean
       accommodationMode?: AccommodationMode
       roomAssignment?: PartyAssignmentMap
       occupantAgeMap?: PartyOccupantAgeMap
-      perRoomAddons?: PerRoomAddons
       roomProductNames?: Record<string, string>
       breakfastMap?: PartyBreakfastMap
       // landr-71kz.3: which operator form this step renders.
@@ -372,7 +358,7 @@ export type Step =
       // landr-71kz.4 (forward-compat): prior answers for back-nav restoration.
       initialAnswers?: Record<string, unknown>
     }
-  // landr-yf0n: hotelLocationId / hadServiceAddons / includeHotel remember
+  // landr-yf0n: hotelLocationId / includeHotel remember
   // the upstream path so the BookingForm back button can restore the
   // intermediate steps with their previously confirmed state.
   // landr-sbhz.4: isSharedDouble threads through so the back button
@@ -410,15 +396,13 @@ export type Step =
       companions: CompanionDetails[]
       pickupLocationId: string | null
       accommodationRooms: RoomSelection[]
-      addons: AddonSelection[]
+      addons: OfferPick[]
       hotelLocationId?: string | null
-      hadServiceAddons?: boolean
       includeHotel?: boolean
       isSharedDouble?: boolean
       accommodationMode?: AccommodationMode
       roomAssignment?: PartyAssignmentMap
       occupantAgeMap?: PartyOccupantAgeMap
-      perRoomAddons?: PerRoomAddons
       roomProductNames?: Record<string, string>
       breakfastMap?: PartyBreakfastMap
     }
@@ -435,9 +419,8 @@ export type Step =
       companions: CompanionDetails[]
       pickupLocationId: string | null
       accommodationRooms: RoomSelection[]
-      addons: AddonSelection[]
+      addons: OfferPick[]
       hotelLocationId?: string | null
-      hadServiceAddons?: boolean
       includeHotel?: boolean
       isSharedDouble?: boolean
       accommodationMode?: AccommodationMode
@@ -450,7 +433,6 @@ export type Step =
       occupantAgeMap?: PartyOccupantAgeMap
       // landr-gb2f.5: raw per-room add-on map threaded to BookingForm so
       // the review can show which room unit has breakfast vs not.
-      perRoomAddons?: PerRoomAddons
       // landr-gb2f.5: room product display names for the review labels.
       roomProductNames?: Record<string, string>
       // landr-a4fy: per-occupant breakfast flag map threaded to BookingForm
@@ -528,11 +510,6 @@ export function deriveAccommodationMode(
 //     accommodation even on the guiding-only opt-out (matching today's
 //     stepBeforeReview, which routes guiding-only opt-outs back to accommodation).
 //
-// `service_addons` is listed in every legacy plan but its visibility is a
-// runtime add-on probe in App.tsx; the back-nav walk consults the
-// `hadServiceAddons` provenance flag (set true only when the step actually
-// showed), so a product with no add-ons never routes Back to it — identical to
-// today.
 
 /**
  * The middle module kinds (everything strictly between participants and review)
@@ -634,8 +611,8 @@ export function frameBackStep(
 
 /**
  * Runtime predicate: is this potential middle module actually LIVE for the
- * current booking state? Encodes the two runtime gates (hotel-skips-pickup;
- * service-addons provenance) so the plan walk yields the realised path.
+ * current booking state? Encodes the runtime gate (hotel-skips-pickup) so the
+ * plan walk yields the realised path.
  *
  * `accommodation` is always live when present (the product offers a hotel, and
  * the customer always passes through the step — booking, opting out, or
@@ -646,16 +623,12 @@ function isModuleLive(
   kind: FlowModuleKind,
   ctx: {
     hotelLocationId?: string | null
-    hadServiceAddons?: boolean
   },
 ): boolean {
   switch (kind) {
     case 'pickup':
       // Hotel booked → the hotel IS the pickup; the free picker is skipped.
       return ctx.hotelLocationId == null
-    case 'service_addons':
-      // Only live when the customer actually saw the add-ons step.
-      return ctx.hadServiceAddons === true
     default:
       return true
   }
@@ -670,7 +643,7 @@ function isModuleLive(
 function liveModuleBefore(
   product: Product,
   remoteFlow: RemoteFlow | null | undefined,
-  ctx: { hotelLocationId?: string | null; hadServiceAddons?: boolean },
+  ctx: { hotelLocationId?: string | null },
   fromKind?: FlowModuleKind,
 ): FlowModuleKind | null {
   const kinds = planMiddleKinds(product, remoteFlow)
@@ -711,12 +684,10 @@ export function stepAfterAccommodation(
   companions: CompanionDetails[],
   accommodationRooms: RoomSelection[],
   hotelLocationId: string | null,
-  addons: AddonSelection[] = [],
-  // landr-yf0n: optional provenance flags so downstream steps can hand
-  // them back when the customer hits Back. hadServiceAddons distinguishes
-  // a customer who confirmed an empty ServiceAddonsStep from one who
-  // never saw it; includeHotel preserves the optional-mode Yes/No state.
-  hadServiceAddons: boolean = false,
+  addons: OfferPick[] = [],
+  // landr-yf0n: optional provenance flag so downstream steps can hand it
+  // back when the customer hits Back. includeHotel preserves the optional-mode
+  // Yes/No state.
   includeHotel: boolean | undefined = undefined,
   // landr-sbhz.4: shared-double flag for back-nav restoration.
   isSharedDouble: boolean | undefined = undefined,
@@ -726,8 +697,6 @@ export function stepAfterAccommodation(
   roomAssignment: PartyAssignmentMap | undefined = undefined,
   // landr-doam.1: per-occupant age band + age, threaded to the submit step.
   occupantAgeMap: PartyOccupantAgeMap | undefined = undefined,
-  // landr-gb2f.5: raw per-room add-on map, threaded to the review screen.
-  perRoomAddons: PerRoomAddons | undefined = undefined,
   // landr-gb2f.5: room product display names for the review labels.
   roomProductNames: Record<string, string> | undefined = undefined,
   // landr-a4fy: per-occupant breakfast flag map, threaded to the review screen.
@@ -735,24 +704,23 @@ export function stepAfterAccommodation(
 ): Step {
   // landr-71kz.3: plan walk for the post-accommodation forward target. The
   // legacy forward contract out of this call is EXACTLY three branches, and
-  // add-ons ALWAYS precede this call (App.tsx runs the add-ons probe before
-  // afterAccommodation), so `service_addons` must NEVER be a forward target
-  // here:
+  // no other module may be a forward target here:
   //   1. hotel booked (hotelLocationId != null) → fill-form (hotel is pickup);
   //   2. else needs_pickup → pick-pickup;
   //   3. else fill-form (pickup null).
   // The ONLY middle module that can terminate the post-accommodation search is
   // `pickup`. It is "live forward" iff it is in the plan (needs_pickup) AND no
   // hotel was booked (landr-4r80: a booked hotel becomes the pickup point, so
-  // the free picker is skipped). Any other module (service_addons, custom_form,
-  // declarations) is upstream-of or layered-on and must not divert this branch.
+  // the free picker is skipped). Any other module (custom_form, declarations)
+  // is upstream-of or layered-on and must not divert this branch.
   //
-  // REGRESSION FIX (PR #119 review): the previous walk let ANY live module
+  // Historical note (PR #119 review; the service_addons module is since
+  // retired): an earlier walk let ANY live module
   // terminate the search and, for a no-hotel product, started at index 0 (no
   // accommodation module ⇒ indexOf === -1 ⇒ start at the first middle), so a
   // product with service add-ons + needs_pickup wrongly terminated on
-  // service_addons → fill-form, skipping the pickup picker. Now we look up the
-  // `pickup` module directly and apply only its forward gate.
+  // service_addons → fill-form, skipping the pickup picker. We now look up
+  // the `pickup` module directly and apply only its forward gate.
   // The pickup gate is purely product-driven (needs_pickup), identical in the
   // legacy and remote plans, and the custom-form chain is layered on AFTER this
   // call by App's pre-review router — so this lookup stays on the legacy plan.
@@ -770,13 +738,11 @@ export function stepAfterAccommodation(
       accommodationRooms,
       addons,
       hotelLocationId: null,
-      hadServiceAddons,
       includeHotel,
       isSharedDouble,
       accommodationMode,
       roomAssignment,
       occupantAgeMap,
-      perRoomAddons,
       roomProductNames,
       breakfastMap,
     }
@@ -800,13 +766,11 @@ export function stepAfterAccommodation(
     accommodationRooms,
     addons,
     hotelLocationId,
-    hadServiceAddons,
     includeHotel,
     isSharedDouble,
     accommodationMode,
     roomAssignment,
     occupantAgeMap,
-    perRoomAddons,
     roomProductNames,
     breakfastMap,
   }
@@ -834,8 +798,7 @@ export function stepAfterAccommodation(
  *   3. else if a hotel offering exists (service + hotel_offering != 'none')
  *      → the customer passed through pick-accommodation (guiding-only
  *      opt-out) → Back goes to pick-accommodation.
- *   4. else if hadServiceAddons → Back goes to pick-service-addons.
- *   5. else → details.
+ *   4. else → details.
  *
  * `args` carries every field the upstream steps need to be reconstructed
  * with their previously-confirmed state restored (the same provenance
@@ -850,17 +813,14 @@ export interface StepBeforeReviewArgs {
   companions: CompanionDetails[]
   pickupLocationId: string | null
   accommodationRooms: RoomSelection[]
-  addons: AddonSelection[]
+  addons: OfferPick[]
   hotelLocationId?: string | null
-  hadServiceAddons?: boolean
   includeHotel?: boolean
   isSharedDouble?: boolean
   accommodationMode?: AccommodationMode
   roomAssignment?: PartyAssignmentMap
   // landr-doam.1: carry the age map back for pick-accommodation restoration.
   occupantAgeMap?: PartyOccupantAgeMap
-  // landr-gb2f.5: carry the per-room add-on map back for review restoration.
-  perRoomAddons?: PerRoomAddons
   // landr-gb2f.5: room product display names for the review labels.
   roomProductNames?: Record<string, string>
   // landr-a4fy: carry the breakfast map back for pick-accommodation restoration.
@@ -900,13 +860,11 @@ function reconstructCustomFormStep(
     accommodationRooms: args.accommodationRooms,
     addons: args.addons,
     hotelLocationId: args.hotelLocationId,
-    hadServiceAddons: args.hadServiceAddons,
     includeHotel: args.includeHotel,
     isSharedDouble: args.isSharedDouble,
     accommodationMode: args.accommodationMode,
     roomAssignment: args.roomAssignment,
     occupantAgeMap: args.occupantAgeMap,
-    perRoomAddons: args.perRoomAddons,
     roomProductNames: args.roomProductNames,
     breakfastMap: args.breakfastMap,
     formKey,
@@ -943,7 +901,6 @@ function reconstructStepForModule(
         accommodationMode: args.accommodationMode,
         roomAssignment: args.roomAssignment,
         occupantAgeMap: args.occupantAgeMap,
-        perRoomAddons: args.perRoomAddons,
         roomProductNames: args.roomProductNames,
         breakfastMap: args.breakfastMap,
       }
@@ -959,25 +916,13 @@ function reconstructStepForModule(
         addons: args.addons,
         pickupLocationId: args.pickupLocationId,
         hotelLocationId: args.hotelLocationId,
-        hadServiceAddons: args.hadServiceAddons,
         includeHotel: args.includeHotel,
         isSharedDouble: args.isSharedDouble,
         accommodationMode: args.accommodationMode,
         roomAssignment: args.roomAssignment,
         occupantAgeMap: args.occupantAgeMap,
-        perRoomAddons: args.perRoomAddons,
         roomProductNames: args.roomProductNames,
         breakfastMap: args.breakfastMap,
-      }
-    case 'service_addons':
-      return {
-        name: 'pick-service-addons',
-        product: args.product,
-        selection: args.selection,
-        booker: args.booker,
-        participants: args.participants,
-        companions: args.companions,
-        addons: args.addons,
       }
     default:
       // null (or any non-back-nav kind) → the implicit frame: details, or the
@@ -1000,7 +945,6 @@ function reconstructStepForModule(
  *
  *   - hotel offering present (accommodation in the plan) → accommodation.
  *   - else pickup live (needs_pickup, no hotel) → pickup.
- *   - else service_addons shown → service_addons.
  *   - else details.
  */
 function reviewBackModule(args: StepBeforeReviewArgs): FlowModuleKind | null {
@@ -1015,7 +959,6 @@ function reviewBackModule(args: StepBeforeReviewArgs): FlowModuleKind | null {
   // No hotel offering: the standard mirror over the remaining live middles.
   return liveModuleBefore(args.product, null, {
     hotelLocationId: args.hotelLocationId,
-    hadServiceAddons: args.hadServiceAddons,
   })
 }
 
@@ -1079,15 +1022,13 @@ export interface PreReviewArgs {
   companions: CompanionDetails[]
   pickupLocationId: string | null
   accommodationRooms: RoomSelection[]
-  addons: AddonSelection[]
+  addons: OfferPick[]
   hotelLocationId?: string | null
-  hadServiceAddons?: boolean
   includeHotel?: boolean
   isSharedDouble?: boolean
   accommodationMode?: AccommodationMode
   roomAssignment?: PartyAssignmentMap
   occupantAgeMap?: PartyOccupantAgeMap
-  perRoomAddons?: PerRoomAddons
   roomProductNames?: Record<string, string>
   breakfastMap?: PartyBreakfastMap
 }
@@ -1114,13 +1055,11 @@ function assignLanguagesStep(args: PreReviewArgs): Step {
     accommodationRooms: args.accommodationRooms,
     addons: args.addons,
     hotelLocationId: args.hotelLocationId,
-    hadServiceAddons: args.hadServiceAddons,
     includeHotel: args.includeHotel,
     isSharedDouble: args.isSharedDouble,
     accommodationMode: args.accommodationMode,
     roomAssignment: args.roomAssignment,
     occupantAgeMap: args.occupantAgeMap,
-    perRoomAddons: args.perRoomAddons,
     roomProductNames: args.roomProductNames,
     breakfastMap: args.breakfastMap,
   }
@@ -1264,6 +1203,16 @@ export function sidebarInputsForStep(
         accommodationRooms: [],
         addons: [],
       }
+    case 'guest-attributes':
+      // The party is settled; the sidebar prices it as on the details step.
+      return {
+        product: step.product,
+        selectedDays: selectionToDays(step.selection),
+        participantCount: step.participants.length,
+        participantNames: namesFrom(step.participants),
+        accommodationRooms: [],
+        addons: [],
+      }
     case 'pick-accommodation':
       // landr-yf0n: on re-entry via back-nav the step carries the
       // previously confirmed accommodationRooms + addons so the sidebar
@@ -1275,17 +1224,6 @@ export function sidebarInputsForStep(
         participantCount: step.participants.length,
         participantNames: namesFrom(step.participants),
         accommodationRooms: step.accommodationRooms ?? [],
-        addons: step.addons ?? [],
-      }
-    case 'pick-service-addons':
-      // landr-yf0n: same back-nav restoration for service-addons. No
-      // accommodationRooms field — this step never has hotel context.
-      return {
-        product: step.product,
-        selectedDays: selectionToDays(step.selection),
-        participantCount: step.participants.length,
-        participantNames: namesFrom(step.participants),
-        accommodationRooms: [],
         addons: step.addons ?? [],
       }
     // landr-71kz.3/.10: pickup / custom-form / review share the price context
@@ -1373,7 +1311,6 @@ const BREADCRUMB_LABELS: Partial<Record<Step['name'], string>> = {
   // is participant 1), so "Participants" reads truer than "Your details".
   details: 'Participants',
   'pick-accommodation': 'Accommodation',
-  'pick-service-addons': 'Add-ons',
   'pick-pickup': 'Pickup',
   // landr-71kz.3: generic fallback label for a custom form. The CustomFormStep
   // renderer surfaces the operator's localized form name in the step itself;
@@ -1389,7 +1326,6 @@ const BREADCRUMB_STEPS: ReadonlySet<Step['name']> = new Set([
   'pick-selection',
   'details',
   'pick-accommodation',
-  'pick-service-addons',
   'pick-pickup',
   'assign-languages',
   'custom-form',
@@ -1401,9 +1337,8 @@ const BREADCRUMB_STEPS: ReadonlySet<Step['name']> = new Set([
  * with its prior state. landr-71kz.3: a backward plan walk from the `pickup`
  * module over the preceding live middles — hotel offering → accommodation (the
  * `accommodation` module is always present + live when the product offers a
- * hotel); else service add-ons → that step (live iff hadServiceAddons); else
- * details. Reuses reconstructStepForModule so the back-nav Step shapes live in
- * one place.
+ * hotel); else details. Reuses reconstructStepForModule so the back-nav Step
+ * shapes live in one place.
  */
 function stepBeforePickup(
   step: Extract<Step, { name: 'pick-pickup' }>,
@@ -1419,7 +1354,6 @@ function stepBeforePickup(
         null,
         {
           hotelLocationId: step.hotelLocationId,
-          hadServiceAddons: step.hadServiceAddons,
         },
         'pickup',
       )
@@ -1435,13 +1369,11 @@ function stepBeforePickup(
     accommodationRooms: step.accommodationRooms,
     addons: step.addons,
     hotelLocationId: step.hotelLocationId,
-    hadServiceAddons: step.hadServiceAddons,
     includeHotel: step.includeHotel,
     isSharedDouble: step.isSharedDouble,
     accommodationMode: step.accommodationMode,
     roomAssignment: step.roomAssignment,
     occupantAgeMap: step.occupantAgeMap,
-    perRoomAddons: step.perRoomAddons,
     roomProductNames: step.roomProductNames,
     breakfastMap: step.breakfastMap,
     // landr-rmcsu.6: decides whether the frame back-target is details or dates.
@@ -1475,11 +1407,9 @@ export function draftFromStep(step: Step): BookingDraft | undefined {
   if ('accommodationMode' in step) d.accommodationMode = step.accommodationMode
   if ('roomAssignment' in step) d.roomAssignment = step.roomAssignment
   if ('occupantAgeMap' in step) d.occupantAgeMap = step.occupantAgeMap
-  if ('perRoomAddons' in step) d.perRoomAddons = step.perRoomAddons
   if ('roomProductNames' in step) d.roomProductNames = step.roomProductNames
   if ('breakfastMap' in step) d.breakfastMap = step.breakfastMap
   if ('pickupLocationId' in step) d.pickupLocationId = step.pickupLocationId
-  if ('hadServiceAddons' in step) d.hadServiceAddons = step.hadServiceAddons
   if ('customerDeclarations' in step)
     d.customerDeclarations = step.customerDeclarations
   if ('customerLanguages' in step) d.customerLanguages = step.customerLanguages
@@ -1637,7 +1567,6 @@ export function stepBefore(step: Step, opts: BreadcrumbOptions): Step | null {
         selection: step.selection,
       }
     case 'pick-accommodation':
-    case 'pick-service-addons':
       // landr-rmcsu.6: back to whichever of details / dates ran second.
       return frameBackStep({ ...step, remoteFlow: opts.remoteFlow })
     case 'pick-pickup':
@@ -1658,13 +1587,11 @@ export function stepBefore(step: Step, opts: BreadcrumbOptions): Step | null {
           accommodationRooms: step.accommodationRooms,
           addons: step.addons,
           hotelLocationId: step.hotelLocationId,
-          hadServiceAddons: step.hadServiceAddons,
           includeHotel: step.includeHotel,
           isSharedDouble: step.isSharedDouble,
           accommodationMode: step.accommodationMode,
           roomAssignment: step.roomAssignment,
           occupantAgeMap: step.occupantAgeMap,
-          perRoomAddons: step.perRoomAddons,
           roomProductNames: step.roomProductNames,
           breakfastMap: step.breakfastMap,
           remoteFlow: opts.remoteFlow,
@@ -1686,13 +1613,11 @@ export function stepBefore(step: Step, opts: BreadcrumbOptions): Step | null {
         accommodationRooms: step.accommodationRooms,
         addons: step.addons,
         hotelLocationId: step.hotelLocationId,
-        hadServiceAddons: step.hadServiceAddons,
         includeHotel: step.includeHotel,
         isSharedDouble: step.isSharedDouble,
         accommodationMode: step.accommodationMode,
         roomAssignment: step.roomAssignment,
         occupantAgeMap: step.occupantAgeMap,
-        perRoomAddons: step.perRoomAddons,
         roomProductNames: step.roomProductNames,
         breakfastMap: step.breakfastMap,
         // landr-rmcsu.6: frame back-target (details vs dates).
@@ -1713,13 +1638,11 @@ export function stepBefore(step: Step, opts: BreadcrumbOptions): Step | null {
         accommodationRooms: step.accommodationRooms,
         addons: step.addons,
         hotelLocationId: step.hotelLocationId,
-        hadServiceAddons: step.hadServiceAddons,
         includeHotel: step.includeHotel,
         isSharedDouble: step.isSharedDouble,
         accommodationMode: step.accommodationMode,
         roomAssignment: step.roomAssignment,
         occupantAgeMap: step.occupantAgeMap,
-        perRoomAddons: step.perRoomAddons,
         roomProductNames: step.roomProductNames,
         remoteFlow: opts.remoteFlow,
         customFormAnswers: opts.customFormAnswers,

@@ -21,7 +21,8 @@ import type {
   PriceAdjustment,
   Product,
   AddonDayStock,
-  ProductAddon,
+  OfferEvaluateRequest,
+  OfferEvaluateResponse,
   ProductAlternative,
   ProductGroup,
   SavingLine,
@@ -49,7 +50,7 @@ import {
   mockLocations,
   mockOperatorServiceRoles,
   mockOperatorSettings,
-  mockProductAddons,
+  mockEvaluateOffers,
   mockProductGroups,
   mockProducts,
   mockSubmit,
@@ -623,40 +624,43 @@ export function stockQueryAllowed(
   )
 }
 
+/** The evaluate call gives up after this long (the booking never waits on it). */
+export const OFFER_EVALUATE_TIMEOUT_MS = 8000
+
 /**
- * Add-ons configured for a parent product (landr-cip6 / epic landr-ie8g).
- * Backed by GET /api/public/products/{id}/addons → SECURITY DEFINER RPC
- * public_get_product_addons. Returns an empty array when the parent has
- * no add-ons configured (or is itself hidden) — the widget treats empty
- * as "no add-ons UI to render".
- *
- * landr-lmudr.10: pass `stock` (the booking's service days + guiding
- * participant count) to get a per-add-on stock verdict (`available` /
- * `unavailable_reason`) — a rental add-on whose stock is used up on those
- * days comes back `available: false`. Without it the list is date-free.
- * Above the API's caps (ADDON_STOCK_MAX_DAYS / _PARTICIPANTS) the stock
- * params are left off — the API would 422 and dead-end the step — so the
- * add-ons render without a sold-out verdict.
+ * Which offers each cart line shows this party, and may each line be booked:
+ * POST /api/public/offers/evaluate. The widget token and the guests travel in
+ * the body only (never in a URL). Aborts after OFFER_EVALUATE_TIMEOUT_MS or
+ * when `signal` fires.
  */
-export async function getProductAddons(
-  productId: string,
-  stock?: { selectedDays: string[]; participants: number },
-): Promise<ProductAddon[]> {
-  if (mocksEnabled()) return mockProductAddons(productId)
-  const qs = new URLSearchParams()
-  if (stockQueryAllowed(stock)) {
-    for (const day of new Set(stock.selectedDays)) qs.append('selected_days', day)
-    qs.set('participants', String(stock.participants))
+export async function getOffers(
+  body: OfferEvaluateRequest,
+  options?: { signal?: AbortSignal },
+): Promise<OfferEvaluateResponse> {
+  if (mocksEnabled()) return mockEvaluateOffers(body)
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), OFFER_EVALUATE_TIMEOUT_MS)
+  const outer = options?.signal
+  const onAbort = () => ctrl.abort()
+  if (outer) {
+    if (outer.aborted) ctrl.abort()
+    else outer.addEventListener('abort', onAbort, { once: true })
   }
-  const query = qs.toString()
-  return http<ProductAddon[]>(
-    `/api/public/products/${encodeURIComponent(productId)}/addons${query ? `?${query}` : ''}`,
-  )
+  try {
+    return await http<OfferEvaluateResponse>('/api/public/offers/evaluate', {
+      method: 'POST',
+      body: JSON.stringify(body),
+      signal: ctrl.signal,
+    })
+  } finally {
+    clearTimeout(timer)
+    outer?.removeEventListener('abort', onAbort)
+  }
 }
 
 /**
  * landr-a27k9.6: the per-DAY stock of a parent's day-pickable (companion)
- * add-ons in one call -- each day judged on its own, unlike getProductAddons,
+ * add-ons in one call -- each day judged on its own, unlike the all-days verdict,
  * which reports the lowest remaining across all the days it is sent.
  */
 export async function getProductAddonsDayStock(

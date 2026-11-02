@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   estimateBookingPrice,
-  getProductAddons,
+  getOffers,
   getProductAlternatives,
   getAvailability,
   getFixedDateWindows,
@@ -24,6 +24,16 @@ import { DemoWriteBlockedError, demoAdjustments, demoProducts, demoSettings, res
 import { DEMO_LANGS, demoCompanion, demoCopy, demoCustomer, demoLang, demoSignupUrl, demoSlug } from '@/lib/demo'
 import { browserLocale } from '@/lib/locale'
 import type { SubmitBookingBody } from './types'
+
+/** The offers the evaluate call shows on a product's own line. */
+async function offersOf(productId: string) {
+  const res = await getOffers({
+    widget_token: 'demo',
+    lines: [{ line_id: 'main', product_id: productId }],
+    guests: [],
+  })
+  return res.lines[0]!.offers ?? []
+}
 
 const TEMPLATE = {
   slug: 'kayak',
@@ -345,13 +355,13 @@ describe('demo mode: stay, pass and verification templates (landr-m6tp4.46)', ()
     it('prices a picked-days bike on its own nights, not the stay nights', async () => {
       bikeStay()
       const [studio] = await listProducts('demo-apartment')
-      const [bike] = await getProductAddons(studio.product_id)
+      const [bike] = await offersOf(studio.product_id)
       const est = await estimateBookingPrice('demo-apartment', studio.product_id, {
         selected_days: NIGHTS,
         participants_count: 3,
-        addon_lines: [{ product_id: bike.addon_product_id, qty: 3, selected_days: ['2099-03-10', '2099-03-12'] }],
+        addon_lines: [{ product_id: bike.product_id, qty: 3, selected_days: ['2099-03-10', '2099-03-12'] }],
       })
-      const line = est.line_items.find((l) => l.product_id === bike.addon_product_id)!
+      const line = est.line_items.find((l) => l.product_id === bike.product_id)!
       // 3 bikes x 2 picked nights x 12 EUR, not 3 x 4 stay nights.
       expect(line).toMatchObject({ qty: 3, units: 2, line_total: '72.00' })
     })
@@ -359,25 +369,29 @@ describe('demo mode: stay, pass and verification templates (landr-m6tp4.46)', ()
     it('still follows the stay nights when the line carries no days of its own', async () => {
       bikeStay()
       const [studio] = await listProducts('demo-apartment')
-      const [bike] = await getProductAddons(studio.product_id)
+      const [bike] = await offersOf(studio.product_id)
       const est = await estimateBookingPrice('demo-apartment', studio.product_id, {
         selected_days: NIGHTS,
         participants_count: 3,
-        addon_lines: [{ product_id: bike.addon_product_id, qty: 3 }],
+        addon_lines: [{ product_id: bike.product_id, qty: 3 }],
       })
-      expect(est.line_items.find((l) => l.product_id === bike.addon_product_id)).toMatchObject({ units: 4, line_total: '144.00' })
+      expect(est.line_items.find((l) => l.product_id === bike.product_id)).toMatchObject({ units: 4, line_total: '144.00' })
     })
 
-    it('draws the bike card with the bundled art, and keeps the API image when there is none', async () => {
-      bikeStay({ thumb_url: 'http://storage.example/bike.jpg' })
+    it('offers the bike as a day-pickable, free-quantity offer', async () => {
+      bikeStay()
       const [studio] = await listProducts('demo-apartment')
-      const [bike] = await getProductAddons(studio.product_id)
-      expect(bike.thumb_url).toMatch(/demo\/apartment\/bike-rental-1\.svg$/)
-      expect(bike.images?.[0]?.hero_url).toMatch(/demo\/apartment\/bike-rental-1\.svg$/)
-
-      bikeStay({ slug: 'helmet', thumb_url: 'http://storage.example/helmet.jpg' })
-      const [helmet] = await getProductAddons(studio.product_id)
-      expect(helmet.thumb_url).toBe('http://storage.example/helmet.jpg')
+      const [bike] = await offersOf(studio.product_id)
+      expect(bike).toMatchObject({
+        name: 'City bike',
+        binding: 'free',
+        schedule: 'subset',
+        collection: 'online',
+        mode: 'optional',
+        parent_product_id: studio.product_id,
+        in_cart: false,
+        price_preview: { unit_price_cents: 1200, price_unit: 'night', currency: 'EUR' },
+      })
     })
   })
 
@@ -572,15 +586,15 @@ describe('demo mode: slots, price rules, add-ons and alternatives (ac47r.2)', ()
     expect(demoAdjustments(rules, ['2027-03-03'], null, 'single_date', 200)).toEqual([])
   })
 
-  it('serves add-ons from the catalogue and prices them by payee and unit', async () => {
+  it('serves the catalogue add-ons as offers and prices them by payee and unit', async () => {
     const [flight] = await listProducts('demo-tandem')
-    const addons = await getProductAddons(flight.product_id)
-    expect(addons.map((a) => [a.name, a.price_per_unit, a.max_qty])).toEqual([
-      ['Photo and video', 35, 1], ['Hotel transfer', 10, null],
+    const offers = await offersOf(flight.product_id)
+    expect(offers.map((o) => [o.name, o.price_preview?.unit_price_cents, o.max_qty])).toEqual([
+      ['Photo and video', 3500, 1], ['Hotel transfer', 1000, null],
     ])
-    expect(addons[0]).toMatchObject({ name_localized: { de: 'Foto und Video' }, addon_quantity_rule: 'one_per_booking' })
+    expect(offers[0]).toMatchObject({ name_localized: { de: 'Foto und Video' }, binding: 'booking', mode: 'optional' })
     const est = await estimateBookingPrice('demo-tandem', flight.product_id, body('2027-03-03', '11:00', 2, [
-      { product_id: addons[0]!.addon_product_id, qty: 1 }, { product_id: addons[1]!.addon_product_id, qty: 1 },
+      { product_id: offers[0]!.product_id, qty: 1 }, { product_id: offers[1]!.product_id, qty: 1 },
     ]))
     // 2 x 120 + photo 35 (pilot keeps it) + transfer 10 per guest x 2.
     expect(est.operator_total).toBe('260.00')
@@ -589,15 +603,32 @@ describe('demo mode: slots, price rules, add-ons and alternatives (ac47r.2)', ()
     expect(est.line_items.map((l) => l.paid_to)).toEqual(['operator', 'performer', 'operator'])
   })
 
+  it('marks an offer already taken under the line as in_cart and answers every requested line', async () => {
+    const [flight] = await listProducts('demo-tandem')
+    const [photo] = await offersOf(flight.product_id)
+    const res = await getOffers({
+      widget_token: 'demo',
+      lines: [
+        { line_id: 'main', product_id: flight.product_id },
+        { line_id: 'o1', product_id: photo!.product_id, parent_line_id: 'main' },
+      ],
+      guests: [],
+    })
+    expect(res.lines.map((l) => [l.line_id, l.eligible])).toEqual([['main', true], ['o1', true]])
+    const main = res.lines[0]!.offers!
+    expect(main.find((o) => o.product_id === photo!.product_id)!.in_cart).toBe(true)
+    expect(main.find((o) => o.product_id !== photo!.product_id)!.in_cart).toBe(false)
+  })
+
   it('answers the submit with a full sample booking summary: slot, add-ons, rules, total, customer', async () => {
     const [flight] = await listProducts('demo-tandem')
-    const addons = await getProductAddons(flight.product_id)
+    const addons = await offersOf(flight.product_id)
     const res = await submitBooking({
       widget_token: 'x', customer_first_name: 'Alex', customer_last_name: 'Morgan', customer_email: 'a@example.com',
       cancellation_deadline: '2027-03-01',
       products: [
         { product_id: flight.product_id, quantity: 2, selected_days: ['2027-03-06'], slot_start_time: '09:00' },
-        { product_id: addons[0]!.addon_product_id, quantity: 1 },
+        { product_id: addons[0]!.product_id, quantity: 1 },
       ],
       participants: [
         { first_name: 'Alex', last_name: 'Morgan', service_role_code: 'participant' },
@@ -645,6 +676,8 @@ describe('demo mode never writes', () => {
       participants_count: 1,
       addon_lines: [],
     })
+    // The offers evaluation is a read over POST: answered, not blocked.
+    await expect(offersOf(full.product_id)).resolves.toBeInstanceOf(Array)
     const res = await submitBooking({} as SubmitBookingBody)
     expect(res.booking_id).toBe('demo-booking')
 

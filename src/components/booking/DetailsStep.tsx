@@ -431,6 +431,19 @@ export function DetailsStep({
       (joinsOnMount ? initialParticipants?.[0]?.service_role_code : undefined) ??
       defaultRoleCode,
   )
+  // The booker row is rebuilt on every render; what the guest step stored on it
+  // (attributes, age) rides along from the restored roster so Back and Continue
+  // do not lose it.
+  const [bookerGuestData] = useState<
+    Pick<ParticipantDetails, 'guest_attributes' | 'occupant_age' | 'occupant_age_band'>
+  >(() => {
+    const first = joinsOnMount ? initialParticipants?.[0] : undefined
+    return {
+      ...(first?.guest_attributes ? { guest_attributes: first.guest_attributes } : {}),
+      ...(first?.occupant_age !== undefined ? { occupant_age: first.occupant_age } : {}),
+      ...(first?.occupant_age_band ? { occupant_age_band: first.occupant_age_band } : {}),
+    }
+  })
   // landr-zy2wm.2: product cap on total participants (booker included).
   // null/undefined/invalid = no product cap. 1 => no additional-participants UI.
   const maxAdditional = additionalCap(product.max_party_size)
@@ -1201,7 +1214,7 @@ export function DetailsStep({
   // row, so BOOKER_MEMBER_ID is absent from the party downstream).
   const bookerForSubmit: BookerDetails = { ...booker, joins }
   const participantsForValidation: ParticipantDetails[] = joins
-    ? [bookerToParticipant(booker, bookerRoleCode), ...additional]
+    ? [{ ...bookerToParticipant(booker, bookerRoleCode), ...bookerGuestData }, ...additional]
     : additional
   // landr-jiagg.2: unticking never trims typed rows, so the roster can sit
   // above the product cap until the customer removes one — block Continue.

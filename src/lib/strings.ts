@@ -349,6 +349,15 @@ export type Bundle = {
   occupancyChildBandFree: string
   guestAgeRequired: string
   agePlaceholder: string
+  guestAttrsTitle: string
+  guestAttrsIntro: string
+  guestAttrsFallback: string
+  guestAttrsChoose: string
+  guestAttrsCue: string
+  guestAttrsMissing: string
+  guestAttrsOk: string
+  guestAttrsInvalid: string
+  guestAttrsRange: string
   breakfastLabel: string
   emptyLabel: string
   swapInHereLabel: string
@@ -705,7 +714,7 @@ export type Bundle = {
   continueBrowsing: string
   membershipActivatingBody: string
 
-  // ---- ServiceAddonsStep / AddonsList ----
+  // ---- add-on / offer rows ----
   addonsTitle: string
   loadingAddons: string
   noAddonsAvailable: string
@@ -739,6 +748,11 @@ export type Bundle = {
   overbookOneRoomTemplate: string
   underbookManyRoomsTemplate: string
   underbookOneRoomTemplate: string
+  overbookGuestsManyRoomsTemplate: string
+  overbookGuestsOneRoomTemplate: string
+  underbookGuestsManyRoomsTemplate: string
+  underbookGuestsOneRoomTemplate: string
+  offerOccupancyCap: string
 
   // ---- FullyBookedNotice / ViewToggle / catalog ----
   fullyBookedLabel: string
@@ -828,7 +842,7 @@ export type Bundle = {
   qtyTimesOnlyTemplate: string
   qtyTimesDayTemplate: string
 
-  // ---- landr-5aih0.27: JSX-attribute template-literal strings (AddonsList,
+  // ---- landr-5aih0.27: JSX-attribute template-literal strings (add-on rows,
   // AccommodationStep, RoomAssignment, ParticipantLanguageBoard,
   // RankedLanguagePicker, DetailsStep) ----
   decreaseQtyAriaTemplate: string
@@ -983,6 +997,54 @@ export type Bundle = {
   addMoreTitle: string
   addMoreIntro: string
   addMoreRemove: string
+  offerExtrasTitle: string
+  offerRoomExtrasTitle: string
+  offerIncludedTitle: string
+  offerMandatoryBadge: string
+  offerPayOnArrival: string
+  offerPayOnArrivalTotal: string
+  offerPayOnArrivalNote: string
+  offerPriceFree: string
+  offerPriceOnDates: string
+  offerWhoTitle: string
+  offerOptionPlaceholder: string
+  offerNoOption: string
+  offerOptionRequired: string
+  offerOptionForTemplate: string
+  offerPeriodLocked: string
+  offerPickDays: string
+  offerAutoFor: string
+  offerQuantity: string
+  offerAddToBooking: string
+  offerRemovedNotice: string
+  offerChecking: string
+  offerCheckFailed: string
+  offerMainIneligible: string
+  offerAnswerGuestQuestions: string
+  eligNoGuestsUnder: string
+  eligGuestsUpTo: string
+  eligGuestsBetween: string
+  eligNeedsGuestAtLeast: string
+  eligNeedsGuestAtMost: string
+  eligNeedsGuestBetween: string
+  eligAgeGeneric: string
+  eligAnswerNeeded: string
+  eligNotOnDates: string
+  eligNights: string
+  eligSoldOut: string
+  eligGeneric: string
+  offerErrNotEligible: string
+  offerErrProductNotEligible: string
+  offerErrAttributeMissing: string
+  offerErrParentUnknown: string
+  offerErrParticipantRequired: string
+  offerErrParticipantDuplicate: string
+  offerErrOptionRequired: string
+  offerErrOptionUnknown: string
+  offerErrQuantity: string
+  offerErrDaysRequired: string
+  offerErrBadParent: string
+  offerErrStale: string
   addMoreDates: string
   addMoreNights: string
   addMoreRemoveDay: string
@@ -1333,6 +1395,15 @@ const en: Bundle = {
   occupancyChildBandFree: 'children {from}-{to} free',
   guestAgeRequired: 'Please select the age of each child.',
   agePlaceholder: 'Age',
+  guestAttrsTitle: 'About your guests',
+  guestAttrsIntro: 'A few details per guest, so we can prepare the right gear and price.',
+  guestAttrsFallback: 'Guest {n}',
+  guestAttrsChoose: 'Choose',
+  guestAttrsCue: 'fill in the guest details',
+  guestAttrsMissing: '{count} answer(s) still missing.',
+  guestAttrsOk: 'All guest details are in.',
+  guestAttrsInvalid: 'Please check this value.',
+  guestAttrsRange: '{min}-{max}',
   breakfastLabel: 'Breakfast',
   emptyLabel: 'Empty',
   swapInHereLabel: 'Swap in here',
@@ -1706,6 +1777,11 @@ const en: Bundle = {
   overbookOneRoomTemplate: 'More {addon} ({qty}) than this room sleeps ({expected}) — bringing extras?',
   underbookManyRoomsTemplate: 'Only {qty} {addon} for {roomQty} rooms ({expected} guests) — one per room?',
   underbookOneRoomTemplate: 'Only {qty} {addon} for a room that sleeps {expected} — one per guest?',
+  overbookGuestsManyRoomsTemplate: 'More {addon} ({qty}) than the {expected} guests in these {roomQty} rooms — bringing extras?',
+  overbookGuestsOneRoomTemplate: 'More {addon} ({qty}) than the {expected} guests in this room — bringing extras?',
+  underbookGuestsManyRoomsTemplate: 'Only {qty} {addon} for {roomQty} rooms with {expected} guests — one per guest?',
+  underbookGuestsOneRoomTemplate: 'Only {qty} {addon} for {expected} guests in this room — one per guest?',
+  offerOccupancyCap: "Limited to the room's occupancy ({expected})",
 
   fullyBookedLabel: 'Fully booked',
   fullyBookedBlurb: 'There are no upcoming dates available for this product right now. Please check back later.',
@@ -1941,6 +2017,54 @@ const en: Bundle = {
   addMoreTitle: 'Add more to this booking',
   addMoreIntro: 'Book another product for the same dates, in one go.',
   addMoreRemove: 'Remove',
+  offerExtrasTitle: 'Extras for your booking',
+  offerRoomExtrasTitle: 'Extras for {room}',
+  offerIncludedTitle: 'Included',
+  offerMandatoryBadge: 'Required',
+  offerPayOnArrival: 'Pay on arrival',
+  offerPayOnArrivalTotal: 'Pay on arrival',
+  offerPayOnArrivalNote: 'Paid on arrival, not part of the amount due now.',
+  offerPriceFree: 'Free',
+  offerPriceOnDates: 'Price for your dates',
+  offerWhoTitle: 'Who is it for?',
+  offerOptionPlaceholder: 'Choose…',
+  offerNoOption: 'No option',
+  offerOptionRequired: 'Please choose an option.',
+  offerOptionForTemplate: 'Option for {name}',
+  offerPeriodLocked: 'For your whole stay: {period}',
+  offerPickDays: 'Pick the days',
+  offerAutoFor: 'Added for {names}',
+  offerQuantity: 'Quantity',
+  offerAddToBooking: 'Add to booking',
+  offerRemovedNotice: 'Some extras no longer fit your booking and were removed.',
+  offerChecking: 'Checking extras for your party…',
+  offerCheckFailed: 'We could not re-check extras for your party; they will be checked when you confirm.',
+  offerMainIneligible: 'This cannot be booked for your party: {reason}',
+  offerAnswerGuestQuestions: 'Answer the guest questions',
+  eligNoGuestsUnder: 'No guests under {n}',
+  eligGuestsUpTo: 'Only for guests up to {n}',
+  eligGuestsBetween: 'Only for guests aged {min} to {max}',
+  eligNeedsGuestAtLeast: 'At least one guest must be {n} or older',
+  eligNeedsGuestAtMost: 'At least one guest must be {n} or younger',
+  eligNeedsGuestBetween: 'At least one guest must be aged {min} to {max}',
+  eligAgeGeneric: 'Not available for the ages in your party',
+  eligAnswerNeeded: 'Please answer the guest questions first',
+  eligNotOnDates: 'Not available on your dates',
+  eligNights: 'Not available for this number of nights',
+  eligSoldOut: 'Sold out for your dates',
+  eligGeneric: 'Not available for your booking',
+  offerErrNotEligible: 'An extra in your booking is not available for your party. Please check your extras.',
+  offerErrProductNotEligible: 'This booking is not available for your party.',
+  offerErrAttributeMissing: 'Please answer the guest questions before confirming.',
+  offerErrParentUnknown: 'An extra lost the item it belongs to. Please check your extras.',
+  offerErrParticipantRequired: 'Please pick who this extra is for.',
+  offerErrParticipantDuplicate: 'A guest was picked twice for the same extra.',
+  offerErrOptionRequired: 'Please choose an option for this extra.',
+  offerErrOptionUnknown: 'That option is no longer offered. Please choose another one.',
+  offerErrQuantity: 'The quantity of this extra is not allowed. Please change it.',
+  offerErrDaysRequired: 'Please pick the days for this extra.',
+  offerErrBadParent: 'Your extras changed while you were booking. Please check them again.',
+  offerErrStale: 'The extras on offer changed. Please check your extras and confirm again.',
   addMoreDates: 'Dates',
   addMoreNights: 'Nights',
   addMoreRemoveDay: 'Remove {date}',
@@ -2350,7 +2474,7 @@ export function additionalAccommodationHeading(
   return who ? t.additionalAccommodationForTemplate.replace('{who}', who) : t.additionalAccommodationLabel
 }
 
-/** AddonsList's quantity-deviation warning line (over- or under-booked). */
+/** The add-on rows' quantity-deviation warning line (over- or under-booked). */
 export function addonDeviationMessage(
   kind: 'over' | 'under',
   addonName: string,
@@ -2358,16 +2482,19 @@ export function addonDeviationMessage(
   expected: number,
   roomQty: number,
   locale?: string,
+  basis: 'capacity' | 'guests' = 'capacity',
 ): string {
   const t = pickBundle(locale)
+  const g = basis === 'guests'
+  const many = roomQty > 1
   const template =
     kind === 'over'
-      ? roomQty > 1
-        ? t.overbookManyRoomsTemplate
-        : t.overbookOneRoomTemplate
-      : roomQty > 1
-        ? t.underbookManyRoomsTemplate
-        : t.underbookOneRoomTemplate
+      ? many
+        ? g ? t.overbookGuestsManyRoomsTemplate : t.overbookManyRoomsTemplate
+        : g ? t.overbookGuestsOneRoomTemplate : t.overbookOneRoomTemplate
+      : many
+        ? g ? t.underbookGuestsManyRoomsTemplate : t.underbookManyRoomsTemplate
+        : g ? t.underbookGuestsOneRoomTemplate : t.underbookOneRoomTemplate
   return template
     .replace('{addon}', addonName.toLowerCase())
     .replace('{qty}', String(qty))
@@ -2876,7 +3003,7 @@ export function seatsCountLabel(n: number, locale?: string): string {
  * `` `Some text ${x}` `` attribute value with a bundle-backed call.
  */
 
-/** AddonsList / AccommodationStep quantity-stepper aria-label ("Decrease {item} quantity" / "Increase {item} quantity"). */
+/** Add-on / AccommodationStep quantity-stepper aria-label ("Decrease {item} quantity" / "Increase {item} quantity"). */
 export function qtyAdjustAriaLabel(
   direction: 'decrease' | 'increase',
   itemName: string,
