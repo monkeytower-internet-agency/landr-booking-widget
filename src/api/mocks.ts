@@ -655,6 +655,7 @@ export const MOCK_OFFER_IDS = {
   bedding: '00000000-0000-0000-0000-0000000005a4',
   garage: '00000000-0000-0000-0000-0000000005a5',
   wifi: '00000000-0000-0000-0000-0000000005a6',
+  yoga: '00000000-0000-0000-0000-0000000005a7',
 } as const
 
 export const MOCK_OFFER_PRODUCTS = {
@@ -664,7 +665,26 @@ export const MOCK_OFFER_PRODUCTS = {
   bedding: '00000000-0000-0000-0000-0000000006a4',
   garage: '00000000-0000-0000-0000-0000000006a5',
   wifi: '00000000-0000-0000-0000-0000000006a6',
+  yoga: '00000000-0000-0000-0000-0000000006a7',
 } as const
+
+/**
+ * A timed service the demo apartment's bed linen offers with its own
+ * schedule (`schedule: 'own'`): the guest adds it as a line of its own, with
+ * its own date and time slot, nested under the bed-linen pick.
+ */
+export const mockOwnSlotProduct: Product = {
+  ...mockOfferStay,
+  product_id: MOCK_OFFER_PRODUCTS.yoga,
+  slug: 'demo-sunrise-yoga',
+  name: 'Sunrise yoga',
+  short_description: 'A demo class on the courtyard terrace.',
+  product_kind: 'service',
+  service_time_shape: 'time_slot',
+  duration_minutes: 60,
+  price_per_unit: 25,
+  price_from: '25.00',
+}
 
 /** The demo courtyard apartment's offers (see mockOfferStay). */
 export function mockOfferStayOffers(): EvaluatedOffer[] {
@@ -710,6 +730,16 @@ export function mockOfferStayOffers(): EvaluatedOffer[] {
 /** Per-product mock offers (deterministic ids, so tests can assert on them). */
 function mockOffersFor(productId: string, nights: number): EvaluatedOffer[] {
   if (productId === mockOfferStay.product_id) return mockOfferStayOffers()
+  // Bed linen (a pick on the demo apartment) offers a timed class of its own.
+  if (productId === MOCK_OFFER_PRODUCTS.bedding) {
+    return [
+      mockOffer(MOCK_OFFER_IDS.yoga, MOCK_OFFER_PRODUCTS.bedding, MOCK_OFFER_PRODUCTS.yoga, 'Sunrise yoga', {
+        schedule: 'own',
+        sort_order: 1,
+        price_preview: preview(2500),
+      }),
+    ]
+  }
   // Service example: Tandem Long -> Video Package / Pilot Photos (optional).
   if (productId === '00000000-0000-0000-0000-000000000002') {
     return [

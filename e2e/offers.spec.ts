@@ -2,6 +2,7 @@ import { expect, test, type Page, type Request } from '@playwright/test'
 import {
   MOCK_OFFER_IDS,
   MOCK_OFFER_PRODUCTS,
+  mockOwnSlotProduct,
   mockEstimate,
   mockEvaluateOffers,
   mockOfferStay,
@@ -128,9 +129,25 @@ async function mockApi(
       return json(mockSubmit(), 201)
     }
     if (path.endsWith('/settings')) return json(mockOperatorSettings('e2e'))
-    if (path.endsWith('/products')) return json([mockOfferStay])
+    if (path.endsWith('/products')) return json([mockOfferStay, mockOwnSlotProduct])
     if (path.endsWith('/flow')) return json({ modules: null })
     if (path.endsWith('/availability')) {
+      if (path.includes(MOCK_OFFER_PRODUCTS.yoga)) {
+        return json(
+          [NIGHTS[0]!, NIGHTS[1]!].flatMap((d, i) => [
+            {
+              availability_id: `y-${i}-am`,
+              date: d,
+              start_time: '08:00:00',
+              end_time: '09:00:00',
+              capacity: 10,
+              capacity_reserved: 0,
+              available_seats: 10,
+              status: 'open',
+            },
+          ]),
+        )
+      }
       return json(
         NIGHTS.map((d, i) => ({
           availability_id: `a-${i}`,
@@ -265,4 +282,39 @@ test('a slow re-check keeps the rows, and a failed one lets the guest confirm', 
   release()
   await expect(page.getByTestId('offer-check-failed')).toBeVisible()
   await expect(page.getByRole('button', { name: /Confirm booking/i })).toBeEnabled()
+})
+
+test('an own-dated offer under a pick is added with its own slot and submits nested under it', async ({ page }) => {
+  const seen = await mockApi(page)
+  await page.goto(`/?w=${TOKEN}`)
+
+  // Bed linen is picked; its own-dated class then appears as an add button
+  // one level down, under the pick (not as a row on the stay).
+  await expect(row(page, MOCK_OFFER_IDS.bedding)).toBeVisible()
+  await expect(page.getByTestId(`add-more-candidate-${MOCK_OFFER_PRODUCTS.yoga}`)).toHaveCount(0)
+  await page.getByTestId(`offer-toggle-${MOCK_OFFER_IDS.bedding}`).check()
+  const nested = page.getByTestId('offer-tree-o1')
+  await nested.getByTestId(`add-more-candidate-${MOCK_OFFER_PRODUCTS.yoga}`).click()
+
+  // The class is a line of its own: it picks a slot on its own date.
+  const yoga = page.getByTestId(`add-more-line-${MOCK_OFFER_PRODUCTS.yoga}`)
+  await expect(yoga).toBeVisible()
+  await yoga.getByRole('button', { name: '08:00' }).click()
+  await expect(yoga.getByRole('button', { name: '08:00' })).toHaveAttribute('aria-pressed', 'true')
+
+  await page.getByRole('button', { name: /Confirm booking/i }).click()
+  await expect.poll(() => seen.submit.length).toBe(1)
+  const lines = (seen.submit[0]! as { products: Record<string, unknown>[] }).products
+  const bedding = lines.find((l) => l.offer_id === MOCK_OFFER_IDS.bedding)!
+  const cls = lines.find((l) => l.product_id === MOCK_OFFER_PRODUCTS.yoga)!
+  expect(bedding).toMatchObject({ parent_line_id: 'main', line_id: 'o1' })
+  expect(cls).toMatchObject({
+    offer_id: MOCK_OFFER_IDS.yoga,
+    parent_line_id: 'o1',
+    selected_days: [NIGHTS[0]],
+    product_availability_id: 'y-0-am',
+    quantity: 1,
+  })
+  expect(typeof cls.line_id).toBe('string')
+  for (const k of ['price', 'collection', 'mode', 'schedule', 'binding']) expect(cls).not.toHaveProperty(k)
 })
