@@ -3168,6 +3168,29 @@ export interface paths {
         patch: operations["patch_product_offer"];
         trace?: never;
     };
+    "/api/operators/{operator_id}/products/{product_id}/eligibility-rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Patch Product Eligibility Rules
+         * @description Set "who can book" (``products.eligibility_rules``; null = everyone). 404
+         *     ``referenced_row_not_found`` for a product that is not this operator's, or
+         *     (field ``rules``) a guest-attribute key outside the operator's catalogue or a
+         *     product / season of another operator.
+         */
+        patch: operations["patch_product_eligibility_rules"];
+        trace?: never;
+    };
     "/api/public/approval-requests/{token}": {
         parameters: {
             query?: never;
@@ -16801,6 +16824,20 @@ export interface components {
              * @description Registered in our InterNetX registrar portfolio, independent of nameservers (True/False; None if unknown or creds unset).
              */
             registered_with_us?: boolean | null;
+        };
+        /**
+         * EligibilityRulesBody
+         * @description PATCH body of a product's "who can book" document; null = everyone.
+         */
+        "EligibilityRulesBody-Input": {
+            eligibility_rules: components["schemas"]["OfferRules"] | null;
+        };
+        /**
+         * EligibilityRulesBody
+         * @description PATCH body of a product's "who can book" document; null = everyone.
+         */
+        "EligibilityRulesBody-Output": {
+            eligibility_rules: components["schemas"]["OfferRules"] | null;
         };
         /** EmailCollisionOut */
         EmailCollisionOut: {
@@ -31894,6 +31931,42 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProductOffer"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_product_eligibility_rules: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EligibilityRulesBody-Input"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EligibilityRulesBody-Output"];
                 };
             };
             /** @description Validation Error */
