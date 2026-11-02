@@ -93,6 +93,14 @@ export type Bundle = {
   tryAgain: string
   backLabel: string
   bookingStepsAriaLabel: string
+  crumbOverview: string
+  crumbDates: string
+  crumbParticipants: string
+  crumbAccommodation: string
+  crumbPickup: string
+  crumbDetails: string
+  crumbLanguage: string
+  crumbReview: string
 
   // ---- StepBackButton / breadcrumb ----
   // (backLabel / bookingStepsAriaLabel above)
@@ -1138,6 +1146,14 @@ const en: Bundle = {
   tryAgain: 'Try again',
   backLabel: 'Back',
   bookingStepsAriaLabel: 'Booking steps',
+  crumbOverview: 'Overview',
+  crumbDates: 'Dates',
+  crumbParticipants: 'Participants',
+  crumbAccommodation: 'Accommodation',
+  crumbPickup: 'Pickup',
+  crumbDetails: 'Details',
+  crumbLanguage: 'Language',
+  crumbReview: 'Review',
 
   noTimesAvailable: 'No times available.',
   timeConfirmedByOperator: 'Time confirmed by the operator',
