@@ -16826,6 +16826,18 @@ export interface components {
             registered_with_us?: boolean | null;
         };
         /**
+         * EligibilityReasonParams
+         * @description The failing rule item behind a ``guest_attr.<key>`` /
+         *     ``guest_attr_all.<key>`` reason, so the widget can say "No guests under 10"
+         *     without the rules (they are not on the public product wire).
+         */
+        EligibilityReasonParams: {
+            /** Op */
+            op: string;
+            /** Value */
+            value?: unknown;
+        };
+        /**
          * EligibilityRulesBody
          * @description PATCH body of a product's "who can book" document; null = everyone.
          */
@@ -17253,6 +17265,7 @@ export interface components {
             draft: boolean;
             /** Eligibility Reason Key */
             eligibility_reason_key?: string | null;
+            eligibility_reason_params?: components["schemas"]["EligibilityReasonParams"] | null;
             /** Eligible */
             eligible: boolean;
             /** Line Id */
@@ -17330,6 +17343,11 @@ export interface components {
              * @enum {string}
              */
             schedule: "locked" | "subset" | "own";
+            /**
+             * Server Attached
+             * @default false
+             */
+            server_attached: boolean;
             /** Short Description */
             short_description?: string | null;
             /** Short Description Localized */
@@ -17338,6 +17356,7 @@ export interface components {
             } | null;
             /** Sort Order */
             sort_order: number;
+            stock?: components["schemas"]["OfferStock"] | null;
         };
         /** EventOccurrence */
         EventOccurrence: {
@@ -20038,6 +20057,30 @@ export interface components {
             positions_total: string;
             /** Sent At */
             sent_at?: string | null;
+        };
+        /**
+         * OfferStock
+         * @description landr-tm48v.5: the offered product's stock on its parent line's days for
+         *     this party, at the offer's minimum quantity (at least 1) -- the verdict of
+         *     GET /products/{id}/addons (``rentals.addon_stock``). ``stock_remaining``
+         *     lets the widget judge any other quantity; null when nothing limits it.
+         */
+        OfferStock: {
+            /**
+             * Available
+             * @default true
+             */
+            available: boolean;
+            /** Pool Ids */
+            pool_ids?: string[];
+            /** Stock Remaining */
+            stock_remaining?: number | null;
+            /** Stock Scope */
+            stock_scope?: string | null;
+            /** Stock Unit Label */
+            stock_unit_label?: string | null;
+            /** Unavailable Reason */
+            unavailable_reason?: ("sold_out" | "unit_taken") | null;
         };
         /**
          * OfferSuggestionOut

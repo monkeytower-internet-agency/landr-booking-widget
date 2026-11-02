@@ -17,7 +17,6 @@ import { formatDayRange } from '@/components/booking/dateLabel'
 import { pickLocalized } from '@/lib/locale'
 import type {
   AddonPriceUnit,
-  AddonQuantityRule,
   AvailabilitySlot,
   EstimateRequestBody,
   EventWindow,
@@ -28,7 +27,9 @@ import type {
   PassTiersResponse,
   PassValidityKind,
   Product,
-  ProductAddon,
+  EvaluatedOffer,
+  OfferEvaluateRequest,
+  OfferEvaluateResponse,
   ProductImage,
   ProductAlternative,
   SavingLine,
@@ -72,7 +73,10 @@ export interface DemoCataloguePricing {
   rules: DemoPricingRule[]
 }
 
-/** An add-on of a catalogue product (slug-keyed; becomes a `ProductAddon`). */
+/** How many of a catalogue add-on one booking may take. */
+type AddonQuantityRule = 'one_per_booking' | 'one_per_participant' | 'any'
+
+/** An add-on of a catalogue product (slug-keyed; becomes an offer row). */
 export interface DemoCatalogueAddon {
   slug: string
   name: string
@@ -877,44 +881,79 @@ export function demoEstimate(
 
 // ------------------------------------------------------ add-ons, alternatives
 
-/** The add-ons of an offer, from its catalogue entry (empty for the sample fallback). */
-export function demoAddons(template: DemoTemplate, id: string): ProductAddon[] {
-  const hit = findOffer(template, id)
-  const cat = template.catalogue?.products.find((c) => c.slug === hit?.product.slug)
-  return [...(cat?.addons ?? [])]
-    .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
-    .map((a, i): ProductAddon => {
-      // Same bundled comic art as the catalogue cards; an add-on without art keeps its own image.
-      const art = demoArt(template.slug, a.slug, fill(a.name, 'en'))
-      const images = art.length ? art : a.images
-      const thumb = art.length ? art[0].thumb_url : a.thumb_url
-      return {
-        product_addon_id: `demo-${template.slug}-pa-${hit!.product.slug}-${a.slug}`,
-        addon_product_id: addonId(template.slug, a.slug),
-        name: fill(a.name, 'en'),
-        name_localized: fillMap(a.name_localized),
-        is_required: !!a.is_required,
-        min_qty: a.min_qty ?? 0,
-        max_qty: a.max_qty ?? null,
-        sort_order: a.sort_order ?? i,
-        price_per_unit: a.price_per_unit == null ? null : Number(a.price_per_unit),
-        currency: a.currency ?? 'EUR',
-        product_kind: 'service',
-        addon_quantity_rule: a.addon_quantity_rule ?? null,
-        addon_quantity_max: a.addon_quantity_max ?? null,
-        price_unit: a.price_unit ?? null,
-        available: true,
-        day_selection: a.day_selection ?? 'parent_all',
-        ...(images?.length ? { images } : {}),
-        ...(thumb ? { thumb_url: thumb } : {}),
-        ...(a.short_description
-          ? {
-              short_description: fill(a.short_description, 'en'),
-              short_description_localized: fillMap(a.short_description_localized),
-            }
-          : {}),
-      }
-    })
+/**
+ * The offers a cart line shows (POST /offers/evaluate), from its product's
+ * catalogue add-ons (none for the sample fallback): a required add-on is
+ * mandatory, a one-per-guest one is bound to each guest, a day-pickable one
+ * picks its days. Every line is bookable; nothing is judged by rules here.
+ */
+export function demoEvaluateOffers(template: DemoTemplate, body: OfferEvaluateRequest): OfferEvaluateResponse {
+  const offersFor = (id: string, line: string, children: Set<string>): EvaluatedOffer[] => {
+    const hit = findOffer(template, id)
+    const cat = template.catalogue?.products.find((c) => c.slug === hit?.product.slug)
+    return [...(cat?.addons ?? [])]
+      .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+      .map((a, i): EvaluatedOffer => {
+        const productId = addonId(template.slug, a.slug)
+        const unit = a.price_per_unit == null ? null : Math.round(Number(a.price_per_unit) * 100)
+        return {
+          id: `demo-${template.slug}-offer-${hit!.product.slug}-${a.slug}`,
+          parent_product_id: id,
+          product_id: productId,
+          rules: { mode: 'all', items: [] },
+          binding:
+            a.addon_quantity_rule === 'one_per_participant'
+              ? 'person'
+              : a.addon_quantity_rule === 'one_per_booking'
+                ? 'booking'
+                : 'free',
+          schedule: a.day_selection === 'parent_subset' ? 'subset' : 'locked',
+          collection: 'online',
+          mode: a.is_required ? 'mandatory' : 'optional',
+          options: [],
+          required_attributes: [],
+          min_qty: a.min_qty ?? 0,
+          max_qty: a.max_qty ?? a.addon_quantity_max ?? null,
+          sort_order: a.sort_order ?? i,
+          name: fill(a.name, 'en'),
+          name_localized: fillMap(a.name_localized),
+          short_description: a.short_description ? fill(a.short_description, 'en') : null,
+          short_description_localized: a.short_description ? fillMap(a.short_description_localized) : null,
+          product_kind: 'service',
+          day_selection: a.day_selection ?? 'parent_all',
+          in_cart: children.has(productId),
+          price_preview:
+            unit === null
+              ? null
+              : {
+                  quantity: 1,
+                  unit_price_cents: unit,
+                  total_cents: unit,
+                  price_unit: a.price_unit ?? 'booking',
+                  currency: a.currency ?? 'EUR',
+                },
+          stock: null,
+          server_attached: false,
+          draft: false,
+        }
+      })
+      .map((o) => ({ ...o, parent_product_id: o.parent_product_id ?? line }))
+  }
+  return {
+    lines: body.lines.map((ln) => ({
+      line_id: ln.line_id,
+      eligible: true,
+      eligibility_reason_key: null,
+      eligibility_reason_params: null,
+      draft: false,
+      offers: offersFor(
+        ln.product_id,
+        ln.line_id,
+        new Set(body.lines.filter((o) => o.parent_line_id === ln.line_id).map((o) => o.product_id)),
+      ),
+    })),
+    required_attribute_keys: [],
+  }
 }
 
 /** Linked alternatives of an offer with their open days / course windows inside [from, to]. */
@@ -1082,6 +1121,9 @@ export async function demoRequest<T>(path: string, init?: RequestInit): Promise<
       const body = JSON.parse(String(init?.body ?? '{}')) as EstimateRequestBody
       return demoEstimate(template, decodeURIComponent(est[1]), body) as T
     }
+    if (pathname === '/api/public/offers/evaluate') {
+      return demoEvaluateOffers(template, JSON.parse(String(init?.body ?? '{}')) as OfferEvaluateRequest) as T
+    }
     if (pathname === '/api/public/bookings') return demoSubmitResponse(template, JSON.parse(String(init?.body ?? '{}')) as SubmitBookingBody) as T
     // Member price of a pass: the emailed code is never sent and any code is
     // accepted, so the visitor can see the member tiers. Nothing is stored.
@@ -1119,7 +1161,6 @@ export async function demoRequest<T>(path: string, init?: RequestInit): Promise<
       ) as T
     }
     if (rest === '/fixed-date-windows') return demoFixedWindows() as T
-    if (rest === '/addons') return demoAddons(template, id) as T
     if (rest === '/alternatives') {
       const today = iso(new Date())
       return demoAlternatives(template, id, params.get('from') ?? today, params.get('to') ?? today) as T

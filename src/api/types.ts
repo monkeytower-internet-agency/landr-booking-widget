@@ -446,7 +446,7 @@ export interface Product {
    * back to on a current API; see that field's own doc.
    *
    * landr-p68d2.1 also confirmed the submit-side language rule ignores
-   * add-on service lines (is_addon_only / product_addons children) — safe
+   * add-on service lines (is_addon_only / offered add-on products) — safe
    * to key this purely off the single main service product a booking ever
    * carries (D4), never an add-on.
    *
@@ -871,108 +871,156 @@ export interface MeetingPoint {
  */
 export type Hotel = Location
 
-/**
- * Add-on row returned by GET /api/public/products/{id}/addons (landr-cip6,
- * epic landr-ie8g). Each entry is one linked add-on product that the
- * widget surfaces under the parent product (qty stepper, overbook warning,
- * required-min gating). On submit each selected add-on becomes its own
- * booking_products line item — the existing public_submit_booking RPC
- * already iterates products[] so no API change is needed for submit.
- */
-export type AddonQuantityRule =
-  | 'one_per_booking'
-  | 'one_per_participant'
-  | 'any'
+// ---- Offers (POST /api/public/offers/evaluate) -------------------------------
+//
+// An offer row says what a cart line may carry: who it is bound to
+// (`binding`), whose days it uses (`schedule`), how it is paid
+// (`collection`) and whether the guest may leave it out (`mode`). The widget
+// reads the evaluator's verdict for its cart and party and never decides
+// price, collection or mode itself: submit re-resolves every offer line.
 
-export interface ProductAddon {
-  product_addon_id: string
-  addon_product_id: string
-  name: string
-  name_localized: Record<string, string> | null
-  is_required: boolean
-  min_qty: number
-  /** NULL = unlimited (widget shows orange warning above parent qty but allows submit). */
-  max_qty: number | null
-  sort_order: number
-  /**
-   * Display per-unit price (per night for hotel_room kind, per slot/line
-   * for service kind): the add-on's standard price, resolved from any rule
-   * kind (per_day_base / fixed_total / per_participant_tier). NULL only when
-   * the add-on has no priced scheme — widget then shows "Price on request".
-   */
-  price_per_unit: number | null
-  currency: string | null
-  /**
-   * landr-fxza.4: the add-on PRODUCT's own product_kind (NOT the parent
-   * product's kind). 'hotel_room' means this add-on is tied to a room and
-   * must derive its selected_days from the room's NIGHT window at submit
-   * time (BookingForm.onConfirm), not the raw service-day window — the
-   * natural discriminator for room-tied vs service-tied add-ons. Do NOT
-   * special-case the slug/name (e.g. 'breakfast') instead of this field.
-   */
-  product_kind: ProductKind
-  /**
-   * How many of this add-on one booking may take, set once on the add-on
-   * product: 'one_per_booking' (1), 'one_per_participant' (the guiding
-   * participants) or 'any' (unlimited, or `addon_quantity_max`). Absent /
-   * null reads as 'any'. Room-tied add-ons ('hotel_room') ignore it — their
-   * quantity follows the room's occupancy. `max_qty` above stays an extra,
-   * tighter cap.
-   */
-  addon_quantity_rule?: AddonQuantityRule | null
-  /** Optional cap under 'any'; null/absent = unlimited. */
-  addon_quantity_max?: number | null
-  /**
-   * landr-lmudr.10: stock verdict, present when the add-ons were fetched
-   * WITH the booking's days + party size (getProductAddons' `stock`). false
-   * (reason 'sold_out') = the add-on sells a stock-limited resource (the
-   * rentable facet) with no room left on those days — rendered disabled.
-   * Absent / true = available.
-   */
-  available?: boolean
-  /**
-   * landr-lmudr.19: 'unit_taken' = the add-on takes a WHOLE unit (exclusive
-   * use) and another group has the last one — same disabled row, its own copy.
-   */
+export type OfferBinding = 'booking' | 'person' | 'free'
+export type OfferSchedule = 'locked' | 'subset' | 'own'
+export type OfferCollection = 'online' | 'on_site' | 'free'
+export type OfferMode = 'optional' | 'mandatory' | 'info'
+
+/** One pickable variant of an offer (offers.options[]). */
+export interface OfferOption {
+  key: string
+  label: string
+  label_localized?: Record<string, string>
+  /** Surcharge per unit, in cents. */
+  price_delta_cents: number
+  stock?: number | null
+}
+
+/** The offer's price on its parent line's days for this party, at `quantity`. */
+export interface OfferPricePreview {
+  quantity: number
+  unit_price_cents?: number | null
+  total_cents?: number | null
+  price_unit: AddonPriceUnit
+  currency?: string | null
+}
+
+/** Stock of the offered product on the parent line's days, at its minimum quantity. */
+export interface OfferStock {
+  available: boolean
   unavailable_reason?: 'sold_out' | 'unit_taken' | null
-  /**
-   * landr-lmudr.32: how many of this add-on still fit on every chosen day —
-   * stock is counted by the add-on QUANTITY, not the party size. The stepper
-   * stops there; null/absent = nothing limits it.
-   */
+  /** How many still fit; null = nothing limits it. */
   stock_remaining?: number | null
-  /**
-   * landr-c88o5: what the stock is counted over — one unit, one place (a
-   * pooled resource) or a whole resource type. null/absent = not stock-limited.
-   */
-  stock_scope?: 'unit' | 'place' | 'type' | null
-  /**
-   * landr-c88o5: ids of the stock pools this add-on draws from. Two cart
-   * lines of the same add-on whose pool_ids intersect share one stock.
-   */
+  stock_scope?: string | null
   pool_ids?: string[]
-  /** landr-lmudr.19: the operator's word for one unit ("raft") for 'unit_taken'. */
   stock_unit_label?: string | null
-  /**
-   * What the price multiplies by: 'night' × nights (booked days on an
-   * activity), 'guest' × guests, 'guest_night' × both; 'booking' / 'stay'
-   * (and absent, on an older API) = once per item.
-   */
-  price_unit?: AddonPriceUnit | null
-  /**
-   * landr-a27k9.1: 'parent_subset' = a companion add-on (a city bike): the
-   * guest picks any non-empty subset of the parent's days / nights, one
-   * quantity for the line. 'parent_all' / absent = the add-on follows its
-   * parent's days (the pre-existing behaviour).
-   */
-  day_selection?: 'parent_all' | 'parent_subset' | null
-  /** landr-a27k9.1: the add-on product's own pictures (renditions), for its card. */
-  images?: ProductImage[]
-  thumb_url?: string | null
-  /** One-line blurb for the add-on's card. */
+}
+
+/** One offer row a cart line sees, with the offered product's display fields. */
+export interface EvaluatedOffer {
+  id: string
+  parent_product_id?: string | null
+  product_id: string
+  rules: Record<string, unknown>
+  binding: OfferBinding
+  schedule: OfferSchedule
+  collection: OfferCollection
+  mode: OfferMode
+  options?: OfferOption[]
+  required_attributes?: string[]
+  min_qty: number
+  max_qty?: number | null
+  sort_order: number
+  name: string
+  name_localized?: Record<string, string> | null
   short_description?: string | null
   short_description_localized?: Record<string, string> | null
+  product_kind: string
+  day_selection?: 'parent_all' | 'parent_subset' | null
+  /** The offered product is already a child line of this line. */
+  in_cart: boolean
+  price_preview?: OfferPricePreview | null
+  stock?: OfferStock | null
+  /**
+   * The server attaches this offer's lines itself on every estimate and
+   * submit (a mandatory per-person offer): the widget never sends them.
+   * Absent on an older API: read as attached (the behaviour before).
+   */
+  server_attached?: boolean
+  draft: boolean
 }
+
+/** The bound behind a `guest_attr(_all).<key>` reason ("No guests under 10"). */
+export interface EligibilityReasonParams {
+  op: string
+  value?: unknown
+}
+
+/** The evaluator's verdict on one request line. */
+export interface EvaluatedLine {
+  line_id: string
+  eligible: boolean
+  eligibility_reason_key?: string | null
+  eligibility_reason_params?: EligibilityReasonParams | null
+  offers?: EvaluatedOffer[]
+  draft: boolean
+}
+
+export type GuestAttributeWireValue = string | number | boolean
+
+export interface OfferEvaluateLine {
+  line_id: string
+  product_id: string
+  parent_line_id?: string | null
+  arrival?: string | null
+  departure?: string | null
+  selected_days?: string[] | null
+}
+
+export interface OfferEvaluateGuest {
+  id: string
+  attributes: Record<string, GuestAttributeWireValue>
+}
+
+export interface OfferEvaluateRequest {
+  widget_token: string
+  lines: OfferEvaluateLine[]
+  guests: OfferEvaluateGuest[]
+}
+
+export interface OfferEvaluateResponse {
+  lines: EvaluatedLine[]
+  required_attribute_keys?: string[]
+}
+
+/**
+ * The offer fields of a submit / estimate line. `line_id` / `parent_line_id`
+ * hang the line in the cart tree (absent parent = the main line, id
+ * `main`); `participant_id` names a guest by their `ref`. Never price,
+ * collection, mode, schedule or binding: the API answers 422
+ * `offer_override_rejected` to any of them.
+ */
+export interface OfferLineWire {
+  line_id?: string
+  parent_line_id?: string
+  offer_id?: string
+  participant_id?: string
+  option_key?: string
+}
+
+/** The 422 `error` codes an offer line can be refused with. */
+export type OfferErrorCode =
+  | 'offer_not_eligible'
+  | 'product_not_eligible'
+  | 'attribute_missing'
+  | 'offer_parent_unknown'
+  | 'offer_participant_required'
+  | 'offer_participant_duplicate'
+  | 'offer_option_required'
+  | 'offer_option_unknown'
+  | 'offer_quantity_out_of_range'
+  | 'companion_days_required'
+  | 'companion_days_outside_parent'
+  | 'offer_days_required'
+  | 'bad_parent_line'
 
 /**
  * landr-a27k9.6: one (day, companion add-on) stock verdict of the batch
@@ -1035,6 +1083,12 @@ export interface AvailabilitySlot {
 }
 
 export interface Participant {
+  /**
+   * The person's id inside this request body (unique per body): an offer
+   * line's `participant_id` names it. `g1`, `g2`, ... in party order; never
+   * the widget's internal member id.
+   */
+  ref?: string
   first_name: string
   last_name?: string | null
   email?: string | null
@@ -1134,6 +1188,12 @@ export interface Participant {
  * (or in guiding-only / shared-double modes that have no room units).
  */
 export interface Companion {
+  /**
+   * The person's id inside this request body (unique per body): an offer
+   * line's `participant_id` names it. `g1`, `g2`, ... in party order; never
+   * the widget's internal member id.
+   */
+  ref?: string
   first_name: string
   last_name?: string | null
   email?: string | null
@@ -1234,7 +1294,7 @@ export interface ServiceRole {
   sort_order: number
 }
 
-export interface ProductLine {
+export interface ProductLine extends OfferLineWire {
   product_id: string
   quantity?: number
   date_range_start?: string | null
@@ -2080,6 +2140,21 @@ export interface EstimateLineItem {
   price_unit?: Exclude<AddonPriceUnit, 'booking'> | null
   /** A stay line's one-off cleaning fee (decimal string), inside line_total but not unit_price. */
   cleaning_fee?: string | null
+  /** Offer lines: where the line hangs in the cart tree and which offer made it. */
+  line_id?: string | null
+  parent_line_id?: string | null
+  offer_id?: string | null
+  option_key?: string | null
+  collection?: OfferCollection | null
+  mode?: OfferMode | null
+  schedule?: OfferSchedule | null
+  /** The guests (refs) a per-person line covers. */
+  participant_ids?: string[] | null
+  /** An on_site line: what is paid on arrival (decimal string), never part of amount_due. */
+  collection_amount?: string | null
+  /** The server attached this line itself (a mandatory offer). */
+  auto_attached?: boolean | null
+  missing_attribute_keys?: string[] | null
 }
 
 /**
@@ -2111,9 +2186,9 @@ export interface EstimateAppliedRule {
 /**
  * One add-on line in the request body. `product_id` is the add-on
  * product (not the parent service); the FastAPI route validates the
- * parent ↔ add-on link via product_addons before computing the price.
+ * parent ↔ add-on link (its offers) before computing the price.
  */
-export interface EstimateAddonLine {
+export interface EstimateAddonLine extends OfferLineWire {
   product_id: string
   qty: number
   /**
@@ -2152,6 +2227,14 @@ export interface EstimateRequestBody {
    * Omitted = everyone is an adult.
    */
   child_ages?: number[]
+  /**
+   * The party and the attributes answered so far, keyed by the same refs the
+   * offer lines' `participant_id` use, so the API attaches per-person
+   * mandatory offers and judges offer rules like submit does.
+   */
+  guests?: OfferEvaluateGuest[]
+  /** The main line's id in the cart tree (`main`): the parent of top-level offer lines. */
+  main_line_id?: string
 }
 
 /**
@@ -2277,6 +2360,11 @@ export interface EstimateResponse {
   savings_total?: string | null
   subtotal_before_savings?: string | null
   amount_due?: string | null
+  /**
+   * Offer lines collected on arrival (collection = on_site): their sum, as a
+   * decimal string. Excluded from every other total, amount_due included.
+   */
+  on_site_total?: string | null
   multi_day_savings?: MultiDaySavings | null
   /**
    * landr-fcoh2: itemised surcharges; `subtotal_before_surcharges` +

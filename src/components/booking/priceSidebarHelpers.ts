@@ -10,40 +10,34 @@ import type {
 } from '@/api/types'
 import { plural, tr } from '@/lib/strings'
 import type { RoomSelection } from './accommodationCalc'
-import type { AddonSelection } from './addonsState'
 
 /**
- * Merge the room selections (hotel_room products) and add-on selections
- * (services like Breakfast / Video Package) into the single addon_lines
- * array the estimate endpoint expects. Rooms and add-ons are equivalent
- * on the wire — both become extra booking_products rows under the
- * parent service line — so the estimate just takes a flat list with
- * `{product_id, qty}` per entry.
+ * The estimate's add-on lines: one line per booked room type (`line_id`
+ * `r-<productId>` when offers hang off it) followed by the offer
+ * lines (offerCart.ts toEstimateLines). Rooms and offers are equivalent on
+ * the wire -- extra booking_products rows of the same booking.
  *
- * Filters out qty <= 0 to avoid sending opt-outs as zero-qty rows
- * (the FastAPI request schema rejects qty < 1, and the route would
- * 400 the entire estimate if even one line had qty=0).
+ * Filters out qty <= 0 (the FastAPI request schema rejects qty < 1, and the
+ * route would 400 the entire estimate if even one line had qty=0).
  */
 export function buildAddonLines(
   rooms: RoomSelection[],
-  addons: AddonSelection[],
+  offerLines: readonly EstimateAddonLine[] = [],
 ): EstimateAddonLine[] {
   const lines: EstimateAddonLine[] = []
+  const parents = new Set(offerLines.map((l) => l.parent_line_id))
   for (const room of rooms) {
     if (room.quantity > 0) {
-      lines.push({ product_id: room.productId, qty: room.quantity })
+      const id = `r-${room.productId}`
+      // The id only matters as the parent of that room's offer lines.
+      lines.push({
+        product_id: room.productId,
+        qty: room.quantity,
+        ...(parents.has(id) ? { line_id: id } : {}),
+      })
     }
   }
-  for (const addon of addons) {
-    if (addon.quantity <= 0) continue
-    // landr-a27k9.6: a day-pickable companion is priced by the API on its OWN
-    // days; a plain add-on follows the shared days.
-    lines.push(
-      addon.selectedDays?.length
-        ? { product_id: addon.productId, qty: addon.quantity, selected_days: addon.selectedDays }
-        : { product_id: addon.productId, qty: addon.quantity },
-    )
-  }
+  for (const l of offerLines) if (l.qty > 0) lines.push(l)
   return lines
 }
 
@@ -97,16 +91,20 @@ export function splitLineItems(items: EstimateLineItem[]): {
   operator: EstimateLineItem[]
   hotel: EstimateLineItem[]
   performer: EstimateLineItem[]
+  /** Offer lines paid on arrival (collection = on_site): never in amount_due. */
+  onSite: EstimateLineItem[]
 } {
   const operator: EstimateLineItem[] = []
   const hotel: EstimateLineItem[] = []
   const performer: EstimateLineItem[] = []
+  const onSite: EstimateLineItem[] = []
   for (const li of items) {
-    if (li.paid_to === 'hotel') hotel.push(li)
+    if (li.collection === 'on_site') onSite.push(li)
+    else if (li.paid_to === 'hotel') hotel.push(li)
     else if (li.paid_to === 'performer') performer.push(li)
     else operator.push(li)
   }
-  return { operator, hotel, performer }
+  return { operator, hotel, performer, onSite }
 }
 
 /** One "paid to your {payee}" block: the performer lines sharing a payee label. */

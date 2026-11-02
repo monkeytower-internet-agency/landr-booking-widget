@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { Product, ProductAddon } from '@/api/types'
+import type { Product } from '@/api/types'
 import {
   countUnplacedCompanions,
   hostRoomOverflow,
@@ -18,7 +18,6 @@ import {
   deriveStayWindow,
   disambiguatePartyLabels,
   expandRoomUnits,
-  flattenPerRoomAddons,
   formatCurrency,
   hasIncompleteChildAge,
   roomBreakfastMode,
@@ -74,26 +73,6 @@ function makeRoom(
     price_per_unit: pricePerNight,
     currency,
     capacity_per_unit: capacityPerUnit,
-  }
-}
-
-function makeAddon(
-  addonProductId: string,
-  name: string,
-  productKind: ProductAddon['product_kind'] = 'hotel_room',
-): ProductAddon {
-  return {
-    product_addon_id: `pa-${addonProductId}`,
-    addon_product_id: addonProductId,
-    name,
-    name_localized: null,
-    is_required: false,
-    min_qty: 0,
-    max_qty: null,
-    sort_order: 0,
-    price_per_unit: null,
-    currency: null,
-    product_kind: productKind,
   }
 }
 
@@ -404,104 +383,6 @@ describe('roomIncludesBreakfast (landr-5mvw)', () => {
     // makeProduct does not set includes_breakfast, so the key should be absent.
     expect('includes_breakfast' in room).toBe(false)
     expect(roomIncludesBreakfast(room)).toBe(true)
-  })
-})
-
-describe('flattenPerRoomAddons (landr-yybu)', () => {
-  function makeAddonFor(id: string, name: string): ProductAddon {
-    return makeAddon(id, name)
-  }
-
-  it('sums qty per addon across rooms', () => {
-    const addonsByRoom: Record<string, ProductAddon[]> = {
-      'room-a': [makeAddonFor('bf-1', 'Breakfast')],
-      'room-b': [makeAddonFor('bf-1', 'Breakfast')],
-    }
-    const roomSelection = { 'room-a': 1, 'room-b': 1 }
-    const addonSelection = {
-      'room-a': { 'bf-1': 1 },
-      'room-b': { 'bf-1': 2 },
-    }
-    const result = flattenPerRoomAddons(addonSelection, roomSelection, addonsByRoom)
-    expect(result).toEqual([
-      { productId: 'bf-1', quantity: 3, productKind: 'hotel_room' },
-    ])
-  })
-
-  it('skips rooms with qty=0 in roomSelection (dropped rooms)', () => {
-    const addonsByRoom: Record<string, ProductAddon[]> = {
-      'room-a': [makeAddonFor('bf-1', 'Breakfast')],
-      'room-b': [makeAddonFor('bf-1', 'Breakfast')],
-    }
-    const roomSelection = { 'room-a': 0, 'room-b': 1 }
-    const addonSelection = {
-      'room-a': { 'bf-1': 3 },  // room-a dropped → should be excluded
-      'room-b': { 'bf-1': 2 },
-    }
-    const result = flattenPerRoomAddons(addonSelection, roomSelection, addonsByRoom)
-    expect(result).toEqual([
-      { productId: 'bf-1', quantity: 2, productKind: 'hotel_room' },
-    ])
-  })
-
-  it('excludes add-ons not in the room catalogue (guards carry-over)', () => {
-    const addonsByRoom: Record<string, ProductAddon[]> = {
-      'room-a': [makeAddonFor('bf-1', 'Breakfast')],
-    }
-    const roomSelection = { 'room-a': 1 }
-    const addonSelection = {
-      'room-a': { 'bf-1': 1, 'stale-id': 5 },
-    }
-    const result = flattenPerRoomAddons(addonSelection, roomSelection, addonsByRoom)
-    expect(result).toEqual([
-      { productId: 'bf-1', quantity: 1, productKind: 'hotel_room' },
-    ])
-  })
-
-  it('returns empty array when addonSelection is empty', () => {
-    const addonsByRoom: Record<string, ProductAddon[]> = {
-      'room-a': [makeAddonFor('bf-1', 'Breakfast')],
-    }
-    const roomSelection = { 'room-a': 1 }
-    const result = flattenPerRoomAddons({}, roomSelection, addonsByRoom)
-    expect(result).toEqual([])
-  })
-
-  it('deduplicates the same add-on across multiple rooms and sums', () => {
-    // Both single and double rooms link to 'bf-1'.
-    const addonsByRoom: Record<string, ProductAddon[]> = {
-      'single': [makeAddonFor('bf-1', 'Breakfast'), makeAddonFor('vid-1', 'Video')],
-      'double': [makeAddonFor('bf-1', 'Breakfast')],
-    }
-    const roomSelection = { 'single': 1, 'double': 1 }
-    const addonSelection = {
-      'single': { 'bf-1': 1, 'vid-1': 2 },
-      'double': { 'bf-1': 3 },
-    }
-    const result = flattenPerRoomAddons(addonSelection, roomSelection, addonsByRoom)
-    // Sorted by productId: bf-1(4), vid-1(2)
-    expect(result).toEqual([
-      { productId: 'bf-1', quantity: 4, productKind: 'hotel_room' },
-      { productId: 'vid-1', quantity: 2, productKind: 'hotel_room' },
-    ])
-  })
-
-  // landr-fxza.4: productKind is the discriminator BookingForm uses to give
-  // a room-tied add-on the room's night window instead of raw service days.
-  it('threads each addon product_kind through from its ProductAddon row', () => {
-    const addonsByRoom: Record<string, ProductAddon[]> = {
-      'room-a': [
-        makeAddon('breakfast-1', 'Breakfast', 'hotel_room'),
-        makeAddon('video-1', 'Video Package', 'service'),
-      ],
-    }
-    const roomSelection = { 'room-a': 1 }
-    const addonSelection = { 'room-a': { 'breakfast-1': 2, 'video-1': 1 } }
-    const result = flattenPerRoomAddons(addonSelection, roomSelection, addonsByRoom)
-    expect(result).toEqual([
-      { productId: 'breakfast-1', quantity: 2, productKind: 'hotel_room' },
-      { productId: 'video-1', quantity: 1, productKind: 'service' },
-    ])
   })
 })
 

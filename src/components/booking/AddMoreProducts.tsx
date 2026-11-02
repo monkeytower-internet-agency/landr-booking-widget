@@ -1,23 +1,26 @@
 /**
- * "Add more to this booking" on the review step: the operator's other
- * bookable products, each added as one more line of the SAME booking with the
- * main line's dates inherited (rules in crossSell.ts). Time-slot and course
- * products open their own small picker inline, prefilled to the main date.
- * Every added line's availability is checked here (the existing availability
- * reads); an unavailable day is shown on the line, never silently dropped,
- * and blocks Confirm until the customer edits or removes it.
+ * "Add more to this booking" on the review step: the offers of the main line
+ * (POST /offers/evaluate, OfferTree) -- extras bound to a guest, the booking
+ * or a quantity, on the stay's days or a pick of them, mandatory ones
+ * preselected, what is included listed -- and the offers booked with their
+ * own dates: other bookable products, each added as one more line of the SAME
+ * booking with the parent line's dates inherited (rules in crossSell.ts).
+ * Time-slot and course products open their own small picker inline,
+ * prefilled to the main date. Every added line's availability is checked here
+ * (the existing availability reads); an unavailable day is shown on the line,
+ * never silently dropped, and blocks Confirm until the customer edits or
+ * removes it. An added line shows the offers of its own product under it.
  */
 import { InlineGuestAges } from './InlineGuestAges'
 import { useEffect, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react'
 import { getAvailability, getFixedDateWindows, getProductFlow, listProducts } from '@/api/client'
 import type { FormResponseEntry, ProductFlowResponse } from '@/api/flowTypes'
-import type { AvailabilitySlot, FixedDateWindow, Product } from '@/api/types'
+import type { AvailabilitySlot, EstimateLineItem, EvaluatedLine, EvaluatedOffer, FixedDateWindow, Product } from '@/api/types'
 import { Button } from '@/components/ui/button'
 import { pickLocalized } from '@/lib/locale'
 import { fmt, tr } from '@/lib/strings'
 import {
   bookingLanguageOffer,
-  crossSellCandidates,
   crossSellExclusion,
   inheritLine,
   languagesCover,
@@ -42,21 +45,49 @@ import type { ParticipantLanguageMap } from './participantLanguages'
 import { PickupLocationPicker } from './PickupLocationPicker'
 import type { FormPersonSource } from './formScopes'
 import { toHHMM } from './slotKey'
+import {
+  lineDays,
+  MAIN_LINE_ID,
+  nextLineId,
+  removeLine,
+  treeLineIds,
+  type OfferPick,
+  type OfferTreeInput,
+  type PartyMember,
+} from './offerCart'
+import { OfferTree } from './OfferTree'
+
+/** The offer state the review step owns (BookingForm mounts useOffers). */
+export interface AddMoreOffers {
+  verdicts: Readonly<Record<string, EvaluatedLine>>
+  picks: OfferPick[]
+  onPicksChange: Dispatch<SetStateAction<OfferPick[]>>
+  tree: OfferTreeInput
+  members: readonly PartyMember[]
+  isPending: boolean
+  checkFailed: boolean
+  /** Picks dropped by the last verdict (the party or the cart changed). */
+  removedNotice: boolean
+  estimateItems?: readonly EstimateLineItem[]
+  currency: string
+  /** The submit refused this line id. */
+  errorLineId?: string | null
+}
 
 interface Props {
   operatorToken: string
   previewToken?: string
   inviteToken?: string
-  /** Product ids already in the cart (main line, rooms, add-ons). */
-  cartProductIds: string[]
   /** The main line's booked days (a slot's date, a stay's nights). */
   mainDays: string[]
   /** Seats the party takes (participants + held invitees). */
   partySize: number
   lines: ExtraLine[]
-  onLinesChange: Dispatch<SetStateAction<ExtraLine[]>>
-  /** Operator curation: offer only these products (empty/absent = all eligible). */
-  allowedProductIds?: string[]
+  /** Absent = products with their own dates cannot be added (staff, cross-sell off). */
+  onLinesChange?: Dispatch<SetStateAction<ExtraLine[]>>
+  /** The operator's cross-sell switch: off hides the offers every booking gets (parent-less). */
+  crossSellEnabled?: boolean
+  offers: AddMoreOffers
   locale: string
   /** What the main flow already captured (languages, forms, pickup). */
   context: CrossSellContext
@@ -82,6 +113,9 @@ export interface InlineModules {
   onAges: (ages: Record<number, GuestAgeEntry>) => void
 }
 
+/** Stable no-op for a surface that cannot add lines. */
+const NO_LINE_CHANGES: Dispatch<SetStateAction<ExtraLine[]>> = () => {}
+
 function slotFree(s: AvailabilitySlot, need: number): boolean {
   return s.status !== 'closed' && s.activity_bookable !== false && s.available_seats >= need
 }
@@ -90,12 +124,12 @@ export function AddMoreProducts({
   operatorToken,
   previewToken,
   inviteToken,
-  cartProductIds,
   mainDays,
   partySize,
   lines,
-  onLinesChange,
-  allowedProductIds,
+  onLinesChange: onLinesChangeProp,
+  crossSellEnabled = true,
+  offers,
   locale,
   context,
   modules,
@@ -109,6 +143,8 @@ export function AddMoreProducts({
   // pickup, form:<key>).
   const [editing, setEditing] = useState<ReadonlySet<string>>(() => new Set())
   const inflight = useRef(new Set<string>())
+  const canAddOwn = !!onLinesChangeProp
+  const onLinesChange: Dispatch<SetStateAction<ExtraLine[]>> = onLinesChangeProp ?? NO_LINE_CHANGES
   const flowsRef = useRef<Record<string, null>>({})
 
   // Free units for the quantity cap: slot / window lines read the picked row.
@@ -138,9 +174,16 @@ export function AddMoreProducts({
     }
   }, [operatorToken, previewToken])
 
-  // Only products that could be offered need their flow (never the cart's own).
-  const flowIds = crossSellCandidates(catalogue, cartProductIds)
-    .map((p) => p.product_id)
+  // Only products an own-dated offer could add need their flow.
+  const ownOfferProducts = canAddOwn
+    ? Object.values(offers.verdicts)
+        .flatMap((v) => v.offers ?? [])
+        .filter((o) => o.schedule === 'own' && o.mode !== 'info')
+        .map((o) => o.product_id)
+    : []
+  const flowIds = [...new Set(ownOfferProducts)]
+    .filter((id) => catalogue.some((p) => p.product_id === id))
+    .sort()
     .join(',')
   useEffect(() => {
     for (const id of flowIds ? flowIds.split(',') : []) {
@@ -240,16 +283,74 @@ export function AddMoreProducts({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clampKey, partySize, windowsByKey])
 
-  const taken = [...cartProductIds, ...lines.map((l) => l.product.product_id)]
-  // A product shares no guide language with the booking: not offered
-  // (crossSellExclusion); one whose flow is still loading waits. Its own
-  // language / form / pickup modules render inline on its line.
-  const allowed = allowedProductIds && allowedProductIds.length > 0 ? new Set(allowedProductIds) : null
-  const candidates = crossSellCandidates(catalogue, taken).filter(
-    (p) =>
-      (!allowed || allowed.has(p.product_id)) &&
+  // An own-dated offer adds its product as a line of its own: once per
+  // product, never one sharing no guide language with the booking
+  // (crossSellExclusion), and only once its flow (custom forms) is read. Its
+  // own language / form / pickup modules render inline on its line.
+  const productOf = (o: EvaluatedOffer) => catalogue.find((p) => p.product_id === o.product_id)
+  const ownAllowed = (o: EvaluatedOffer) => {
+    const p = productOf(o)
+    return (
+      !!p &&
       p.product_id in flows &&
-      crossSellExclusion(p, context, lines) === null,
+      !lines.some((l) => l.product.product_id === p.product_id) &&
+      crossSellExclusion(p, context, lines) === null
+    )
+  }
+  const addOwn = (o: EvaluatedOffer, parentLineId: string) => {
+    const p = productOf(o)
+    if (!p) return
+    onLinesChange((prev) => {
+      const taken = [...treeLineIds(offers.tree, offers.picks), ...prev.flatMap((l) => (l.lineId ? [l.lineId] : []))]
+      const lineId = nextLineId('o', taken)
+      const days = parentLineId === MAIN_LINE_ID ? mainDays : lineDays(parentLineId, offers.tree, offers.picks)
+      return [
+        ...prev,
+        {
+          ...inheritLine(p, days, `x-${lineId}`, flows[p.product_id] ?? null),
+          lineId,
+          offerId: o.id,
+          parentLineId,
+          checking: true,
+        },
+      ]
+    })
+  }
+  const removeExtra = (line: ExtraLine) => {
+    const gone = new Set<string>([line.key])
+    if (line.lineId) {
+      // Everything hanging off the line goes with it: its picks and lines.
+      offers.onPicksChange((prev) => removeLine(prev, line.lineId!))
+      const queue = [line.lineId]
+      while (queue.length > 0) {
+        const cur = queue.shift()!
+        for (const l of lines) {
+          if (l.parentLineId === cur && l.lineId && !gone.has(l.key)) {
+            gone.add(l.key)
+            queue.push(l.lineId)
+          }
+        }
+      }
+    }
+    onLinesChange((prev) => prev.filter((l) => !gone.has(l.key)))
+  }
+  const treeProps = {
+    verdicts: offers.verdicts,
+    picks: offers.picks,
+    onPicksChange: offers.onPicksChange,
+    tree: offers.tree,
+    members: offers.members,
+    idPrefix: 'o',
+    locale,
+    currency: offers.currency,
+    estimateItems: offers.estimateItems,
+    isPending: offers.isPending,
+    errorLineId: offers.errorLineId,
+    onAddOwn: canAddOwn ? addOwn : undefined,
+    ownAllowed,
+  }
+  const mainOffers = (offers.verdicts[MAIN_LINE_ID]?.offers ?? []).filter(
+    (o) => crossSellEnabled || o.parent_product_id != null,
   )
   const needsByLine = lineNeeds(lines, context)
   const languageOffer = bookingLanguageOffer(context.mainLanguages, lines)
@@ -295,7 +396,7 @@ export function AddMoreProducts({
         {editor}
       </div>
     )
-  if (candidates.length === 0 && lines.length === 0) return null
+  if (mainOffers.length === 0 && lines.length === 0 && !offers.checkFailed) return null
 
   const update = (key: string, patch: Partial<ExtraLine>) =>
     onLinesChange((prev) => prev.map((l) => (l.key === key ? { ...l, ...patch } : l)))
@@ -310,6 +411,23 @@ export function AddMoreProducts({
         <h3 className="text-base font-semibold">{tr('addMoreTitle', locale)}</h3>
         <p className="text-sm text-muted-foreground">{tr('addMoreIntro', locale)}</p>
       </div>
+
+      {offers.removedNotice ? (
+        <p role="status" data-testid="offer-removed-notice" className="text-sm text-muted-foreground">
+          {tr('offerRemovedNotice', locale)}
+        </p>
+      ) : null}
+      {offers.checkFailed ? (
+        <p role="status" data-testid="offer-check-failed" className="text-sm text-muted-foreground">
+          {tr('offerCheckFailed', locale)}
+        </p>
+      ) : offers.isPending ? (
+        <p role="status" data-testid="offer-checking" className="text-xs text-muted-foreground">
+          {tr('offerChecking', locale)}
+        </p>
+      ) : null}
+
+      <OfferTree {...treeProps} parentLineId={MAIN_LINE_ID} showParentless={crossSellEnabled} />
 
       {lines.map((line) => {
         const issue = lineIssue(line)
@@ -332,7 +450,7 @@ export function AddMoreProducts({
                 type="button"
                 variant="ghost"
                 size="sm"
-                onClick={() => onLinesChange((prev) => prev.filter((l) => l.key !== line.key))}
+                onClick={() => removeExtra(line)}
               >
                 {tr('addMoreRemove', locale)}
               </Button>
@@ -557,6 +675,10 @@ export function AddMoreProducts({
               </div>
             ) : null}
 
+            {line.lineId ? (
+              <OfferTree {...treeProps} parentLineId={line.lineId} showParentless={false} />
+            ) : null}
+
             {issue === 'checking' ? (
               <p className="text-sm text-muted-foreground">{tr('addMoreChecking', locale)}</p>
             ) : issue === 'unavailable' ? (
@@ -574,31 +696,6 @@ export function AddMoreProducts({
         )
       })}
 
-      {candidates.length > 0 ? (
-        <ul className="flex flex-wrap gap-2">
-          {candidates.map((p) => (
-            <li key={p.product_id}>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                data-testid={`add-more-candidate-${p.product_id}`}
-                onClick={() =>
-                  onLinesChange((prev) => [
-                    ...prev,
-                    {
-                      ...inheritLine(p, mainDays, `x-${p.product_id}`, flows[p.product_id] ?? null),
-                      checking: true,
-                    },
-                  ])
-                }
-              >
-                + {name(p)}
-              </Button>
-            </li>
-          ))}
-        </ul>
-      ) : null}
     </section>
   )
 }

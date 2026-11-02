@@ -77,7 +77,6 @@ function renderForm() {
       participantLanguages={{}}
       pickupLocationId={null}
       accommodationRooms={[]}
-      addons={[]}
       onBack={vi.fn()}
       onConfirmed={vi.fn()}
     />,
@@ -268,7 +267,6 @@ describe('Booking for someone else — German UI (landr-jiagg.2)', () => {
         participantLanguages={{}}
         pickupLocationId={null}
         accommodationRooms={[]}
-        addons={[]}
         onBack={vi.fn()}
         onConfirmed={vi.fn()}
       />,

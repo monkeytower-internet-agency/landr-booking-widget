@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { AvailabilitySlot, EstimateResponse, FixedDateWindow, Product } from '@/api/types'
 import {
-  crossSellCandidates,
   crossSellExclusion,
   effectiveLanguages,
   EMPTY_INLINE_MODULES,
@@ -63,24 +62,6 @@ function slot(date: string, over: Partial<AvailabilitySlot> = {}): AvailabilityS
 }
 
 const MAIN_DAYS = ['2026-11-03', '2026-11-02']
-
-describe('crossSellCandidates', () => {
-  it('drops cart products, sold-out, drafts and kinds the funnel cannot book', () => {
-    const list = [
-      product('main'),
-      product('camping', { product_kind: 'stay', service_time_shape: null }),
-      product('sold', { bookable: false }),
-      product('draft', { is_publicly_listed: false }),
-      product('room', { product_kind: 'hotel_room', service_time_shape: null }),
-      product('shirt', { product_kind: 'merchandise' as Product['product_kind'], service_time_shape: null }),
-      product('tandem', { service_time_shape: 'single_date', daily_start_times: ['10:00'] }),
-    ]
-    expect(crossSellCandidates(list, ['main']).map((p) => p.product_id)).toEqual([
-      'camping',
-      'tandem',
-    ])
-  })
-})
 
 describe('inheritLine', () => {
   it('a day product takes the main days, sorted, quantity 1', () => {
@@ -171,6 +152,45 @@ describe('submit lines', () => {
       }),
     ])
   })
+
+  it('emits line_id / offer_id / parent_line_id when the line came from an offer', () => {
+    const line = {
+      ...inheritLine(product('pass'), MAIN_DAYS, 'a'),
+      lineId: 'o1',
+      offerId: 'of1',
+      parentLineId: 'r-room',
+    }
+    expect(extraProductLines([line])[0]).toMatchObject({
+      product_id: 'pass',
+      line_id: 'o1',
+      offer_id: 'of1',
+      parent_line_id: 'r-room',
+    })
+    // A plain added product carries none of the three.
+    const plain = extraProductLines([inheritLine(product('pass'), MAIN_DAYS, 'b')])[0]
+    expect(plain).not.toHaveProperty('line_id')
+    expect(plain).not.toHaveProperty('offer_id')
+  })
+
+  it('defaults the parent of an offer line to the main line', () => {
+    const line = { ...inheritLine(product('pass'), MAIN_DAYS, 'a'), lineId: 'o1', offerId: 'of1' }
+    expect(extraProductLines([line])[0].parent_line_id).toBe('main')
+  })
+
+  it("puts an added line's offer lines on its own estimate", () => {
+    const withOffer = { ...inheritLine(product('pass'), MAIN_DAYS, 'a'), lineId: 'o1', offerId: 'of1' }
+    const plain = inheritLine(product('camping'), MAIN_DAYS, 'b')
+    const offerLine = { product_id: 'bf', qty: 2, line_id: 'x1', offer_id: 'of2', parent_line_id: 'o1' }
+    const reqs = extraEstimateRequests([withOffer, plain], 2, undefined, undefined, {
+      linesFor: (id) => (id === 'o1' ? [offerLine] : []),
+      guests: [{ id: 'g1', attributes: {} }],
+    })
+    expect(reqs[0].body.addon_lines).toEqual([offerLine])
+    expect(reqs[0].body.main_line_id).toBe('main')
+    expect(reqs[0].body.guests).toEqual([{ id: 'g1', attributes: {} }])
+    expect(reqs[1].body.addon_lines).toEqual([])
+    expect(reqs[1].body).not.toHaveProperty('main_line_id')
+  })
 })
 
 describe('mergeEstimates', () => {
@@ -200,6 +220,15 @@ describe('mergeEstimates', () => {
     expect(merged.amount_due).toBe('125.00')
     expect(merged.grand_total).toBe('125.00')
     expect(merged.un_priceable).toBe(false)
+  })
+
+  it('sums on_site_total across the estimates, and leaves it off when none has one', () => {
+    const merged = mergeEstimates(est('main', '100.00', { on_site_total: '10.00' }), [
+      { estimate: est('camping', '12.50', { on_site_total: '2.50' }), quantity: 1 },
+    ])
+    expect(merged.on_site_total).toBe('12.50')
+    const none = mergeEstimates(est('main', '100.00'), [{ estimate: est('c', '1.00'), quantity: 1 }])
+    expect(none).not.toHaveProperty('on_site_total')
   })
 
   it('carries an un-priceable added line and keeps savings adding up', () => {

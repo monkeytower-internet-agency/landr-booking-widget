@@ -16,7 +16,6 @@ import type {
   BookingLookupResult,
   Hotel,
   Product,
-  ProductAddon,
 } from '@/api/types'
 import { AccommodationStep } from './AccommodationStep'
 
@@ -25,7 +24,6 @@ const { mocks } = vi.hoisted(() => ({
     getHotelsForOperator: vi.fn<(slug: string) => Promise<Hotel[]>>(),
     getHotelRoomsForHotel:
       vi.fn<(slug: string, hotelId: string) => Promise<Product[]>>(),
-    getProductAddons: vi.fn<(productId: string) => Promise<ProductAddon[]>>(),
     getAvailability: vi.fn<
       (id: string, from: string, to: string) => Promise<AvailabilitySlot[]>
     >(),
@@ -42,7 +40,6 @@ vi.mock('@/api/client', async () => {
     ...actual,
     getHotelsForOperator: mocks.getHotelsForOperator,
     getHotelRoomsForHotel: mocks.getHotelRoomsForHotel,
-    getProductAddons: mocks.getProductAddons,
     getAvailability: mocks.getAvailability,
     lookupBookingReference: mocks.lookupBookingReference,
   }
@@ -127,7 +124,6 @@ function setBrowserLanguage(language: string) {
 describe('AccommodationStep — German UI (landr-5aih0.27)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mocks.getProductAddons.mockResolvedValue([])
     mocks.getAvailability.mockResolvedValue([])
   })
 

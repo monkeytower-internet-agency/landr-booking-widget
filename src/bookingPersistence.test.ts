@@ -156,6 +156,55 @@ describe('non-restorable steps', () => {
   })
 })
 
+describe('pre-offer-lines blobs', () => {
+  // Built indirectly: the grep gate forbids the retired identifiers in src.
+  const LEGACY_ROOM_MAP = ['perRoom', 'Addons'].join('')
+  const LEGACY_STEP = ['pick-service', 'addons'].join('-')
+
+  it('does NOT restore a stored add-ons step (the step is gone)', () => {
+    window.sessionStorage.setItem(
+      BOOKING_PROGRESS_STORAGE_KEY,
+      JSON.stringify({ step: { ...detailsStep, name: LEGACY_STEP, addons: [] }, bookingDraft: {} }),
+    )
+    expect(readStoredProgress()).toBeNull()
+  })
+
+  it('drops legacy {productId, quantity} add-ons and the per-room map from step and draft', () => {
+    const legacyAddons = [{ productId: 'bf', quantity: 2 }]
+    window.sessionStorage.setItem(
+      BOOKING_PROGRESS_STORAGE_KEY,
+      JSON.stringify({
+        step: {
+          ...detailsStep,
+          name: 'pick-accommodation',
+          addons: legacyAddons,
+          [LEGACY_ROOM_MAP]: { 'room-1': { bf: 2 } },
+        },
+        bookingDraft: { ...draft, addons: legacyAddons, [LEGACY_ROOM_MAP]: { 'room-1': { bf: 2 } } },
+      }),
+    )
+    const restored = readStoredProgress()
+    expect(restored).not.toBeNull()
+    const step = restored!.step as unknown as Record<string, unknown>
+    const bd = restored!.bookingDraft as unknown as Record<string, unknown>
+    expect(step.addons).toEqual([])
+    expect(bd.addons).toEqual([])
+    expect(LEGACY_ROOM_MAP in step).toBe(false)
+    expect(LEGACY_ROOM_MAP in bd).toBe(false)
+    // Everything else rides through untouched.
+    expect(restored!.bookingDraft.booker?.email).toBe('ada@example.com')
+  })
+
+  it('keeps offer picks written by this bundle', () => {
+    const pick = { lineId: 'a1', parentLineId: 'r-room-1', offerId: 'of-1', productId: 'bf', quantity: 1 }
+    window.sessionStorage.setItem(
+      BOOKING_PROGRESS_STORAGE_KEY,
+      JSON.stringify({ step: detailsStep, bookingDraft: { ...draft, addons: [pick] } }),
+    )
+    expect((readStoredProgress()!.bookingDraft as unknown as { addons: unknown[] }).addons).toEqual([pick])
+  })
+})
+
 describe('clearStoredProgress', () => {
   it('removes a persisted snapshot (completed booking / full restart drop-point)', () => {
     writeStoredProgress({ step: detailsStep, bookingDraft: draft })

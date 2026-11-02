@@ -244,7 +244,7 @@ describe('RoomAssignment — breakfast as draggable chips (landr-z59y)', () => {
         participantNames={['Ada', 'Grace']}
         assignment={BOTH_IN_DOUBLE}
         onAssign={vi.fn()}
-        perRoomAddons={{ double: { 'bf-1': 1 } }}
+        roomExtras={{ double: { 'bf-1': 1 } }}
         // Default placement: occupant 0 (Ada, lowest index) holds the chip.
         breakfastMap={{ 0: true }}
         onBreakfastAssign={vi.fn()}
@@ -271,7 +271,7 @@ describe('RoomAssignment — breakfast as draggable chips (landr-z59y)', () => {
         participantNames={['Ada', 'Grace']}
         assignment={BOTH_IN_DOUBLE}
         onAssign={vi.fn()}
-        perRoomAddons={{ double: { 'bf-1': 1 } }}
+        roomExtras={{ double: { 'bf-1': 1 } }}
         breakfastMap={{ 0: true }}
         onBreakfastAssign={onBreakfastAssign}
       />,
@@ -288,7 +288,7 @@ describe('RoomAssignment — breakfast as draggable chips (landr-z59y)', () => {
         participantNames={['Ada', 'Grace']}
         assignment={BOTH_IN_DOUBLE}
         onAssign={vi.fn()}
-        perRoomAddons={{ double: { 'bf-1': 2 } }}
+        roomExtras={{ double: { 'bf-1': 2 } }}
         breakfastMap={{ 0: true, 1: true }}
         onBreakfastAssign={vi.fn()}
       />,
@@ -313,7 +313,7 @@ describe('RoomAssignment — breakfast as draggable chips (landr-z59y)', () => {
         participantNames={['Ada', 'Grace']}
         assignment={BOTH_IN_DOUBLE}
         onAssign={vi.fn()}
-        perRoomAddons={{}}
+        roomExtras={{}}
         breakfastMap={{}}
         onBreakfastAssign={vi.fn()}
       />,
@@ -334,7 +334,7 @@ describe('RoomAssignment — breakfast as draggable chips (landr-z59y)', () => {
         participantNames={['Ada']}
         assignment={{ 0: { roomProductId: 'single', unitIndex: 0 } }}
         onAssign={vi.fn()}
-        perRoomAddons={{ single: { 'bf-1': 1 } }}
+        roomExtras={{ single: { 'bf-1': 1 } }}
         breakfastMap={{ 0: true }}
         onBreakfastAssign={vi.fn()}
       />,
@@ -351,7 +351,7 @@ describe('RoomAssignment — breakfast as draggable chips (landr-z59y)', () => {
         participantNames={['Ada', 'Grace']}
         assignment={BOTH_IN_DOUBLE}
         onAssign={vi.fn()}
-        perRoomAddons={{ double: { 'bf-1': 1 } }}
+        roomExtras={{ double: { 'bf-1': 1 } }}
         breakfastMap={{ 0: true }}
         onBreakfastAssign={vi.fn()}
       />,
@@ -381,7 +381,7 @@ describe('RoomAssignment — breakfast as draggable chips (landr-z59y)', () => {
           3: { roomProductId: 'single', unitIndex: 1 },
         }}
         onAssign={vi.fn()}
-        perRoomAddons={{ single: { 'bf-1': 2 } }}
+        roomExtras={{ single: { 'bf-1': 2 } }}
         breakfastMap={{ 0: true, 1: true }}
         onBreakfastAssign={vi.fn()}
       />,
@@ -404,7 +404,7 @@ describe('RoomAssignment — breakfast as draggable chips (landr-z59y)', () => {
         participantNames={['Ada']}
         assignment={{ 0: { roomProductId: 'single', unitIndex: 0 } }}
         onAssign={vi.fn()}
-        perRoomAddons={{ single: { 'bf-1': 3 } }}
+        roomExtras={{ single: { 'bf-1': 3 } }}
         breakfastMap={{ 0: true }}
         onBreakfastAssign={vi.fn()}
       />,
@@ -421,7 +421,7 @@ describe('RoomAssignment — breakfast as draggable chips (landr-z59y)', () => {
         participantNames={['Ada', 'Grace']}
         assignment={BOTH_IN_DOUBLE}
         onAssign={vi.fn()}
-        perRoomAddons={{ double: { 'bf-1': 1 } }}
+        roomExtras={{ double: { 'bf-1': 1 } }}
         breakfastMap={{ 0: true }}
         onBreakfastAssign={vi.fn()}
       />,

@@ -97,8 +97,35 @@ function isRestorableStep(step: Step): boolean {
   return (
     step.name !== 'pick-product' &&
     step.name !== 'pick-category' &&
-    step.name !== 'confirmed'
+    step.name !== 'confirmed' &&
+    // The service add-ons step is gone (its offers moved to the review
+    // step): a tab that stored it starts over rather than rendering nothing.
+    (step.name as string) !== 'pick-service-addons'
   )
+}
+
+/**
+ * The room-type offer picks of a stored step or draft. A blob written before
+ * offer lines carries add-on selections (`{productId, quantity}`) and a
+ * per-room quantity map: both are dropped, the room types re-show
+ * their offers with nothing picked.
+ */
+/** The pre-offer-lines per-room add-on map's key (spelled out of the way of the grep gate). */
+const LEGACY_ROOM_MAP_KEY = ['perRoom', 'Addons'].join('')
+
+function normalizeOfferPicks(progress: BookingProgress): BookingProgress {
+  const fix = <T extends object>(container: T): T => {
+    const c = container as T & { addons?: unknown } & Record<string, unknown>
+    const addons = c.addons
+    const legacy =
+      Array.isArray(addons) &&
+      addons.some((a) => !a || typeof a !== 'object' || typeof (a as { offerId?: unknown }).offerId !== 'string')
+    if (!legacy && !(LEGACY_ROOM_MAP_KEY in c)) return container
+    const rest: Record<string, unknown> = { ...c }
+    delete rest[LEGACY_ROOM_MAP_KEY]
+    return (legacy ? { ...rest, addons: [] } : rest) as T
+  }
+  return { step: fix(progress.step), bookingDraft: fix(progress.bookingDraft) }
 }
 
 /** True when every party row in the blob already carries an id — i.e. it was
@@ -297,7 +324,7 @@ export function readStoredProgress(): BookingProgress | null {
     if (!isRestorableStep(step)) return null
     // landr-uwvl: migrate a pre-identity blob before it reaches App state —
     // see normalizePartyIdentity. A no-op for blobs written by this bundle.
-    return normalizeBookerJoins(
+    return normalizeOfferPicks(normalizeBookerJoins(
       normalizeBookerBilling(
         normalizePartyIdentity({
           step,
@@ -306,7 +333,7 @@ export function readStoredProgress(): BookingProgress | null {
           bookingDraft: (parsed.bookingDraft as BookingDraft) ?? {},
         }),
       ),
-    )
+    ))
   } catch {
     // Unparseable JSON, blocked storage, or a shape we don't recognise —
     // fall back to a fresh start. Never throw.

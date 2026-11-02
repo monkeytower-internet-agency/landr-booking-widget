@@ -6,7 +6,9 @@ import type {
   Location,
   OperatorSettings,
   Product,
-  ProductAddon,
+  EvaluatedOffer,
+  OfferEvaluateRequest,
+  OfferEvaluateResponse,
   ProductGroup,
   ServiceRole,
   SubmitBookingResponse,
@@ -580,60 +582,190 @@ const MOCK_BREAKFAST_ADDON_ID = '00000000-0000-0000-0000-000000000402'
 // flow exercises the "Paid to your Tandem pilot" block.
 const MOCK_PILOT_PHOTOS_ADDON_ID = '00000000-0000-0000-0000-000000000403'
 
-export const mockProductAddons = (productId: string): ProductAddon[] => {
-  // Service example: Tandem Long → Video Package (optional).
+/** One mock offer row; every field the evaluator returns, overridable. */
+function mockOffer(
+  id: string,
+  parentProductId: string | null,
+  productId: string,
+  name: string,
+  over: Partial<EvaluatedOffer> = {},
+): EvaluatedOffer {
+  return {
+    id,
+    parent_product_id: parentProductId,
+    product_id: productId,
+    rules: { mode: 'all', items: [] },
+    binding: 'booking',
+    schedule: 'locked',
+    collection: 'online',
+    mode: 'optional',
+    options: [],
+    required_attributes: [],
+    min_qty: 0,
+    max_qty: null,
+    sort_order: 0,
+    name,
+    name_localized: null,
+    short_description: null,
+    short_description_localized: null,
+    product_kind: 'service',
+    day_selection: null,
+    in_cart: false,
+    price_preview: null,
+    stock: null,
+    server_attached: false,
+    draft: false,
+    ...over,
+  }
+}
+
+const preview = (totalCents: number, priceUnit: 'booking' | 'night' | 'guest_night' = 'booking') => ({
+  quantity: 1,
+  unit_price_cents: totalCents,
+  total_cents: totalCents,
+  price_unit: priceUnit,
+  currency: 'EUR',
+})
+
+/**
+ * A neutral demo stay with offers on every binding / schedule / collection:
+ * the "demo courtyard apartment". For 2 adults + a child of 8 over 4 nights:
+ * tourist tax EUR 20 (mandatory, per person, paid on arrival, attached by the
+ * server), air conditioning EUR 40 (optional, pick the nights), cot free
+ * (optional, per person), bedding EUR 35 and garage EUR 40 (optional, per
+ * booking), Wi-Fi included (info).
+ */
+export const mockOfferStay: Product = {
+  ...mockOccupancyStay,
+  product_id: '00000000-0000-0000-0000-000000000351',
+  slug: 'demo-courtyard-apartment',
+  name: 'Demo courtyard apartment',
+  name_localized: null,
+  short_description: 'A demo apartment around a courtyard.',
+  price_per_unit: 90,
+  price_from: '90.00',
+  capacity_per_unit: 5,
+  occupancy_pricing: undefined,
+}
+
+export const MOCK_OFFER_IDS = {
+  touristTax: '00000000-0000-0000-0000-0000000005a1',
+  airCon: '00000000-0000-0000-0000-0000000005a2',
+  cot: '00000000-0000-0000-0000-0000000005a3',
+  bedding: '00000000-0000-0000-0000-0000000005a4',
+  garage: '00000000-0000-0000-0000-0000000005a5',
+  wifi: '00000000-0000-0000-0000-0000000005a6',
+} as const
+
+export const MOCK_OFFER_PRODUCTS = {
+  touristTax: '00000000-0000-0000-0000-0000000006a1',
+  airCon: '00000000-0000-0000-0000-0000000006a2',
+  cot: '00000000-0000-0000-0000-0000000006a3',
+  bedding: '00000000-0000-0000-0000-0000000006a4',
+  garage: '00000000-0000-0000-0000-0000000006a5',
+  wifi: '00000000-0000-0000-0000-0000000006a6',
+} as const
+
+/** The demo courtyard apartment's offers (see mockOfferStay). */
+export function mockOfferStayOffers(): EvaluatedOffer[] {
+  const stay = mockOfferStay.product_id
+  return [
+    mockOffer(MOCK_OFFER_IDS.touristTax, stay, MOCK_OFFER_PRODUCTS.touristTax, 'Tourist tax', {
+      mode: 'mandatory',
+      binding: 'person',
+      collection: 'on_site',
+      server_attached: true,
+      sort_order: 1,
+      rules: { mode: 'all', items: [{ cond: 'guest_attr', key: 'age', op: 'gte', value: 10 }] },
+      price_preview: preview(2000, 'guest_night'),
+    }),
+    mockOffer(MOCK_OFFER_IDS.airCon, stay, MOCK_OFFER_PRODUCTS.airCon, 'Air conditioning', {
+      schedule: 'subset',
+      sort_order: 2,
+      price_preview: preview(4000, 'night'),
+    }),
+    mockOffer(MOCK_OFFER_IDS.cot, stay, MOCK_OFFER_PRODUCTS.cot, 'Baby cot', {
+      binding: 'person',
+      collection: 'free',
+      sort_order: 3,
+      price_preview: { ...preview(0), unit_price_cents: 0 },
+    }),
+    mockOffer(MOCK_OFFER_IDS.bedding, stay, MOCK_OFFER_PRODUCTS.bedding, 'Bed linen and towels', {
+      sort_order: 4,
+      price_preview: preview(3500),
+    }),
+    mockOffer(MOCK_OFFER_IDS.garage, stay, MOCK_OFFER_PRODUCTS.garage, 'Garage', {
+      sort_order: 5,
+      price_preview: preview(4000),
+    }),
+    mockOffer(MOCK_OFFER_IDS.wifi, stay, MOCK_OFFER_PRODUCTS.wifi, 'Wi-Fi', {
+      mode: 'info',
+      sort_order: 6,
+      short_description: 'Fast Wi-Fi in every room.',
+    }),
+  ]
+}
+
+/** Per-product mock offers (deterministic ids, so tests can assert on them). */
+function mockOffersFor(productId: string, nights: number): EvaluatedOffer[] {
+  if (productId === mockOfferStay.product_id) return mockOfferStayOffers()
+  // Service example: Tandem Long -> Video Package / Pilot Photos (optional).
   if (productId === '00000000-0000-0000-0000-000000000002') {
     return [
-      {
-        product_addon_id: 'mock-addon-1',
-        addon_product_id: MOCK_VIDEO_ADDON_ID,
-        name: 'Video Package',
+      mockOffer('mock-offer-video', productId, MOCK_VIDEO_ADDON_ID, 'Video Package', {
         name_localized: { en: 'Video Package', de: 'Video-Paket' },
-        is_required: false,
-        min_qty: 0,
-        max_qty: null,
         sort_order: 10,
-        price_per_unit: 39,
-        currency: 'EUR',
-        product_kind: 'service',
-      },
-      {
-        product_addon_id: 'mock-addon-2',
-        addon_product_id: MOCK_PILOT_PHOTOS_ADDON_ID,
-        name: 'Pilot Photos',
+        price_preview: preview(3900),
+      }),
+      mockOffer('mock-offer-photos', productId, MOCK_PILOT_PHOTOS_ADDON_ID, 'Pilot Photos', {
         name_localized: { en: 'Pilot Photos', de: 'Pilotenfotos' },
-        is_required: false,
-        min_qty: 0,
-        max_qty: null,
         sort_order: 20,
-        price_per_unit: 25,
-        currency: 'EUR',
-        product_kind: 'service',
-      },
+        price_preview: preview(2500),
+      }),
     ]
   }
-  // Hotel-room example: every mock room offers Breakfast.
+  // Hotel-room example: every mock room offers Breakfast, one per guest.
   if (
     productId === '00000000-0000-0000-0000-000000000101' ||
     productId === '00000000-0000-0000-0000-000000000102'
   ) {
     return [
-      {
-        product_addon_id: `mock-addon-breakfast-${productId}`,
-        addon_product_id: MOCK_BREAKFAST_ADDON_ID,
-        name: 'Breakfast',
+      mockOffer(`mock-offer-breakfast-${productId}`, productId, MOCK_BREAKFAST_ADDON_ID, 'Breakfast', {
         name_localized: { en: 'Breakfast', de: 'Frühstück' },
-        is_required: false,
-        min_qty: 0,
-        max_qty: null,
-        sort_order: 10,
-        price_per_unit: 10,
-        currency: 'EUR',
+        binding: 'free',
         product_kind: 'hotel_room',
-      },
+        sort_order: 10,
+        price_preview: preview(1000 * Math.max(1, nights), 'night'),
+      }),
     ]
   }
   return []
+}
+
+/**
+ * Mock POST /offers/evaluate: every line eligible, each line's offers with
+ * `in_cart` set for the products already hanging off it.
+ */
+export function mockEvaluateOffers(body: OfferEvaluateRequest): OfferEvaluateResponse {
+  return {
+    lines: body.lines.map((ln) => {
+      const children = new Set(
+        body.lines.filter((o) => o.parent_line_id === ln.line_id).map((o) => o.product_id),
+      )
+      return {
+        line_id: ln.line_id,
+        eligible: true,
+        eligibility_reason_key: null,
+        eligibility_reason_params: null,
+        draft: false,
+        offers: mockOffersFor(ln.product_id, ln.selected_days?.length ?? 0).map((o) => ({
+          ...o,
+          in_cart: children.has(o.product_id),
+        })),
+      }
+    }),
+    required_attribute_keys: [],
+  }
 }
 
 export const mockSubmit = (): SubmitBookingResponse => ({
@@ -791,7 +923,74 @@ export const mockEstimate = (
       })
     }
   }
+  if (productId === mockOfferStay.product_id) {
+    lineItems.push({
+      product_id: productId,
+      label: mockOfferStay.name,
+      qty: 1,
+      units: days,
+      unit_price: '90.00',
+      line_total: (90 * days).toFixed(2),
+      paid_to: 'operator',
+      line_id: body.main_line_id ?? 'main',
+    })
+  }
+  // Offer lines of the demo courtyard apartment, priced like the evaluator's
+  // preview (per night for a day-pick), echoed with their offer fields.
+  const stayOffers = new Map(mockOfferStayOffers().map((o) => [o.id, o]))
   for (const addon of body.addon_lines) {
+    const offer = addon.offer_id ? stayOffers.get(addon.offer_id) : undefined
+    if (!offer) continue
+    const nights = addon.selected_days?.length ?? days
+    const perNight = offer.price_preview?.price_unit === 'night'
+    const total =
+      offer.collection === 'free'
+        ? 0
+        : ((offer.price_preview?.total_cents ?? 0) / 100) * (perNight ? nights / Math.max(1, days) : 1) * addon.qty
+    lineItems.push({
+      product_id: addon.product_id,
+      label: offer.name,
+      qty: addon.qty,
+      units: nights,
+      unit_price: total.toFixed(2),
+      line_total: total.toFixed(2),
+      paid_to: 'operator',
+      line_id: addon.line_id ?? null,
+      parent_line_id: addon.parent_line_id ?? null,
+      offer_id: offer.id,
+      collection: offer.collection,
+      mode: offer.mode,
+      participant_ids: addon.participant_id ? [addon.participant_id] : null,
+    })
+  }
+  // The server attaches the tourist tax itself: EUR 2.50 per night for each
+  // guest of 10 or more (an unanswered age counts as an adult here).
+  let onSite = 0
+  if (productId === mockOfferStay.product_id && body.guests && body.guests.length > 0) {
+    const tax = stayOffers.get(MOCK_OFFER_IDS.touristTax)!
+    const covered = body.guests.filter((g) => typeof g.attributes.age !== 'number' || g.attributes.age >= 10)
+    if (covered.length > 0) {
+      onSite = 2.5 * days * covered.length
+      lineItems.push({
+        product_id: tax.product_id,
+        label: tax.name,
+        qty: covered.length,
+        units: days,
+        unit_price: '2.50',
+        line_total: onSite.toFixed(2),
+        paid_to: 'operator',
+        offer_id: tax.id,
+        parent_line_id: body.main_line_id ?? 'main',
+        collection: 'on_site',
+        collection_amount: onSite.toFixed(2),
+        mode: 'mandatory',
+        auto_attached: true,
+        participant_ids: covered.map((g) => g.id),
+      })
+    }
+  }
+  for (const addon of body.addon_lines) {
+    if (addon.offer_id && stayOffers.has(addon.offer_id)) continue
     const a = productMap[addon.product_id]
     if (!a) continue
     const units = a.kind === 'hotel_room' || (a.kind === 'addon' && a.paidTo === 'hotel') ? days + 1 : days
@@ -812,6 +1011,8 @@ export const mockEstimate = (
   let performerTotal = 0
   for (const li of lineItems) {
     const v = Number(li.line_total)
+    // An on-site line is paid on arrival: never part of any total here.
+    if (li.collection === 'on_site') continue
     if (li.paid_to === 'operator') opTotal += v
     else if (li.paid_to === 'performer') performerTotal += v
     else hotelTotal += v
@@ -830,6 +1031,7 @@ export const mockEstimate = (
     // warnings. Real API responses carry both keys on every estimate.
     warnings: [],
     un_priceable: false,
+    ...(onSite > 0 ? { on_site_total: onSite.toFixed(2) } : {}),
     // landr-nva1a.4: only present when there's an actual multi-day saving —
     // mirrors the real API, which omits these on an estimate with nothing
     // to discount, and lets PriceSidebar's no-savings fallback render too.
