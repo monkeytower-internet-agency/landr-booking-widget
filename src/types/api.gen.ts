@@ -2228,6 +2228,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/landr-staff/templates/{slug}/website-listing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Landr Staff Set Website Listing
+         * @description Show / hide the template on the marketing website. Not editor-gated:
+         *     the flag is per environment, so it works on production too.
+         */
+        put: operations["landr_staff_set_website_listing"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/landr-staff/terms-changes": {
         parameters: {
             query?: never;
@@ -25409,6 +25430,11 @@ export interface components {
             uses_pools: boolean;
             /** Version */
             version: number;
+            /**
+             * Website Listed
+             * @default false
+             */
+            website_listed: boolean;
         };
         /**
          * StaffUnitReleaseIn
@@ -26107,6 +26133,11 @@ export interface components {
             uses_pools: boolean;
             /** Version */
             version: number;
+            /**
+             * Website Listed
+             * @default false
+             */
+            website_listed: boolean;
         };
         /** TemplatePitchLocale */
         TemplatePitchLocale: {
@@ -27087,6 +27118,11 @@ export interface components {
             http_status?: number | null;
             /** Ok */
             ok: boolean;
+        };
+        /** WebsiteListingIn */
+        WebsiteListingIn: {
+            /** Listed */
+            listed: boolean;
         };
         /** WindowIn */
         WindowIn: {
@@ -30707,6 +30743,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TemplatePublishOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    landr_staff_set_website_listing: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WebsiteListingIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffTemplateOut"];
                 };
             };
             /** @description Validation Error */

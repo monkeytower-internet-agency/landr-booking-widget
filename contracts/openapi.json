@@ -35285,6 +35285,11 @@
           "version": {
             "title": "Version",
             "type": "integer"
+          },
+          "website_listed": {
+            "default": false,
+            "title": "Website Listed",
+            "type": "boolean"
           }
         },
         "required": [
@@ -37125,6 +37130,11 @@
           "version": {
             "title": "Version",
             "type": "integer"
+          },
+          "website_listed": {
+            "default": false,
+            "title": "Website Listed",
+            "type": "boolean"
           }
         },
         "required": [
@@ -39251,6 +39261,19 @@
           "code"
         ],
         "title": "WebhookProbeResult",
+        "type": "object"
+      },
+      "WebsiteListingIn": {
+        "properties": {
+          "listed": {
+            "title": "Listed",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "listed"
+        ],
+        "title": "WebsiteListingIn",
         "type": "object"
       },
       "WindowIn": {
@@ -45599,6 +45622,64 @@
           }
         ],
         "summary": "Landr Staff Template Publish Status",
+        "tags": [
+          "landr-staff-templates"
+        ]
+      }
+    },
+    "/api/landr-staff/templates/{slug}/website-listing": {
+      "put": {
+        "description": "Show / hide the template on the marketing website. Not editor-gated:\nthe flag is per environment, so it works on production too.",
+        "operationId": "landr_staff_set_website_listing",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "title": "Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebsiteListingIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaffTemplateOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Landr Staff Set Website Listing",
         "tags": [
           "landr-staff-templates"
         ]
