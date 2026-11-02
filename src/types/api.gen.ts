@@ -16372,6 +16372,8 @@ export interface components {
             from?: string | null;
             /** Held Seats */
             held_seats?: components["schemas"]["HeldSeatRow"][];
+            /** On Site Total */
+            on_site_total?: string | null;
             /** Rows */
             rows: components["schemas"]["DayManifestRow"][];
             /** To */
@@ -16426,6 +16428,8 @@ export interface components {
             name: string;
             /** Note */
             note?: string | null;
+            /** On Site Lines */
+            on_site_lines?: components["schemas"]["ManifestOnSiteLine"][];
             /** Part Of Day */
             part_of_day?: string | null;
             /** Participant Id */
@@ -19101,6 +19105,34 @@ export interface components {
             /** Recorded */
             recorded: boolean;
         };
+        /**
+         * ManifestOnSiteLine
+         * @description One pay-on-arrival offer line the participant-day owes (landr-tm48v.8).
+         *
+         *     Read from the ``booking_products`` columns (collection = on_site). A
+         *     person-bound line lists under each guest it covers; a booking-bound line
+         *     (``booking_bound``) under every guest of its booking. ``collection_amount``
+         *     is money: absent (None) for a role that cannot see money (field).
+         */
+        ManifestOnSiteLine: {
+            /**
+             * Booking Bound
+             * @default false
+             */
+            booking_bound: boolean;
+            /** Booking Product Id */
+            booking_product_id: string;
+            /** Collection Amount */
+            collection_amount?: string | null;
+            /** Currency */
+            currency?: string | null;
+            /** Label */
+            label: string;
+            /** Option Label */
+            option_label?: string | null;
+            /** Participant Ids */
+            participant_ids?: string[];
+        };
         /** ManifestProductRef */
         ManifestProductRef: {
             /** Id */
@@ -21475,15 +21507,33 @@ export interface components {
         PricingBreakdownLineItem: {
             /** Applied Rules */
             applied_rules?: components["schemas"]["AppliedRuleSeason"][] | null;
+            /** Booking Product Id */
+            booking_product_id?: string | null;
+            /** Collection */
+            collection?: string | null;
+            /** Collection Amount */
+            collection_amount?: string | null;
             /** Label */
             label: string;
             /** Line Total */
             line_total: string;
+            /** Offer Mode */
+            offer_mode?: string | null;
+            /** Offer Status */
+            offer_status?: string | null;
+            /** Option Key */
+            option_key?: string | null;
+            /** Option Label */
+            option_label?: string | null;
             /**
              * Paid To
              * @enum {string}
              */
             paid_to: "operator" | "hotel" | "performer";
+            /** Participant Ids */
+            participant_ids?: string[];
+            /** Participant Names */
+            participant_names?: string[];
             /** Payment Note */
             payment_note?: string | null;
             /** Product Id */
@@ -21525,6 +21575,11 @@ export interface components {
             offer?: {
                 [key: string]: unknown;
             } | null;
+            /**
+             * On Site Total
+             * @default 0.00
+             */
+            on_site_total: string;
             /** Operator Total */
             operator_total: string;
             /** Performer Total */
@@ -23220,6 +23275,8 @@ export interface components {
         };
         /** RenderIn */
         RenderIn: {
+            /** Booking Id */
+            booking_id?: string | null;
             /** Template Id */
             template_id: string;
             /** Values */
