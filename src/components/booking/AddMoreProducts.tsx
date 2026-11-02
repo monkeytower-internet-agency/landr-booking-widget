@@ -367,6 +367,7 @@ export function AddMoreProducts({
     onLinesChange((prev) => prev.filter((l) => !gone.has(l.key)))
   }
   const treeProps = {
+    renderExtras: (id: string) => renderExtras(id),
     verdicts: offers.verdicts,
     picks: offers.picks,
     onPicksChange: offers.onPicksChange,
@@ -434,34 +435,7 @@ export function AddMoreProducts({
     onLinesChange((prev) => prev.map((l) => (l.key === key ? { ...l, ...patch } : l)))
   const name = (p: Product) => pickLocalized(p.name, p.name_localized, locale)
 
-  return (
-    <section
-      data-testid="add-more-products"
-      className="space-y-3 rounded-lg border border-border bg-surface-raised p-4"
-    >
-      <div>
-        <h3 className="text-base font-semibold">{tr('addMoreTitle', locale)}</h3>
-        <p className="text-sm text-muted-foreground">{tr('addMoreIntro', locale)}</p>
-      </div>
-
-      {offers.removedNotice ? (
-        <p role="status" data-testid="offer-removed-notice" className="text-sm text-muted-foreground">
-          {tr('offerRemovedNotice', locale)}
-        </p>
-      ) : null}
-      {offers.checkFailed ? (
-        <p role="status" data-testid="offer-check-failed" className="text-sm text-muted-foreground">
-          {tr('offerCheckFailed', locale)}
-        </p>
-      ) : offers.isPending ? (
-        <p role="status" data-testid="offer-checking" className="text-xs text-muted-foreground">
-          {tr('offerChecking', locale)}
-        </p>
-      ) : null}
-
-      <OfferTree {...treeProps} parentLineId={MAIN_LINE_ID} showParentless={crossSellEnabled} />
-
-      {lines.map((line) => {
+  const renderLine = (line: ExtraLine): ReactNode => {
         const issue = lineIssue(line)
         const slots = (slotsByKey[line.key] ?? []).filter((s) =>
           slotFree(s, seatsForLine(line, partySize)),
@@ -717,6 +691,8 @@ export function AddMoreProducts({
               <OfferTree {...treeProps} parentLineId={line.lineId} showParentless={false} />
             ) : null}
 
+            {line.lineId ? renderExtras(line.lineId) : null}
+
             {issue === 'checking' ? (
               <p className="text-sm text-muted-foreground">{tr('addMoreChecking', locale)}</p>
             ) : issue === 'unavailable' ? (
@@ -732,7 +708,53 @@ export function AddMoreProducts({
             ) : null}
           </div>
         )
-      })}
+  }
+  // Own-dated extras added from an offer sit one level under the pick (or the
+  // extra) they belong to; only those on the main line, or whose parent is not
+  // on this step, stay in the flat list.
+  const parentIds = new Set([
+    ...offers.picks.map((p) => p.lineId),
+    ...lines.flatMap((l) => (l.lineId ? [l.lineId] : [])),
+  ])
+  const nestedUnder = (l: ExtraLine) =>
+    !!l.parentLineId && l.parentLineId !== MAIN_LINE_ID && parentIds.has(l.parentLineId)
+  const renderExtras = (parentLineId: string): ReactNode => {
+    const kids = lines.filter((l) => l.parentLineId === parentLineId)
+    return kids.length > 0 ? (
+      <div data-testid={`add-more-nested-${parentLineId}`} className="ml-4 space-y-2">
+        {kids.map(renderLine)}
+      </div>
+    ) : null
+  }
+
+  return (
+    <section
+      data-testid="add-more-products"
+      className="space-y-3 rounded-lg border border-border bg-surface-raised p-4"
+    >
+      <div>
+        <h3 className="text-base font-semibold">{tr('addMoreTitle', locale)}</h3>
+        <p className="text-sm text-muted-foreground">{tr('addMoreIntro', locale)}</p>
+      </div>
+
+      {offers.removedNotice ? (
+        <p role="status" data-testid="offer-removed-notice" className="text-sm text-muted-foreground">
+          {tr('offerRemovedNotice', locale)}
+        </p>
+      ) : null}
+      {offers.checkFailed ? (
+        <p role="status" data-testid="offer-check-failed" className="text-sm text-muted-foreground">
+          {tr('offerCheckFailed', locale)}
+        </p>
+      ) : offers.isPending ? (
+        <p role="status" data-testid="offer-checking" className="text-xs text-muted-foreground">
+          {tr('offerChecking', locale)}
+        </p>
+      ) : null}
+
+      <OfferTree {...treeProps} parentLineId={MAIN_LINE_ID} showParentless={crossSellEnabled} />
+
+      {lines.filter((l) => !nestedUnder(l)).map(renderLine)}
 
     </section>
   )

@@ -7,7 +7,7 @@
  * Offers booked with their own dates (`schedule = own`) are not rows here:
  * the caller books them as added products (`onAddOwn`).
  */
-import type { Dispatch, SetStateAction } from 'react'
+import type { Dispatch, ReactNode, SetStateAction } from 'react'
 import type { EstimateLineItem, EvaluatedLine, EvaluatedOffer } from '@/api/types'
 import { Button } from '@/components/ui/button'
 import { pickLocalized } from '@/lib/locale'
@@ -48,6 +48,8 @@ export interface OfferTreeProps {
   /** Show the parent-NULL (cross-sell) offers of this line (default true). */
   showParentless?: boolean
   disabled?: boolean
+  /** Own-dated extras added from a pick, rendered one level under its row. */
+  renderExtras?: (parentLineId: string) => ReactNode
   /** Guests assigned to the room type of a room parent line; caps its free extras. */
   maxOccupancy?: number
   /** Units of that room type in the cart. */
@@ -133,6 +135,7 @@ export function OfferTree(props: OfferTreeProps) {
               roomQty={props.roomQty}
               occupancyBasis={props.occupancyBasis}
             />
+            {pick && props.renderExtras ? props.renderExtras(pick.lineId) : null}
             {pick && depth + 2 <= MAX_OFFER_DEPTH ? (
               <OfferTree {...props} parentLineId={pick.lineId} showParentless={false} />
             ) : null}

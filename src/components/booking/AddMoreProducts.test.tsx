@@ -531,6 +531,8 @@ describe('Add more to this booking (review step)', () => {
     })
     const line = await screen.findByTestId('add-more-line-camping')
     await waitFor(() => expect(line).not.toHaveTextContent(/Checking availability/))
+    // Indented under its pick, not in the flat list.
+    expect(within(screen.getByTestId('add-more-nested-o1')).getByTestId('add-more-line-camping')).toBe(line)
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
     })
@@ -570,6 +572,8 @@ describe('Add more to this booking (review step)', () => {
       fireEvent.click(within(campLine).getByTestId('add-more-candidate-shoes'))
     })
     const shoesLine = await screen.findByTestId('add-more-line-shoes')
+    // Depth 3: nested inside the extra's own card.
+    expect(within(campLine).getByTestId('add-more-nested-o1')).toContainElement(shoesLine)
     await waitFor(() => expect(shoesLine).not.toHaveTextContent(/Checking availability/))
     // Its own days: drop one of the two it inherited.
     const removeDay = within(shoesLine).getAllByRole('button', { name: /^Remove / })
