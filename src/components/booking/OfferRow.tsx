@@ -167,6 +167,14 @@ export function OfferRow({
   const autoRefs = serverAttached
     ? (estimate ?? []).filter((li) => li.auto_attached).flatMap((li) => li.participant_ids ?? [])
     : []
+  // The guests of a mandatory per-person row: what the server counts (the
+  // estimate's auto_attached lines) for a server-attached offer, else the
+  // pick's own ticked guests.
+  const listed = serverAttached
+    ? autoRefs.length > 0
+      ? members.filter((m) => autoRefs.includes(m.ref))
+      : admitted
+    : members.filter((m) => pick?.memberIds.includes(m.key))
   const autoNames = serverAttached
     ? (autoRefs.length > 0
         ? members.filter((m) => autoRefs.includes(m.ref))
@@ -200,20 +208,23 @@ export function OfferRow({
         <OfferPrice offer={offer} locale={locale} estimate={estimate} currency={currency} />
       </div>
 
-      {readOnlyPerson && pick && !serverAttached && options.length > 0 ? (
-        // A migrated mandatory per-person extra with options: every admitted
-        // guest is in, each picks their option (nothing preselected).
+      {readOnlyPerson && pick && options.length > 0 ? (
+        // A mandatory per-person extra with options: every admitted guest is
+        // in, each picks their option (nothing preselected). When the server
+        // attaches the offer the option is optional (an explicit "no option"
+        // entry) and the guests are the ones the server counts.
         <PersonTickList
           offerId={offer.id}
-          members={members.filter((m) => pick.memberIds.includes(m.key))}
-          ticked={pick.memberIds}
+          members={listed}
+          ticked={listed.map((m) => m.key)}
           admitted={admittedKeys}
           options={options}
           picked={pick.options}
           currency={currency}
           locale={locale}
           disabled
-          optionsDisabled={disabled}
+          optionsDisabled={disabled ?? false}
+          optionalOption={serverAttached}
           onToggle={() => {}}
           onOption={onOption}
         />

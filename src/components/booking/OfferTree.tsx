@@ -144,7 +144,10 @@ export function OfferTree(props: OfferTreeProps) {
                 (li) => li.auto_attached && li.product_id === offer.product_id,
               )
             : undefined
-        const estimate = pick ? estimateLinesFor(pick.lineId, estimateItems) : serverLines
+        // A server-attached per-person offer is priced by the server's own lines
+        // (they never carry the widget pick's id), even when a pick exists.
+        const attached = !!serverLines && offer.server_attached === true
+        const estimate = pick && !attached ? estimateLinesFor(pick.lineId, estimateItems) : serverLines
         return (
           <div key={offer.id} className="space-y-2">
             <OfferRow
@@ -169,7 +172,7 @@ export function OfferTree(props: OfferTreeProps) {
               roomQty={props.roomQty}
               occupancyBasis={props.occupancyBasis}
             />
-            {pick && depth + 2 <= MAX_OFFER_DEPTH ? (
+            {pick && !attached && depth + 2 <= MAX_OFFER_DEPTH ? (
               <OfferTree {...props} parentLineId={pick.lineId} showParentless={false} />
             ) : null}
           </div>

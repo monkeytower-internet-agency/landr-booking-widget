@@ -2,7 +2,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react'
 import { useState, type ReactNode } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 
-import type { EvaluatedLine, EvaluatedOffer } from '@/api/types'
+import type { EstimateLineItem, EvaluatedLine, EvaluatedOffer } from '@/api/types'
 import { tr } from '@/lib/strings'
 import { evalOffer, PARTY, STAY_DAYS } from './offerFixtures'
 import { newPick, type OfferPick, type OfferTreeInput, type PartyMember } from './offerCart'
@@ -31,6 +31,7 @@ function Tree({
   members = PARTY,
   renderExtras,
   onRenderedPicks,
+  estimateItems,
 }: {
   verdicts: Record<string, EvaluatedLine>
   initial?: OfferPick[]
@@ -41,6 +42,7 @@ function Tree({
   members?: PartyMember[]
   renderExtras?: (parentLineId: string) => ReactNode
   onRenderedPicks?: (treeId: string, ids: string[]) => void
+  estimateItems?: EstimateLineItem[]
 }) {
   const [picks, setPicks] = useState<OfferPick[]>(initial)
   return (
@@ -60,6 +62,7 @@ function Tree({
         isPending={isPending}
         renderExtras={renderExtras}
         onRenderedPicks={onRenderedPicks}
+        estimateItems={estimateItems}
       />
       <output data-testid="picks">{JSON.stringify(picks.map((p) => [p.lineId, p.parentLineId]))}</output>
     </>
@@ -240,5 +243,51 @@ describe('OfferTree', () => {
     expect(tr('offerMandatoryBadge', locale)).not.toBe(tr('offerMandatoryBadge', 'en'))
     expect(screen.getByTestId('offer-mandatory-badge')).toHaveTextContent(tr('offerMandatoryBadge', locale))
     expect(screen.getByTestId('offer-price').textContent).toContain(tr('offerPayOnArrival', locale))
+  })
+})
+
+describe('OfferTree: server-attached person offer with options', () => {
+  const fee = evalOffer('fee', {
+    product_id: 'fee-p',
+    mode: 'mandatory',
+    binding: 'person',
+    server_attached: true,
+    options: [
+      { key: 'std', label: 'Standard', price_delta_cents: 0 },
+      { key: 'plus', label: 'Plus', price_delta_cents: 150 },
+    ],
+  })
+  const seeded = { ...newPick(fee, 'main', 'o1', STAY_DAYS), memberIds: ['m1', 'm2'] }
+  const server = [
+    { auto_attached: true, product_id: 'fee-p', participant_ids: ['g2'], qty: 1, line_total: '9.00', unit_price: '9.00' },
+  ] as unknown as EstimateLineItem[]
+
+  it('reads the server lines for guests and price, lists only the guests the server counts', () => {
+    render(<Tree verdicts={{ main: line('main', [fee]) }} initial={[seeded]} estimateItems={server} />)
+    expect(screen.queryByTestId('offer-option-fee-g1')).toBeNull()
+    expect(screen.getByTestId('offer-option-fee-g2')).toBeInTheDocument()
+    expect(screen.getByTestId('offer-price').textContent).toMatch(/9[.,]00/)
+  })
+
+  it('offers an explicit no-option entry and clears the choice', () => {
+    render(<Tree verdicts={{ main: line('main', [fee]) }} initial={[seeded]} estimateItems={server} />)
+    const select = screen.getByTestId('offer-option-fee-g2')
+    fireEvent.change(select, { target: { value: 'plus' } })
+    expect(screen.getByTestId('offer-option-fee-g2')).toHaveValue('plus')
+    expect(within(screen.getByTestId('offer-option-fee-g2')).getByRole('option', { name: tr('offerNoOption', 'en') })).toBeInTheDocument()
+    fireEvent.change(screen.getByTestId('offer-option-fee-g2'), { target: { value: '' } })
+    expect(screen.getByTestId('offer-option-fee-g2')).toHaveValue('')
+  })
+
+  it('renders no child offers under the pick', () => {
+    const child = evalOffer('child', { parent_product_id: 'fee-p', product_id: 'child-p' })
+    render(
+      <Tree
+        verdicts={{ main: line('main', [fee]), o1: line('o1', [child]) }}
+        initial={[seeded]}
+        estimateItems={server}
+      />,
+    )
+    expect(screen.queryByTestId('offer-tree-o1')).toBeNull()
   })
 })

@@ -20,6 +20,8 @@ interface Props {
   disabled?: boolean
   /** The option selects' own disabled state (default: `disabled`). */
   optionsDisabled?: boolean
+  /** The option is optional: an explicit 'no option' entry stays, so a choice can be cleared. */
+  optionalOption?: boolean
   onToggle: (memberKey: string) => void
   onOption: (memberKey: string, optionKey: string) => void
 }
@@ -35,6 +37,7 @@ export function PersonTickList({
   locale,
   disabled,
   optionsDisabled = disabled,
+  optionalOption = false,
   onToggle,
   onOption,
 }: Props) {
@@ -63,9 +66,13 @@ export function PersonTickList({
                 className="rounded border border-border px-2 py-0.5 text-sm"
                 value={picked[m.key] ?? ''}
                 disabled={optionsDisabled}
-                onChange={(e) => e.target.value && onOption(m.key, e.target.value)}
+                onChange={(e) => (optionalOption || e.target.value) && onOption(m.key, e.target.value)}
               >
-                {picked[m.key] ? null : <option value="">{tr('offerOptionPlaceholder', locale)}</option>}
+                {optionalOption ? (
+                  <option value="">{tr('offerNoOption', locale)}</option>
+                ) : picked[m.key] ? null : (
+                  <option value="">{tr('offerOptionPlaceholder', locale)}</option>
+                )}
                 {options.map((o) => (
                   <option key={o.key} value={o.key}>
                     {optionLabel(o, currency, locale)}
