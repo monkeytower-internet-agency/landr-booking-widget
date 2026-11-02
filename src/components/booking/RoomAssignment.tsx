@@ -113,7 +113,7 @@ interface Props {
    * (none / all / partial), the "(N breakfasts)" room label, and how many
    * draggable breakfast chips to render. Absent / empty → no breakfast UI.
    */
-  perRoomAddons?: Record<string, Record<string, number>>
+  roomExtras?: Record<string, Record<string, number>>
   /**
    * landr-z59y: which occupants currently HOLD a breakfast chip
    * (memberIndex → true). Drives the per-occupant breakfast indicator + which
@@ -631,7 +631,7 @@ export function RoomAssignment({
   onAssign,
   ageMap = {},
   onAgeBandChange,
-  perRoomAddons = {},
+  roomExtras = {},
   breakfastMap = {},
   onBreakfastAssign,
   nextActionCue = null,
@@ -676,7 +676,7 @@ export function RoomAssignment({
   >()
   for (const u of units) {
     if (breakfastByProduct.has(u.roomProductId)) continue
-    const qty = roomBreakfastQty(u.roomProductId, perRoomAddons)
+    const qty = roomBreakfastQty(u.roomProductId, roomExtras)
     const occCount = occupantsByProduct.get(u.roomProductId)?.length ?? 0
     breakfastByProduct.set(u.roomProductId, {
       qty,

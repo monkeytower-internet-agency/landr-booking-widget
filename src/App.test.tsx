@@ -33,7 +33,6 @@ const { mocks } = vi.hoisted(() => ({
     // back-nav + live-total tests.
     getHotelsForOperator: vi.fn(),
     getHotelRoomsForHotel: vi.fn(),
-    getProductAddons: vi.fn(),
     estimateBookingPrice: vi.fn(),
     // landr-71kz.10: the product-flow RPC. Default {modules: null} (legacy/no
     // custom-form). Per-test overrides supply a custom_form module to exercise
@@ -68,7 +67,6 @@ vi.mock('@/api/client', async (importOriginal) => {
     requestSubscriptionPerkOtp: mocks.requestSubscriptionPerkOtp,
     getHotelsForOperator: mocks.getHotelsForOperator,
     getHotelRoomsForHotel: mocks.getHotelRoomsForHotel,
-    getProductAddons: mocks.getProductAddons,
     estimateBookingPrice: mocks.estimateBookingPrice,
     getProductFlow: mocks.getProductFlow,
     getInvitePrefill: mocks.getInvitePrefill,
@@ -221,7 +219,6 @@ describe('App', () => {
     // client. Per-test overrides supply richer data where needed.
     mocks.getHotelsForOperator.mockResolvedValue([])
     mocks.getHotelRoomsForHotel.mockResolvedValue([])
-    mocks.getProductAddons.mockResolvedValue([])
     // landr-fn4i / landr-5krc: always answers 202 {ok:true} by contract —
     // see requestSubscriptionPerkOtp's doc for why no test should ever need
     // a different value here.
@@ -1858,9 +1855,8 @@ describe('App', () => {
   // downstream steps. PickupLocationPicker is the easiest to exercise
   // at the App level — the only extra mock it needs is
   // listPickupLocationsForOperator (landr-lmudr.12; was listLocations),
-  // already wired in the suite's beforeEach. The AccommodationStep +
-  // ServiceAddonsStep paths require getHotelsForOperator /
-  // getProductAddons mocks which the per-step tests already cover; this
+  // already wired in the suite's beforeEach. The AccommodationStep path
+  // requires getHotelsForOperator mocks which the per-step tests already cover; this
   // App-level test just guards the App.tsx wiring for pick-pickup.
   describe('back-nav state restoration (landr-yf0n)', () => {
     async function pickProduct(name: string) {
@@ -2185,6 +2181,8 @@ describe('App', () => {
       fireEvent.click(
         screen.getByRole('button', { name: /Increase Double Room quantity/i }),
       )
+      // The room types' offers are evaluated before Continue turns ready.
+      await waitFor(() => expect(screen.getByText('Ready to continue.')).toBeInTheDocument())
       fireEvent.click(screen.getByRole('button', { name: /Continue/i }))
 
       // The hotel is the pickup → pick-pickup is SKIPPED → custom form next.
@@ -2393,6 +2391,8 @@ describe('App', () => {
 
       // Continue so the arrangement is COMMITTED into the booking draft (it
       // only lives in AccommodationStep state until then).
+      // The room types' offers are evaluated before Continue turns ready.
+      await waitFor(() => expect(screen.getByText('Ready to continue.')).toBeInTheDocument())
       fireEvent.click(screen.getByRole('button', { name: /Continue/i }))
       await passLanguageStep()
       await waitFor(() =>

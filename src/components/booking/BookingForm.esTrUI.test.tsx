@@ -71,7 +71,6 @@ function renderForm() {
       participantLanguages={{}}
       pickupLocationId={null}
       accommodationRooms={[]}
-      addons={[]}
       onBack={vi.fn()}
       onConfirmed={vi.fn()}
     />,

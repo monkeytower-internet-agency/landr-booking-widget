@@ -41,17 +41,17 @@ export default defineConfig({
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
-      testIgnore: /(calendar-layout|alternatives-panel)\.spec\.ts/,
+      testIgnore: /(calendar-layout|alternatives-panel|offers)\.spec\.ts/,
     },
     {
       name: 'webkit-mobile',
       use: { ...devices['iPhone 12 Pro Max'], baseURL: 'http://localhost:5175' },
-      testMatch: /(calendar-layout|alternatives-panel)\.spec\.ts/,
+      testMatch: /(calendar-layout|alternatives-panel|offers)\.spec\.ts/,
     },
     {
       name: 'chromium-mobile',
       use: { ...devices['Pixel 7'], baseURL: 'http://localhost:5175' },
-      testMatch: /(calendar-layout|alternatives-panel)\.spec\.ts/,
+      testMatch: /(calendar-layout|alternatives-panel|offers)\.spec\.ts/,
     },
   ],
 })
