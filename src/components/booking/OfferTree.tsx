@@ -48,6 +48,10 @@ export interface OfferTreeProps {
   /** Show the parent-NULL (cross-sell) offers of this line (default true). */
   showParentless?: boolean
   disabled?: boolean
+  /** Guests assigned to the room type of a room parent line; caps its free extras. */
+  maxOccupancy?: number
+  /** Units of that room type in the cart. */
+  roomQty?: number
 }
 
 export function OfferTree(props: OfferTreeProps) {
@@ -124,6 +128,8 @@ export function OfferTree(props: OfferTreeProps) {
                 (errorLineId === pick.lineId || errorLineId.startsWith(`${pick.lineId}-`))
               }
               disabled={disabled}
+              maxOccupancy={props.maxOccupancy}
+              roomQty={props.roomQty}
             />
             {pick && depth + 2 <= MAX_OFFER_DEPTH ? (
               <OfferTree {...props} parentLineId={pick.lineId} showParentless={false} />

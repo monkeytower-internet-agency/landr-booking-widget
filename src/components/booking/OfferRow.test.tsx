@@ -321,3 +321,50 @@ describe('OfferRow: languages', () => {
     expect(screen.getByTestId('offer-price').textContent).toContain(arrival)
   })
 })
+
+describe('OfferRow room-tied free extras (occupancy cap)', () => {
+  const cot = evalOffer('cot', { binding: 'free', max_qty: 9 })
+  const renderRoom = (maxOccupancy: number | undefined, quantity: number, parentLineId = 'r-room1') => {
+    const pick = { ...picked(cot, { quantity }), parentLineId }
+    render(
+      <OfferRow
+        offer={cot}
+        parentLineId={parentLineId}
+        parentDays={STAY_DAYS}
+        pick={quantity > 0 ? pick : undefined}
+        members={PARTY}
+        tree={TREE}
+        idPrefix="o"
+        onPicksChange={vi.fn()}
+        locale="en"
+        currency="EUR"
+        maxOccupancy={maxOccupancy}
+        roomQty={1}
+      />,
+    )
+  }
+
+  it('disables + at the room occupancy and warns when under', () => {
+    renderRoom(2, 1)
+    expect(screen.getByTestId('offer-underbook-cot')).toBeTruthy()
+    expect(screen.getByTestId('offer-qty-plus-cot')).not.toHaveProperty('disabled', true)
+  })
+
+  it('caps at occupancy with no warning at parity', () => {
+    renderRoom(2, 2)
+    expect((screen.getByTestId('offer-qty-plus-cot') as HTMLButtonElement).disabled).toBe(true)
+    expect(screen.queryByTestId('offer-underbook-cot')).toBeNull()
+    expect(screen.queryByTestId('offer-overbook-cot')).toBeNull()
+  })
+
+  it('warns over when hydrated above the cap', () => {
+    renderRoom(1, 2)
+    expect(screen.getByTestId('offer-overbook-cot')).toBeTruthy()
+  })
+
+  it('ignores the cap for a non-room parent', () => {
+    renderRoom(1, 2, 'main')
+    expect((screen.getByTestId('offer-qty-plus-cot') as HTMLButtonElement).disabled).toBe(false)
+    expect(screen.queryByTestId('offer-overbook-cot')).toBeNull()
+  })
+})
