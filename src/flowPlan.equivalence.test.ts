@@ -101,8 +101,6 @@ function makeParticipants(n: number): ParticipantDetails[] {
 
 const NO_COMPANIONS: CompanionDetails[] = []
 
-/** A room-type pick, for the legacy "add-ons were shown upstream" provenance. */
-
 // All permutations of the routing axes. landr-71kz.10: the declarations axis is
 // retired (the hardcoded declarations step is gone — declarations are now a
 // remote-flow custom_form), so the legacy-plan oracle no longer varies on it.
@@ -432,6 +430,14 @@ describe('buildFlowPlan — tolerant parse (malformed remoteFlow → legacy, nev
     expect(build({ modules: 'oops' })).toEqual(legacy)
     expect(build({ modules: 42 })).toEqual(legacy)
     expect(build({ modules: { 0: 'x' } })).toEqual(legacy)
+  })
+
+  it('a retired service_addons-only flow is a deliberate minimal flow: no legacy fallback, nothing injected', () => {
+    const plan = build({ modules: [{ kind: 'service_addons', position: 1 }] })
+    const kinds = plan.map((m) => m.kind)
+    expect(kinds).not.toContain('service_addons')
+    expect(kinds).not.toContain('accommodation')
+    expect(kinds).not.toContain('pickup')
   })
 
   it('a non-object remoteFlow → legacy plan (no throw)', () => {

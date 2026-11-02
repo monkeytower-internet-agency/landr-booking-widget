@@ -291,9 +291,10 @@ export type Step =
       breakfastMap?: PartyBreakfastMap
     }
   // landr-yf0n: optional pickupLocationId lets PickupLocationPicker re-
-  // seed its radio selection on back-nav re-entry. hotelLocationId remembers which upstream step the customer originally
-  // confirmed through so the back-nav routing can hop back through the
-  // same intermediate steps instead of jumping straight to DetailsStep.
+  // seed its radio selection on back-nav re-entry. hotelLocationId remembers
+  // which upstream step the customer originally confirmed through so the
+  // back-nav routing can hop back through the same intermediate steps instead
+  // of jumping straight to DetailsStep.
   // landr-sbhz.4: isSharedDouble threads through for back-nav restoration.
   | {
       name: 'pick-pickup'
@@ -610,8 +611,8 @@ export function frameBackStep(
 
 /**
  * Runtime predicate: is this potential middle module actually LIVE for the
- * current booking state? Encodes the two runtime gates (hotel-skips-pickup;
- * service-addons provenance) so the plan walk yields the realised path.
+ * current booking state? Encodes the runtime gate (hotel-skips-pickup) so the
+ * plan walk yields the realised path.
  *
  * `accommodation` is always live when present (the product offers a hotel, and
  * the customer always passes through the step — booking, opting out, or
@@ -684,8 +685,9 @@ export function stepAfterAccommodation(
   accommodationRooms: RoomSelection[],
   hotelLocationId: string | null,
   addons: OfferPick[] = [],
-  // landr-yf0n: optional provenance flags so downstream steps can hand
-  // them back when the customer hits Back. includeHotel preserves the optional-mode Yes/No state.
+  // landr-yf0n: optional provenance flag so downstream steps can hand it
+  // back when the customer hits Back. includeHotel preserves the optional-mode
+  // Yes/No state.
   includeHotel: boolean | undefined = undefined,
   // landr-sbhz.4: shared-double flag for back-nav restoration.
   isSharedDouble: boolean | undefined = undefined,
@@ -709,15 +711,16 @@ export function stepAfterAccommodation(
   // The ONLY middle module that can terminate the post-accommodation search is
   // `pickup`. It is "live forward" iff it is in the plan (needs_pickup) AND no
   // hotel was booked (landr-4r80: a booked hotel becomes the pickup point, so
-  // the free picker is skipped). Any other module (custom_form,
-  // declarations) is upstream-of or layered-on and must not divert this branch.
+  // the free picker is skipped). Any other module (custom_form, declarations)
+  // is upstream-of or layered-on and must not divert this branch.
   //
-  // REGRESSION FIX (PR #119 review): the previous walk let ANY live module
+  // Historical note (PR #119 review; the service_addons module is since
+  // retired): an earlier walk let ANY live module
   // terminate the search and, for a no-hotel product, started at index 0 (no
   // accommodation module ⇒ indexOf === -1 ⇒ start at the first middle), so a
   // product with service add-ons + needs_pickup wrongly terminated on
-  // service_addons → fill-form, skipping the pickup picker. Now we look up the
-  // `pickup` module directly and apply only its forward gate.
+  // service_addons → fill-form, skipping the pickup picker. We now look up
+  // the `pickup` module directly and apply only its forward gate.
   // The pickup gate is purely product-driven (needs_pickup), identical in the
   // legacy and remote plans, and the custom-form chain is layered on AFTER this
   // call by App's pre-review router — so this lookup stays on the legacy plan.
@@ -1334,9 +1337,8 @@ const BREADCRUMB_STEPS: ReadonlySet<Step['name']> = new Set([
  * with its prior state. landr-71kz.3: a backward plan walk from the `pickup`
  * module over the preceding live middles — hotel offering → accommodation (the
  * `accommodation` module is always present + live when the product offers a
- * hotel); else
- * details. Reuses reconstructStepForModule so the back-nav Step shapes live in
- * one place.
+ * hotel); else details. Reuses reconstructStepForModule so the back-nav Step
+ * shapes live in one place.
  */
 function stepBeforePickup(
   step: Extract<Step, { name: 'pick-pickup' }>,

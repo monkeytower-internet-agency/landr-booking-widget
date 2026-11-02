@@ -1786,7 +1786,6 @@ function BookingFlowApp() {
       [],
       null,
       [],
-      false,
     )
   }
 

@@ -169,8 +169,8 @@ function buildLegacyPlan(
  * frame (`selection`, `participants`, `review`) is supplied by the builder:
  * `review` is never a row, and the `selection` / `participants` rows only
  * contribute their stored positions (landr-rmcsu.6), parsed in
- * buildFlowPlanRaw rather than here. Unknown kinds in a remote flow are skipped silently
- * (forward-compat: a future product kind slots in without breaking old widgets).
+ * buildFlowPlanRaw rather than here. Unknown kinds in a remote flow are
+ * skipped silently (forward-compat: a future product kind slots in without breaking old widgets).
  */
 const REMOTE_MIDDLE_KINDS: ReadonlySet<string> = new Set([
   'accommodation',
@@ -302,12 +302,18 @@ function buildFlowPlanRaw(
         }
         return
       }
+      // Retired kind: still a recognised row (the DB CHECK allows it), so it
+      // counts as a deliberate flow but never enters the plan.
+      if (kind === 'service_addons') {
+        parsedCount += 1
+        return
+      }
       const parsed = parseRemoteModule(raw)
       if (!parsed) return // unknown / malformed module → skip silently.
       parsedCount += 1
       // Product gate: accommodation only when the product actually offers a
-      // hotel. Other gated modules (pickup hotel-skip)
-      // remains a runtime decision in the walk, identical to the legacy path.
+      // hotel. The pickup hotel-skip stays a runtime decision in the walk,
+      // identical to the legacy path.
       if (parsed.kind === 'accommodation' && !productHasHotelOffering(product)) {
         return
       }
