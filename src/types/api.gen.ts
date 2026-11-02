@@ -3000,7 +3000,13 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete Guest Attribute Definition
+         * @description Delete a custom attribute. 409 ``guest_attribute_in_use`` (``key``, ``products``,
+         *     ``offers`` ids) while a live rule / required_attributes still names it; 422
+         *     ``well_known_locked`` for a well-known key; 404 ``attribute_not_found``.
+         */
+        delete: operations["delete_guest_attribute_definition"];
         options?: never;
         head?: never;
         /**
@@ -18048,6 +18054,27 @@ export interface components {
             /** Unit */
             unit?: string | null;
         };
+        /** GuestAttributeInUse */
+        GuestAttributeInUse: {
+            /**
+             * Error
+             * @constant
+             */
+            error: "guest_attribute_in_use";
+            /** Key */
+            key: string;
+            /** Offers */
+            offers: string[];
+            /** Products */
+            products: string[];
+        };
+        /**
+         * GuestAttributeInUseError
+         * @description The 409 body of DELETE guest-attribute-definitions: ``detail`` names the referencing rows.
+         */
+        GuestAttributeInUseError: {
+            detail: components["schemas"]["GuestAttributeInUse"];
+        };
         /** GuestAttributesOut */
         GuestAttributesOut: {
             /** Guest Attributes */
@@ -31668,6 +31695,45 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GuestAttributeDefinition"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_guest_attribute_definition: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                definition_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GuestAttributeInUseError"];
                 };
             };
             /** @description Validation Error */
