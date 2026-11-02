@@ -15,15 +15,16 @@
  */
 import type {
   AvailabilitySlot,
+  EstimateAddonLine,
   EstimateRequestBody,
   EstimateResponse,
   FixedDateWindow,
+  OfferEvaluateGuest,
   Product,
   ProductLine,
 } from '@/api/types'
 import type { FlowFormDef, ProductFlowResponse } from '@/api/flowTypes'
-import { isBookable } from './bookability'
-import { isBookableKind, isStayKind } from '@/flowPlan'
+import { isStayKind } from '@/flowPlan'
 import { hasFixedStartTimes, toHHMM } from './slotKey'
 import { expandWindowDays } from './expandWindowDays'
 import {
@@ -45,6 +46,13 @@ export type ExtraLineMode = 'days' | 'nights' | 'slot' | 'window'
 export interface ExtraLine {
   /** Stable per added line (a product may only be added once). */
   key: string
+  /**
+   * The line's id in the cart tree (`o1`, ...) when it was added from an
+   * offer; its offer and the line it hangs off (absent = the main line).
+   */
+  lineId?: string
+  offerId?: string
+  parentLineId?: string
   product: Product
   mode: ExtraLineMode
   /** Booked days ('days'), nights ('nights'), the slot date ('slot') or the window's days. */
@@ -73,27 +81,6 @@ export function lineMode(product: Product): ExtraLineMode {
   if (hasFixedStartTimes(product) || product.service_time_shape === 'time_slot') return 'slot'
   if (product.service_time_shape === 'fixed_window') return 'window'
   return 'days'
-}
-
-/**
- * Products the customer may add: published, bookable, a kind the funnel books
- * (a service with a time shape, or a stay) and not already in the cart. The
- * public catalogue already leaves out add-on-only products (they are booked
- * through their parent's add-on step).
- */
-export function crossSellCandidates(
-  catalogue: readonly Product[],
-  cartProductIds: readonly string[],
-): Product[] {
-  const inCart = new Set(cartProductIds)
-  return catalogue.filter(
-    (p) =>
-      !inCart.has(p.product_id) &&
-      p.is_publicly_listed !== false &&
-      isBookable(p) &&
-      isBookableKind(p.product_kind) &&
-      (isStayKind(p.product_kind) || p.service_time_shape !== null),
-  )
 }
 
 /**
@@ -475,6 +462,11 @@ export function extraProductLine(line: ExtraLine): ProductLine {
     }
   }
   if (line.mode === 'window' && line.windowId) out.fixed_date_window_id = line.windowId
+  if (line.lineId && line.offerId) {
+    out.line_id = line.lineId
+    out.offer_id = line.offerId
+    out.parent_line_id = line.parentLineId ?? 'main'
+  }
   return out
 }
 
@@ -495,11 +487,21 @@ export function extraEstimateRequests(
   participantCount: number,
   locale?: string,
   childAges?: readonly number[],
+  /**
+   * The offers taken under an added line (offerCart extraOfferEstimateLines,
+   * keyed by the line's tree id) and the party they name: priced on that
+   * line's own estimate.
+   */
+  offers?: {
+    linesFor: (lineId: string) => EstimateAddonLine[]
+    guests?: readonly OfferEvaluateGuest[]
+  },
 ): ExtraEstimateRequest[] {
   return lines
     .filter((l) => l.days.length > 0 && (l.mode !== 'slot' || l.slot))
     .map((l) => {
       const pl = extraProductLine(l)
+      const offerLines = l.lineId && offers ? offers.linesFor(l.lineId) : []
       return {
         key: l.key,
         productId: l.product.product_id,
@@ -507,7 +509,9 @@ export function extraEstimateRequests(
         body: {
           selected_days: pl.selected_days ?? [],
           participants_count: Math.max(1, participantCount),
-          addon_lines: [],
+          addon_lines: offerLines,
+          ...(offerLines.length > 0 ? { main_line_id: 'main' } : {}),
+          ...(offers?.guests && offers.guests.length > 0 ? { guests: [...offers.guests] } : {}),
           ...(locale ? { locale } : {}),
           ...(childAges && childAges.length > 0 && l.product.occupancy_pricing
             ? { child_ages: [...childAges] }
@@ -540,6 +544,7 @@ function scaled(est: EstimateResponse, q: number): EstimateResponse {
     ...(est.performer_total != null ? { performer_total: scale(est.performer_total, q) } : {}),
     grand_total: scale(est.grand_total, q),
     ...(est.amount_due != null ? { amount_due: scale(est.amount_due, q) } : {}),
+    ...(est.on_site_total != null ? { on_site_total: scale(est.on_site_total, q) } : {}),
     ...(est.subtotal_before_savings != null
       ? { subtotal_before_savings: scale(est.subtotal_before_savings, q) }
       : {}),
@@ -582,6 +587,7 @@ export function mergeEstimates(
     warnings: all.flatMap((e) => e.warnings),
     un_priceable: all.some((e) => e.un_priceable),
     amount_due: sum((e) => e.amount_due ?? e.operator_total),
+    ...(all.some((e) => e.on_site_total != null) ? { on_site_total: sum((e) => e.on_site_total) } : {}),
     ...(anySavings
       ? {
           savings: all.flatMap((e) => e.savings ?? []),

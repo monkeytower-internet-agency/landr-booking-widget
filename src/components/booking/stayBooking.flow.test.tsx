@@ -8,7 +8,7 @@ import { fillBillingFields } from '@/test/fillBilling'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { EstimateResponse, Product, ProductAddon } from '@/api/types'
+import type { EstimateResponse, EvaluatedOffer, Product } from '@/api/types'
 import App from '@/App'
 import { startOfToday } from './calendarStart'
 import { dateFromIso, isoDate } from './dateUtils'
@@ -27,7 +27,7 @@ const { mocks } = vi.hoisted(() => ({
     submitBooking: vi.fn(),
     getHotelsForOperator: vi.fn(),
     getHotelRoomsForHotel: vi.fn(),
-    getProductAddons: vi.fn(),
+    getOffers: vi.fn(),
     estimateBookingPrice: vi.fn(),
     getProductFlow: vi.fn(),
   },
@@ -86,20 +86,36 @@ const stay: Product = {
   },
 } as Product
 
-const breakfast: ProductAddon = {
-  product_addon_id: 'pa-1',
-  addon_product_id: 'p-breakfast',
-  name: 'Breakfast',
-  name_localized: null,
-  is_required: false,
+// The stay offers breakfast: one line for the booking, on the stay's nights.
+const breakfast: EvaluatedOffer = {
+  id: 'offer-breakfast',
+  parent_product_id: 'p-stay',
+  product_id: 'p-breakfast',
+  rules: { mode: 'all', items: [] },
+  binding: 'booking',
+  schedule: 'locked',
+  collection: 'online',
+  mode: 'optional',
+  options: [],
   min_qty: 0,
   max_qty: null,
   sort_order: 0,
-  price_per_unit: 12,
-  currency: 'EUR',
+  name: 'Breakfast',
   product_kind: 'service',
-  addon_quantity_rule: 'one_per_booking',
-  price_unit: 'guest_night',
+  in_cart: false,
+  draft: false,
+}
+
+function offersAnswer(offers: EvaluatedOffer[]) {
+  return async (body: { lines: Array<{ line_id: string }> }) => ({
+    lines: body.lines.map((l) => ({
+      line_id: l.line_id,
+      eligible: true,
+      draft: false,
+      offers: l.line_id === 'main' ? offers : [],
+    })),
+    required_attribute_keys: [],
+  })
 }
 
 const estimate: EstimateResponse = {
@@ -168,7 +184,7 @@ beforeEach(() => {
   mocks.listPickupLocationsForOperator.mockResolvedValue([])
   mocks.getHotelsForOperator.mockResolvedValue([])
   mocks.getHotelRoomsForHotel.mockResolvedValue([])
-  mocks.getProductAddons.mockResolvedValue([breakfast])
+  mocks.getOffers.mockImplementation(offersAnswer([breakfast]))
   mocks.getProductFlow.mockResolvedValue({ modules: null })
   mocks.estimateBookingPrice.mockResolvedValue(estimate)
   mocks.listProducts.mockResolvedValue([stay])
@@ -185,7 +201,7 @@ afterEach(() => {
 })
 
 describe('standalone stay booking flow', () => {
-  it('range → participants → add-ons → review submits the night list on both lines', async () => {
+  it('range → participants → review offers: the stay carries its nights and the offer line hangs off it', async () => {
     render(<App />)
     await screen.findByText(/choose your dates/i, undefined, SLOW_FLOW)
     expect(screen.queryByText(/coming soon/i)).not.toBeInTheDocument()
@@ -214,37 +230,42 @@ describe('standalone stay booking flow', () => {
     fillBillingFields()
     fireEvent.click(screen.getByRole('button', { name: /continue/i }))
 
-    // No pickup and no guide-language step for a stay: straight to add-ons.
-    const addonRow = await screen.findByTestId('addon-row-p-breakfast', undefined, SLOW_FLOW)
-    expect(addonRow).toHaveTextContent('/ guest / night')
-    fireEvent.click(screen.getByRole('button', { name: /increase.*breakfast/i }))
-    fireEvent.click(screen.getByTestId('addons-step-submit'))
-
+    // No pickup and no guide-language step for a stay: straight to the review,
+    // where the stay's offers sit under the main line.
     await screen.findByText(/review your booking/i, undefined, SLOW_FLOW)
+    const toggle = await screen.findByTestId('offer-toggle-offer-breakfast', undefined, SLOW_FLOW)
+    fireEvent.click(toggle)
     expect(screen.queryByTestId('participant-language-board')).not.toBeInTheDocument()
     expect((await screen.findAllByTestId('price-sidebar-cleaning-fee'))[0]).toHaveTextContent(
       /Cleaning fee/,
-    )
-    expect(screen.getAllByTestId('price-sidebar-addon-units')[0]).toHaveTextContent(
-      '/ guest / night',
     )
     fireEvent.click(screen.getByRole('button', { name: /confirm booking/i }))
 
     await waitFor(() => expect(mocks.submitBooking).toHaveBeenCalled(), SLOW_FLOW)
     const body = mocks.submitBooking.mock.calls[0]![0] as {
-      products: Array<{ product_id: string; selected_days: string[] }>
+      products: Array<{
+        product_id: string
+        selected_days: string[]
+        parent_line_id?: string
+        offer_id?: string
+      }>
       participants: Array<{ language?: string | null }>
     }
     const byId = Object.fromEntries(body.products.map((p) => [p.product_id, p]))
     expect(byId['p-stay']!.selected_days).toEqual(NIGHTS)
-    expect(byId['p-breakfast']!.selected_days).toEqual(NIGHTS)
+    // The offer line is locked to the stay's nights: it names its parent and
+    // the offer, and the server re-resolves the days.
+    expect(byId['p-breakfast']).toMatchObject({
+      parent_line_id: 'main',
+      offer_id: 'offer-breakfast',
+    })
     // A stay-only cart has no guide: no participant language is sent.
     expect(body.participants[0]).not.toHaveProperty('language')
     expect(body).not.toHaveProperty('customer_languages')
   })
 
   it('a stay error from the estimate blocks Confirm', async () => {
-    mocks.getProductAddons.mockResolvedValue([])
+    mocks.getOffers.mockImplementation(offersAnswer([]))
     mocks.estimateBookingPrice.mockResolvedValue({
       ...estimate,
       line_items: [estimate.line_items[0]!],

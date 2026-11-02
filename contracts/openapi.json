@@ -9958,6 +9958,23 @@
         "title": "DomainEligibility",
         "type": "object"
       },
+      "EligibilityReasonParams": {
+        "description": "The failing rule item behind a ``guest_attr.<key>`` /\n``guest_attr_all.<key>`` reason, so the widget can say \"No guests under 10\"\nwithout the rules (they are not on the public product wire).",
+        "properties": {
+          "op": {
+            "title": "Op",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value"
+          }
+        },
+        "required": [
+          "op"
+        ],
+        "title": "EligibilityReasonParams",
+        "type": "object"
+      },
       "EligibilityRulesBody-Input": {
         "additionalProperties": false,
         "description": "PATCH body of a product's \"who can book\" document; null = everyone.",
@@ -11359,6 +11376,16 @@
             ],
             "title": "Eligibility Reason Key"
           },
+          "eligibility_reason_params": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EligibilityReasonParams"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "eligible": {
             "title": "Eligible",
             "type": "boolean"
@@ -11534,6 +11561,11 @@
             "title": "Schedule",
             "type": "string"
           },
+          "server_attached": {
+            "default": false,
+            "title": "Server Attached",
+            "type": "boolean"
+          },
           "short_description": {
             "anyOf": [
               {
@@ -11562,6 +11594,16 @@
           "sort_order": {
             "title": "Sort Order",
             "type": "integer"
+          },
+          "stock": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OfferStock"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -19078,6 +19120,73 @@
           "offer_discount"
         ],
         "title": "OfferSnapshotOut",
+        "type": "object"
+      },
+      "OfferStock": {
+        "description": "landr-tm48v.5: the offered product's stock on its parent line's days for\nthis party, at the offer's minimum quantity (at least 1) -- the verdict of\nGET /products/{id}/addons (``rentals.addon_stock``). ``stock_remaining``\nlets the widget judge any other quantity; null when nothing limits it.",
+        "properties": {
+          "available": {
+            "default": true,
+            "title": "Available",
+            "type": "boolean"
+          },
+          "pool_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Pool Ids",
+            "type": "array"
+          },
+          "stock_remaining": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stock Remaining"
+          },
+          "stock_scope": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stock Scope"
+          },
+          "stock_unit_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stock Unit Label"
+          },
+          "unavailable_reason": {
+            "anyOf": [
+              {
+                "enum": [
+                  "sold_out",
+                  "unit_taken"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unavailable Reason"
+          }
+        },
+        "title": "OfferStock",
         "type": "object"
       },
       "OfferSuggestionOut": {

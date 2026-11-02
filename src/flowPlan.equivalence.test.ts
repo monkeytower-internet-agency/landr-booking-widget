@@ -20,6 +20,8 @@ import { describe, expect, it } from 'vitest'
 
 import type { HotelOffering, Product } from '@/api/types'
 import type { BookingSelection } from '@/components/booking/BookingForm'
+import { newPick } from '@/components/booking/offerCart'
+import { evalOffer } from '@/components/booking/offerFixtures'
 import type {
   BookerDetails,
   CompanionDetails,
@@ -101,6 +103,9 @@ function makeParticipants(n: number): ParticipantDetails[] {
 
 const NO_COMPANIONS: CompanionDetails[] = []
 
+/** A room-type pick, for the legacy "add-ons were shown upstream" provenance. */
+const ROOM_PICKS = [newPick(evalOffer('of-1', { product_id: 'extra-1' }), 'r-room-1', 'a1', [])]
+
 // All permutations of the routing axes. landr-71kz.10: the declarations axis is
 // retired (the hardcoded declarations step is gone — declarations are now a
 // remote-flow custom_form), so the legacy-plan oracle no longer varies on it.
@@ -152,13 +157,11 @@ function oracleStepAfterAccommodation(ctx: FunnelCtx): Step['name'] {
  * stepBeforeReview ladder):
  *   hotel booked OR product offers a hotel → pick-accommodation;
  *   else needs_pickup → pick-pickup;
- *   else hadServiceAddons → pick-service-addons;
- *   else details.
+ *   else details (the add-ons step is gone: hadServiceAddons never routes).
  */
 function oracleStepBeforeReview(ctx: FunnelCtx): Step['name'] {
   if (ctx.hotelBooked || offeringHasHotel(ctx.offering)) return 'pick-accommodation'
   if (ctx.needsPickup) return 'pick-pickup'
-  if (ctx.hadServiceAddons) return 'pick-service-addons'
   return 'details'
 }
 
@@ -177,7 +180,7 @@ function reviewArgs(ctx: FunnelCtx) {
       ? [{ productId: 'room-1', quantity: 1 }]
       : [],
     addons: ctx.hadServiceAddons
-      ? [{ productId: 'addon-1', quantity: 1 }]
+      ? ROOM_PICKS
       : [],
     hotelLocationId: hotelLocId(ctx),
     hadServiceAddons: ctx.hadServiceAddons,
@@ -228,7 +231,7 @@ describe('legacy-plan ≡ current routing — stepAfterAccommodation (all permut
         // the regression only manifests when service add-ons were shown
         // upstream (hadServiceAddons=true). The previous test omitted these two
         // args so hadServiceAddons defaulted to false and the bug stayed hidden.
-        ctx.hadServiceAddons ? [{ productId: 'addon-1', quantity: 1 }] : [],
+        ctx.hadServiceAddons ? ROOM_PICKS : [],
         ctx.hadServiceAddons,
       )
       expect(next.name, permLabel(ctx)).toBe(oracleStepAfterAccommodation(ctx))
@@ -240,9 +243,8 @@ describe('legacy-plan ≡ current routing — stepAfterAccommodation (all permut
       if (!ctx.hotelBooked && !ctx.needsPickup && next.name === 'fill-form') {
         expect(next.pickupLocationId, permLabel(ctx)).toBeNull()
       }
-      // REGRESSION (PR #119): a needs_pickup product with service add-ons must
-      // still route to the PICKUP picker after add-ons — service_addons must
-      // NEVER be a forward target out of stepAfterAccommodation.
+      // REGRESSION: a needs_pickup product must still route to the PICKUP
+      // picker whatever add-on provenance is threaded in.
       if (!ctx.hotelBooked && ctx.needsPickup) {
         expect(next.name, `${permLabel(ctx)} [pickup must survive add-ons]`).toBe(
           'pick-pickup',
@@ -282,8 +284,7 @@ function oracleBreadcrumb(ctx: FunnelCtx): string[] {
     // exactly today's behaviour and the equivalence net pins it.
     trail.push('pick-accommodation')
   } else {
-    // No hotel offering: service add-ons (if shown) then pickup (if needed).
-    if (ctx.hadServiceAddons) trail.push('pick-service-addons')
+    // No hotel offering: pickup (if needed). A stale hadServiceAddons adds no crumb.
     if (ctx.needsPickup) trail.push('pick-pickup')
   }
   // landr-71kz.10: the legacy hardcoded declarations crumb is retired — the
@@ -311,7 +312,7 @@ describe('legacy-plan ≡ current routing — breadcrumb trail (all permutations
           ? [{ productId: 'room-1', quantity: 1 }]
           : [],
         addons: ctx.hadServiceAddons
-          ? [{ productId: 'addon-1', quantity: 1 }]
+          ? ROOM_PICKS
           : [],
         hotelLocationId: hotelLocId(ctx),
         hadServiceAddons: ctx.hadServiceAddons,
@@ -344,7 +345,7 @@ describe('legacy-plan ≡ current routing — stepBefore mirrors the trail (all 
         accommodationRooms: ctx.hotelBooked
           ? [{ productId: 'room-1', quantity: 1 }]
           : [],
-        addons: ctx.hadServiceAddons ? [{ productId: 'addon-1', quantity: 1 }] : [],
+        addons: ctx.hadServiceAddons ? ROOM_PICKS : [],
         hotelLocationId: hotelLocId(ctx),
         hadServiceAddons: ctx.hadServiceAddons,
       }

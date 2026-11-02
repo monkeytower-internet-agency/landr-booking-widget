@@ -4,6 +4,8 @@ import * as client from '@/api/client'
 import type { EstimateResponse, Product } from '@/api/types'
 import { EMBEDDED_ATTR } from '@/lib/autoHeight'
 import PriceSidebar from './PriceSidebar'
+import { newPick } from './offerCart'
+import { evalOffer } from './offerFixtures'
 
 function makeProduct(overrides: Partial<Product> = {}): Product {
   return {
@@ -93,7 +95,7 @@ describe('PriceSidebar (landr-qez0)', () => {
         selectedDays={['2026-05-23', '2026-05-24', '2026-05-25']}
         participantCount={1}
         accommodationRooms={[]}
-        addons={[]}
+        offerPicks={[]}
       />,
     )
     await waitFor(() => {
@@ -143,7 +145,7 @@ describe('PriceSidebar (landr-qez0)', () => {
         selectedDays={['2026-05-23']}
         participantCount={1}
         accommodationRooms={[]}
-        addons={[]}
+        offerPicks={[]}
       />,
     )
     expect(screen.getAllByText(/Calculating/).length).toBeGreaterThan(0)
@@ -164,7 +166,7 @@ describe('PriceSidebar (landr-qez0)', () => {
         selectedDays={['2026-05-23', '2026-05-24', '2026-05-25']}
         participantCount={1}
         accommodationRooms={[]}
-        addons={[]}
+        offerPicks={[]}
       />,
     )
     await waitFor(() => {
@@ -188,7 +190,7 @@ describe('PriceSidebar (landr-qez0)', () => {
         selectedDays={['2026-05-23']}
         participantCount={1}
         accommodationRooms={[]}
-        addons={[]}
+        offerPicks={[]}
       />,
     )
     await waitFor(() => {
@@ -214,7 +216,7 @@ describe('PriceSidebar — day chips + hotel span + names (landr-2wyi)', () => {
         selectedDays={['2026-05-25', '2026-05-26', '2026-05-27']}
         participantCount={1}
         accommodationRooms={[]}
-        addons={[]}
+        offerPicks={[]}
       />,
     )
     await waitFor(() => {
@@ -246,7 +248,7 @@ describe('PriceSidebar — day chips + hotel span + names (landr-2wyi)', () => {
           selectedDays={['2026-11-09', '2026-11-11']}
           participantCount={1}
           accommodationRooms={[]}
-          addons={[]}
+          offerPicks={[]}
         />,
       )
       await waitFor(() => {
@@ -277,7 +279,17 @@ describe('PriceSidebar — day chips + hotel span + names (landr-2wyi)', () => {
         selectedDays={['2026-11-09', '2026-11-10', '2026-11-11', '2026-11-12']}
         participantCount={3}
         accommodationRooms={[]}
-        addons={[{ productId: 'bike', name: 'City bike', quantity: 3, selectedDays: ['2026-11-10', '2026-11-12'] } as never]}
+        offerPicks={[
+          {
+            ...newPick(
+              evalOffer('of-bike', { product_id: 'bike', binding: 'free', schedule: 'subset' }),
+              'main',
+              'o1',
+              ['2026-11-10', '2026-11-12'],
+            ),
+            quantity: 3,
+          },
+        ]}
       />,
     )
     await waitFor(() => {
@@ -291,6 +303,49 @@ describe('PriceSidebar — day chips + hotel span + names (landr-2wyi)', () => {
     ])
   })
 
+  it('lists an on-site line in its own group with on_site_total, apart from the amount due', async () => {
+    vi.spyOn(client, 'estimateBookingPrice').mockResolvedValue({
+      ...SAMPLE,
+      line_items: [
+        SAMPLE.line_items[0],
+        {
+          product_id: 'towel',
+          label: 'Towel hire',
+          qty: 2,
+          units: 1,
+          unit_price: '5.00',
+          line_total: '10.00',
+          paid_to: 'operator',
+          collection: 'on_site',
+          collection_amount: '10.00',
+        },
+      ],
+      operator_total: '180.00',
+      hotel_total: '0.00',
+      grand_total: '190.00',
+      amount_due: '180.00',
+      on_site_total: '10.00',
+    })
+    render(
+      <PriceSidebar
+        operatorToken="para42"
+        product={makeProduct()}
+        selectedDays={['2026-05-23']}
+        participantCount={2}
+        accommodationRooms={[]}
+        offerPicks={[]}
+      />,
+    )
+    const group = await screen.findByTestId('price-sidebar-on-site')
+    expect(group.textContent).toContain('Towel hire')
+    expect(screen.getByTestId('price-sidebar-on-site-total').textContent).toMatch(/10/)
+    // The group holds only the on-site line; the operator block keeps the rest.
+    expect(group.textContent).not.toContain('Guided Day Dive')
+    const due = screen.getAllByTestId('price-sidebar-amount-due')[0]
+    expect(due.textContent).toMatch(/180/)
+    expect(due.textContent).not.toMatch(/190/)
+  })
+
   it('renders separate chips (not a contiguous range) for a NON-contiguous selection', async () => {
     vi.spyOn(client, 'estimateBookingPrice').mockResolvedValue(SAMPLE)
     render(
@@ -301,7 +356,7 @@ describe('PriceSidebar — day chips + hotel span + names (landr-2wyi)', () => {
         selectedDays={['2026-05-25', '2026-05-27']}
         participantCount={1}
         accommodationRooms={[]}
-        addons={[]}
+        offerPicks={[]}
       />,
     )
     await waitFor(() => {
@@ -331,7 +386,7 @@ describe('PriceSidebar — day chips + hotel span + names (landr-2wyi)', () => {
         selectedDays={['2026-05-25', '2026-05-26', '2026-05-27']}
         participantCount={1}
         accommodationRooms={[{ productId: 'room', quantity: 1 }]}
-        addons={[]}
+        offerPicks={[]}
       />,
     )
     await waitFor(() => {
@@ -368,7 +423,7 @@ describe('PriceSidebar — day chips + hotel span + names (landr-2wyi)', () => {
         selectedDays={['2026-05-25', '2026-05-26', '2026-05-27']}
         participantCount={1}
         accommodationRooms={[]}
-        addons={[]}
+        offerPicks={[]}
       />,
     )
     await waitFor(() => {
@@ -389,7 +444,7 @@ describe('PriceSidebar — day chips + hotel span + names (landr-2wyi)', () => {
         participantCount={2}
         participantNames={['Ada', 'Grace']}
         accommodationRooms={[]}
-        addons={[]}
+        offerPicks={[]}
       />,
     )
     const desktop = screen.getByTestId('price-sidebar-desktop')
@@ -413,7 +468,7 @@ describe('PriceSidebar — day chips + hotel span + names (landr-2wyi)', () => {
         selectedDays={['2026-05-23', '2026-05-24', '2026-05-25']}
         participantCount={1}
         accommodationRooms={[]}
-        addons={[]}
+        offerPicks={[]}
       />,
     )
     await waitFor(() =>
@@ -439,7 +494,7 @@ describe('PriceSidebar — day chips + hotel span + names (landr-2wyi)', () => {
         selectedDays={['2026-05-23', '2026-05-24', '2026-05-25']}
         participantCount={1}
         accommodationRooms={[]}
-        addons={[]}
+        offerPicks={[]}
       />,
     )
     await waitFor(() =>
@@ -469,7 +524,7 @@ describe('PriceSidebar — day chips + hotel span + names (landr-2wyi)', () => {
         selectedDays={['2026-05-23']}
         participantCount={1}
         accommodationRooms={[]}
-        addons={[]}
+        offerPicks={[]}
       />,
     )
     await waitFor(() =>
@@ -502,7 +557,7 @@ describe('PriceSidebar — day chips + hotel span + names (landr-2wyi)', () => {
         selectedDays={['2026-05-23']}
         participantCount={1}
         accommodationRooms={[]}
-        addons={[]}
+        offerPicks={[]}
       />,
     )
     await waitFor(() =>
@@ -562,7 +617,7 @@ describe('PriceSidebar — day chips + hotel span + names (landr-2wyi)', () => {
         selectedDays={['2026-05-23', '2026-05-24', '2026-05-25']}
         participantCount={1}
         accommodationRooms={[]}
-        addons={[]}
+        offerPicks={[]}
       />,
     )
     await waitFor(() =>
@@ -637,7 +692,7 @@ describe('PriceSidebar — day chips + hotel span + names (landr-2wyi)', () => {
         selectedDays={['2026-05-23', '2026-05-24', '2026-05-25']}
         participantCount={2}
         accommodationRooms={[]}
-        addons={[]}
+        offerPicks={[]}
       />,
     )
     await waitFor(() =>
@@ -663,7 +718,7 @@ describe('PriceSidebar — day chips + hotel span + names (landr-2wyi)', () => {
         participantCount={5}
         participantNames={['Ada', 'Grace', 'Alan', 'Linus', 'Margaret']}
         accommodationRooms={[]}
-        addons={[]}
+        offerPicks={[]}
       />,
     )
     const desktop = screen.getByTestId('price-sidebar-desktop')
@@ -691,7 +746,7 @@ describe('PriceSidebar empty selection (landr-hpyn)', () => {
         selectedDays={selectedDays}
         participantCount={1}
         accommodationRooms={[]}
-        addons={[]}
+        offerPicks={[]}
         debounceMs={0}
       />,
     )
@@ -734,7 +789,7 @@ describe('PriceSidebar empty selection (landr-hpyn)', () => {
         selectedDays={[]}
         participantCount={1}
         accommodationRooms={[]}
-        addons={[]}
+        offerPicks={[]}
         debounceMs={0}
       />,
     )
@@ -776,7 +831,7 @@ describe('PriceSidebar un_priceable (landr-zenj.1)', () => {
         selectedDays={['2026-05-23', '2026-05-24', '2026-05-25']}
         participantCount={1}
         accommodationRooms={[]}
-        addons={[]}
+        offerPicks={[]}
       />,
     )
     await waitFor(() => {
@@ -815,7 +870,7 @@ describe('PriceSidebar un_priceable (landr-zenj.1)', () => {
         selectedDays={['2026-05-23', '2026-05-24', '2026-05-25']}
         participantCount={1}
         accommodationRooms={[]}
-        addons={[]}
+        offerPicks={[]}
         onUnPriceableChange={onUnPriceableChange}
       />,
     )
@@ -834,7 +889,7 @@ describe('PriceSidebar un_priceable (landr-zenj.1)', () => {
         selectedDays={['2026-05-23', '2026-05-24', '2026-05-25']}
         participantCount={1}
         accommodationRooms={[]}
-        addons={[]}
+        offerPicks={[]}
         onUnPriceableChange={onUnPriceableChange}
       />,
     )
@@ -882,7 +937,7 @@ describe('PriceSidebar savings breakdown (landr-nva1a.4)', () => {
         selectedDays={['2026-05-23', '2026-05-24', '2026-05-25']}
         participantCount={1}
         accommodationRooms={[]}
-        addons={[]}
+        offerPicks={[]}
       />,
     )
     await waitFor(() => {
@@ -917,7 +972,7 @@ describe('PriceSidebar savings breakdown (landr-nva1a.4)', () => {
         selectedDays={['2026-05-23', '2026-05-24', '2026-05-25']}
         participantCount={1}
         accommodationRooms={[]}
-        addons={[]}
+        offerPicks={[]}
       />,
     )
     await waitFor(() => {
@@ -940,7 +995,7 @@ describe('PriceSidebar savings breakdown (landr-nva1a.4)', () => {
         selectedDays={['2026-05-23', '2026-05-24', '2026-05-25']}
         participantCount={1}
         accommodationRooms={[]}
-        addons={[]}
+        offerPicks={[]}
       />,
     )
     await waitFor(() => {
@@ -977,7 +1032,7 @@ describe('PriceSidebar mobile drawer (landr-v94dz)', () => {
         selectedDays={['2026-05-23']}
         participantCount={1}
         accommodationRooms={[]}
-        addons={[]}
+        offerPicks={[]}
         debounceMs={0}
       />,
     )
@@ -1188,7 +1243,7 @@ describe('PriceSidebar — payee-aware pay-separately (landr-hzovu.5)', () => {
         selectedDays={['2026-05-25', '2026-05-26']}
         participantCount={1}
         accommodationRooms={rooms}
-        addons={[]}
+        offerPicks={[]}
       />,
     )
   }
@@ -1368,7 +1423,7 @@ describe('PriceSidebar voucher preview', () => {
         selectedDays={['2026-05-23']}
         participantCount={1}
         accommodationRooms={[]}
-        addons={[]}
+        offerPicks={[]}
         voucherCode={voucherCode}
         onVoucherStatusChange={onVoucherStatusChange}
       />,

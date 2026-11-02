@@ -34,9 +34,13 @@ import type {
   EstimateRequestBody,
   EstimateResponse,
   EstimateSlotFields,
+  OfferEvaluateGuest,
 } from '@/api/types'
 import { apiLocale, browserLocale } from '@/lib/locale'
 import { useDebouncedValue } from './useDebouncedValue'
+
+/** The estimate's id of its main product line (offer lines name it as parent). */
+const MAIN_LINE_ID = 'main'
 
 export interface UseBookingEstimateArgs {
   operatorToken: string
@@ -54,6 +58,8 @@ export interface UseBookingEstimateArgs {
   voucherCode?: string
   /** landr-hfvyc.2: ages of the children in the party (occupancy-priced stays). */
   childAges?: readonly number[]
+  /** The party (refs + answered attributes), for the offer lines. */
+  guests?: readonly OfferEvaluateGuest[]
   enabled?: boolean
   /** Debounce in ms (default 300). */
   debounceMs?: number
@@ -94,6 +100,7 @@ export function useBookingEstimate(
     slot,
     voucherCode,
     childAges,
+    guests,
     enabled = true,
     debounceMs = 300,
   } = args
@@ -122,8 +129,12 @@ export function useBookingEstimate(
       ...(slotStartTime ? { slot_start_time: slotStartTime } : {}),
       ...(voucher ? { voucher_code: voucher } : {}),
       ...(childAges && childAges.length > 0 ? { child_ages: [...childAges] } : {}),
+      // The party (refs + attributes) and the main line's id, so offer lines
+      // name their guests and parent and the server attaches what it attaches.
+      ...(guests && guests.length > 0 ? { guests: [...guests] } : {}),
+      ...(addonLines.some((l) => l.offer_id) ? { main_line_id: MAIN_LINE_ID } : {}),
     }),
-    [selectedDays, participantCount, addonLines, availabilityId, slotStartTime, voucher, childAges],
+    [selectedDays, participantCount, addonLines, availabilityId, slotStartTime, voucher, childAges, guests],
   )
 
   const liveKey = useMemo(

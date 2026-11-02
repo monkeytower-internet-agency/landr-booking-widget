@@ -27,8 +27,24 @@ import {
   type RoomAssignmentMap,
   type RoomSelection,
 } from './accommodationCalc'
-import type { AddonSelection } from './addonsState'
-import type { PerRoomAddons } from '@/appStepMachine'
+import {
+  cartTree,
+  evaluateLines,
+  guestsWire,
+  MAIN_LINE_ID,
+  partyMembers,
+  picksBlocking,
+  reconcile,
+  roomExtraQty,
+  roomLineId,
+  seedMandatory,
+  toProductLines,
+  type OfferPick,
+  type PartyMember,
+} from './offerCart'
+import { useOffers } from './useOffers'
+import { useJsonMemo } from './useJsonMemo'
+import { MainIneligible } from './MainIneligible'
 import { formatDayLabel, formatDayRange } from './dateLabel'
 import { hasFixedStartTimes, toHHMM } from './slotKey'
 import {
@@ -210,10 +226,25 @@ interface Props {
    */
   accommodationRooms?: RoomSelection[]
   /**
-   * Add-on line items captured upstream — from AccommodationStep
-   * (per-room add-ons) or ServiceAddonsStep (landr-cip6).
+   * The offers taken under the booked room types (AccommodationStep), each
+   * hanging off its room type's line `r-<productId>`.
    */
-  addons?: AddonSelection[]
+  roomPicks?: OfferPick[]
+  /**
+   * The offers taken on this step (the main line's and their children's).
+   * App owns the state so the PriceSidebar prices the same lines.
+   */
+  offerPicks?: OfferPick[]
+  onOfferPicksChange?: import('react').Dispatch<import('react').SetStateAction<OfferPick[]>>
+  /** Reports the party as the offers name it, for the PriceSidebar's estimate. */
+  onOfferMembersChange?: (members: import('./offerCart').PartyMember[]) => void
+  /** The PriceSidebar estimate's line items (prices of the picked offers). */
+  estimateItems?: import('@/api/types').EstimateLineItem[] | null
+  /**
+   * The operator's cross-sell switch (`widget_cross_sell_enabled`): off hides
+   * the offers every booking gets (parent-less) and the products they add.
+   */
+  crossSellEnabled?: boolean
   /**
    * landr-sbhz.3: pre-booking customer declarations. When present,
    * both fields are included in the submit body. Omitted for operators
@@ -317,14 +348,6 @@ interface Props {
    * WIRE CONTRACT (PINNED — landr-doam.2 on the API builds the same shape).
    */
   occupantAgeMap?: OccupantAgeMap
-  /**
-   * landr-gb2f.5: raw per-room add-on selection map from AccommodationStep.
-   * Keyed by roomProductId → { addon_product_id → qty }. Used in the review
-   * to show per-room breakfast status ("Single Room 1 — with breakfast" etc).
-   * Absent / empty → no per-room breakfast section rendered (guiding-only,
-   * shared-double, or no add-ons configured).
-   */
-  perRoomAddons?: PerRoomAddons
   /**
    * landr-gb2f.5: room product display names from AccommodationStep, keyed
    * by product_id. Used to label room units as "Single Room 1 — …" in the
@@ -468,8 +491,6 @@ interface Props {
    */
   inlineAnswers?: InlineAnswers
   onInlineAnswersChange?: (answers: InlineAnswers) => void
-  /** Operator curation: only these products may be offered (empty/absent = all eligible). */
-  crossSellProductIds?: string[]
   onBack: () => void
   onConfirmed: (response: SubmitBookingResponse, email: string) => void
 }
@@ -703,22 +724,61 @@ const readShortDay = (err: HttpError): { date: string; seats_short: number } | n
     : null
 }
 
-/** landr-a27k9.1 error codes of a companion add-on line -> widget copy key. */
-const COMPANION_ERROR_COPY: Record<
-  string,
-  | 'companionErrDaysRequired'
-  | 'companionErrOutsideParent'
-  | 'companionErrParentMissing'
-  | 'companionErrOutOfStock'
-  | 'companionErrQuantityMax'
-  | 'companionErrNoLongerFits'
-> = {
+/**
+ * 422 codes of an offer / add-on line -> widget copy key. Offer codes come
+ * from the server's re-resolution of every offer line (landr-api
+ * offer_lines.py); an unknown offer code reads as "the extras changed".
+ */
+const OFFER_ERROR_COPY: Record<string, Parameters<typeof tr>[0]> = {
+  offer_not_eligible: 'offerErrNotEligible',
+  product_not_eligible: 'offerErrProductNotEligible',
+  attribute_missing: 'offerErrAttributeMissing',
+  offer_parent_unknown: 'offerErrParentUnknown',
+  offer_participant_required: 'offerErrParticipantRequired',
+  offer_participant_duplicate: 'offerErrParticipantDuplicate',
+  offer_option_required: 'offerErrOptionRequired',
+  offer_option_unknown: 'offerErrOptionUnknown',
+  offer_quantity_out_of_range: 'offerErrQuantity',
+  offer_days_required: 'offerErrDaysRequired',
+  bad_parent_line: 'offerErrBadParent',
+  offer_not_found: 'offerErrStale',
+  offer_parent_mismatch: 'offerErrStale',
+  offer_parent_cycle: 'offerErrStale',
+  offer_override_rejected: 'offerErrStale',
   companion_days_required: 'companionErrDaysRequired',
   companion_days_outside_parent: 'companionErrOutsideParent',
   companion_parent_missing: 'companionErrParentMissing',
   addon_out_of_stock: 'companionErrOutOfStock',
   addon_quantity_exceeds_max: 'companionErrQuantityMax',
   companion_addon_no_longer_fits: 'companionErrNoLongerFits',
+}
+
+/** The 422 is Pydantic's `offer_override_rejected` (a list entry of that type). */
+function offerOverrideRejected(detail: unknown): boolean {
+  return (
+    Array.isArray(detail) &&
+    detail.some((d) => !!d && typeof d === 'object' && (d as { type?: unknown }).type === 'offer_override_rejected')
+  )
+}
+
+/** The cart line a 422 names (`line_id`), if any. */
+function offerErrorLineId(err: HttpError): string | null {
+  const d = err.detail
+  if (d && typeof d === 'object' && !Array.isArray(d)) {
+    const id = (d as { line_id?: unknown }).line_id
+    return typeof id === 'string' ? id : null
+  }
+  return null
+}
+
+/** The 422 code (`error`) of an offer line refusal, if any. */
+function offerErrorCode(err: HttpError): string | null {
+  const d = err.detail
+  if (d && typeof d === 'object' && !Array.isArray(d)) {
+    const code = (d as { error?: unknown }).error
+    return typeof code === 'string' && (code.startsWith('offer_') || code === 'bad_parent_line') ? code : null
+  }
+  return offerOverrideRejected(d) ? 'offer_override_rejected' : null
 }
 
 const formatHttpError = (
@@ -770,8 +830,13 @@ const formatHttpError = (
   ) {
     const code = (err.detail as { error?: unknown }).error
     const key =
-      typeof code === 'string' ? COMPANION_ERROR_COPY[code] : undefined
+      typeof code === 'string' ? OFFER_ERROR_COPY[code] : undefined
     if (key) return tr(key, browserLocale())
+  }
+  // A request field the server alone decides (a price, the collection, the
+  // mode) arrives as a Pydantic error list; the extras changed under the tab.
+  if (err.status === 422 && offerOverrideRejected(err.detail)) {
+    return tr('offerErrStale', browserLocale())
   }
   // landr-zenj.1: the submit endpoint hard-rejects an un-priceable booking
   // with 422 {"error": "un_priceable", "product_ids": [...], "warnings":
@@ -1000,6 +1065,10 @@ function groupOverlaps(rows: BookingOverlap[]): BookingOverlap[] {
   return [...byId.values()]
 }
 
+/** Stable empty list (a fresh `[]` per render would re-run every memo on it). */
+const NO_EXTRA_LINES: ExtraLine[] = []
+const NO_PICKS: OfferPick[] = []
+
 export function BookingForm({
   widgetToken,
   previewToken,
@@ -1010,7 +1079,12 @@ export function BookingForm({
   companions = [],
   pickupLocationId: mainPickupLocationId,
   accommodationRooms,
-  addons,
+  roomPicks = NO_PICKS,
+  offerPicks: offerPicksProp,
+  onOfferPicksChange,
+  onOfferMembersChange,
+  estimateItems = null,
+  crossSellEnabled = true,
   customerDeclarations,
   customerLanguages,
   customerOtherLanguages,
@@ -1020,7 +1094,6 @@ export function BookingForm({
   isSharedDouble: isSharedDoubleProp = false,
   roomAssignment,
   occupantAgeMap = {},
-  perRoomAddons,
   roomProductNames,
   breakfastMap = {},
   formResponses: mainFormResponses,
@@ -1039,11 +1112,10 @@ export function BookingForm({
   onCompanionContactRequired,
   onBack,
   onChangeDates,
-  extraLines = [],
+  extraLines = NO_EXTRA_LINES,
   onExtraLinesChange,
   inlineAnswers,
   onInlineAnswersChange,
-  crossSellProductIds,
   onConfirmed,
 }: Props) {
   // landr-jiagg.2: the shared double covers the BOOKER'S own bed, so it only
@@ -1074,7 +1146,7 @@ export function BookingForm({
     sendsPublicCodes &&
     (voucherCode?.trim() ?? '') !== '' &&
     voucherStatus === 'not_applicable'
-  const crossSellLines = setExtraLines ? extraLines : []
+  const crossSellLines = setExtraLines ? extraLines : NO_EXTRA_LINES
   // An added product's guide language, custom forms and pickup point run
   // inline on its line below (AddMoreProducts) when the main flow did not
   // cover them. What the customer answers there is shared across lines (the
@@ -1144,9 +1216,90 @@ export function BookingForm({
       .filter((f) => neededInlineFormKeys.has(f.entry.form_key))
       .map((f) => f.entry),
   ]
+  // ---- offers (POST /offers/evaluate) ------------------------------------
+  // The cart tree the offers hang in, the party they name, the verdict.
+  // Without a parent-owned state (a test, an old caller) the picks live here.
+  const [ownOfferPicks, setOwnOfferPicks] = useState<OfferPick[]>([])
+  const offerPicks = offerPicksProp ?? ownOfferPicks
+  const setOfferPicks = onOfferPicksChange ?? setOwnOfferPicks
+  const mainDays = useMemo(
+    () => (selection.kind === 'slot' ? [selection.slot.date] : selection.selectedDays),
+    [selection],
+  )
+  const offerTree = useMemo(
+    () => cartTree(product, mainDays, accommodationRooms ?? [], crossSellLines),
+    [product, mainDays, accommodationRooms, crossSellLines],
+  )
+  // Keyed on its JSON so a re-render with equal inputs (fresh default
+  // objects) keeps the same members, and nothing downstream re-runs.
+  const offerMembersKey = (() => {
+    const ages: Record<number, GuestAgeEntry> = { ...(inlineAgesApply ? (inlineAges ?? {}) : {}) }
+    for (const [k, v] of Object.entries(occupantAgeMap)) ages[Number(k)] = v
+    return JSON.stringify(
+      partyMembers(participantsForSubmit(booker, participants), companions, ages, (n) =>
+        tr('guestFallbackTemplate', locale).replace('{n}', String(n)),
+      ),
+    )
+  })()
+  const offerMembers = useJsonMemo<PartyMember[]>(offerMembersKey)
+  useEffect(() => {
+    onOfferMembersChange?.(offerMembers)
+  }, [offerMembers, onOfferMembersChange])
+  const allPicks = useMemo(() => [...roomPicks, ...offerPicks], [roomPicks, offerPicks])
+  const [offerRefresh, setOfferRefresh] = useState(0)
+  const offerEvalLines = useMemo(() => evaluateLines(offerTree, allPicks), [offerTree, allPicks])
+  const offerGuests = useMemo(() => guestsWire(offerMembers), [offerMembers])
+  const offers = useOffers({
+    widgetToken,
+    lines: offerEvalLines,
+    guests: offerGuests,
+    refreshKey: offerRefresh,
+  })
+  const [offersRemoved, setOffersRemoved] = useState(false)
+  const [offerErrorLine, setOfferErrorLine] = useState<string | null>(null)
+  // A fresh verdict: drop what no longer fits, then preselect what is mandatory.
+  const handledVerdict = useRef<string | null>(null)
+  useEffect(() => {
+    if (!offers.answeredKey || offers.isPending || handledVerdict.current === offers.answeredKey) return
+    handledVerdict.current = offers.answeredKey
+    setOfferPicks((prev) => {
+      const { picks, dropped } = reconcile(prev, offers.byLine, offerTree, offerMembers)
+      if (dropped > 0) setOffersRemoved(true)
+      const seeded = seedMandatory(
+        [...roomPicks, ...picks],
+        offers.byLine,
+        offerTree,
+        offerMembers,
+        'o',
+        (parent) => !parent.startsWith('r-'),
+      ).filter((p) => !roomPicks.includes(p))
+      return seeded.length === prev.length && seeded.every((p, i) => p === prev[i]) ? prev : seeded
+    })
+  }, [offers.answeredKey, offers.isPending, offers.byLine, offerTree, offerMembers, roomPicks, setOfferPicks])
+  // A Confirm pressed while the extras were being checked (see onConfirm).
+  const queuedConfirm = useRef<{ buildOffer?: boolean } | null>(null)
+  const onConfirmRef = useRef<((opts?: { buildOffer?: boolean }) => Promise<void>) | null>(null)
+  useEffect(() => {
+    if (offers.isPending || !queuedConfirm.current) return
+    const opts = queuedConfirm.current
+    void Promise.resolve().then(() => {
+      // Release the held button; the gates below decide afresh.
+      setSubmitting(false)
+      return onConfirmRef.current?.(opts)
+    })
+  }, [offers.isPending])
+  const mainVerdict = offers.byLine[MAIN_LINE_ID]
+  const mainIneligible = !offers.isPending && mainVerdict?.eligible === false
+  const offersBlocked = picksBlocking(offerPicks)
+  // landr-gb2f.5: the room types' extras per room ({room: {product: qty}}),
+  // the shape the review's per-room breakfast rows read.
+  // Present whenever rooms are booked (an included-breakfast room still shows).
+  const roomExtras = (accommodationRooms ?? []).length > 0 ? roomExtraQty(roomPicks) : undefined
+
   const extrasBlocked =
     extraLinesBlocking(crossSellLines) ||
-    inlineModulesPending(crossSellLines, crossSellContext, inlineModuleState)
+    inlineModulesPending(crossSellLines, crossSellContext, inlineModuleState) ||
+    offersBlocked
   // An added product's verification runs inline here too: one set of
   // documents and one signed waiver covers every line that asks for it.
   const verificationProducts = [product, ...crossSellLines.map((l) => l.product)]
@@ -1289,7 +1442,7 @@ export function BookingForm({
 
   // landr-gb2f.4 / gb2f.5 / landr-a4fy: build the per-room-unit breakfast
   // breakdown for the review. Only rendered when we have rooms AND a
-  // perRoomAddons map (i.e. the customer booked in package mode with
+  // roomExtras map (i.e. the customer booked in package mode with
   // add-ons configured).
   //
   // landr-a4fy: when breakfastMap is populated (per-occupant flags from
@@ -1300,7 +1453,7 @@ export function BookingForm({
   //
   // Fallback: when breakfastMap is empty (legacy / pre-a4fy path), use
   // the index-order heuristic (first totalAddonQty units get breakfast).
-  // Skipped when perRoomAddons is absent or empty (guiding-only,
+  // Skipped when roomExtras is absent or empty (guiding-only,
   // shared-double, or no add-ons configured).
   //
   // landr-rjvd: row shape extended to carry per-occupant breakfast data so
@@ -1321,9 +1474,9 @@ export function BookingForm({
     occupantNames: string[]
   }
   const perRoomBreakfastRows: ReviewRoomRow[] = (() => {
-    if (!perRoomAddons || !hasRooms || !accommodationRooms) return []
+    if (!roomExtras || !hasRooms || !accommodationRooms) return []
     // Only show this section when at least one room type has any add-on qty.
-    const hasAnyAddons = Object.values(perRoomAddons).some((qtys) =>
+    const hasAnyAddons = Object.values(roomExtras).some((qtys) =>
       Object.values(qtys).some((q) => q > 0),
     )
     // landr — rooms whose breakfast is INCLUDED in the room itself (e.g.
@@ -1357,7 +1510,7 @@ export function BookingForm({
     for (const room of accommodationRooms) {
       const roomName = roomProductNames?.[room.productId] ?? room.productId
       const includesBreakfast = roomIncludesBreakfast(room.productId)
-      const roomAddonQtys = perRoomAddons[room.productId] ?? {}
+      const roomAddonQtys = roomExtras[room.productId] ?? {}
       // Sum total add-on qty for this room type (breakfast is the only
       // per-room add-on today; if more are added we sum all of them).
       const totalAddonQty = Object.values(roomAddonQtys).reduce((a, b) => a + b, 0)
@@ -1431,6 +1584,7 @@ export function BookingForm({
   // the same flow with the fixed-price override forced off, and the completion
   // message asks the dashboard to land on the Offer tab (open_tab:'offer').
   const onConfirm = async (opts: { buildOffer?: boolean } = {}) => {
+    queuedConfirm.current = null
     const buildOffer = opts.buildOffer === true && staff.active
     setServerError(null)
     setCapacityExceeded(false)
@@ -1450,6 +1604,16 @@ export function BookingForm({
       setServerError(tr('addMoreIncomplete', locale))
       return
     }
+    if (mainIneligible) return
+    // The extras are being re-checked for a changed cart / party: hold the
+    // Confirm (spinner) until the verdict is in, then submit (bounded by the
+    // evaluate timeout; a failed check submits and the server re-judges).
+    if (offers.isPending) {
+      queuedConfirm.current = opts
+      setSubmitting(true)
+      return
+    }
+    setOfferErrorLine(null)
     setSubmitting(true)
     // landr-my6fc.7: staff mode — if the overlap lookup is still in flight, give
     // it a short window so "Book anyway" is not skipped. Timeout/error proceeds.
@@ -1523,6 +1687,7 @@ export function BookingForm({
         selectedDaysForSubmit,
         product.accommodation_checkin_offset_days,
       )
+      const offerLines = toProductLines(allPicks, offerTree, offerMembers)
       // Build the primary service line + any hotel_room line items
       // captured by AccommodationStep (landr-vyaz: public_submit_booking
       // already iterates products[]). Add-ons become their own lines
@@ -1536,13 +1701,17 @@ export function BookingForm({
       // the old "same total either way" assumption undercounted every
       // multi-night breakfast by construction. Discriminate by the
       // add-on's own product_kind === 'hotel_room' (addon.productKind,
-      // threaded through from ProductAddon — see addonsState.ts /
+      // threaded through from the offered product — see offerCart.ts /
       // accommodationCalc.ts's flattenPerRoomAddons), NOT by name/slug.
       const productLines: ProductLine[] = [
         {
           product_id: product.product_id,
           quantity: 1,
           selected_days: selectedDaysForSubmit,
+          // The cart tree's root: every offer line names it (or a line under it).
+          ...(offerLines.length > 0 || crossSellLines.some((l) => l.lineId && l.offerId)
+            ? { line_id: MAIN_LINE_ID }
+            : {}),
           // landr-6stj: forward the exact product_availability row the
           // customer clicked (AvailabilityPicker/FixedDateWindowPicker both
           // populate slot.availability_id) so the RPC can persist it instead
@@ -1573,23 +1742,17 @@ export function BookingForm({
           product_id: room.productId,
           quantity: room.quantity,
           selected_days: nightIsos,
+          // A room type's id only matters as the parent of its offer lines.
+          ...(offerLines.some((l) => l.parent_line_id === roomLineId(room.productId))
+            ? { line_id: roomLineId(room.productId) }
+            : {}),
         })),
-        ...(addons ?? []).map<ProductLine>((addon) => ({
-          product_id: addon.productId,
-          quantity: addon.quantity,
-          // landr-fxza.4: a room-tied add-on (product_kind='hotel_room',
-          // e.g. breakfast) derives from the room stay — same night
-          // window as the room lines above. A service-tied add-on (e.g.
-          // Video Package) keeps the raw service-day window.
-          // landr-a27k9.2: a day-pickable companion (e.g. a city bike) submits
-          // exactly the days the guest picked -- a non-empty subset of the
-          // parent's days -- instead of the parent's whole window.
-          selected_days: addon.selectedDays?.length
-            ? addon.selectedDays
-            : addon.productKind === 'hotel_room'
-              ? nightIsos
-              : selectedDaysForSubmit,
-        })),
+        // The offers taken (room types' and this step's): one line per pick,
+        // a per-person pick one per ticked guest (participant_id = the
+        // guest's ref below). Days follow the schedule: the parent's
+        // (locked), the picked ones (subset). The server re-resolves price,
+        // collection and mode; a mandatory per-person offer it attaches itself.
+        ...offerLines,
         // "Add more to this booking": the products added on this step.
         ...extraProductLines(crossSellLines),
       ]
@@ -1639,6 +1802,8 @@ export function BookingForm({
           // to keep the payload compact (API default = false).
           const hasBreakfast = breakfastMap[idx] === true
           return {
+            // The person's id inside this body; offer lines name it.
+            ...(offerLines.length > 0 ? { ref: offerMembers[idx]?.ref } : {}),
             first_name: p.first_name,
             last_name: p.last_name || null,
             email: p.email || null,
@@ -1705,6 +1870,7 @@ export function BookingForm({
                 // landr-a4fy: per-occupant breakfast flag for companions.
                 const hasBreakfast = breakfastMap[memberIdx] === true
                 return {
+                  ...(offerLines.length > 0 ? { ref: offerMembers[memberIdx]?.ref } : {}),
                   first_name: c.first_name,
                   last_name: c.last_name || null,
                   email: c.email || null,
@@ -1939,6 +2105,19 @@ export function BookingForm({
           isCapacityExceeded(err) || isSlotStartTimeInvalid(err) || isDailyCapReached(err),
         )
         setWindowAmbiguous(isFixedDateWindowAmbiguous(err))
+        // An offer line refused: mark its row, scroll to it, re-ask the
+        // evaluator (the offers may have changed under the tab).
+        if (offerErrorCode(err)) {
+          const lineId = offerErrorLineId(err)
+          setOfferErrorLine(lineId)
+          setOfferRefresh((n) => n + 1)
+          if (lineId) {
+            requestAnimationFrame(() => {
+              const row = document.querySelector(`[data-line-id="${CSS.escape(lineId.replace(/-g\d+$/, ''))}"]`)
+              row?.scrollIntoView?.({ block: 'center', behavior: 'smooth' })
+            })
+          }
+        }
         // landr-f987a.4: the 422 names the first short day — say which one.
         const shortDay = isCapacityExceeded(err) ? readShortDay(err) : null
         if (shortDay) {
@@ -1972,6 +2151,10 @@ export function BookingForm({
       setSubmitting(false)
     }
   }
+
+  useEffect(() => {
+    onConfirmRef.current = onConfirm
+  })
 
   return (
     <Card>
@@ -2395,23 +2578,33 @@ export function BookingForm({
           />
         ) : null}
 
-        {setExtraLines ? (
+        {mainIneligible && mainVerdict ? (
+          <MainIneligible verdict={mainVerdict} locale={locale} onAnswerQuestions={onBack} />
+        ) : null}
+
+        {(
           <AddMoreProducts
             operatorToken={widgetToken}
             previewToken={previewToken}
             inviteToken={inviteToken}
-            cartProductIds={[
-              product.product_id,
-              ...(accommodationRooms ?? []).map((r) => r.productId),
-              ...(addons ?? []).map((a) => a.productId),
-            ]}
-            mainDays={
-              selection.kind === 'slot' ? [selection.slot.date] : selection.selectedDays
-            }
+            mainDays={mainDays}
             partySize={seatsNeeded(participants.length, companions, product.invite_hold_hours)}
             lines={crossSellLines}
-            onLinesChange={setExtraLines}
-            allowedProductIds={crossSellProductIds}
+            onLinesChange={crossSellEnabled ? setExtraLines : undefined}
+            crossSellEnabled={crossSellEnabled}
+            offers={{
+              verdicts: offers.byLine,
+              picks: offerPicks,
+              onPicksChange: setOfferPicks,
+              tree: offerTree,
+              members: offerMembers,
+              isPending: offers.isPending,
+              checkFailed: offers.checkFailed,
+              removedNotice: offersRemoved,
+              estimateItems: estimateItems ?? undefined,
+              currency: product.currency ?? 'EUR',
+              errorLineId: offerErrorLine,
+            }}
             locale={locale}
             context={crossSellContext}
             modules={{
@@ -2429,7 +2622,7 @@ export function BookingForm({
               onAges: setInlineAges,
             }}
           />
-        ) : null}
+        )}
 
         {/* landr-n6ii3: same field DetailsStep collects, editable here too —
             last field before Confirm booking. */}
@@ -2449,10 +2642,15 @@ export function BookingForm({
             entered). Both are hidden entirely for normal customers. */}
         <ContinueAction
           ready={
-            !submitting && !unPriceable && !voucherBlocked && !overrideBlocked && !verificationBlocked && !extrasBlocked
+            !submitting && !unPriceable && !voucherBlocked && !overrideBlocked && !verificationBlocked && !extrasBlocked &&
+            !mainIneligible
           }
           reason={
-            unPriceable
+            mainIneligible && mainVerdict
+              ? tr('offerErrProductNotEligible', locale)
+              : submitting && offers.isPending
+              ? tr('offerChecking', locale)
+              : unPriceable
               ? UN_PRICEABLE_MESSAGE
               : voucherBlocked
               ? tr('voucherFixBeforeConfirm', locale)

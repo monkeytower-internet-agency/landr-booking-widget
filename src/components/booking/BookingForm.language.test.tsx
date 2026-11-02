@@ -26,7 +26,12 @@ import type {
 // submit POST these tests assert on.
 vi.mock('@/api/client', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/api/client')>()
-  return { ...actual, getAvailability: vi.fn().mockResolvedValue([]) }
+  return {
+    ...actual,
+    getAvailability: vi.fn().mockResolvedValue([]),
+    listProducts: vi.fn().mockResolvedValue([]),
+    getOffers: vi.fn().mockResolvedValue({ lines: [] }),
+  }
 })
 
 vi.stubEnv('VITE_USE_MOCKS', '0')
@@ -103,7 +108,6 @@ function renderForm(
       participantLanguages={ASSIGNMENT}
       pickupLocationId={null}
       accommodationRooms={[]}
-      addons={[]}
       onBack={vi.fn()}
       onConfirmed={vi.fn()}
       {...overrides}

@@ -2,9 +2,10 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { useState } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { Location, Product } from '@/api/types'
+import type { EvaluatedOffer, Location, Product } from '@/api/types'
 import {
   getAvailability,
+  getOffers,
   getProductFlow,
   listPickupLocationsForOperator,
   listProducts,
@@ -23,6 +24,7 @@ vi.mock('@/api/client', async (importOriginal) => {
     listProducts: vi.fn(),
     getFixedDateWindows: vi.fn(),
     getProductFlow: vi.fn(),
+    getOffers: vi.fn(),
     listPickupLocationsForOperator: vi.fn(),
   }
 })
@@ -53,6 +55,34 @@ function product(id: string, over: Partial<Product> = {}): Product {
   }
 }
 
+/** An offer of the main line; `own` = the product is added with its own dates. */
+function offer(productId: string, over: Partial<EvaluatedOffer> = {}): EvaluatedOffer {
+  return {
+    id: `offer-${productId}`,
+    parent_product_id: null,
+    product_id: productId,
+    rules: {},
+    binding: 'booking',
+    schedule: 'own',
+    collection: 'online',
+    mode: 'optional',
+    min_qty: 1,
+    sort_order: 0,
+    name: productId,
+    product_kind: 'service',
+    in_cart: false,
+    draft: false,
+    ...over,
+  }
+}
+
+/** The evaluator answers with these offers on the main line. */
+function offerOnMain(...offers: EvaluatedOffer[]) {
+  vi.mocked(getOffers).mockResolvedValue({
+    lines: [{ line_id: 'main', eligible: true, offers, draft: false }],
+  })
+}
+
 const MAIN = product('main')
 const CAMPING = product('camping', { product_kind: 'stay', service_time_shape: null })
 const SELECTION: BookingSelection = { kind: 'days', selectedDays: ['2026-11-02', '2026-11-03'] }
@@ -77,12 +107,10 @@ const BOOKER: BookerDetails = {
 function Harness({
   main = MAIN,
   participantLanguages,
-  allowed,
   off,
 }: {
   main?: Product
   participantLanguages?: Record<number, string>
-  allowed?: string[]
   off?: boolean
 }) {
   const [lines, setLines] = useState<ExtraLine[]>([])
@@ -96,8 +124,8 @@ function Harness({
       participants={[{ ...BOOKER, service_role_code: '' }]}
       pickupLocationId={null}
       extraLines={lines}
-      onExtraLinesChange={off ? undefined : setLines}
-      crossSellProductIds={allowed}
+      onExtraLinesChange={setLines}
+      crossSellEnabled={!off}
       onBack={vi.fn()}
       onConfirmed={vi.fn()}
     />
@@ -140,6 +168,8 @@ describe('Add more to this booking (review step)', () => {
     vi.mocked(getAvailability).mockReset()
     vi.mocked(listProducts).mockReset()
     vi.mocked(listProducts).mockResolvedValue([MAIN, CAMPING])
+    vi.mocked(getOffers).mockReset()
+    offerOnMain(offer('camping', { product_kind: 'stay' }))
     vi.mocked(getProductFlow).mockReset()
     vi.mocked(getProductFlow).mockResolvedValue({ modules: null })
     vi.mocked(listPickupLocationsForOperator).mockReset()
@@ -181,6 +211,7 @@ describe('Add more to this booking (review step)', () => {
   it('asks for verification inline when the added product requires it', async () => {
     const verified = product('verified', { name: 'Test event', requires_verification: true })
     vi.mocked(listProducts).mockResolvedValue([MAIN, CAMPING, verified])
+    offerOnMain(offer('camping'), offer('verified'))
     vi.mocked(getAvailability).mockResolvedValue([])
     render(<Harness />)
     await addAndSettle('verified')
@@ -191,6 +222,7 @@ describe('Add more to this booking (review step)', () => {
     const mainEn = product('main', { guide_languages: ['en'] })
     const guided = product('guided', { name: 'Guided tour', guide_languages: ['de'] })
     vi.mocked(listProducts).mockResolvedValue([mainEn, CAMPING, guided])
+    offerOnMain(offer('camping'), offer('guided'))
     vi.mocked(getAvailability).mockResolvedValue([])
     render(<Harness main={mainEn} participantLanguages={{ 0: 'en' }} />)
     await screen.findByTestId('add-more-candidate-camping')
@@ -200,6 +232,7 @@ describe('Add more to this booking (review step)', () => {
   it('renders the guide-language board inline and submits the picked language', async () => {
     const guided = product('guided', { name: 'Guided tour', guide_languages: ['de', 'en'] })
     vi.mocked(listProducts).mockResolvedValue([MAIN, guided])
+    offerOnMain(offer('guided'))
     vi.mocked(getAvailability).mockResolvedValue([])
     vi.mocked(submitBooking).mockResolvedValue({ booking_id: 'b-3', semantic_state: 'pending' })
     render(<Harness />)
@@ -227,6 +260,7 @@ describe('Add more to this booking (review step)', () => {
   it('keeps the inline language answer across Back and return to review', async () => {
     const guided = product('guided', { name: 'Guided tour', guide_languages: ['de', 'en'] })
     vi.mocked(listProducts).mockResolvedValue([MAIN, guided])
+    offerOnMain(offer('guided'))
     vi.mocked(getAvailability).mockResolvedValue([])
     render(<RoundTripHarness />)
     const line = await addAndSettle('guided')
@@ -250,6 +284,7 @@ describe('Add more to this booking (review step)', () => {
   it('needs no board when one language is shared: the whole party gets it', async () => {
     const guided = product('guided', { name: 'Guided tour', guide_languages: ['fr'] })
     vi.mocked(listProducts).mockResolvedValue([MAIN, guided])
+    offerOnMain(offer('guided'))
     vi.mocked(getAvailability).mockResolvedValue([])
     vi.mocked(submitBooking).mockResolvedValue({ booking_id: 'b-4', semantic_state: 'pending' })
     render(<Harness />)
@@ -265,6 +300,7 @@ describe('Add more to this booking (review step)', () => {
   it('renders the added product\'s custom form inline and submits its answers', async () => {
     const formed = product('formed', { name: 'Course' })
     vi.mocked(listProducts).mockResolvedValue([MAIN, formed])
+    offerOnMain(offer('formed'))
     vi.mocked(getAvailability).mockResolvedValue([])
     vi.mocked(getProductFlow).mockResolvedValue(
       flowWith('medical', [
@@ -307,6 +343,7 @@ describe('Add more to this booking (review step)', () => {
   it('drops the inline form answers when the product is removed', async () => {
     const formed = product('formed', { name: 'Course' })
     vi.mocked(listProducts).mockResolvedValue([MAIN, formed])
+    offerOnMain(offer('formed'))
     vi.mocked(getAvailability).mockResolvedValue([])
     vi.mocked(getProductFlow).mockResolvedValue(flowWith('medical') as never)
     vi.mocked(submitBooking).mockResolvedValue({ booking_id: 'b-6', semantic_state: 'pending' })
@@ -326,6 +363,7 @@ describe('Add more to this booking (review step)', () => {
   it('renders the pickup picker inline and submits the picked point', async () => {
     const shuttle = product('shuttle', { name: 'Shuttle tour', needs_pickup: true })
     vi.mocked(listProducts).mockResolvedValue([MAIN, shuttle])
+    offerOnMain(offer('shuttle'))
     vi.mocked(getAvailability).mockResolvedValue([])
     vi.mocked(listPickupLocationsForOperator).mockResolvedValue([
       { location_id: 'loc-1', name: 'Harbour', name_localized: null },
@@ -371,8 +409,20 @@ describe('Add more to this booking (review step)', () => {
     await waitFor(() => expect(submitBooking).toHaveBeenCalledTimes(1))
     const body = vi.mocked(submitBooking).mock.calls[0]![0]
     expect(body.products).toEqual([
-      expect.objectContaining({ product_id: 'main', quantity: 1, selected_days: ['2026-11-02', '2026-11-03'] }),
-      { product_id: 'camping', quantity: 1, selected_days: ['2026-11-02', '2026-11-03'] },
+      expect.objectContaining({
+        product_id: 'main',
+        quantity: 1,
+        selected_days: ['2026-11-02', '2026-11-03'],
+        line_id: 'main',
+      }),
+      {
+        product_id: 'camping',
+        quantity: 1,
+        selected_days: ['2026-11-02', '2026-11-03'],
+        line_id: 'o1',
+        offer_id: 'offer-camping',
+        parent_line_id: 'main',
+      },
     ])
   })
 
@@ -417,28 +467,43 @@ describe('Add more to this booking (review step)', () => {
       product_id: 'camping',
       quantity: 1,
       selected_days: ['2026-11-02'],
+      line_id: 'o1',
+      offer_id: 'offer-camping',
+      parent_line_id: 'main',
     })
   })
 
-  it('offers only the curated products when the operator lists some', async () => {
+  it('adds only the products offered on the main line', async () => {
     const other = product('other', { name: 'Other' })
     vi.mocked(listProducts).mockResolvedValue([MAIN, CAMPING, other])
+    offerOnMain(offer('other'))
     vi.mocked(getAvailability).mockResolvedValue([])
-    render(<Harness allowed={['other']} />)
+    render(<Harness />)
     expect(await screen.findByTestId('add-more-candidate-other')).toBeInTheDocument()
     expect(screen.queryByTestId('add-more-candidate-camping')).toBeNull()
   })
 
-  it('offers every eligible product when the curated list is empty', async () => {
+  it('offers nothing to add when the main line has no offers', async () => {
+    offerOnMain()
     vi.mocked(getAvailability).mockResolvedValue([])
-    render(<Harness allowed={[]} />)
-    expect(await screen.findByTestId('add-more-candidate-camping')).toBeInTheDocument()
+    render(<Harness />)
+    await screen.findByRole('button', { name: /Confirm booking/i })
+    await waitFor(() => expect(getOffers).toHaveBeenCalled())
+    expect(screen.queryByTestId('add-more-candidate-camping')).toBeNull()
   })
 
-  it('hides the section entirely when the operator turned cross-sell off', async () => {
+  it('hides the cross-sell offers when the operator turned cross-sell off, keeping the main product\'s own', async () => {
+    offerOnMain(
+      offer('camping'),
+      offer('towel', {
+        parent_product_id: 'main',
+        schedule: 'locked',
+        name: 'Towel',
+        sort_order: 1,
+      }),
+    )
     render(<Harness off />)
-    await screen.findByRole('button', { name: /Confirm booking/i })
+    expect(await screen.findByTestId('offer-row-offer-towel')).toBeInTheDocument()
     expect(screen.queryByTestId('add-more-candidate-camping')).toBeNull()
-    expect(listProducts).not.toHaveBeenCalled()
   })
 })
