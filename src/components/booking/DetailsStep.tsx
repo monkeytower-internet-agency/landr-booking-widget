@@ -24,6 +24,7 @@ import {
   removeCompanionAriaLabel,
   removeParticipantAriaLabel,
   tr,
+  daysSelectedLabel,
 } from '@/lib/strings'
 import { CustomerCommentField } from '@/components/booking/CustomerCommentField'
 import { Button } from '@/components/ui/button'
@@ -352,7 +353,7 @@ function describeSelection(
   if (days.length === 0) return ''
   if (days.length === 1) return formatDayLabel(days[0]!, locale)
   // Multi-day: defer to the sidebar's DayChips (landr-2wyi).
-  return `${days.length} days selected`
+  return daysSelectedLabel(days.length, locale)
 }
 
 export function DetailsStep({

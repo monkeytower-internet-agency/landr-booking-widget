@@ -345,7 +345,21 @@ const DEMO_ART_PRODUCTS: Record<string, string[]> = {
   testival: ['testival-day', 'testival-weekend', 'exhibitor-registration'],
 }
 
+/** Template variants that reuse another template's sample art (variant slug -> [art dir, product slug -> art product]). */
+const DEMO_ART_ALIASES: Record<string, { dir: string; products?: Record<string, string> }> = {
+  apartment_simple: { dir: 'apartment' },
+  apartment_italy: {
+    dir: 'apartment',
+    products: { rustico: 'studio', bouganville: 'rooftop-loft', 'casa-cortili': 'family-apartment' },
+  },
+}
+
 export function demoArt(templateSlug: string, productSlug: string, name: string): NonNullable<Product['images']> {
+  const alias = DEMO_ART_ALIASES[templateSlug]
+  if (alias) {
+    templateSlug = alias.dir
+    productSlug = alias.products?.[productSlug] ?? productSlug
+  }
   if (!DEMO_ART_PRODUCTS[templateSlug]?.includes(productSlug)) return []
   const base = `${import.meta.env.BASE_URL}demo/${templateSlug}/${productSlug}`
   return Array.from({ length: DEMO_ART_COUNT }, (_, i) => {

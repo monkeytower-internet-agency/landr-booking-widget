@@ -2,7 +2,7 @@ import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { BreadcrumbItem } from '@/appStepMachine'
 import { browserLocale } from '@/lib/locale'
-import { tr } from '@/lib/strings'
+import { tr, type Bundle } from '@/lib/strings'
 import { useBreadcrumbNav } from './breadcrumbNav'
 
 interface Props {
@@ -65,6 +65,24 @@ export function StepBackButton({ onBack, label = tr('backLabel', browserLocale()
  * non-clickable label. The penultimate crumb (one step back) doubles as the
  * canonical back affordance via the `step-back-button` testid.
  */
+const CRUMB_KEYS: Partial<Record<BreadcrumbItem['name'], keyof Bundle>> = {
+  'product-detail': 'crumbOverview',
+  'pick-selection': 'crumbDates',
+  details: 'crumbParticipants',
+  'pick-accommodation': 'crumbAccommodation',
+  'pick-pickup': 'crumbPickup',
+  'custom-form': 'crumbDetails',
+  'assign-languages': 'crumbLanguage',
+  'fill-form': 'crumbReview',
+}
+
+/** Translated crumb text; the product crumb keeps the product's own name. */
+function crumbLabel(item: BreadcrumbItem): string {
+  const key = CRUMB_KEYS[item.name]
+  if (!key || (item.name === 'product-detail' && item.label !== 'Overview')) return item.label
+  return tr(key, browserLocale())
+}
+
 function StepBreadcrumb({
   items,
   onNavigate,
@@ -94,7 +112,7 @@ function StepBreadcrumb({
                 aria-current="step"
                 className="font-semibold text-foreground"
               >
-                {item.label}
+                {crumbLabel(item)}
               </span>
             ) : (
               <button
@@ -107,7 +125,7 @@ function StepBreadcrumb({
                 }
                 className="rounded-sm text-muted-foreground underline-offset-2 hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
-                {item.label}
+                {crumbLabel(item)}
               </button>
             )}
           </li>
