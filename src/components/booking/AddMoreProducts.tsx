@@ -12,7 +12,7 @@
  * removes it. An added line shows the offers of its own product under it.
  */
 import { InlineGuestAges } from './InlineGuestAges'
-import { useEffect, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react'
+import { useCallback, useEffect, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react'
 import { getAvailability, getFixedDateWindows, getProductFlow, listProducts } from '@/api/client'
 import type { FormResponseEntry, ProductFlowResponse } from '@/api/flowTypes'
 import type { AvailabilitySlot, EstimateLineItem, EvaluatedLine, EvaluatedOffer, FixedDateWindow, Product } from '@/api/types'
@@ -144,6 +144,19 @@ export function AddMoreProducts({
   const [windowsByKey, setWindowsByKey] = useState<Record<string, FixedDateWindow[]>>({})
   // Inline modules the customer re-opened with "Change" (ids: language,
   // pickup, form:<key>).
+  // Pick rows each OfferTree actually rendered, by tree: extras nest only
+  // under a visible row, otherwise they stay in the flat list.
+  const [shownPicks, setShownPicks] = useState<Record<string, string[]>>({})
+  const onRenderedPicks = useCallback((treeId: string, ids: string[]) => {
+    setShownPicks((prev) => {
+      const cur = prev[treeId] ?? []
+      if (cur.join(',') === ids.join(',')) return prev
+      const next = { ...prev }
+      if (ids.length === 0) delete next[treeId]
+      else next[treeId] = ids
+      return next
+    })
+  }, [])
   const [editing, setEditing] = useState<ReadonlySet<string>>(() => new Set())
   const inflight = useRef(new Set<string>())
   const canAddOwn = !!onLinesChangeProp
@@ -368,6 +381,7 @@ export function AddMoreProducts({
   }
   const treeProps = {
     renderExtras: (id: string) => renderExtras(id),
+    onRenderedPicks,
     verdicts: offers.verdicts,
     picks: offers.picks,
     onPicksChange: offers.onPicksChange,
@@ -691,8 +705,6 @@ export function AddMoreProducts({
               <OfferTree {...treeProps} parentLineId={line.lineId} showParentless={false} />
             ) : null}
 
-            {line.lineId ? renderExtras(line.lineId) : null}
-
             {issue === 'checking' ? (
               <p className="text-sm text-muted-foreground">{tr('addMoreChecking', locale)}</p>
             ) : issue === 'unavailable' ? (
@@ -713,15 +725,15 @@ export function AddMoreProducts({
   // extra) they belong to; only those on the main line, or whose parent is not
   // on this step, stay in the flat list.
   const parentIds = new Set([
-    ...offers.picks.map((p) => p.lineId),
+    ...Object.values(shownPicks).flat(),
     ...lines.flatMap((l) => (l.lineId ? [l.lineId] : [])),
   ])
   const nestedUnder = (l: ExtraLine) =>
     !!l.parentLineId && l.parentLineId !== MAIN_LINE_ID && parentIds.has(l.parentLineId)
   const renderExtras = (parentLineId: string): ReactNode => {
-    const kids = lines.filter((l) => l.parentLineId === parentLineId)
+    const kids = lines.filter((l) => l.parentLineId === parentLineId && nestedUnder(l))
     return kids.length > 0 ? (
-      <div data-testid={`add-more-nested-${parentLineId}`} className="ml-4 space-y-2">
+      <div data-testid={`add-more-nested-${parentLineId}`} className="space-y-2">
         {kids.map(renderLine)}
       </div>
     ) : null

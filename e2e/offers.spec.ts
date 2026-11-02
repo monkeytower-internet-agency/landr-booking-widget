@@ -300,11 +300,12 @@ test('an own-dated offer under a pick is added with its own slot and submits nes
   const yoga = page.getByTestId(`add-more-line-${MOCK_OFFER_PRODUCTS.yoga}`)
   await expect(yoga).toBeVisible()
   // ...rendered indented under the pick's row, not in the flat extras list.
-  await expect(page.getByTestId('add-more-nested-o1').getByTestId(`add-more-line-${MOCK_OFFER_PRODUCTS.yoga}`)).toBeVisible()
+  await expect(nested.getByTestId(`add-more-line-${MOCK_OFFER_PRODUCTS.yoga}`)).toBeVisible()
   // It hangs off the pick, never off the stay: the add button left the
   // pick's tree, and the line sits under the pick (add-more-nested-o1) only.
   await expect(nested.getByTestId(`add-more-candidate-${MOCK_OFFER_PRODUCTS.yoga}`)).toHaveCount(0)
   await expect(page.getByTestId(`offer-row-${MOCK_OFFER_IDS.yoga}`)).toHaveCount(0)
+  await expect(page.getByTestId('add-more-products').locator('> [data-testid^="add-more-line-"]')).toHaveCount(0)
   await yoga.getByRole('button', { name: '08:00' }).click()
   await expect(yoga.getByRole('button', { name: '08:00' })).toHaveAttribute('aria-pressed', 'true')
 
