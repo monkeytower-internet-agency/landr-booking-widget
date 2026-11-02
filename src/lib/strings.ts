@@ -1008,6 +1008,7 @@ export type Bundle = {
   offerPriceOnDates: string
   offerWhoTitle: string
   offerOptionPlaceholder: string
+  offerNoOption: string
   offerOptionRequired: string
   offerOptionForTemplate: string
   offerPeriodLocked: string
@@ -2027,6 +2028,7 @@ const en: Bundle = {
   offerPriceOnDates: 'Price for your dates',
   offerWhoTitle: 'Who is it for?',
   offerOptionPlaceholder: 'Choose…',
+  offerNoOption: 'No option',
   offerOptionRequired: 'Please choose an option.',
   offerOptionForTemplate: 'Option for {name}',
   offerPeriodLocked: 'For your whole stay: {period}',

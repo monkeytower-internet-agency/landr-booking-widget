@@ -965,6 +965,7 @@ export const de: Bundle = {
   offerPriceOnDates: 'Preis für deine Daten',
   offerWhoTitle: 'Für wen?',
   offerOptionPlaceholder: 'Bitte wählen…',
+  offerNoOption: 'Keine Option',
   offerOptionRequired: 'Bitte wähle eine Option.',
   offerOptionForTemplate: 'Option für {name}',
   offerPeriodLocked: 'Für deinen ganzen Aufenthalt: {period}',

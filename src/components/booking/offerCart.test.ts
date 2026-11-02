@@ -300,6 +300,15 @@ describe('server-attached person offer with options', () => {
     expect(lines[0]!.line_id).toBe(pick.lineId)
     expect(toEstimateLines([pick], tree, members)).toHaveLength(1)
   })
+
+  it('drops a guest\'s line once their option is cleared', () => {
+    const [seeded] = seedMandatory([], { main: verdict(MAIN_LINE_ID, [tax]) }, tree, members)
+    const chosen = setOption([seeded!], seeded!.lineId, 'm-bob', 'plus')
+    expect(toProductLines(chosen, tree, members)).toHaveLength(1)
+    const cleared = setOption(chosen, seeded!.lineId, 'm-bob', '')
+    expect(cleared[0]!.options).toEqual({})
+    expect(toProductLines(cleared, tree, members)).toEqual([])
+  })
 })
 
 describe('seedMandatory', () => {

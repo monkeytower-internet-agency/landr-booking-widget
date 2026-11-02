@@ -357,14 +357,18 @@ export function togglePerson(
   })
 }
 
-/** Pick an option for one guest (`person`) or for the line (WHOLE_BOOKING). */
+/** Pick an option for one guest (`person`) or for the line (WHOLE_BOOKING); '' clears it. */
 export function setOption(
   picks: readonly OfferPick[],
   lineId: string,
   who: string,
   key: string,
 ): OfferPick[] {
-  return replacePick(picks, lineId, (p) => ({ ...p, options: { ...p.options, [who]: key } }))
+  return replacePick(picks, lineId, (p) => {
+    const options = { ...p.options, [who]: key }
+    if (!key) delete options[who] // cleared: the guest takes no option
+    return { ...p, options }
+  })
 }
 
 /** Set a `free` pick's quantity (clamped); 0 removes an optional pick. */

@@ -960,6 +960,7 @@ export const tr: Bundle = {
   offerPriceOnDates: 'Tarihlerin için fiyat',
   offerWhoTitle: 'Kimin için?',
   offerOptionPlaceholder: 'Seç…',
+  offerNoOption: 'Seçenek yok',
   offerOptionRequired: 'Lütfen bir seçenek seç.',
   offerOptionForTemplate: '{name} için seçenek',
   offerPeriodLocked: 'Tüm konaklaman için: {period}',

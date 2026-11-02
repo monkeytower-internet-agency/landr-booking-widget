@@ -955,6 +955,7 @@ export const it: Bundle = {
   offerPriceOnDates: 'Prezzo per le tue date',
   offerWhoTitle: 'Per chi?',
   offerOptionPlaceholder: 'Scegli…',
+  offerNoOption: 'Nessuna opzione',
   offerOptionRequired: 'Scegli un’opzione.',
   offerOptionForTemplate: 'Opzione per {name}',
   offerPeriodLocked: 'Per tutto il soggiorno: {period}',
