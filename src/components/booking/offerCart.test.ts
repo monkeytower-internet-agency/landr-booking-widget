@@ -275,6 +275,33 @@ describe('wire allow-list', () => {
   })
 })
 
+describe('server-attached person offer with options', () => {
+  const opts = [
+    { key: 'std', label: 'Standard', price_delta_cents: 0 },
+    { key: 'plus', label: 'Plus', price_delta_cents: 150 },
+  ]
+  const tax = offer('tax', { binding: 'person', mode: 'mandatory', server_attached: true, options: opts })
+
+  it('is seeded for every admitted guest and never blocks Confirm', () => {
+    const picks = seedMandatory([], { main: verdict(MAIN_LINE_ID, [tax]) }, tree, members)
+    expect(picks.map((p) => p.offerId)).toEqual(['tax'])
+    expect(picks[0]!.options).toEqual({})
+    expect(picksBlocking(picks)).toBe(false)
+    expect(toProductLines(picks, tree, members)).toEqual([])
+  })
+
+  it('sends one line only for each guest who chose an option', () => {
+    const [seeded] = seedMandatory([], { main: verdict(MAIN_LINE_ID, [tax]) }, tree, members)
+    const pick = { ...seeded!, options: { 'm-bob': 'plus' } }
+    const lines = toProductLines([pick], tree, members)
+    expect(lines).toHaveLength(1)
+    expect(lines[0]).toMatchObject({ offer_id: 'tax', quantity: 1, option_key: 'plus' })
+    expect(lines[0]!.participant_id).toBe(members.find((m) => m.key === 'm-bob')!.ref)
+    expect(lines[0]!.line_id).toBe(pick.lineId)
+    expect(toEstimateLines([pick], tree, members)).toHaveLength(1)
+  })
+})
+
 describe('seedMandatory', () => {
   const tax = offer('tax', { binding: 'person', mode: 'mandatory', server_attached: true })
   const migrated = offer('linen', {

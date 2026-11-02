@@ -218,6 +218,22 @@ describe('OfferRow: mode', () => {
   })
 })
 
+describe('OfferRow: server-attached person offer with options', () => {
+  const offer = evalOffer('pass', {
+    mode: 'mandatory',
+    binding: 'person',
+    server_attached: true,
+    options: OPTIONS,
+  })
+
+  it('lets each guest pick an option, none required', () => {
+    render(<Row offer={offer} initial={[picked(offer, { memberIds: ['m1', 'm2'] })]} />)
+    expect(screen.getByTestId('offer-option-pass-g1')).toHaveValue('')
+    expect(screen.getByTestId('offer-option-pass-g2')).toBeEnabled()
+    expect(screen.queryByTestId('offer-option-required-pass')).toBeNull()
+  })
+})
+
 describe('OfferRow: migrated mandatory person offer', () => {
   const offer = evalOffer('pass', {
     mode: 'mandatory',

@@ -455,9 +455,15 @@ export function isDayFull(
 
 // ---- gating ------------------------------------------------------------------
 
+/** A mandatory per-person pick the server attaches itself (its option is optional). */
+function isServerAttached(p: OfferPick): boolean {
+  return p.binding === 'person' && p.mode === 'mandatory' && p.seen.server_attached === true
+}
+
 /** The option a guest still has to choose, if any. */
 export function missingOption(p: OfferPick): boolean {
   if ((p.seen.options?.length ?? 0) === 0) return false
+  if (isServerAttached(p)) return false // an option is optional there
   const keys = p.binding === 'person' ? p.memberIds : [WHOLE_BOOKING]
   return keys.some((k) => !p.options[k])
 }
@@ -521,8 +527,8 @@ export type VerdictsByLine = Readonly<Record<string, EvaluatedLine>>
 /**
  * Mandatory offers start picked (and cannot be removed): booking / free ones
  * at `max(1, min_qty)` with their first option. A mandatory per-person offer
- * is attached by the server itself (`server_attached` true) and is never
- * seeded; any other (`server_attached` false, or absent on an older API, so a
+ * is attached by the server itself (`server_attached` true) and is seeded
+ * only when it has options (each guest may pick one; none is required); any other (`server_attached` false, or absent on an older API, so a
  * line is never silently dropped; the server replaces copies it attaches) (`server_attached`
  * false) becomes a read-only pick ticking every guest its rules admit.
  * Idempotent; offers already in the cart (`in_cart`) are left alone.
@@ -543,7 +549,9 @@ export function seedMandatory(
       if (offer.mode !== 'mandatory' || offer.in_cart) continue
       if (effectiveSchedule(offer) === 'own' || isOfferSoldOut(offer)) continue
       if (out.some((p) => p.offerId === offer.id && p.parentLineId === parentLineId)) continue
-      if (offer.binding === 'person' && offer.server_attached === true) continue
+      // A server-attached per-person offer is seeded only to let each guest
+      // pick an option; without options the server counts the guests itself.
+      if (offer.binding === 'person' && offer.server_attached === true && !offer.options?.length) continue
       const id = nextLineId(prefix, treeLineIds(tree, out))
       const pick = newPick(offer, parentLineId, id, lineDays(parentLineId, tree, out))
       if (offer.binding === 'person') {
@@ -701,9 +709,10 @@ function pickWireLines(
   const out: PickWireLine[] = []
   for (const p of picks) {
     if (p.mode === 'info') continue
-    if (p.binding === 'person' && p.seen.server_attached === true && p.mode === 'mandatory') {
-      continue
-    }
+    // A server-attached offer is counted by the server; only a guest's chosen
+    // option travels (their line is the source of the option, nothing else).
+    const attached = isServerAttached(p)
+    if (attached && !p.memberIds.some((k) => p.options[k])) continue
     const days = lineDays(p.lineId, tree, picks)
     const common = {
       parent_line_id: p.parentLineId,
@@ -712,14 +721,17 @@ function pickWireLines(
       ...(days.length > 0 ? { selected_days: [...days].sort() } : {}),
     }
     if (p.binding === 'person') {
-      p.memberIds.forEach((key, i) => {
+      let first = true
+      p.memberIds.forEach((key) => {
         const ref = refOf.get(key)
-        if (!ref) return
         const option = p.options[key]
+        if (!ref || (attached && !option)) return
+        const isFirst = first
+        first = false
         out.push({
           ...common,
           // The first guest's line keeps the pick's id: children hang off it.
-          line_id: i === 0 ? p.lineId : `${p.lineId}-${ref}`,
+          line_id: isFirst ? p.lineId : `${p.lineId}-${ref}`,
           qty: 1,
           participant_id: ref,
           ...(option ? { option_key: option } : {}),

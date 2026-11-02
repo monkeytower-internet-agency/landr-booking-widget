@@ -200,9 +200,10 @@ export function OfferRow({
         <OfferPrice offer={offer} locale={locale} estimate={estimate} currency={currency} />
       </div>
 
-      {readOnlyPerson && pick && !serverAttached && options.length > 0 ? (
-        // A migrated mandatory per-person extra with options: every admitted
-        // guest is in, each picks their option (nothing preselected).
+      {readOnlyPerson && pick && options.length > 0 ? (
+        // A mandatory per-person extra with options: every admitted guest is
+        // in, each picks their option (nothing preselected; optional when the
+        // server attaches the offer).
         <PersonTickList
           offerId={offer.id}
           members={members.filter((m) => pick.memberIds.includes(m.key))}
@@ -213,7 +214,7 @@ export function OfferRow({
           currency={currency}
           locale={locale}
           disabled
-          optionsDisabled={disabled}
+          optionsDisabled={disabled ?? false}
           onToggle={() => {}}
           onOption={onOption}
         />
