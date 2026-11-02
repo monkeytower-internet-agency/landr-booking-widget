@@ -8696,6 +8696,17 @@
             "title": "Held Seats",
             "type": "array"
           },
+          "on_site_total": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "On Site Total"
+          },
           "rows": {
             "items": {
               "$ref": "#/components/schemas/DayManifestRow"
@@ -8919,6 +8930,13 @@
               }
             ],
             "title": "Note"
+          },
+          "on_site_lines": {
+            "items": {
+              "$ref": "#/components/schemas/ManifestOnSiteLine"
+            },
+            "title": "On Site Lines",
+            "type": "array"
           },
           "part_of_day": {
             "anyOf": [
@@ -16638,6 +16656,70 @@
         "title": "MachineDecideResult",
         "type": "object"
       },
+      "ManifestOnSiteLine": {
+        "description": "One pay-on-arrival offer line the participant-day owes (landr-tm48v.8).\n\nRead from the ``booking_products`` columns (collection = on_site). A\nperson-bound line lists under each guest it covers; a booking-bound line\n(``booking_bound``) under every guest of its booking. ``collection_amount``\nis money: absent (None) for a role that cannot see money (field).",
+        "properties": {
+          "booking_bound": {
+            "default": false,
+            "title": "Booking Bound",
+            "type": "boolean"
+          },
+          "booking_product_id": {
+            "title": "Booking Product Id",
+            "type": "string"
+          },
+          "collection_amount": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection Amount"
+          },
+          "currency": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Currency"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "option_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Option Label"
+          },
+          "participant_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Participant Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "booking_product_id",
+          "label"
+        ],
+        "title": "ManifestOnSiteLine",
+        "type": "object"
+      },
       "ManifestProductRef": {
         "properties": {
           "id": {
@@ -23605,6 +23687,39 @@
             ],
             "title": "Applied Rules"
           },
+          "booking_product_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Booking Product Id"
+          },
+          "collection": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection"
+          },
+          "collection_amount": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection Amount"
+          },
           "label": {
             "title": "Label",
             "type": "string"
@@ -23612,6 +23727,50 @@
           "line_total": {
             "title": "Line Total",
             "type": "string"
+          },
+          "offer_mode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Offer Mode"
+          },
+          "offer_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Offer Status"
+          },
+          "option_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Option Key"
+          },
+          "option_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Option Label"
           },
           "paid_to": {
             "enum": [
@@ -23621,6 +23780,20 @@
             ],
             "title": "Paid To",
             "type": "string"
+          },
+          "participant_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Participant Ids",
+            "type": "array"
+          },
+          "participant_names": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Participant Names",
+            "type": "array"
           },
           "payment_note": {
             "anyOf": [
@@ -23731,6 +23904,11 @@
               }
             ],
             "title": "Offer"
+          },
+          "on_site_total": {
+            "default": "0.00",
+            "title": "On Site Total",
+            "type": "string"
           },
           "operator_total": {
             "title": "Operator Total",
@@ -29257,6 +29435,18 @@
       "RenderIn": {
         "additionalProperties": false,
         "properties": {
+          "booking_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Booking Id"
+          },
           "template_id": {
             "maxLength": 64,
             "minLength": 1,
