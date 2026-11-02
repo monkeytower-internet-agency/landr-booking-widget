@@ -189,6 +189,8 @@ test('the demo apartment shows its offers and submits offer lines', async ({ pag
   const onSite = page.getByTestId('price-sidebar-on-site').first()
   await expect(onSite).toContainText('Tourist tax')
   await expect(onSite).toContainText('€20.00')
+  // Close the drawer again: open, it covers the form's Confirm button.
+  if (await toggle.isVisible()) await toggle.click()
 
   await page.getByRole('button', { name: /Confirm booking/i }).click()
   await expect.poll(() => seen.submit.length).toBe(1)
