@@ -905,6 +905,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/internal/release/website-deploy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Relay Website Deploy */
+        post: operations["relay_website_deploy"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/landr-staff/billing/invoices": {
         parameters: {
             query?: never;
@@ -2125,6 +2142,28 @@ export interface paths {
         put?: never;
         /** Landr Staff Flag Template */
         post: operations["landr_staff_flag_template"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/landr-staff/templates/website-deploy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Landr Staff Deploy Website
+         * @description Rebuild the staging marketing site so saved listing changes show up
+         *     (landr-956lq). Relays to the dev control plane, which dispatches the
+         *     website's deploy workflow on ``staging``.
+         */
+        post: operations["landr_staff_deploy_website"];
         delete?: never;
         options?: never;
         head?: never;
@@ -27119,6 +27158,23 @@ export interface components {
             /** Ok */
             ok: boolean;
         };
+        /** WebsiteDeployIn */
+        WebsiteDeployIn: {
+            /** Ref */
+            ref: string;
+        };
+        /** WebsiteDeployOut */
+        WebsiteDeployOut: {
+            /** Request Id */
+            request_id: string;
+            /** Run Url */
+            run_url?: string | null;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "dispatched" | "running";
+        };
         /** WebsiteListingIn */
         WebsiteListingIn: {
             /** Listed */
@@ -28688,6 +28744,43 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    relay_website_deploy: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Release-Relay-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WebsiteDeployIn"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
@@ -30562,6 +30655,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    landr_staff_deploy_website: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebsiteDeployOut"];
                 };
             };
         };

@@ -39263,6 +39263,52 @@
         "title": "WebhookProbeResult",
         "type": "object"
       },
+      "WebsiteDeployIn": {
+        "properties": {
+          "ref": {
+            "title": "Ref",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ref"
+        ],
+        "title": "WebsiteDeployIn",
+        "type": "object"
+      },
+      "WebsiteDeployOut": {
+        "properties": {
+          "request_id": {
+            "title": "Request Id",
+            "type": "string"
+          },
+          "run_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Url"
+          },
+          "state": {
+            "enum": [
+              "dispatched",
+              "running"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "state",
+          "request_id"
+        ],
+        "title": "WebsiteDeployOut",
+        "type": "object"
+      },
       "WebsiteListingIn": {
         "properties": {
           "listed": {
@@ -42352,6 +42398,67 @@
         ]
       }
     },
+    "/api/internal/release/website-deploy": {
+      "post": {
+        "operationId": "relay_website_deploy",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Release-Relay-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Release-Relay-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebsiteDeployIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Relay Website Deploy",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Relay Website Deploy",
+        "tags": [
+          "release-internal"
+        ]
+      }
+    },
     "/api/landr-staff/billing/invoices": {
       "get": {
         "operationId": "list_invoices",
@@ -45320,6 +45427,33 @@
           }
         ],
         "summary": "Landr Staff Flag Template",
+        "tags": [
+          "landr-staff-templates"
+        ]
+      }
+    },
+    "/api/landr-staff/templates/website-deploy": {
+      "post": {
+        "description": "Rebuild the staging marketing site so saved listing changes show up\n(landr-956lq). Relays to the dev control plane, which dispatches the\nwebsite's deploy workflow on ``staging``.",
+        "operationId": "landr_staff_deploy_website",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebsiteDeployOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Landr Staff Deploy Website",
         "tags": [
           "landr-staff-templates"
         ]
