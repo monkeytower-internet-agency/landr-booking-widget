@@ -35278,6 +35278,10 @@
             "title": "Slug",
             "type": "string"
           },
+          "tier_listing": {
+            "$ref": "#/components/schemas/TierListingOut",
+            "default": {}
+          },
           "uses_pools": {
             "title": "Uses Pools",
             "type": "boolean"
@@ -37394,6 +37398,46 @@
           "detail"
         ],
         "title": "TestEmailResult",
+        "type": "object"
+      },
+      "TierListingOut": {
+        "description": "Marketing-site listing flag per tier (landr-36j1n); null = unknown.",
+        "properties": {
+          "development": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Development"
+          },
+          "production": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Production"
+          },
+          "staging": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Staging"
+          }
+        },
+        "title": "TierListingOut",
         "type": "object"
       },
       "TodayMessagePostIn": {

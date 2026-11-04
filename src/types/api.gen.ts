@@ -25465,6 +25465,8 @@ export interface components {
             product_kind?: string | null;
             /** Slug */
             slug: string;
+            /** @default {} */
+            tier_listing: components["schemas"]["TierListingOut"];
             /** Uses Pools */
             uses_pools: boolean;
             /** Version */
@@ -26275,6 +26277,18 @@ export interface components {
              * @enum {string}
              */
             status: "sent" | "failed";
+        };
+        /**
+         * TierListingOut
+         * @description Marketing-site listing flag per tier (landr-36j1n); null = unknown.
+         */
+        TierListingOut: {
+            /** Development */
+            development?: boolean | null;
+            /** Production */
+            production?: boolean | null;
+            /** Staging */
+            staging?: boolean | null;
         };
         /** TodayMessagePostIn */
         TodayMessagePostIn: {
