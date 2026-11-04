@@ -32369,6 +32369,29 @@
         "title": "ResourceTypePatch",
         "type": "object"
       },
+      "RetireOut": {
+        "properties": {
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "retired": {
+            "title": "Retired",
+            "type": "boolean"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "retired",
+          "message"
+        ],
+        "title": "RetireOut",
+        "type": "object"
+      },
       "RetrievePatchIn": {
         "description": "PATCH body \u2014 operator sets the retrieve workflow state/note.\n\nBoth optional; only fields explicitly set are written. retrieve_state is\nfree text by design (operator-defined pickup workflow); the customer-set\nfields (status/coords/note) are NOT settable here.",
         "properties": {
@@ -35278,6 +35301,10 @@
             "title": "Slug",
             "type": "string"
           },
+          "tier_listing": {
+            "$ref": "#/components/schemas/TierListingOut",
+            "default": {}
+          },
           "uses_pools": {
             "title": "Uses Pools",
             "type": "boolean"
@@ -37228,6 +37255,11 @@
       },
       "TemplatePublishOut": {
         "properties": {
+          "bumped": {
+            "default": false,
+            "title": "Bumped",
+            "type": "boolean"
+          },
           "exported_version": {
             "anyOf": [
               {
@@ -37238,6 +37270,11 @@
               }
             ],
             "title": "Exported Version"
+          },
+          "nothing_to_publish": {
+            "default": false,
+            "title": "Nothing To Publish",
+            "type": "boolean"
           },
           "pr_url": {
             "anyOf": [
@@ -37394,6 +37431,46 @@
           "detail"
         ],
         "title": "TestEmailResult",
+        "type": "object"
+      },
+      "TierListingOut": {
+        "description": "Marketing-site listing flag per tier (landr-36j1n); null = unknown.",
+        "properties": {
+          "development": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Development"
+          },
+          "production": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Production"
+          },
+          "staging": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Staging"
+          }
+        },
+        "title": "TierListingOut",
         "type": "object"
       },
       "TodayMessagePostIn": {
@@ -45668,7 +45745,7 @@
     },
     "/api/landr-staff/templates/{slug}/publish": {
       "post": {
-        "description": "Publish the template's current version to dev as an export PR.\n\nThe version decision lives in the dev workflow: when the staging version\nalready is the exported one the answer is ``state: \"exported\"`` (the UI\nsays \"bump the version first\"); nothing is auto-bumped here.",
+        "description": "Publish the template's current version to dev as an export PR.\n\nWhen the current version already is the exported one and the template\nchanged since (landr-ugm4s) the version is bumped here first; unchanged\nanswers ``state: \"exported\"`` with ``nothing_to_publish`` and no relay.",
         "operationId": "landr_staff_publish_template",
         "parameters": [
           {
@@ -45756,6 +45833,54 @@
           }
         ],
         "summary": "Landr Staff Template Publish Status",
+        "tags": [
+          "landr-staff-templates"
+        ]
+      }
+    },
+    "/api/landr-staff/templates/{slug}/retire": {
+      "post": {
+        "description": "Retire = unflag with the same guards (409 ``template_exported`` while the\ncurrent version is the exported one). The operator keeps its data and\nbecomes a normal Free operator; production keeps any copy it already got.",
+        "operationId": "landr_staff_retire_template",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "title": "Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RetireOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Landr Staff Retire Template",
         "tags": [
           "landr-staff-templates"
         ]
