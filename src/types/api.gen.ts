@@ -2239,9 +2239,9 @@ export interface paths {
          * Landr Staff Publish Template
          * @description Publish the template's current version to dev as an export PR.
          *
-         *     The version decision lives in the dev workflow: when the staging version
-         *     already is the exported one the answer is ``state: "exported"`` (the UI
-         *     says "bump the version first"); nothing is auto-bumped here.
+         *     When the current version already is the exported one and the template
+         *     changed since (landr-ugm4s) the version is bumped here first; unchanged
+         *     answers ``state: "exported"`` with ``nothing_to_publish`` and no relay.
          */
         post: operations["landr_staff_publish_template"];
         delete?: never;
@@ -2261,6 +2261,28 @@ export interface paths {
         get: operations["landr_staff_template_publish_status"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/landr-staff/templates/{slug}/retire": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Landr Staff Retire Template
+         * @description Retire = unflag with the same guards (409 ``template_exported`` while the
+         *     current version is the exported one). The operator keeps its data and
+         *     becomes a normal Free operator; production keeps any copy it already got.
+         */
+        post: operations["landr_staff_retire_template"];
         delete?: never;
         options?: never;
         head?: never;
@@ -24296,6 +24318,15 @@ export interface components {
             /** Unit Label Plural */
             unit_label_plural?: string | null;
         };
+        /** RetireOut */
+        RetireOut: {
+            /** Message */
+            message: string;
+            /** Retired */
+            retired: boolean;
+            /** Slug */
+            slug: string;
+        };
         /**
          * RetrievePatchIn
          * @description PATCH body — operator sets the retrieve workflow state/note.
@@ -26204,8 +26235,18 @@ export interface components {
         };
         /** TemplatePublishOut */
         TemplatePublishOut: {
+            /**
+             * Bumped
+             * @default false
+             */
+            bumped: boolean;
             /** Exported Version */
             exported_version?: number | null;
+            /**
+             * Nothing To Publish
+             * @default false
+             */
+            nothing_to_publish: boolean;
             /** Pr Url */
             pr_url?: string | null;
             /** Request Id */
@@ -30870,6 +30911,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TemplatePublishOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    landr_staff_retire_template: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RetireOut"];
                 };
             };
             /** @description Validation Error */
