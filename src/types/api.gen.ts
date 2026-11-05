@@ -7020,6 +7020,26 @@ export interface paths {
         patch: operations["staff_patch_participant_pickup_details"];
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/participants/{participant_id}/replace": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Replace Booking Participant
+         * @description Re-point a participant seat to another person (see the module docstring).
+         */
+        post: operations["staff_replace_booking_participant"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/bookings/{booking_id}/payment-link": {
         parameters: {
             query?: never;
@@ -19508,6 +19528,17 @@ export interface components {
             /** Phone */
             phone?: string | null;
         };
+        /** NewParticipantContact */
+        NewParticipantContact: {
+            /** Email */
+            email?: string | null;
+            /** First Name */
+            first_name: string;
+            /** Last Name */
+            last_name?: string | null;
+            /** Phone */
+            phone?: string | null;
+        };
         /** NoShowIn */
         NoShowIn: {
             /**
@@ -23455,6 +23486,39 @@ export interface components {
         ReorderIn: {
             /** Ids */
             ids: string[];
+        };
+        /** ReplaceParticipantIn */
+        ReplaceParticipantIn: {
+            /** Contact Id */
+            contact_id?: string | null;
+            new_contact?: components["schemas"]["NewParticipantContact"] | null;
+        };
+        /** ReplaceParticipantOut */
+        ReplaceParticipantOut: {
+            /** Changed */
+            changed: boolean;
+            contact: components["schemas"]["ReplacedContactOut"];
+            /** Matched Existing */
+            matched_existing: boolean;
+            /** Old Contact Id */
+            old_contact_id: string;
+            /** Participant Id */
+            participant_id: string;
+            /** Shared Email */
+            shared_email?: string | null;
+        };
+        /** ReplacedContactOut */
+        ReplacedContactOut: {
+            /** Email */
+            email?: string | null;
+            /** First Name */
+            first_name?: string | null;
+            /** Id */
+            id: string;
+            /** Last Name */
+            last_name?: string | null;
+            /** Phone */
+            phone?: string | null;
         };
         /** RequestChannelIn */
         RequestChannelIn: {
@@ -38103,6 +38167,43 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PickupDetailsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_replace_booking_participant: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                booking_id: string;
+                participant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReplaceParticipantIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReplaceParticipantOut"];
                 };
             };
             /** @description Validation Error */
