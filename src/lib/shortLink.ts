@@ -12,7 +12,7 @@ import { shortLinkCode } from '../detectRoute'
  */
 export async function resolveShortLinkPath(
   loc: Pick<Location, 'pathname'> = window.location,
-  history: Pick<History, 'replaceState'> = window.history,
+  historyApi: Pick<History, 'replaceState'> = window.history,
 ): Promise<void> {
   const code = shortLinkCode(loc.pathname)
   if (!code) return
@@ -24,5 +24,5 @@ export async function resolveShortLinkPath(
   } catch {
     // fall through to the invalid-link target
   }
-  history.replaceState(null, '', target)
+  historyApi.replaceState(null, '', target)
 }

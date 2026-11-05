@@ -475,6 +475,7 @@ export function AvailabilityPicker({
           <CalendarDayHintContext.Provider value={dayHint}>
           <CalendarPartyContext.Provider value={need}>
             <Calendar
+              today={today}
               className={slots === null ? 'pointer-events-none opacity-40' : undefined}
               mode="single"
               selected={selectedDate}

@@ -905,6 +905,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/internal/release/website-deploy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Relay Website Deploy */
+        post: operations["relay_website_deploy"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/landr-staff/billing/invoices": {
         parameters: {
             query?: never;
@@ -2131,6 +2148,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/landr-staff/templates/website-deploy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Landr Staff Deploy Website
+         * @description Rebuild the staging marketing site so saved listing changes show up
+         *     (landr-956lq). Relays to the dev control plane, which dispatches the
+         *     website's deploy workflow on ``staging``.
+         */
+        post: operations["landr_staff_deploy_website"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/landr-staff/templates/{slug}": {
         parameters: {
             query?: never;
@@ -2200,9 +2239,9 @@ export interface paths {
          * Landr Staff Publish Template
          * @description Publish the template's current version to dev as an export PR.
          *
-         *     The version decision lives in the dev workflow: when the staging version
-         *     already is the exported one the answer is ``state: "exported"`` (the UI
-         *     says "bump the version first"); nothing is auto-bumped here.
+         *     When the current version already is the exported one and the template
+         *     changed since (landr-ugm4s) the version is bumped here first; unchanged
+         *     answers ``state: "exported"`` with ``nothing_to_publish`` and no relay.
          */
         post: operations["landr_staff_publish_template"];
         delete?: never;
@@ -2221,6 +2260,49 @@ export interface paths {
         /** Landr Staff Template Publish Status */
         get: operations["landr_staff_template_publish_status"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/landr-staff/templates/{slug}/retire": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Landr Staff Retire Template
+         * @description Retire = unflag with the same guards (409 ``template_exported`` while the
+         *     current version is the exported one). The operator keeps its data and
+         *     becomes a normal Free operator; production keeps any copy it already got.
+         */
+        post: operations["landr_staff_retire_template"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/landr-staff/templates/{slug}/website-listing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Landr Staff Set Website Listing
+         * @description Show / hide the template on the marketing website. Not editor-gated:
+         *     the flag is per environment, so it works on production too.
+         */
+        put: operations["landr_staff_set_website_listing"];
         post?: never;
         delete?: never;
         options?: never;
@@ -2875,6 +2957,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/operators/{operator_id}/bookings/{booking_id}/participants/{participant_id}/attributes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Patch Participant Attributes */
+        patch: operations["patch_participant_attributes"];
+        trace?: never;
+    };
     "/api/operators/{operator_id}/emails/compose": {
         parameters: {
             query?: never;
@@ -2947,6 +3046,57 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/operators/{operator_id}/guest-attribute-definitions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Guest Attribute Definitions
+         * @description The operator's attribute catalogue: the five well-known keys plus custom ones.
+         */
+        get: operations["list_guest_attribute_definitions"];
+        put?: never;
+        /**
+         * Create Guest Attribute Definition
+         * @description Add a custom attribute. 409 ``attribute_key_taken`` for a duplicate key.
+         */
+        post: operations["create_guest_attribute_definition"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/operators/{operator_id}/guest-attribute-definitions/{definition_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Guest Attribute Definition
+         * @description Delete a custom attribute. 409 ``guest_attribute_in_use`` (``key``, ``products``,
+         *     ``offers`` ids) while a live rule / required_attributes still names it; 422
+         *     ``well_known_locked`` for a well-known key; 404 ``attribute_not_found``.
+         */
+        delete: operations["delete_guest_attribute_definition"];
+        options?: never;
+        head?: never;
+        /**
+         * Patch Guest Attribute Definition
+         * @description Edit label / translations / order / active (and unit, choices, bounds of a
+         *     custom key). 422 ``well_known_locked`` for the platform shape of a well-known key.
+         */
+        patch: operations["patch_guest_attribute_definition"];
         trace?: never;
     };
     "/api/operators/{operator_id}/holded/pending-decisions": {
@@ -3025,6 +3175,108 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/operators/{operator_id}/offers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Offers
+         * @description The operator's offers, optionally narrowed to one parent or one offered product.
+         */
+        get: operations["list_product_offers"];
+        put?: never;
+        /**
+         * Create Offer
+         * @description Create an offer. 404 ``referenced_row_not_found`` when a product, parent,
+         *     rule product / season or attribute key is not this operator's.
+         */
+        post: operations["create_product_offer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/operators/{operator_id}/offers/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview Offers
+         * @description Preview as guest (landr-tm48v.7): the offers and prices the public
+         *     evaluate endpoint returns for this party, through the SAME evaluator and
+         *     pricing path, but authenticated as the operator (no widget token) and with
+         *     draft (inactive / unlisted) products and offers included, flagged ``draft``.
+         *     The operator is the principal's; a product that is not theirs is a 404.
+         */
+        post: operations["preview_product_offers"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/operators/{operator_id}/offers/{offer_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Offer
+         * @description Delete an offer. A migrated add-on is removed by deleting its
+         *     product_addons link; a cross-sell row is deleted directly.
+         */
+        delete: operations["delete_product_offer"];
+        options?: never;
+        head?: never;
+        /**
+         * Patch Offer
+         * @description Update the fields sent. A migrated add-on writes them through to its
+         *     product_addons link in one transaction (409 ``addon_link_exists`` for a
+         *     duplicate parent/add-on pair, ``binding_not_applicable``,
+         *     ``product_cap_overrides`` for a cleared max_qty under the product's own cap);
+         *     409 ``offer_owned_by_legacy_source`` for parent / product of a cross-sell row
+         *     or a null parent on a migrated add-on.
+         */
+        patch: operations["patch_product_offer"];
+        trace?: never;
+    };
+    "/api/operators/{operator_id}/products/{product_id}/eligibility-rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Patch Product Eligibility Rules
+         * @description Set "who can book" (``products.eligibility_rules``; null = everyone). 404
+         *     ``referenced_row_not_found`` for a product that is not this operator's, or
+         *     (field ``rules``) a guest-attribute key outside the operator's catalogue or a
+         *     product / season of another operator.
+         */
+        patch: operations["patch_product_eligibility_rules"];
         trace?: never;
     };
     "/api/public/approval-requests/{token}": {
@@ -3765,6 +4017,39 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/public/offers/evaluate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Evaluate Offers
+         * @description landr-tm48v.2: which offers each cart line shows this party, and may
+         *     each line be booked -- the ONE evaluator (app/services/offer_rules.py)
+         *     with the facts only the server knows (capacity for ``parent_unavailable``,
+         *     the seasons the dates touch). The widget (landr-tm48v.5) reads this
+         *     instead of GET /products/{id}/addons; submit re-judges the same way.
+         *
+         *     Keyed on the widget token in the body: every line's product must be that
+         *     operator's active, publicly listed, not-deleted product, else one uniform
+         *     404. Per line, in request order: ``eligible`` -- the verdict submit
+         *     enforces (offer_enforcement.judge_lines: the product's eligibility_rules,
+         *     and offered by a parent line where the cart has one) -- and the offers
+         *     (``visible_offers_for``: parent-linked ones always, flagged ``in_cart``
+         *     when already this line's child; on a top-level line also the cross-sell
+         *     ones not yet in the cart) with a price preview.
+         */
+        post: operations["evaluate_offers"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/public/operator-invites/{token}": {
         parameters: {
             query?: never;
@@ -4077,6 +4362,15 @@ export interface paths {
          *     LEGACY path the widget reproduces bit-for-bit (zero config = today's
          *     hardcoded flow). Keyed on the opaque widget_token (resolved to the slug
          *     here); an unknown token 404s via ``_resolve_operator_by_token``.
+         *
+         *     landr-tm48v.2: ``eligible`` + ``eligibility_reason_key`` -- may the product
+         *     be booked on these dates (``products.eligibility_rules`` through the offer
+         *     evaluator, without a party: ``attribute_missing.<key>`` = ask the guests,
+         *     then judge them with POST /offers/evaluate, which never puts guest data in
+         *     a URL). Present when the product has eligibility rules or the caller sent
+         *     ``arrival`` / ``departure``; absent otherwise, so the legacy wire shape
+         *     stays as it was. 422 ``bad_dates`` for a departure without an arrival,
+         *     before it, or more than a year after it.
          */
         get: operations["get_product_flow"];
         put?: never;
@@ -4231,8 +4525,10 @@ export interface paths {
          *     Thin FastAPI wrapper over the SECURITY DEFINER RPC
          *     `public_get_product_addons`. Returns one row per linked add-on
          *     product, including the add-on's display name, per-unit price (when
-         *     the scheme exposes a per_day_base rule), and the product_addons
-         *     config (is_required, min_qty, max_qty, sort_order). The widget
+         *     the scheme exposes a per_day_base rule), and the offer's config
+         *     (is_required = mandatory, min_qty, max_qty, sort_order; landr-tm48v.2:
+         *     the RPC reads ``offers`` -- rows needing guests or dates are left out,
+         *     POST /offers/evaluate judges those). The widget
          *     calls this after the customer picks a parent product to render
          *     qty steppers + the orange overbook warning + required-min gating.
          *
@@ -4241,6 +4537,33 @@ export interface paths {
          *     treats an empty list as "no add-ons" and skips the add-on UI.
          */
         get: operations["get_product_addons"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/products/{product_id}/addons/stock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Product Addons Stock By Day
+         * @description Per-day stock of the day-pickable (``parent_subset``) companion add-ons
+         *     of a parent product, in ONE call instead of one add-ons call per day.
+         *
+         *     Same verdict as ``GET /products/{id}/addons`` with a single-day
+         *     ``selected_days`` (the add-on's minimum quantity, at least 1, judged in the
+         *     parent's own stock scope), for every day asked. Hidden parent / no
+         *     companion add-ons: an empty list. At most 31 distinct days (422
+         *     ``too_many_days``).
+         */
+        get: operations["get_product_addons_stock_by_day"];
         put?: never;
         post?: never;
         delete?: never;
@@ -6697,6 +7020,26 @@ export interface paths {
         patch: operations["staff_patch_participant_pickup_details"];
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/participants/{participant_id}/replace": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Replace Booking Participant
+         * @description Re-point a participant seat to another person (see the module docstring).
+         */
+        post: operations["staff_replace_booking_participant"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/bookings/{booking_id}/payment-link": {
         parameters: {
             query?: never;
@@ -6742,6 +7085,23 @@ export interface paths {
         put?: never;
         /** Send Payment Receipt */
         post: operations["send_payment_receipt"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/price-correction-notice": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Price Correction Notice */
+        post: operations["price_correction_notice"];
         delete?: never;
         options?: never;
         head?: never;
@@ -12633,6 +12993,59 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/trello-board-links": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Staff Trello List Links */
+        get: operations["staff_trello_list_links"];
+        put?: never;
+        /** Staff Trello Create Link */
+        post: operations["staff_trello_create_link"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/trello-board-links/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Staff Trello Resolve Board */
+        get: operations["staff_trello_resolve_board"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/trello-board-links/{link_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Staff Trello Delete Link */
+        delete: operations["staff_trello_delete_link"];
+        options?: never;
+        head?: never;
+        /** Staff Trello Patch Link */
+        patch: operations["staff_trello_patch_link"];
+        trace?: never;
+    };
     "/api/tickets/{ticket_id}/notify-mentions": {
         parameters: {
             query?: never;
@@ -12898,6 +13311,29 @@ export interface components {
         ActivityCodePatch: {
             /** Rotate Weekly */
             rotate_weekly: boolean;
+        };
+        /**
+         * AddonDayStock
+         * @description One (day, companion add-on) stock verdict of
+         *     GET /products/{id}/addons/stock (landr-a27k9.6).
+         */
+        AddonDayStock: {
+            /** Addon Product Id */
+            addon_product_id: string;
+            /**
+             * Available
+             * @default true
+             */
+            available: boolean;
+            /**
+             * Day
+             * Format: date
+             */
+            day: string;
+            /** Stock Remaining */
+            stock_remaining?: number | null;
+            /** Unavailable Reason */
+            unavailable_reason?: ("sold_out" | "unit_taken") | null;
         };
         /** AlertOut */
         AlertOut: {
@@ -14744,14 +15180,36 @@ export interface components {
             addon_quantity_max?: number | null;
             /** Addon Quantity Rule */
             addon_quantity_rule?: ("one_per_booking" | "one_per_participant" | "any") | null;
+            /**
+             * Collection
+             * @default online
+             * @enum {string}
+             */
+            collection: "online" | "on_site" | "free";
+            /**
+             * Conditional
+             * @default false
+             */
+            conditional: boolean;
             /** Currency */
             currency?: string | null;
+            /**
+             * Day Selection
+             * @default parent_all
+             * @enum {string}
+             */
+            day_selection: "parent_all" | "parent_subset";
             /** Description */
             description?: string | null;
             /** Description Localized */
             description_localized?: {
                 [key: string]: unknown;
             } | null;
+            /**
+             * Images
+             * @default []
+             */
+            images: components["schemas"]["ProductImage"][];
             /**
              * Is Required
              * @default false
@@ -14770,6 +15228,11 @@ export interface components {
             name_localized?: {
                 [key: string]: unknown;
             } | null;
+            /**
+             * Options
+             * @default []
+             */
+            options: components["schemas"]["CatalogueAddonOption"][];
             /**
              * Paid To
              * @enum {string}
@@ -14795,6 +15258,27 @@ export interface components {
              * @default 0
              */
             sort_order: number;
+            /** Thumb Url */
+            thumb_url?: string | null;
+        };
+        /**
+         * CatalogueAddonOption
+         * @description A pick inside an offer (shuttle: one way / both ways) with its price delta.
+         */
+        CatalogueAddonOption: {
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /** Label Localized */
+            label_localized?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Price Delta Cents
+             * @default 0
+             */
+            price_delta_cents: number;
         };
         /**
          * CatalogueAlternative
@@ -15187,6 +15671,10 @@ export interface components {
             email?: string | null;
             /** First Name */
             first_name: string;
+            /** Guest Attributes */
+            guest_attributes?: {
+                [key: string]: unknown;
+            };
             /**
              * Has Breakfast
              * @default false
@@ -15207,6 +15695,8 @@ export interface components {
             own_accommodation: boolean;
             /** Phone */
             phone?: string | null;
+            /** Ref */
+            ref?: string | null;
             /** Room Product Id */
             room_product_id?: string | null;
             /** Room Unit Index */
@@ -16001,6 +16491,8 @@ export interface components {
             from?: string | null;
             /** Held Seats */
             held_seats?: components["schemas"]["HeldSeatRow"][];
+            /** On Site Total */
+            on_site_total?: string | null;
             /** Rows */
             rows: components["schemas"]["DayManifestRow"][];
             /** To */
@@ -16055,6 +16547,8 @@ export interface components {
             name: string;
             /** Note */
             note?: string | null;
+            /** On Site Lines */
+            on_site_lines?: components["schemas"]["ManifestOnSiteLine"][];
             /** Part Of Day */
             part_of_day?: string | null;
             /** Participant Id */
@@ -16196,6 +16690,12 @@ export interface components {
             booking_id: string;
             /** Changed */
             changed: boolean;
+            /**
+             * Customer Notification
+             * @default none
+             * @enum {string}
+             */
+            customer_notification: "queued" | "disabled" | "none";
             /** Day Date */
             day_date: string;
             /** Participant Id */
@@ -16454,6 +16954,32 @@ export interface components {
              */
             registered_with_us?: boolean | null;
         };
+        /**
+         * EligibilityReasonParams
+         * @description The failing rule item behind a ``guest_attr.<key>`` /
+         *     ``guest_attr_all.<key>`` reason, so the widget can say "No guests under 10"
+         *     without the rules (they are not on the public product wire).
+         */
+        EligibilityReasonParams: {
+            /** Op */
+            op: string;
+            /** Value */
+            value?: unknown;
+        };
+        /**
+         * EligibilityRulesBody
+         * @description PATCH body of a product's "who can book" document; null = everyone.
+         */
+        "EligibilityRulesBody-Input": {
+            eligibility_rules: components["schemas"]["OfferRules"] | null;
+        };
+        /**
+         * EligibilityRulesBody
+         * @description PATCH body of a product's "who can book" document; null = everyone.
+         */
+        "EligibilityRulesBody-Output": {
+            eligibility_rules: components["schemas"]["OfferRules"] | null;
+        };
         /** EmailCollisionOut */
         EmailCollisionOut: {
             /** Contact Id */
@@ -16608,6 +17134,16 @@ export interface components {
         };
         /** EstimateAddonLineIn */
         EstimateAddonLineIn: {
+            /** Line Id */
+            line_id?: string | null;
+            /** Offer Id */
+            offer_id?: string | null;
+            /** Option Key */
+            option_key?: string | null;
+            /** Parent Line Id */
+            parent_line_id?: string | null;
+            /** Participant Id */
+            participant_id?: string | null;
             /** Product Id */
             product_id: string;
             /**
@@ -16615,6 +17151,8 @@ export interface components {
              * @default 1
              */
             qty: number;
+            /** Selected Days */
+            selected_days?: string[] | null;
         };
         /**
          * EstimateAppliedRule
@@ -16666,17 +17204,39 @@ export interface components {
          *     (e.g. "60.00"), matching ``_compute_line``'s wire format exactly.
          */
         EstimateLineItem: {
+            /** Attribute Missing */
+            attribute_missing?: boolean | null;
+            /** Auto Attached */
+            auto_attached?: boolean | null;
             /** Cleaning Fee */
             cleaning_fee?: string | null;
+            /** Collection */
+            collection?: ("online" | "on_site" | "free") | null;
+            /** Collection Amount */
+            collection_amount?: string | null;
             /** Label */
             label: string;
+            /** Line Id */
+            line_id?: string | null;
             /** Line Total */
             line_total: string;
+            /** Missing Attribute Keys */
+            missing_attribute_keys?: string[] | null;
+            /** Mode */
+            mode?: ("optional" | "mandatory" | "info") | null;
+            /** Offer Id */
+            offer_id?: string | null;
+            /** Option Key */
+            option_key?: string | null;
             /**
              * Paid To
              * @enum {string}
              */
             paid_to: "operator" | "hotel" | "performer";
+            /** Parent Line Id */
+            parent_line_id?: string | null;
+            /** Participant Ids */
+            participant_ids?: string[] | null;
             /** Payee Label */
             payee_label?: string | null;
             /** Payment Note */
@@ -16687,6 +17247,8 @@ export interface components {
             product_id: string;
             /** Qty */
             qty: number;
+            /** Schedule */
+            schedule?: ("locked" | "subset" | "own") | null;
             /** Unit Price */
             unit_price: string;
             /** Units */
@@ -16698,8 +17260,14 @@ export interface components {
         EstimateRequest: {
             /** Addon Lines */
             addon_lines?: components["schemas"]["EstimateAddonLineIn"][];
+            /** Child Ages */
+            child_ages?: number[] | null;
+            /** Guests */
+            guests?: components["schemas"]["EvaluateGuestIn"][] | null;
             /** Locale */
             locale?: string | null;
+            /** Main Line Id */
+            main_line_id?: string | null;
             /**
              * Participants Count
              * @default 1
@@ -16726,6 +17294,8 @@ export interface components {
             amount_due?: string | null;
             /** Applied Rules */
             applied_rules?: components["schemas"]["EstimateAppliedRule"][];
+            /** Attribute Missing */
+            attribute_missing?: boolean | null;
             /** Currency */
             currency: string;
             /** Grand Total */
@@ -16734,7 +17304,13 @@ export interface components {
             hotel_total: string;
             /** Line Items */
             line_items?: components["schemas"]["EstimateLineItem"][];
+            /** Missing Attributes */
+            missing_attributes?: {
+                [key: string]: unknown;
+            }[] | null;
             multi_day_savings?: components["schemas"]["MultiDaySavingsOut"] | null;
+            /** On Site Total */
+            on_site_total?: string | null;
             /** Operator Total */
             operator_total: string;
             /** Performer Total */
@@ -16763,6 +17339,155 @@ export interface components {
             warnings?: string[];
         } & {
             [key: string]: unknown;
+        };
+        /**
+         * EvaluateGuestIn
+         * @description One guest of the party and the attributes answered so far
+         *     (keys of the operator's guest_attribute_definitions).
+         */
+        EvaluateGuestIn: {
+            /** Attributes */
+            attributes?: {
+                [key: string]: boolean | number | string;
+            };
+            /** Id */
+            id: string;
+        };
+        /**
+         * EvaluateLineIn
+         * @description One cart line. ``parent_line_id`` names the line this one hangs off (an
+         *     add-on under its main product); null = a top-level line. Dates are the
+         *     operator-local calendar: ``selected_days`` (the booked days / nights) win,
+         *     else ``arrival`` .. ``departure`` (exclusive); an undated line is judged
+         *     without dates (date rules fail closed).
+         */
+        EvaluateLineIn: {
+            /** Arrival */
+            arrival?: string | null;
+            /** Departure */
+            departure?: string | null;
+            /** Line Id */
+            line_id: string;
+            /** Parent Line Id */
+            parent_line_id?: string | null;
+            /**
+             * Product Id
+             * Format: uuid
+             */
+            product_id: string;
+            /** Selected Days */
+            selected_days?: string[] | null;
+        };
+        /**
+         * EvaluatedLine
+         * @description One request line: may it be booked (a top-level line: its product's
+         *     eligibility_rules; a child line: does its parent line offer it), and the
+         *     offers it shows. ``eligibility_reason_key`` (null when eligible):
+         *     ``attribute_missing.<key>``, ``guest_attr.<key>``, ``guest_attr_all.<key>``,
+         *     ``<cond>``, ``no_rule_matched``, ``not_offered`` or ``invalid_rules``.
+         */
+        EvaluatedLine: {
+            /**
+             * Draft
+             * @default false
+             */
+            draft: boolean;
+            /** Eligibility Reason Key */
+            eligibility_reason_key?: string | null;
+            eligibility_reason_params?: components["schemas"]["EligibilityReasonParams"] | null;
+            /** Eligible */
+            eligible: boolean;
+            /** Line Id */
+            line_id: string;
+            /** Offers */
+            offers?: components["schemas"]["EvaluatedOffer"][];
+        };
+        /**
+         * EvaluatedOffer
+         * @description An offer row a line sees, with the offered product's display fields.
+         */
+        EvaluatedOffer: {
+            /**
+             * Binding
+             * @enum {string}
+             */
+            binding: "booking" | "person" | "free";
+            /**
+             * Collection
+             * @enum {string}
+             */
+            collection: "online" | "on_site" | "free";
+            /** Day Selection */
+            day_selection?: ("parent_all" | "parent_subset") | null;
+            /**
+             * Draft
+             * @default false
+             */
+            draft: boolean;
+            /** Effective Schedule */
+            effective_schedule?: ("locked" | "subset" | "own") | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * In Cart
+             * @default false
+             */
+            in_cart: boolean;
+            /** Max Qty */
+            max_qty?: number | null;
+            /** Min Qty */
+            min_qty: number;
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "optional" | "mandatory" | "info";
+            /** Name */
+            name: string;
+            /** Name Localized */
+            name_localized?: {
+                [key: string]: string;
+            } | null;
+            /** Options */
+            options?: components["schemas"]["OfferOption"][];
+            /** Parent Product Id */
+            parent_product_id?: string | null;
+            price_preview?: components["schemas"]["OfferPricePreview"] | null;
+            /**
+             * Product Id
+             * Format: uuid
+             */
+            product_id: string;
+            /** Product Kind */
+            product_kind: string;
+            /** Required Attributes */
+            required_attributes?: string[];
+            /** Rules */
+            rules: {
+                [key: string]: unknown;
+            };
+            /**
+             * Schedule
+             * @enum {string}
+             */
+            schedule: "locked" | "subset" | "own";
+            /**
+             * Server Attached
+             * @default false
+             */
+            server_attached: boolean;
+            /** Short Description */
+            short_description?: string | null;
+            /** Short Description Localized */
+            short_description_localized?: {
+                [key: string]: string;
+            } | null;
+            /** Sort Order */
+            sort_order: number;
+            stock?: components["schemas"]["OfferStock"] | null;
         };
         /** EventOccurrence */
         EventOccurrence: {
@@ -17032,6 +17757,34 @@ export interface components {
             version: number;
         } & {
             [key: string]: unknown;
+        };
+        /**
+         * FlowGuestAttribute
+         * @description One guest attribute the product's cart asks per guest (landr-tm48v.4):
+         *     a guest_attribute_definitions row, widget-facing fields only.
+         */
+        FlowGuestAttribute: {
+            /** Choices */
+            choices?: string[] | null;
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /** Label Localized */
+            label_localized?: {
+                [key: string]: string;
+            };
+            /** Max Value */
+            max_value?: number | null;
+            /** Min Value */
+            min_value?: number | null;
+            /** Unit */
+            unit?: string | null;
+            /**
+             * Value Type
+             * @enum {string}
+             */
+            value_type: "number" | "integer" | "text" | "choice";
         };
         /**
          * FlowModuleDef
@@ -17308,6 +18061,179 @@ export interface components {
             phone?: string | null;
             /** Product Slug */
             product_slug?: string | null;
+        };
+        /**
+         * GuestAttributeDefinition
+         * @description A guest_attribute_definitions row as the API returns it.
+         */
+        GuestAttributeDefinition: {
+            /** Active */
+            active: boolean;
+            /** Choices */
+            choices: string[] | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /** Label Localized */
+            label_localized: {
+                [key: string]: string;
+            };
+            /** Max Value */
+            max_value: number | null;
+            /** Min Value */
+            min_value: number | null;
+            /**
+             * Operator Id
+             * Format: uuid
+             */
+            operator_id: string;
+            /** Sort Order */
+            sort_order: number;
+            /** Unit */
+            unit: string | null;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /**
+             * Value Type
+             * @enum {string}
+             */
+            value_type: "number" | "integer" | "text" | "choice";
+            /** Well Known */
+            well_known: boolean;
+        };
+        /**
+         * GuestAttributeDefinitionIn
+         * @description POST body: a custom (never well-known) attribute.
+         */
+        GuestAttributeDefinitionIn: {
+            /**
+             * Active
+             * @default true
+             */
+            active: boolean;
+            /** Choices */
+            choices?: string[] | null;
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /** Label Localized */
+            label_localized?: {
+                [key: string]: string;
+            };
+            /** Max Value */
+            max_value?: number | null;
+            /** Min Value */
+            min_value?: number | null;
+            /**
+             * Sort Order
+             * @default 0
+             */
+            sort_order: number;
+            /** Unit */
+            unit?: string | null;
+            /**
+             * Value Type
+             * @enum {string}
+             */
+            value_type: "number" | "integer" | "text" | "choice";
+        };
+        /**
+         * GuestAttributeDefinitionPatch
+         * @description PATCH body. key, value_type and well_known are fixed (a 422 for every
+         *     caller); on a well-known row unit / choices / bounds are fixed too.
+         */
+        GuestAttributeDefinitionPatch: {
+            /** Active */
+            active?: boolean | null;
+            /** Choices */
+            choices?: string[] | null;
+            /** Label */
+            label?: string | null;
+            /** Label Localized */
+            label_localized?: {
+                [key: string]: string;
+            } | null;
+            /** Max Value */
+            max_value?: number | null;
+            /** Min Value */
+            min_value?: number | null;
+            /** Sort Order */
+            sort_order?: number | null;
+            /** Unit */
+            unit?: string | null;
+        };
+        /** GuestAttributeInUse */
+        GuestAttributeInUse: {
+            /**
+             * Error
+             * @constant
+             */
+            error: "guest_attribute_in_use";
+            /** Key */
+            key: string;
+            /** Offers */
+            offers: string[];
+            /** Products */
+            products: string[];
+        };
+        /**
+         * GuestAttributeInUseError
+         * @description The 409 body of DELETE guest-attribute-definitions: ``detail`` names the referencing rows.
+         */
+        GuestAttributeInUseError: {
+            detail: components["schemas"]["GuestAttributeInUse"];
+        };
+        /** GuestAttributesOut */
+        GuestAttributesOut: {
+            /** Guest Attributes */
+            guest_attributes: {
+                [key: string]: unknown;
+            };
+            /** Occupant Age */
+            occupant_age: number | null;
+            /** Occupant Age Band */
+            occupant_age_band: string;
+            /**
+             * Offer Lines Attached
+             * @default 0
+             */
+            offer_lines_attached: number;
+            /**
+             * Offer Lines Removed
+             * @default 0
+             */
+            offer_lines_removed: number;
+            /**
+             * Participant Id
+             * Format: uuid
+             */
+            participant_id: string;
+            /** Reprice Skipped */
+            reprice_skipped?: string | null;
+            /** Repriced */
+            repriced: boolean;
+        };
+        /** GuestAttributesPatchIn */
+        GuestAttributesPatchIn: {
+            /** Attributes */
+            attributes: {
+                [key: string]: unknown;
+            };
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -18298,6 +19224,34 @@ export interface components {
             /** Recorded */
             recorded: boolean;
         };
+        /**
+         * ManifestOnSiteLine
+         * @description One pay-on-arrival offer line the participant-day owes (landr-tm48v.8).
+         *
+         *     Read from the ``booking_products`` columns (collection = on_site). A
+         *     person-bound line lists under each guest it covers; a booking-bound line
+         *     (``booking_bound``) under every guest of its booking. ``collection_amount``
+         *     is money: absent (None) for a role that cannot see money (field).
+         */
+        ManifestOnSiteLine: {
+            /**
+             * Booking Bound
+             * @default false
+             */
+            booking_bound: boolean;
+            /** Booking Product Id */
+            booking_product_id: string;
+            /** Collection Amount */
+            collection_amount?: string | null;
+            /** Currency */
+            currency?: string | null;
+            /** Label */
+            label: string;
+            /** Option Label */
+            option_label?: string | null;
+            /** Participant Ids */
+            participant_ids?: string[];
+        };
         /** ManifestProductRef */
         ManifestProductRef: {
             /** Id */
@@ -18591,6 +19545,17 @@ export interface components {
             /** Phone */
             phone?: string | null;
         };
+        /** NewParticipantContact */
+        NewParticipantContact: {
+            /** Email */
+            email?: string | null;
+            /** First Name */
+            first_name: string;
+            /** Last Name */
+            last_name?: string | null;
+            /** Phone */
+            phone?: string | null;
+        };
         /** NoShowIn */
         NoShowIn: {
             /**
@@ -18686,6 +19651,28 @@ export interface components {
             holded_not_connected: boolean;
             /** Items */
             items?: components["schemas"]["NumberingSeriesItem"][];
+        };
+        /** OccupancyChildBand */
+        OccupancyChildBand: {
+            /** Max Age */
+            max_age: number;
+            /** Min Age */
+            min_age: number;
+            /** Per Night */
+            per_night: string;
+        };
+        /**
+         * OccupancyPricingConfig
+         * @description landr-hfvyc.1: the guest-based pricing of a stay (its price list's
+         *     occupancy_pricing rule). Money as numeric strings.
+         */
+        OccupancyPricingConfig: {
+            /** Child Bands */
+            child_bands?: components["schemas"]["OccupancyChildBand"][];
+            /** Extra Adult Per Night */
+            extra_adult_per_night: string;
+            /** Included Adults */
+            included_adults: number;
         };
         /**
          * Offer
@@ -18814,6 +19801,89 @@ export interface components {
             to_address: string;
         };
         /**
+         * OfferEvaluateIn
+         * @description POST /api/public/offers/evaluate body. ``season_ids`` only judges
+         *     ``season_in`` on an UNDATED line (a dated line's seasons are computed from
+         *     its dates); ids that are not the operator's own are ignored.
+         */
+        OfferEvaluateIn: {
+            /** Guests */
+            guests?: components["schemas"]["EvaluateGuestIn"][];
+            /** Lines */
+            lines: components["schemas"]["EvaluateLineIn"][];
+            /** Season Ids */
+            season_ids?: string[] | null;
+            /** Widget Token */
+            widget_token: string;
+        };
+        /**
+         * OfferEvaluateOut
+         * @description Per request line, in request order. ``required_attribute_keys``: every
+         *     guest attribute the cart's products and their candidate offers read -- the
+         *     keys the widget asks per guest before offers needing them can show.
+         */
+        OfferEvaluateOut: {
+            /** Lines */
+            lines: components["schemas"]["EvaluatedLine"][];
+            /** Required Attribute Keys */
+            required_attribute_keys?: string[];
+        };
+        /**
+         * OfferIn
+         * @description POST body (and the merged row a PATCH is validated as). No operator_id:
+         *     the path's operator is stamped server-side.
+         */
+        OfferIn: {
+            /**
+             * Binding
+             * @default free
+             * @enum {string}
+             */
+            binding: "booking" | "person" | "free";
+            /**
+             * Collection
+             * @default online
+             * @enum {string}
+             */
+            collection: "online" | "on_site" | "free";
+            /** Max Qty */
+            max_qty?: number | null;
+            /**
+             * Min Qty
+             * @default 0
+             */
+            min_qty: number;
+            /**
+             * Mode
+             * @default optional
+             * @enum {string}
+             */
+            mode: "optional" | "mandatory" | "info";
+            /** Options */
+            options?: components["schemas"]["OfferOption"][];
+            /** Parent Product Id */
+            parent_product_id?: string | null;
+            /**
+             * Product Id
+             * Format: uuid
+             */
+            product_id: string;
+            /** Required Attributes */
+            required_attributes?: string[];
+            rules?: components["schemas"]["OfferRules"];
+            /**
+             * Schedule
+             * @default locked
+             * @enum {string}
+             */
+            schedule: "locked" | "subset" | "own";
+            /**
+             * Sort Order
+             * @default 0
+             */
+            sort_order: number;
+        };
+        /**
          * OfferLineItem
          * @description One priced product line of the offer (landr-b48i5), same order as
          *     ``product_lines``. Read from the persisted ``computed_price_breakdown``
@@ -18853,6 +19923,24 @@ export interface components {
             units: number;
         };
         /**
+         * OfferOption
+         * @description One priced choice of an offer (shuttle one way / both, jacket S/M/L).
+         */
+        OfferOption: {
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /** Label Localized */
+            label_localized?: {
+                [key: string]: string;
+            };
+            /** Price Delta Cents */
+            price_delta_cents: number;
+            /** Stock */
+            stock?: number | null;
+        };
+        /**
          * OfferParticipant
          * @description One entry of the RPC's ``participants`` array. Mirrors the widget's
          *     ``OfferParticipant`` TypeScript interface.
@@ -18867,6 +19955,35 @@ export interface components {
             service_role_label?: string | null;
         } & {
             [key: string]: unknown;
+        };
+        /**
+         * OfferPatch
+         * @description PATCH body: only the fields set are written (``model_fields_set``).
+         */
+        OfferPatch: {
+            /** Binding */
+            binding?: ("booking" | "person" | "free") | null;
+            /** Collection */
+            collection?: ("online" | "on_site" | "free") | null;
+            /** Max Qty */
+            max_qty?: number | null;
+            /** Min Qty */
+            min_qty?: number | null;
+            /** Mode */
+            mode?: ("optional" | "mandatory" | "info") | null;
+            /** Options */
+            options?: components["schemas"]["OfferOption"][] | null;
+            /** Parent Product Id */
+            parent_product_id?: string | null;
+            /** Product Id */
+            product_id?: string | null;
+            /** Required Attributes */
+            required_attributes?: string[] | null;
+            rules?: components["schemas"]["OfferRules"] | null;
+            /** Schedule */
+            schedule?: ("locked" | "subset" | "own") | null;
+            /** Sort Order */
+            sort_order?: number | null;
         };
         /**
          * OfferPatchIn
@@ -19002,6 +20119,42 @@ export interface components {
             units: string;
         };
         /**
+         * OfferPreviewIn
+         * @description POST /api/operators/{operator_id}/offers/preview body: the evaluate
+         *     request without the widget token (the operator comes from the session).
+         */
+        OfferPreviewIn: {
+            /** Guests */
+            guests?: components["schemas"]["EvaluateGuestIn"][];
+            /** Lines */
+            lines: components["schemas"]["EvaluateLineIn"][];
+            /** Season Ids */
+            season_ids?: string[] | null;
+        };
+        /**
+         * OfferPricePreview
+         * @description What the offer would cost on its parent line's days for this party, at
+         *     ``quantity`` (its minimum, at least 1). ``unit_price_cents`` / ``total_cents``
+         *     are null when it cannot be quoted here (own dates, an un-priceable list);
+         *     0 for ``collection = 'free'``.
+         */
+        OfferPricePreview: {
+            /** Currency */
+            currency?: string | null;
+            /**
+             * Price Unit
+             * @default booking
+             * @enum {string}
+             */
+            price_unit: "booking" | "night" | "stay" | "guest" | "guest_night";
+            /** Quantity */
+            quantity: number;
+            /** Total Cents */
+            total_cents?: number | null;
+            /** Unit Price Cents */
+            unit_price_cents?: number | null;
+        };
+        /**
          * OfferProductLine
          * @description One entry of the RPC's ``product_lines`` array. Mirrors the
          *     widget's ``OfferProductLine`` TypeScript interface.
@@ -19025,6 +20178,19 @@ export interface components {
             selected_days?: string[] | null;
         } & {
             [key: string]: unknown;
+        };
+        /**
+         * OfferRules
+         * @description ``{"mode": "all"|"any", "items": [...]}``; empty items = offered to everyone.
+         */
+        OfferRules: {
+            /** Items */
+            items: components["schemas"]["RuleItem"][];
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "all" | "any";
         };
         /**
          * OfferSendOut
@@ -19082,6 +20248,30 @@ export interface components {
             positions_total: string;
             /** Sent At */
             sent_at?: string | null;
+        };
+        /**
+         * OfferStock
+         * @description landr-tm48v.5: the offered product's stock on its parent line's days for
+         *     this party, at the offer's minimum quantity (at least 1) -- the verdict of
+         *     GET /products/{id}/addons (``rentals.addon_stock``). ``stock_remaining``
+         *     lets the widget judge any other quantity; null when nothing limits it.
+         */
+        OfferStock: {
+            /**
+             * Available
+             * @default true
+             */
+            available: boolean;
+            /** Pool Ids */
+            pool_ids?: string[];
+            /** Stock Remaining */
+            stock_remaining?: number | null;
+            /** Stock Scope */
+            stock_scope?: string | null;
+            /** Stock Unit Label */
+            stock_unit_label?: string | null;
+            /** Unavailable Reason */
+            unavailable_reason?: ("sold_out" | "unit_taken") | null;
         };
         /**
          * OfferSuggestionOut
@@ -19180,6 +20370,8 @@ export interface components {
             date_format?: string | null;
             /** Date Format Short */
             date_format_short?: string | null;
+            /** Day Update Emails Enabled */
+            day_update_emails_enabled?: boolean | null;
             /** Default Locale */
             default_locale?: string | null;
             /** Default Tax Rate */
@@ -19344,6 +20536,7 @@ export interface components {
             next_window_end?: string | null;
             /** Next Window Start */
             next_window_start?: string | null;
+            occupancy_pricing?: components["schemas"]["OccupancyPricingConfig"] | null;
             /** Price Base */
             price_base?: string | null;
             /** Price From */
@@ -19665,6 +20858,10 @@ export interface components {
             email?: string | null;
             /** First Name */
             first_name: string;
+            /** Guest Attributes */
+            guest_attributes?: {
+                [key: string]: unknown;
+            };
             /**
              * Has Breakfast
              * @default false
@@ -19682,6 +20879,8 @@ export interface components {
             phone?: string | null;
             /** Pickup Location Id */
             pickup_location_id?: string | null;
+            /** Ref */
+            ref?: string | null;
             /** Room Product Id */
             room_product_id?: string | null;
             /** Room Unit Index */
@@ -20138,6 +21337,42 @@ export interface components {
             /** Product Id */
             product_id: string;
         };
+        /** PriceCorrectionNoticeRequest */
+        PriceCorrectionNoticeRequest: {
+            /**
+             * Dry Run
+             * @default true
+             */
+            dry_run: boolean;
+            /**
+             * Force
+             * @default false
+             */
+            force: boolean;
+            /** Locale Override */
+            locale_override?: string | null;
+            /** Test Recipient */
+            test_recipient?: string | null;
+        };
+        /** PriceCorrectionNoticeResponse */
+        PriceCorrectionNoticeResponse: {
+            /** Customer Page Url */
+            customer_page_url?: string | null;
+            /** Locale */
+            locale?: string | null;
+            /** New Total */
+            new_total?: string | null;
+            /** Old Total */
+            old_total?: string | null;
+            /** Reason */
+            reason?: string | null;
+            /** Status */
+            status: string;
+            /** Subject */
+            subject?: string | null;
+            /** To */
+            to?: string | null;
+        };
         /** PriceHeadlineOut */
         PriceHeadlineOut: {
             /** Amount */
@@ -20438,15 +21673,33 @@ export interface components {
         PricingBreakdownLineItem: {
             /** Applied Rules */
             applied_rules?: components["schemas"]["AppliedRuleSeason"][] | null;
+            /** Booking Product Id */
+            booking_product_id?: string | null;
+            /** Collection */
+            collection?: string | null;
+            /** Collection Amount */
+            collection_amount?: string | null;
             /** Label */
             label: string;
             /** Line Total */
             line_total: string;
+            /** Offer Mode */
+            offer_mode?: string | null;
+            /** Offer Status */
+            offer_status?: string | null;
+            /** Option Key */
+            option_key?: string | null;
+            /** Option Label */
+            option_label?: string | null;
             /**
              * Paid To
              * @enum {string}
              */
             paid_to: "operator" | "hotel" | "performer";
+            /** Participant Ids */
+            participant_ids?: string[];
+            /** Participant Names */
+            participant_names?: string[];
             /** Payment Note */
             payment_note?: string | null;
             /** Product Id */
@@ -20488,6 +21741,11 @@ export interface components {
             offer?: {
                 [key: string]: unknown;
             } | null;
+            /**
+             * On Site Total
+             * @default 0.00
+             */
+            on_site_total: string;
             /** Operator Total */
             operator_total: string;
             /** Performer Total */
@@ -20550,7 +21808,7 @@ export interface components {
              * Rule Kind
              * @enum {string}
              */
-            rule_kind: "per_day_base" | "per_streak_tier" | "per_total_days_tier" | "per_participant_tier" | "fixed_total" | "percentage_discount" | "flat_discount" | "time_of_day_surcharge" | "manual_override" | "slot_time_adjustment" | "weekday_adjustment";
+            rule_kind: "per_day_base" | "per_streak_tier" | "per_total_days_tier" | "per_participant_tier" | "fixed_total" | "percentage_discount" | "flat_discount" | "time_of_day_surcharge" | "manual_override" | "slot_time_adjustment" | "weekday_adjustment" | "occupancy_pricing" | "attribute_bands";
             /** Sort Order */
             sort_order: number;
             /** Tiers */
@@ -20809,6 +22067,14 @@ export interface components {
             available: boolean;
             /** Currency */
             currency?: string | null;
+            /**
+             * Day Selection
+             * @default parent_all
+             * @enum {string}
+             */
+            day_selection: "parent_all" | "parent_subset";
+            /** Images */
+            images?: components["schemas"]["ProductImage"][];
             /** Is Required */
             is_required: boolean;
             /** Max Qty */
@@ -20838,6 +22104,12 @@ export interface components {
             product_addon_id: string;
             /** Product Kind */
             product_kind: string;
+            /** Short Description */
+            short_description?: string | null;
+            /** Short Description Localized */
+            short_description_localized?: {
+                [key: string]: string;
+            } | null;
             /** Sort Order */
             sort_order: number;
             /** Stock Remaining */
@@ -20846,6 +22118,8 @@ export interface components {
             stock_scope?: ("unit" | "place" | "type") | null;
             /** Stock Unit Label */
             stock_unit_label?: string | null;
+            /** Thumb Url */
+            thumb_url?: string | null;
             /** Unavailable Reason */
             unavailable_reason?: ("sold_out" | "unit_taken") | null;
         } & {
@@ -21021,6 +22295,12 @@ export interface components {
          *     shape) or list of modules otherwise.
          */
         ProductFlowResponse: {
+            /** Eligibility Reason Key */
+            eligibility_reason_key?: string | null;
+            /** Eligible */
+            eligible?: boolean | null;
+            /** Guest Attributes */
+            guest_attributes?: components["schemas"]["FlowGuestAttribute"][];
             /** Modules */
             modules?: components["schemas"]["FlowModuleDef"][] | null;
         } & {
@@ -21145,6 +22425,12 @@ export interface components {
             daily_start_weekdays?: number[] | null;
             /** Day Capacity Source */
             day_capacity_source?: ("product" | "resources") | null;
+            /**
+             * Day Selection
+             * @default parent_all
+             * @enum {string}
+             */
+            day_selection: "parent_all" | "parent_subset";
             /** Default Pricing Scheme Id */
             default_pricing_scheme_id?: string | null;
             /** Description */
@@ -21283,6 +22569,16 @@ export interface components {
             date_range_start?: string | null;
             /** Fixed Date Window Id */
             fixed_date_window_id?: string | null;
+            /** Line Id */
+            line_id?: string | null;
+            /** Offer Id */
+            offer_id?: string | null;
+            /** Option Key */
+            option_key?: string | null;
+            /** Parent Line Id */
+            parent_line_id?: string | null;
+            /** Participant Id */
+            participant_id?: string | null;
             /** Pass Tier Id */
             pass_tier_id?: string | null;
             /** Product Availability Id */
@@ -21298,6 +22594,76 @@ export interface components {
             selected_days?: string[] | null;
             /** Slot Start Time */
             slot_start_time?: string | null;
+        };
+        /**
+         * ProductOffer
+         * @description An offers row as the API returns it. Exported as ``Offer``; the class
+         *     name keeps the OpenAPI component distinct from the widget-flow ``Offer``
+         *     enum that already exists in the schema.
+         */
+        ProductOffer: {
+            /**
+             * Binding
+             * @enum {string}
+             */
+            binding: "booking" | "person" | "free";
+            /**
+             * Collection
+             * @enum {string}
+             */
+            collection: "online" | "on_site" | "free";
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Legacy Addon Id */
+            legacy_addon_id?: string | null;
+            /** Legacy Source */
+            legacy_source?: ("product_addons" | "cross_sell") | null;
+            /** Max Qty */
+            max_qty: number | null;
+            /** Min Qty */
+            min_qty: number;
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "optional" | "mandatory" | "info";
+            /**
+             * Operator Id
+             * Format: uuid
+             */
+            operator_id: string;
+            /** Options */
+            options: components["schemas"]["OfferOption"][];
+            /** Parent Product Id */
+            parent_product_id: string | null;
+            /**
+             * Product Id
+             * Format: uuid
+             */
+            product_id: string;
+            /** Required Attributes */
+            required_attributes: string[];
+            rules: components["schemas"]["OfferRules"];
+            /**
+             * Schedule
+             * @enum {string}
+             */
+            schedule: "locked" | "subset" | "own";
+            /** Sort Order */
+            sort_order: number;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
         };
         /** ProductPatch */
         ProductPatch: {
@@ -21335,6 +22701,8 @@ export interface components {
             daily_start_weekdays?: number[] | null;
             /** Day Capacity Source */
             day_capacity_source?: ("product" | "resources") | null;
+            /** Day Selection */
+            day_selection?: ("parent_all" | "parent_subset") | null;
             /** Default Pricing Scheme Id */
             default_pricing_scheme_id?: string | null;
             /** Description */
@@ -22073,6 +23441,8 @@ export interface components {
         };
         /** RenderIn */
         RenderIn: {
+            /** Booking Id */
+            booking_id?: string | null;
             /** Template Id */
             template_id: string;
             /** Values */
@@ -22169,6 +23539,39 @@ export interface components {
         ReorderIn: {
             /** Ids */
             ids: string[];
+        };
+        /** ReplaceParticipantIn */
+        ReplaceParticipantIn: {
+            /** Contact Id */
+            contact_id?: string | null;
+            new_contact?: components["schemas"]["NewParticipantContact"] | null;
+        };
+        /** ReplaceParticipantOut */
+        ReplaceParticipantOut: {
+            /** Changed */
+            changed: boolean;
+            contact: components["schemas"]["ReplacedContactOut"];
+            /** Matched Existing */
+            matched_existing: boolean;
+            /** Old Contact Id */
+            old_contact_id: string;
+            /** Participant Id */
+            participant_id: string;
+            /** Shared Email */
+            shared_email?: string | null;
+        };
+        /** ReplacedContactOut */
+        ReplacedContactOut: {
+            /** Email */
+            email?: string | null;
+            /** First Name */
+            first_name?: string | null;
+            /** Id */
+            id: string;
+            /** Last Name */
+            last_name?: string | null;
+            /** Phone */
+            phone?: string | null;
         };
         /** RequestChannelIn */
         RequestChannelIn: {
@@ -22416,6 +23819,30 @@ export interface components {
         ResolveIn: {
             /** Code */
             code: string;
+        };
+        /** ResolveOut */
+        ResolveOut: {
+            /** Board */
+            board: string;
+            /** Operators */
+            operators: components["schemas"]["ResolvedOperator"][];
+        };
+        /** ResolvedOperator */
+        ResolvedOperator: {
+            /** Is Default */
+            is_default: boolean;
+            /** Link Id */
+            link_id: string;
+            /** Operator Id */
+            operator_id: string;
+            /** Operator Name */
+            operator_name: string | null;
+            /** Operator Slug */
+            operator_slug: string | null;
+            /** Trello Member Id */
+            trello_member_id: string | null;
+            /** Trello Member Username */
+            trello_member_username: string | null;
         };
         /**
          * ResourceDayStateIn
@@ -23008,6 +24435,15 @@ export interface components {
             /** Unit Label Plural */
             unit_label_plural?: string | null;
         };
+        /** RetireOut */
+        RetireOut: {
+            /** Message */
+            message: string;
+            /** Retired */
+            retired: boolean;
+            /** Slug */
+            slug: string;
+        };
         /**
          * RetrievePatchIn
          * @description PATCH body — operator sets the retrieve workflow state/note.
@@ -23301,6 +24737,33 @@ export interface components {
              * Format: date
              */
             starts_on: string;
+        };
+        /**
+         * RuleItem
+         * @description One condition: ``{"cond", "op", "value"[, "key"][, "anchor"]}`` (``key`` on
+         *     guest_attr / guest_attr_all only, required there; ``anchor`` on date_window
+         *     only, optional).
+         */
+        RuleItem: {
+            /**
+             * Anchor
+             * @enum {string}
+             */
+            anchor?: "every_night" | "arrival";
+            /**
+             * Cond
+             * @enum {string}
+             */
+            cond: "parent_in" | "guest_attr" | "guest_attr_all" | "date_window" | "season_in" | "stay_nights" | "parent_unavailable";
+            /** Key */
+            key?: string | null;
+            /**
+             * Op
+             * @enum {string}
+             */
+            op: "eq" | "in" | "gte" | "lte" | "between";
+            /** Value */
+            value: unknown;
         };
         /** RunIn */
         RunIn: {
@@ -24150,10 +25613,17 @@ export interface components {
             product_kind?: string | null;
             /** Slug */
             slug: string;
+            /** @default {} */
+            tier_listing: components["schemas"]["TierListingOut"];
             /** Uses Pools */
             uses_pools: boolean;
             /** Version */
             version: number;
+            /**
+             * Website Listed
+             * @default false
+             */
+            website_listed: boolean;
         };
         /**
          * StaffUnitReleaseIn
@@ -24852,6 +26322,11 @@ export interface components {
             uses_pools: boolean;
             /** Version */
             version: number;
+            /**
+             * Website Listed
+             * @default false
+             */
+            website_listed: boolean;
         };
         /** TemplatePitchLocale */
         TemplatePitchLocale: {
@@ -24877,8 +26352,18 @@ export interface components {
         };
         /** TemplatePublishOut */
         TemplatePublishOut: {
+            /**
+             * Bumped
+             * @default false
+             */
+            bumped: boolean;
             /** Exported Version */
             exported_version?: number | null;
+            /**
+             * Nothing To Publish
+             * @default false
+             */
+            nothing_to_publish: boolean;
             /** Pr Url */
             pr_url?: string | null;
             /** Request Id */
@@ -24951,6 +26436,18 @@ export interface components {
              */
             status: "sent" | "failed";
         };
+        /**
+         * TierListingOut
+         * @description Marketing-site listing flag per tier (landr-36j1n); null = unknown.
+         */
+        TierListingOut: {
+            /** Development */
+            development?: boolean | null;
+            /** Production */
+            production?: boolean | null;
+            /** Staging */
+            staging?: boolean | null;
+        };
         /** TodayMessagePostIn */
         TodayMessagePostIn: {
             /** Body */
@@ -24971,6 +26468,58 @@ export interface components {
              */
             kind: "text" | "activity_code";
             recipients: components["schemas"]["RecipientSetIn"];
+        };
+        /** TrelloBoardLinkCreate */
+        TrelloBoardLinkCreate: {
+            /** Board Name */
+            board_name?: string | null;
+            /**
+             * Is Default
+             * @default false
+             */
+            is_default: boolean;
+            /** Operator Id */
+            operator_id: string;
+            /** Trello Board Id */
+            trello_board_id: string;
+            /** Trello Member Id */
+            trello_member_id?: string | null;
+            /** Trello Member Username */
+            trello_member_username?: string | null;
+        };
+        /** TrelloBoardLinkOut */
+        TrelloBoardLinkOut: {
+            /** Board Name */
+            board_name: string | null;
+            /** Created At */
+            created_at: string;
+            /** Id */
+            id: string;
+            /** Is Default */
+            is_default: boolean;
+            /** Operator Id */
+            operator_id: string;
+            /** Trello Board Id */
+            trello_board_id: string;
+            /** Trello Member Id */
+            trello_member_id: string | null;
+            /** Trello Member Username */
+            trello_member_username: string | null;
+            /** Updated At */
+            updated_at: string;
+        };
+        /** TrelloBoardLinkPatch */
+        TrelloBoardLinkPatch: {
+            /** Board Name */
+            board_name?: string | null;
+            /** Is Default */
+            is_default?: boolean | null;
+            /** Trello Board Id */
+            trello_board_id?: string | null;
+            /** Trello Member Id */
+            trello_member_id?: string | null;
+            /** Trello Member Username */
+            trello_member_username?: string | null;
         };
         /**
          * TrelloSyncIn
@@ -25781,6 +27330,28 @@ export interface components {
             /** Ok */
             ok: boolean;
         };
+        /** WebsiteDeployIn */
+        WebsiteDeployIn: {
+            /** Ref */
+            ref: string;
+        };
+        /** WebsiteDeployOut */
+        WebsiteDeployOut: {
+            /** Request Id */
+            request_id: string;
+            /** Run Url */
+            run_url?: string | null;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "dispatched" | "running";
+        };
+        /** WebsiteListingIn */
+        WebsiteListingIn: {
+            /** Listed */
+            listed: boolean;
+        };
         /** WindowIn */
         WindowIn: {
             /**
@@ -25982,7 +27553,7 @@ export interface components {
              * Rule Kind
              * @enum {string}
              */
-            rule_kind: "per_day_base" | "per_streak_tier" | "per_total_days_tier" | "per_participant_tier" | "fixed_total" | "percentage_discount" | "flat_discount" | "time_of_day_surcharge" | "manual_override" | "slot_time_adjustment" | "weekday_adjustment";
+            rule_kind: "per_day_base" | "per_streak_tier" | "per_total_days_tier" | "per_participant_tier" | "fixed_total" | "percentage_discount" | "flat_discount" | "time_of_day_surcharge" | "manual_override" | "slot_time_adjustment" | "weekday_adjustment" | "occupancy_pricing" | "attribute_bands";
             /** Sort Order */
             sort_order: number;
             /** Tiers */
@@ -26001,7 +27572,7 @@ export interface components {
                 [key: string]: unknown;
             } | null;
             /** Rule Kind */
-            rule_kind?: ("per_day_base" | "per_streak_tier" | "per_total_days_tier" | "per_participant_tier" | "fixed_total" | "percentage_discount" | "flat_discount" | "time_of_day_surcharge" | "manual_override" | "slot_time_adjustment" | "weekday_adjustment") | null;
+            rule_kind?: ("per_day_base" | "per_streak_tier" | "per_total_days_tier" | "per_participant_tier" | "fixed_total" | "percentage_discount" | "flat_discount" | "time_of_day_surcharge" | "manual_override" | "slot_time_adjustment" | "weekday_adjustment" | "occupancy_pricing" | "attribute_bands") | null;
             /** Sort Order */
             sort_order?: number | null;
         };
@@ -27345,6 +28916,43 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    relay_website_deploy: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Release-Relay-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WebsiteDeployIn"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
@@ -29223,6 +30831,26 @@ export interface operations {
             };
         };
     };
+    landr_staff_deploy_website: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebsiteDeployOut"];
+                };
+            };
+        };
+    };
     landr_staff_unflag_template: {
         parameters: {
             query?: never;
@@ -29400,6 +31028,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TemplatePublishOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    landr_staff_retire_template: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RetireOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    landr_staff_set_website_listing: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WebsiteListingIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffTemplateOut"];
                 };
             };
             /** @description Validation Error */
@@ -30221,6 +31915,43 @@ export interface operations {
             };
         };
     };
+    patch_participant_attributes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                booking_id: string;
+                participant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GuestAttributesPatchIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GuestAttributesOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     compose_email: {
         parameters: {
             query?: never;
@@ -30355,6 +32086,147 @@ export interface operations {
             };
         };
     };
+    list_guest_attribute_definitions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GuestAttributeDefinition"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_guest_attribute_definition: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GuestAttributeDefinitionIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GuestAttributeDefinition"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_guest_attribute_definition: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                definition_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GuestAttributeInUseError"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_guest_attribute_definition: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                definition_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GuestAttributeDefinitionPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GuestAttributeDefinition"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_pending_decisions: {
         parameters: {
             query?: {
@@ -30444,6 +32316,212 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ResolveDecisionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_product_offers: {
+        parameters: {
+            query?: {
+                parent_product_id?: string | null;
+                product_id?: string | null;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductOffer"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_product_offer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OfferIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductOffer"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_product_offers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OfferPreviewIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OfferEvaluateOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_product_offer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                offer_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_product_offer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                offer_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OfferPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductOffer"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_product_eligibility_rules: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EligibilityRulesBody-Input"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EligibilityRulesBody-Output"];
                 };
             };
             /** @description Validation Error */
@@ -31554,6 +33632,39 @@ export interface operations {
             };
         };
     };
+    evaluate_offers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OfferEvaluateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OfferEvaluateOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_invite: {
         parameters: {
             query?: never;
@@ -31974,7 +34085,12 @@ export interface operations {
     };
     get_product_flow: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description landr-tm48v.2: first booked day, for the eligibility verdict */
+                arrival?: string | null;
+                /** @description landr-tm48v.2: day after the last booked day / night */
+                departure?: string | null;
+            };
             header?: never;
             path: {
                 token: string;
@@ -32198,6 +34314,42 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProductAddon"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_product_addons_stock_by_day: {
+        parameters: {
+            query: {
+                /** @description landr-a27k9.6: the days to judge (repeat the param). Each day is judged on its own, unlike GET .../addons, which reports the lowest remaining over all the days it is sent. */
+                days: string[];
+                /** @description Guiding participants of the booking, as on GET .../addons */
+                participants: number;
+            };
+            header?: never;
+            path: {
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AddonDayStock"][];
                 };
             };
             /** @description Validation Error */
@@ -36081,6 +38233,43 @@ export interface operations {
             };
         };
     };
+    staff_replace_booking_participant: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                booking_id: string;
+                participant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReplaceParticipantIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReplaceParticipantOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     payment_link: {
         parameters: {
             query?: never;
@@ -36170,6 +38359,42 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SendReceiptOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    price_correction_notice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                booking_id: string;
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PriceCorrectionNoticeRequest"] | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PriceCorrectionNoticeResponse"];
                 };
             };
             /** @description Validation Error */
@@ -47902,6 +50127,165 @@ export interface operations {
                     "application/json": {
                         [key: string]: string;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_trello_list_links: {
+        parameters: {
+            query?: {
+                operator_id?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrelloBoardLinkOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_trello_create_link: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TrelloBoardLinkCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrelloBoardLinkOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_trello_resolve_board: {
+        parameters: {
+            query: {
+                board: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResolveOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_trello_delete_link: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                link_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_trello_patch_link: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                link_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TrelloBoardLinkPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrelloBoardLinkOut"];
                 };
             };
             /** @description Validation Error */

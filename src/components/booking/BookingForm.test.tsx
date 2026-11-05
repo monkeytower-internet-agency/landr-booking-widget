@@ -5,7 +5,9 @@ import type { Product } from '@/api/types'
 import type { ProductFlowResponse } from '@/api/flowTypes'
 import { field } from '@/test/customerDetailsFixtures'
 import { BookingForm, type BookingSelection } from './BookingForm'
-import { HttpError, getAvailability, submitBooking } from '@/api/client'
+import { HttpError, getAvailability, getOffers, submitBooking } from '@/api/client'
+import { mockEvaluateOffers } from '@/api/mocks'
+import { breakfastPick, makeOffer, makePick } from './offerTestFixtures'
 import type { BookerDetails, ParticipantDetails } from './detailsTypes'
 
 vi.mock('@/api/client', async (importOriginal) => {
@@ -16,6 +18,9 @@ vi.mock('@/api/client', async (importOriginal) => {
     ...actual,
     submitBooking: vi.fn(),
     getAvailability: vi.fn(),
+    getOffers: vi.fn(async (b: Parameters<typeof actual.getOffers>[0]) =>
+      (await import('@/api/mocks')).mockEvaluateOffers(b),
+    ),
   }
 })
 
@@ -401,7 +406,7 @@ describe('BookingForm — review-only screen (landr-8c03)', () => {
 
   // landr-gb2f.4 / gb2f.5: per-room breakfast display in the review.
   describe('per-room breakfast section (landr-gb2f.4)', () => {
-    it('shows the room breakfast section when perRoomAddons has qty > 0', () => {
+    it('shows the room breakfast section when roomPicks has qty > 0', () => {
       render(
         <BookingForm
           widgetToken="para42"
@@ -420,7 +425,7 @@ describe('BookingForm — review-only screen (landr-8c03)', () => {
           ]}
           pickupLocationId={null}
           accommodationRooms={[{ productId: 'single-room', quantity: 2 }]}
-          perRoomAddons={{ 'single-room': { 'bf-1': 1 } }}
+          roomPicks={[breakfastPick('single-room', 1, 'bf-1')]}
           roomProductNames={{ 'single-room': 'Single Room' }}
           roomAssignment={{
             0: { roomProductId: 'single-room', unitIndex: 0 },
@@ -469,7 +474,7 @@ describe('BookingForm — review-only screen (landr-8c03)', () => {
           pickupLocationId={null}
           accommodationRooms={[{ productId: 'premium-double', quantity: 1 }]}
           // No breakfast add-on — breakfast is included in the room itself.
-          perRoomAddons={{}}
+          roomPicks={[]}
           roomProductNames={{
             'premium-double': 'Premium Double Room with Breakfast',
           }}
@@ -494,7 +499,7 @@ describe('BookingForm — review-only screen (landr-8c03)', () => {
       ).toHaveTextContent('breakfast included')
     })
 
-    it('hides the per-room breakfast section when perRoomAddons is absent', () => {
+    it('hides the per-room breakfast section when roomPicks is absent', () => {
       render(
         <BookingForm
           widgetToken="para42"
@@ -521,7 +526,7 @@ describe('BookingForm — review-only screen (landr-8c03)', () => {
           participants={[bookerAsParticipant(ADA_BOOKER)]}
           pickupLocationId={null}
           accommodationRooms={[{ productId: 'single-room', quantity: 1 }]}
-          perRoomAddons={{ 'single-room': { 'bf-1': 0 } }}
+          roomPicks={[breakfastPick('single-room', 0, 'bf-1')]}
           roomProductNames={{ 'single-room': 'Single Room' }}
           onBack={vi.fn()}
           onConfirmed={vi.fn()}
@@ -540,7 +545,7 @@ describe('BookingForm — review-only screen (landr-8c03)', () => {
           participants={[bookerAsParticipant(ADA_BOOKER)]}
           pickupLocationId={null}
           accommodationRooms={[{ productId: 'double-room', quantity: 1 }]}
-          perRoomAddons={{ 'double-room': { 'bf-1': 1 } }}
+          roomPicks={[breakfastPick('double-room', 1, 'bf-1')]}
           roomProductNames={{ 'double-room': 'Double Room' }}
           onBack={vi.fn()}
           onConfirmed={vi.fn()}
@@ -565,7 +570,7 @@ describe('BookingForm — review-only screen (landr-8c03)', () => {
           participants={[bookerAsParticipant(ADA_BOOKER)]}
           pickupLocationId={null}
           accommodationRooms={[{ productId: 'single-room', quantity: 1 }]}
-          perRoomAddons={{ 'single-room': { 'bf-1': 1 } }}
+          roomPicks={[breakfastPick('single-room', 1, 'bf-1')]}
           roomProductNames={{ 'single-room': 'Single Room' }}
           roomAssignment={{ 0: { roomProductId: 'single-room', unitIndex: 0 } }}
           onBack={vi.fn()}
@@ -591,7 +596,7 @@ describe('BookingForm — review-only screen (landr-8c03)', () => {
           ]}
           pickupLocationId={null}
           accommodationRooms={[{ productId: 'single-room', quantity: 2 }]}
-          perRoomAddons={{ 'single-room': { 'bf-1': 1 } }}
+          roomPicks={[breakfastPick('single-room', 1, 'bf-1')]}
           roomProductNames={{ 'single-room': 'Single Room' }}
           roomAssignment={{
             0: { roomProductId: 'single-room', unitIndex: 0 },
@@ -641,6 +646,8 @@ beforeEach(() => {
     // landr-rmcsu.7: the seat pre-check now runs for any group > 1; reset so a
     // queued availability answer never leaks into a later test.
     vi.mocked(getAvailability).mockReset()
+    // Offers answer from the demo evaluator unless a test pins its own verdict.
+    vi.mocked(getOffers).mockReset().mockImplementation(async (b) => mockEvaluateOffers(b))
   })
 
   it('builds the submit body from booker + participants + line items and calls onConfirmed', async () => {
@@ -669,9 +676,13 @@ beforeEach(() => {
         ]}
         pickupLocationId="loc-pickup-1"
         accommodationRooms={[{ productId: 'room-1', quantity: 1 }]}
-        addons={[
-          { productId: 'breakfast-1', quantity: 2 },
-          { productId: 'video-1', quantity: 1 },
+        roomPicks={[breakfastPick('room-1', 2, 'breakfast-1')]}
+        offerPicks={[
+          makePick(
+            makeOffer({ id: 'offer-video', product_id: 'video-1', name: 'Video package' }),
+            'main',
+            'o1',
+          ),
         ]}
         onBack={vi.fn()}
         onConfirmed={onConfirmed}
@@ -690,10 +701,23 @@ beforeEach(() => {
     expect(body.customer_phone).toBe('+34 600 000 000')
     expect(body.products).toEqual([
       expect.objectContaining({ product_id: 'service-1', quantity: 1 }),
-      expect.objectContaining({ product_id: 'room-1', quantity: 1 }),
-      expect.objectContaining({ product_id: 'breakfast-1', quantity: 2 }),
-      expect.objectContaining({ product_id: 'video-1', quantity: 1 }),
+      expect.objectContaining({ product_id: 'room-1', quantity: 1, line_id: 'r-room-1' }),
+      expect.objectContaining({
+        product_id: 'breakfast-1',
+        quantity: 2,
+        line_id: 'a1',
+        parent_line_id: 'r-room-1',
+        offer_id: 'offer-breakfast-1',
+      }),
+      expect.objectContaining({
+        product_id: 'video-1',
+        quantity: 1,
+        line_id: 'o1',
+        parent_line_id: 'main',
+        offer_id: 'offer-video',
+      }),
     ])
+    expect(body.products[0]).toMatchObject({ line_id: 'main' })
     expect(body.participants).toEqual([
       expect.objectContaining({
         first_name: 'Ada',
@@ -1999,7 +2023,7 @@ describe('BookingForm — per-occupant breakfast (landr-a4fy)', () => {
         ]}
         pickupLocationId={null}
         accommodationRooms={[{ productId: 'single-room', quantity: 2 }]}
-        perRoomAddons={{ 'single-room': { 'bf-1': 1 } }}
+        roomPicks={[breakfastPick('single-room', 1, 'bf-1')]}
         roomProductNames={{ 'single-room': 'Single Room' }}
         roomAssignment={{
           0: { roomProductId: 'single-room', unitIndex: 0 },
@@ -2066,7 +2090,7 @@ describe('BookingForm — per-occupant breakfast (landr-a4fy)', () => {
         ]}
         pickupLocationId={null}
         accommodationRooms={[{ productId: 'single-room', quantity: 2 }]}
-        perRoomAddons={{ 'single-room': { 'bf-1': 1 } }}
+        roomPicks={[breakfastPick('single-room', 1, 'bf-1')]}
         roomProductNames={{ 'single-room': 'Single Room' }}
         roomAssignment={{
           0: { roomProductId: 'single-room', unitIndex: 0 },
@@ -2112,7 +2136,7 @@ describe('BookingForm — per-occupant breakfast review (landr-rjvd)', () => {
         ]}
         pickupLocationId={null}
         accommodationRooms={[{ productId: 'double-room', quantity: 1 }]}
-        perRoomAddons={{ 'double-room': { 'bf-1': 1 } }}
+        roomPicks={[breakfastPick('double-room', 1, 'bf-1')]}
         roomProductNames={{ 'double-room': 'Double Room' }}
         roomAssignment={{
           0: { roomProductId: 'double-room', unitIndex: 0 },
@@ -2169,7 +2193,7 @@ describe('BookingForm — per-occupant breakfast review (landr-rjvd)', () => {
         ]}
         pickupLocationId={null}
         accommodationRooms={[{ productId: 'double-room', quantity: 1 }]}
-        perRoomAddons={{ 'double-room': { 'bf-1': 1 } }}
+        roomPicks={[breakfastPick('double-room', 1, 'bf-1')]}
         roomProductNames={{ 'double-room': 'Double Room' }}
         roomAssignment={{
           0: { roomProductId: 'double-room', unitIndex: 0 },
@@ -2210,7 +2234,7 @@ describe('BookingForm — per-occupant breakfast review (landr-rjvd)', () => {
         ]}
         pickupLocationId={null}
         accommodationRooms={[{ productId: 'double-room', quantity: 1 }]}
-        perRoomAddons={{ 'double-room': { 'bf-1': 2 } }}
+        roomPicks={[breakfastPick('double-room', 2, 'bf-1')]}
         roomProductNames={{ 'double-room': 'Double Room' }}
         roomAssignment={{
           0: { roomProductId: 'double-room', unitIndex: 0 },
@@ -2252,7 +2276,7 @@ describe('BookingForm — per-occupant breakfast review (landr-rjvd)', () => {
         ]}
         pickupLocationId={null}
         accommodationRooms={[{ productId: 'double-room', quantity: 1 }]}
-        perRoomAddons={{ 'double-room': { 'bf-1': 1 } }}
+        roomPicks={[breakfastPick('double-room', 1, 'bf-1')]}
         roomProductNames={{ 'double-room': 'Double Room' }}
         roomAssignment={{
           0: { roomProductId: 'double-room', unitIndex: 0 },
@@ -2295,7 +2319,7 @@ describe('BookingForm — per-occupant breakfast review (landr-rjvd)', () => {
         ]}
         pickupLocationId={null}
         accommodationRooms={[{ productId: 'double-room', quantity: 1 }]}
-        perRoomAddons={{ 'double-room': { 'bf-1': 1 } }}
+        roomPicks={[breakfastPick('double-room', 1, 'bf-1')]}
         roomProductNames={{ 'double-room': 'Double Room' }}
         roomAssignment={{
           0: { roomProductId: 'double-room', unitIndex: 0 },

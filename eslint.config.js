@@ -3,6 +3,11 @@ import globals from 'globals'
 import reactHooks from 'eslint-plugin-react-hooks'
 import reactRefresh from 'eslint-plugin-react-refresh'
 import tseslint from 'typescript-eslint'
+import {
+  globalShadowRestrictedSyntax,
+  sharedResponseMockRestrictedSyntax,
+  testFileGlobs,
+} from './eslint.footgun-rules.js'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
@@ -20,6 +25,21 @@ export default defineConfig([
     ],
     languageOptions: {
       globals: globals.browser,
+    },
+    // landr-x44uz.3 — js-window-shadow-foot-gun.
+    rules: {
+      'no-restricted-syntax': ['error', ...globalShadowRestrictedSyntax],
+    },
+  },
+  {
+    // landr-x44uz.3 — tests: also forbid a shared Response in mockResolvedValue.
+    files: testFileGlobs,
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        ...globalShadowRestrictedSyntax,
+        ...sharedResponseMockRestrictedSyntax,
+      ],
     },
   },
 ])

@@ -11,7 +11,7 @@ import {
 } from './priceSidebarHelpers'
 
 describe('buildAddonLines (landr-qez0)', () => {
-  it('merges rooms and addons into a single qty>0 list', () => {
+  it('merges rooms and offer lines into a single qty>0 list', () => {
     expect(
       buildAddonLines(
         [
@@ -19,13 +19,29 @@ describe('buildAddonLines (landr-qez0)', () => {
           { productId: 'room-2', quantity: 0 },
         ],
         [
-          { productId: 'bf', quantity: 4 },
-          { productId: 'video', quantity: 0 },
+          { product_id: 'bf', qty: 4, line_id: 'o1', offer_id: 'of1', parent_line_id: 'main' },
+          { product_id: 'video', qty: 0 },
         ],
       ),
     ).toEqual([
       { product_id: 'room-1', qty: 2 },
-      { product_id: 'bf', qty: 4 },
+      { product_id: 'bf', qty: 4, line_id: 'o1', offer_id: 'of1', parent_line_id: 'main' },
+    ])
+  })
+
+  it('gives a room a line id only when an offer line hangs off it', () => {
+    expect(
+      buildAddonLines(
+        [
+          { productId: 'room-1', quantity: 1 },
+          { productId: 'room-2', quantity: 1 },
+        ],
+        [{ product_id: 'bf', qty: 1, line_id: 'a1', offer_id: 'of1', parent_line_id: 'r-room-2' }],
+      ),
+    ).toEqual([
+      { product_id: 'room-1', qty: 1 },
+      { product_id: 'room-2', qty: 1, line_id: 'r-room-2' },
+      { product_id: 'bf', qty: 1, line_id: 'a1', offer_id: 'of1', parent_line_id: 'r-room-2' },
     ])
   })
 
@@ -79,6 +95,17 @@ describe('splitLineItems (landr-qez0)', () => {
     expect(split.operator.map((i) => i.product_id)).toEqual(['a'])
     expect(split.hotel.map((i) => i.product_id)).toEqual(['b'])
     expect(split.performer).toEqual([])
+    expect(split.onSite).toEqual([])
+  })
+
+  it('puts on-site collected lines in their own group, whoever they are paid to', () => {
+    const split = splitLineItems([
+      ...items,
+      { ...items[1], product_id: 'o', collection: 'on_site' },
+    ])
+    expect(split.onSite.map((i) => i.product_id)).toEqual(['o'])
+    expect(split.hotel.map((i) => i.product_id)).toEqual(['b'])
+    expect(split.operator.map((i) => i.product_id)).toEqual(['a'])
   })
 
   it('puts performer lines in their own group, never operator (landr-hzovu.5)', () => {

@@ -66,5 +66,17 @@
     "openapi-typescript": {
       "typescript": "$typescript"
     }
+  },
+  "devEngines": {
+    "runtime": {
+      "name": "node",
+      "version": ">=24",
+      "onFail": "error"
+    },
+    "packageManager": {
+      "name": "npm",
+      "version": ">=11",
+      "onFail": "error"
+    }
   }
 }

@@ -15,15 +15,16 @@
  */
 import type {
   AvailabilitySlot,
+  EstimateAddonLine,
   EstimateRequestBody,
   EstimateResponse,
   FixedDateWindow,
+  OfferEvaluateGuest,
   Product,
   ProductLine,
 } from '@/api/types'
 import type { FlowFormDef, ProductFlowResponse } from '@/api/flowTypes'
-import { isBookable } from './bookability'
-import { isBookableKind, isStayKind } from '@/flowPlan'
+import { isStayKind } from '@/flowPlan'
 import { hasFixedStartTimes, toHHMM } from './slotKey'
 import { expandWindowDays } from './expandWindowDays'
 import {
@@ -45,6 +46,15 @@ export type ExtraLineMode = 'days' | 'nights' | 'slot' | 'window'
 export interface ExtraLine {
   /** Stable per added line (a product may only be added once). */
   key: string
+  /**
+   * The line's id in the cart tree (`o1`, ...) when it was added from an
+   * offer; its offer and the line it hangs off (absent = the main line).
+   */
+  lineId?: string
+  offerId?: string
+  parentLineId?: string
+  /** Added from a mandatory offer: the guest cannot remove it. */
+  mandatory?: boolean
   product: Product
   mode: ExtraLineMode
   /** Booked days ('days'), nights ('nights'), the slot date ('slot') or the window's days. */
@@ -61,6 +71,11 @@ export interface ExtraLine {
   unavailableDays: string[]
   /** True while the line's availability is being (re-)checked. */
   checking: boolean
+  /**
+   * Whole units the last availability read left free over all the line's
+   * days ('days' / 'nights' modes); null/absent = unknown (no inventory cap).
+   */
+  freeUnits?: number | null
 }
 
 export function lineMode(product: Product): ExtraLineMode {
@@ -68,27 +83,6 @@ export function lineMode(product: Product): ExtraLineMode {
   if (hasFixedStartTimes(product) || product.service_time_shape === 'time_slot') return 'slot'
   if (product.service_time_shape === 'fixed_window') return 'window'
   return 'days'
-}
-
-/**
- * Products the customer may add: published, bookable, a kind the funnel books
- * (a service with a time shape, or a stay) and not already in the cart. The
- * public catalogue already leaves out add-on-only products (they are booked
- * through their parent's add-on step).
- */
-export function crossSellCandidates(
-  catalogue: readonly Product[],
-  cartProductIds: readonly string[],
-): Product[] {
-  const inCart = new Set(cartProductIds)
-  return catalogue.filter(
-    (p) =>
-      !inCart.has(p.product_id) &&
-      p.is_publicly_listed !== false &&
-      isBookable(p) &&
-      isBookableKind(p.product_kind) &&
-      (isStayKind(p.product_kind) || p.service_time_shape !== null),
-  )
 }
 
 /**
@@ -105,6 +99,17 @@ export interface CrossSellContext {
   answeredFormKeys: readonly string[]
   /** A pickup point (or a booked hotel acting as one) is already set. */
   hasPickup: boolean
+  /**
+   * landr-hfvyc.2: the roster has 2+ guests and the guest step never asked
+   * for Adult/Child + age (no occupancy-priced stay was in the cart then).
+   */
+  agesNeeded?: boolean
+}
+
+/** One guest's Adult/Child band (+ age 0-17 for a child). */
+export interface GuestAgeEntry {
+  band: 'adult' | 'child'
+  age: number | null
 }
 
 /**
@@ -117,6 +122,8 @@ export interface InlineModuleState {
   /** Form keys answered inline (their entries live in the booking form). */
   formKeys: readonly string[]
   pickupLocationId: string | null
+  /** landr-hfvyc.2: inline guest ages by roster index (0 = first guest, always adult). */
+  ages?: Readonly<Record<number, GuestAgeEntry>> | null
 }
 
 export const EMPTY_INLINE_MODULES: InlineModuleState = {
@@ -214,6 +221,8 @@ export interface LineNeeds {
   pickup: boolean
   /** Custom forms of this line the main flow has not answered. */
   forms: FlowFormDef[]
+  /** landr-hfvyc.2: Adult/Child + age per guest (owned by the first occupancy-priced line). */
+  ages?: boolean
 }
 
 /**
@@ -236,6 +245,7 @@ export function lineNeeds(
   const claimed = new Set<string>()
   let languageClaimed = false
   let pickupClaimed = false
+  let agesClaimed = false
   for (const line of lines) {
     const needs: LineNeeds = { language: false, pickup: false, forms: [] }
     if (languageMissing && !languageClaimed && productOfferedLanguages(line.product).length > 0) {
@@ -252,6 +262,10 @@ export function lineNeeds(
       needs.pickup = true
       pickupClaimed = true
     }
+    if (ctx.agesNeeded && !agesClaimed && line.product.occupancy_pricing) {
+      needs.ages = true
+      agesClaimed = true
+    }
     for (const m of line.flow?.modules ?? []) {
       if (m.kind !== 'custom_form' || m.form == null) continue
       const key = m.form.key
@@ -262,6 +276,25 @@ export function lineNeeds(
     out[line.key] = needs
   }
   return out
+}
+
+/** True when a guest is marked child with no age yet. */
+export function hasChildWithoutAgeEntry(
+  ages: Readonly<Record<number, GuestAgeEntry>> | null | undefined,
+): boolean {
+  return Object.values(ages ?? {}).some((e) => e.band === 'child' && e.age === null)
+}
+
+/** `child_ages` for the estimate from inline entries (first guest is never a child). */
+export function childAgesFromEntries(
+  ages: Readonly<Record<number, GuestAgeEntry>> | null | undefined,
+  participantCount: number,
+): number[] {
+  const out: number[] = []
+  for (const [k, e] of Object.entries(ages ?? {})) {
+    if (Number(k) > 0 && e.band === 'child' && e.age !== null) out.push(e.age)
+  }
+  return out.slice(0, Math.max(0, participantCount - 1))
 }
 
 /** True while an inline module of an added line still waits for the customer. */
@@ -278,6 +311,7 @@ export function inlineModulesPending(
       (n.language &&
         !(offer && languagesCover(inline.languages ?? {}, ctx.participantCount, offer))) ||
       (n.pickup && inline.pickupLocationId === null) ||
+      (n.ages === true && hasChildWithoutAgeEntry(inline.ages)) ||
       n.forms.some((f) => !answered.has(f.key)),
   )
 }
@@ -321,8 +355,8 @@ export function preferredWindow(
   )
 }
 
-export function withWindow(line: ExtraLine, window: FixedDateWindow): ExtraLine {
-  return { ...line, windowId: window.id, days: expandWindowDays(window), unavailableDays: [] }
+export function withWindow(line: ExtraLine, dateWindow: FixedDateWindow): ExtraLine {
+  return { ...line, windowId: dateWindow.id, days: expandWindowDays(dateWindow), unavailableDays: [] }
 }
 
 /**
@@ -353,6 +387,49 @@ export function unavailableDaysFor(
 /** Seats one added line needs per day: a stay sells a unit, a service seats the party. */
 export function seatsForLine(line: Pick<ExtraLine, 'mode'>, partySize: number): number {
   return line.mode === 'nights' ? 1 : Math.max(1, partySize)
+}
+
+/**
+ * Free units for 'days' / 'nights' lines: the lowest free count over the
+ * days that have availability rows (a stay sells units, so `need` is 1; a
+ * service divides by the seats one unit takes). Null when no day has rows.
+ */
+export function freeUnitsFor(
+  slots: readonly AvailabilitySlot[],
+  days: readonly string[],
+  need: number,
+): number | null {
+  let min: number | null = null
+  for (const d of days) {
+    const rows = slots.filter(
+      (s) => s.date === d && s.status !== 'closed' && s.activity_bookable !== false,
+    )
+    if (rows.length === 0) continue
+    const best = Math.max(...rows.map((r) => r.available_seats))
+    min = min === null ? best : Math.min(min, best)
+  }
+  return min === null ? null : Math.max(0, Math.floor(min / Math.max(1, need)))
+}
+
+/** Free units of a picked slot / window for a line needing `need` seats per unit. */
+export function freeUnitsOfSeats(freeSeats: number, need: number): number {
+  return Math.max(0, Math.floor(freeSeats / Math.max(1, need)))
+}
+
+/**
+ * Upper bound of a cross-sell line's quantity stepper. A stay is always one
+ * unit (the API refuses more), so its cap is 1; a service is capped at the
+ * free inventory, never below 1. `freeUnits` null = unknown, no cap (the API
+ * re-checks).
+ */
+export function maxQuantityFor(
+  line: Pick<ExtraLine, 'mode'>,
+  _partySize: number,
+  freeUnits: number | null | undefined,
+): number {
+  if (line.mode === 'nights') return 1
+  if (freeUnits === null || freeUnits === undefined) return Number.POSITIVE_INFINITY
+  return Math.max(1, freeUnits)
 }
 
 /** Why an added line cannot be submitted yet, or null when it is ready. */
@@ -387,6 +464,11 @@ export function extraProductLine(line: ExtraLine): ProductLine {
     }
   }
   if (line.mode === 'window' && line.windowId) out.fixed_date_window_id = line.windowId
+  if (line.lineId && line.offerId) {
+    out.line_id = line.lineId
+    out.offer_id = line.offerId
+    out.parent_line_id = line.parentLineId ?? 'main'
+  }
   return out
 }
 
@@ -406,11 +488,22 @@ export function extraEstimateRequests(
   lines: readonly ExtraLine[],
   participantCount: number,
   locale?: string,
+  childAges?: readonly number[],
+  /**
+   * The offers taken under an added line (offerCart extraOfferEstimateLines,
+   * keyed by the line's tree id) and the party they name: priced on that
+   * line's own estimate.
+   */
+  offers?: {
+    linesFor: (lineId: string) => EstimateAddonLine[]
+    guests?: readonly OfferEvaluateGuest[]
+  },
 ): ExtraEstimateRequest[] {
   return lines
     .filter((l) => l.days.length > 0 && (l.mode !== 'slot' || l.slot))
     .map((l) => {
       const pl = extraProductLine(l)
+      const offerLines = l.lineId && offers ? offers.linesFor(l.lineId) : []
       return {
         key: l.key,
         productId: l.product.product_id,
@@ -418,8 +511,13 @@ export function extraEstimateRequests(
         body: {
           selected_days: pl.selected_days ?? [],
           participants_count: Math.max(1, participantCount),
-          addon_lines: [],
+          addon_lines: offerLines,
+          ...(offerLines.length > 0 ? { main_line_id: 'main' } : {}),
+          ...(offers?.guests && offers.guests.length > 0 ? { guests: [...offers.guests] } : {}),
           ...(locale ? { locale } : {}),
+          ...(childAges && childAges.length > 0 && l.product.occupancy_pricing
+            ? { child_ages: [...childAges] }
+            : {}),
           ...(pl.product_availability_id
             ? { product_availability_id: pl.product_availability_id }
             : {}),
@@ -448,6 +546,7 @@ function scaled(est: EstimateResponse, q: number): EstimateResponse {
     ...(est.performer_total != null ? { performer_total: scale(est.performer_total, q) } : {}),
     grand_total: scale(est.grand_total, q),
     ...(est.amount_due != null ? { amount_due: scale(est.amount_due, q) } : {}),
+    ...(est.on_site_total != null ? { on_site_total: scale(est.on_site_total, q) } : {}),
     ...(est.subtotal_before_savings != null
       ? { subtotal_before_savings: scale(est.subtotal_before_savings, q) }
       : {}),
@@ -490,6 +589,7 @@ export function mergeEstimates(
     warnings: all.flatMap((e) => e.warnings),
     un_priceable: all.some((e) => e.un_priceable),
     amount_due: sum((e) => e.amount_due ?? e.operator_total),
+    ...(all.some((e) => e.on_site_total != null) ? { on_site_total: sum((e) => e.on_site_total) } : {}),
     ...(anySavings
       ? {
           savings: all.flatMap((e) => e.savings ?? []),

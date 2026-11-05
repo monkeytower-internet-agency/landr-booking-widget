@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 
 import type { Product, ProductGroup } from '@/api/types'
 import type { BookingSelection } from '@/components/booking/BookingForm'
+import { evalOffer } from '@/components/booking/offerFixtures'
+import { newPick } from '@/components/booking/offerCart'
 import type {
   BookerDetails,
   CompanionDetails,
@@ -17,6 +19,7 @@ import {
   draftForProductSwitch,
   partyClampForSwitch,
   stepForAlternativeSwitch,
+  stepForAlternativeBack,
   frameBackStep,
   mergeCapturedDraft,
   participantsBeforeSelection,
@@ -33,6 +36,11 @@ import {
   type Step,
 } from './appStepMachine'
 import { languageStepNeeded } from '@/components/booking/participantLanguages'
+
+/** A room-type pick (an offer taken under a room line) for draft/step fixtures. */
+function roomPick(productId: string, quantity: number) {
+  return { ...newPick(evalOffer(`of-${productId}`, { product_id: productId }), 'r-room-1', `a-${productId}`, []), quantity }
+}
 
 function makeProduct(overrides: Partial<Product> = {}): Product {
   return {
@@ -319,28 +327,12 @@ describe('stepBeforeReview (landr-87n9.1 — back-nav mirrors the forward machin
     expect(prev.pickupLocationId).toBe('loc-hauptplatz')
   })
 
-  it('no hotel, no pickup, but service add-ons were shown → Back returns to pick-service-addons', () => {
+  it('no hotel, no pickup → Back returns to details', () => {
     const prev = stepBeforeReview(
       baseArgs({
         product: makeProduct({ needs_pickup: false, hotel_offering: 'none' }),
         hotelLocationId: null,
         accommodationRooms: [],
-        addons: [{ productId: 'addon-1', quantity: 1 }],
-        hadServiceAddons: true,
-      }),
-    )
-    expect(prev.name).toBe('pick-service-addons')
-    if (prev.name !== 'pick-service-addons') throw new Error('narrowing')
-    expect(prev.addons).toEqual([{ productId: 'addon-1', quantity: 1 }])
-  })
-
-  it('no hotel, no pickup, no service add-ons → Back returns to details', () => {
-    const prev = stepBeforeReview(
-      baseArgs({
-        product: makeProduct({ needs_pickup: false, hotel_offering: 'none' }),
-        hotelLocationId: null,
-        accommodationRooms: [],
-        hadServiceAddons: false,
       }),
     )
     expect(prev.name).toBe('details')
@@ -456,7 +448,6 @@ describe('stepAfterAccommodation — shared-double bypass (landr-ffyg.2)', () =>
       [], // NO room lines for a shared-double booking
       'loc-shared-hotel',
       [],
-      false,
       true, // includeHotel
       true, // isSharedDouble
       'shared-double',
@@ -483,7 +474,6 @@ describe('stepAfterAccommodation — shared-double bypass (landr-ffyg.2)', () =>
       [],
       null,
       [],
-      false,
       false,
       false,
       'guiding-only',
@@ -744,7 +734,7 @@ describe('booking-draft preservation (landr-nmed)', () => {
       companions: makeCompanions(1),
       pickupLocationId: 'hotel-1',
       accommodationRooms: [{ productId: 'room-1', quantity: 1 }],
-      addons: [{ productId: 'addon-1', quantity: 2 }],
+      addons: [roomPick('addon-1', 2)],
       hotelLocationId: 'hotel-1',
       isSharedDouble: false,
       accommodationMode: 'package',
@@ -768,7 +758,7 @@ describe('booking-draft preservation (landr-nmed)', () => {
       expect(draft!.accommodationRooms).toEqual([
         { productId: 'room-1', quantity: 1 },
       ])
-      expect(draft!.addons).toEqual([{ productId: 'addon-1', quantity: 2 }])
+      expect(draft!.addons).toEqual([roomPick('addon-1', 2)])
       expect(draft!.roomAssignment).toEqual({
         0: { roomProductId: 'room-1', unitIndex: 0 },
       })
@@ -912,7 +902,7 @@ describe('booking-draft preservation (landr-nmed)', () => {
 
   // landr-0l5q: mergeDraft's underlying spread does NOT skip `undefined`
   // values, and `afterAccommodation`'s tail parameters (roomAssignment,
-  // occupantAgeMap, perRoomAddons, roomProductNames, breakfastMap) all
+  // occupantAgeMap, roomProductNames, breakfastMap) all
   // default to `undefined`. A caller that omits one — the short-circuit call
   // sites in afterDetails for a product with no hotel/add-ons — must not wipe
   // an already-good slice of the persistent draft.
@@ -932,7 +922,6 @@ describe('booking-draft preservation (landr-nmed)', () => {
         accommodationRooms: [],
         hotelLocationId: null,
         addons: [],
-        hadServiceAddons: false,
         roomAssignment: undefined,
       }
       const merged = mergeDraftPatch(prev, patch)
@@ -943,9 +932,9 @@ describe('booking-draft preservation (landr-nmed)', () => {
 
     it('still applies every explicitly-provided (non-undefined) key as a plain overwrite', () => {
       const prev: BookingDraft = { booker: ADA, addons: [] }
-      const patch: BookingDraft = { addons: [{ productId: 'p1', quantity: 2 }] }
+      const patch: BookingDraft = { addons: [roomPick('p1', 2)] }
       const merged = mergeDraftPatch(prev, patch)
-      expect(merged.addons).toEqual([{ productId: 'p1', quantity: 2 }])
+      expect(merged.addons).toEqual([roomPick('p1', 2)])
       expect(merged.booker).toEqual(ADA)
     })
 
@@ -1042,7 +1031,6 @@ describe('language step routing (landr-r6e5x.4)', () => {
       preReviewArgs({
         hotelLocationId: 'loc-hotel',
         accommodationRooms: [{ productId: 'room-1', quantity: 2 }],
-        hadServiceAddons: true,
       }),
       null,
       undefined,
@@ -1051,7 +1039,6 @@ describe('language step routing (landr-r6e5x.4)', () => {
     if (next.name !== 'assign-languages') throw new Error('narrowing')
     expect(next.hotelLocationId).toBe('loc-hotel')
     expect(next.accommodationRooms).toEqual([{ productId: 'room-1', quantity: 2 }])
-    expect(next.hadServiceAddons).toBe(true)
     expect(next.companions).toHaveLength(1)
   })
 
@@ -1295,8 +1282,8 @@ describe('participants position in the step machine (landr-rmcsu.6)', () => {
 
   it('the breadcrumb follows the plan order', () => {
     const product = makeProduct()
-    const addons: Step = {
-      name: 'pick-service-addons',
+    const review: Step = {
+      name: 'pick-accommodation',
       product,
       selection: SLOT_SELECTION,
       booker: ADA,
@@ -1304,14 +1291,14 @@ describe('participants position in the step machine (landr-rmcsu.6)', () => {
       companions: [],
     }
     expect(
-      buildBreadcrumb(addons, { remoteFlow: PARTICIPANTS_FIRST, draft }).map((c) => c.name),
-    ).toEqual(['product-detail', 'details', 'pick-selection', 'pick-service-addons'])
+      buildBreadcrumb(review, { remoteFlow: PARTICIPANTS_FIRST, draft }).map((c) => c.name),
+    ).toEqual(['product-detail', 'details', 'pick-selection', 'pick-accommodation'])
     // Legacy (no flow) unchanged.
-    expect(buildBreadcrumb(addons, { draft }).map((c) => c.name)).toEqual([
+    expect(buildBreadcrumb(review, { draft }).map((c) => c.name)).toEqual([
       'product-detail',
       'pick-selection',
       'details',
-      'pick-service-addons',
+      'pick-accommodation',
     ])
   })
 
@@ -1477,7 +1464,7 @@ describe('draftForProductSwitch', () => {
       partySize: 3,
       booker: ADA,
       customerComment: 'hi',
-      addons: [{ addon_id: 'a', quantity: 1 } as never],
+      addons: [roomPick('a', 1)],
       hotelLocationId: 'h-1',
       pickupLocationId: 'l-1',
       customFormAnswers: { f: { k: 'v' } },
@@ -1532,5 +1519,65 @@ describe('stepForAlternativeSwitch + detailsFromDraft carry', () => {
     const step = detailsFromDraft(target, undefined, {}, { date: '2026-11-01', startTime: '11:00' })
     expect(step.carry).toEqual({ date: '2026-11-01', startTime: '11:00' })
     expect(detailsFromDraft(target, undefined, {})).not.toHaveProperty('carry')
+  })
+})
+
+describe('stepForAlternativeBack (landr-p2du5)', () => {
+  const range = makeProduct({ product_id: 'range', service_time_shape: 'days_range' })
+  const course = makeProduct({ product_id: 'course', service_time_shape: 'fixed_window' })
+  const slot = makeProduct({ product_id: 'slot', service_time_shape: 'time_slot' })
+  const days = ['2026-11-14', '2026-11-15']
+  const base = { toProductId: 'other', draft: { partySize: 3 } }
+
+  it('days_range origin: every live day re-selected on its date step', () => {
+    expect(
+      stepForAlternativeBack({ ...base, from: { name: 'pick-selection', product: range }, days }),
+    ).toEqual({
+      name: 'pick-selection',
+      product: range,
+      selection: { kind: 'days', selectedDays: days },
+    })
+  })
+
+  it('course origin: the live window wins, else the committed one', () => {
+    expect(
+      stepForAlternativeBack({
+        ...base,
+        from: { name: 'pick-selection', product: course },
+        days,
+        windowId: 'w-live',
+      }),
+    ).toMatchObject({ selection: { fixedDateWindowId: 'w-live' } })
+    expect(
+      stepForAlternativeBack({
+        ...base,
+        from: {
+          name: 'pick-selection',
+          product: course,
+          selection: { kind: 'days', selectedDays: days, fixedDateWindowId: 'w-old' },
+        },
+        days,
+      }),
+    ).toMatchObject({ selection: { fixedDateWindowId: 'w-old' } })
+  })
+
+  it('time-slot origin: day and start time ride back as a carry', () => {
+    expect(
+      stepForAlternativeBack({
+        ...base,
+        from: { name: 'pick-selection', product: slot },
+        days: ['2026-11-14'],
+        startTime: '10:00:00',
+      }),
+    ).toEqual({
+      name: 'pick-selection',
+      product: slot,
+      carry: { date: '2026-11-14', startTime: '10:00:00' },
+    })
+  })
+
+  it('fully-booked origin: returns to the notice unchanged', () => {
+    const from = { name: 'fully-booked' as const, product: range }
+    expect(stepForAlternativeBack({ ...base, from, days: [] })).toBe(from)
   })
 })

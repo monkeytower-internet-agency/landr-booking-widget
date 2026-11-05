@@ -228,8 +228,8 @@ export function totalRoomCapacity(
 // display name (`/breakfast/i.test(addon.name)`), which would silently
 // match nothing for a non-English operator's own add-on names. They powered
 // the aggregate breakfast-vs-participants warning, which landr-yybu removed
-// in favour of the per-row, add-on-agnostic overbook warning in AddonsList
-// (isOverbooked in addonsState.ts, driven by is_required/min_qty/max_qty —
+// in favour of the per-row, add-on-agnostic overbook warning on each row
+// (the per-row overbook check, driven by is_required/min_qty/max_qty —
 // no name/id matching at all). Both helpers were unused dead code (only
 // referenced from their own tests) by the time this ticket landed, so
 // rather than inventing a new heuristic (there is still no structural
@@ -237,57 +237,6 @@ export function totalRoomCapacity(
 // something different: "breakfast is bundled into THIS room's rate") they
 // were deleted along with the substring match instead of being preserved.
 
-/**
- * Flatten a per-room add-on selection map back to the AddonSelection[] shape
- * expected by the onConfirm contract (landr-yybu).
- *
- * The per-room map is `Record<roomProductId, Record<addon_product_id, qty>>`.
- * This helper:
- *   1. Only considers rooms still in the cart (roomSelection[roomId] > 0).
- *   2. Only includes add-ons that appear in that room's catalogue
- *      (addonsByRoom[roomId]), so dropped-room add-ons don't leak.
- *   3. Sums qty per addon_product_id across rooms, deduplicating add-ons
- *      that are linked to multiple rooms (e.g. Para42 Breakfast on Single +
- *      Double). The resulting line items are unique by productId.
- *   4. Omits entries with a summed qty of 0.
- *
- * Returns an array of { productId, quantity, productKind } sorted by
- * productId for deterministic ordering (stable for tests and submit
- * payloads). landr-fxza.4: `productKind` is threaded through from each
- * addon's own ProductAddon row (its product_kind, e.g. 'hotel_room' for
- * breakfast) so BookingForm.onConfirm can give room-tied add-ons the
- * room's NIGHT window instead of the raw service-day window.
- */
-export function flattenPerRoomAddons(
-  addonSelection: Record<string, Record<string, number>>,
-  roomSelection: Record<string, number>,
-  addonsByRoom: Record<string, import('@/api/types').ProductAddon[]>,
-): import('./addonsState').AddonSelection[] {
-  const totals = new Map<string, number>()
-  const kindById = new Map<string, import('@/api/types').ProductKind>()
-  for (const [roomId, roomQty] of Object.entries(roomSelection)) {
-    if ((roomQty ?? 0) <= 0) continue
-    const roomAddons = addonsByRoom[roomId] ?? []
-    const roomQtys = addonSelection[roomId] ?? {}
-    for (const addon of roomAddons) {
-      const id = addon.addon_product_id
-      const qty = roomQtys[id] ?? 0
-      if (qty <= 0) continue
-      totals.set(id, (totals.get(id) ?? 0) + qty)
-      if (!kindById.has(id)) kindById.set(id, addon.product_kind)
-    }
-  }
-  return [...totals.entries()]
-    .filter(([, qty]) => qty > 0)
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([productId, quantity]) => ({
-      productId,
-      quantity,
-      ...(kindById.has(productId)
-        ? { productKind: kindById.get(productId) }
-        : {}),
-    }))
-}
 
 /**
  * landr-gb2f.2: participant → room assignment helpers.
@@ -1011,9 +960,9 @@ export type BreakfastMap = Record<number, boolean>
  */
 export function roomBreakfastQty(
   roomProductId: string,
-  perRoomAddons: Record<string, Record<string, number>>,
+  roomExtras: Record<string, Record<string, number>>,
 ): number {
-  const qtys = perRoomAddons[roomProductId] ?? {}
+  const qtys = roomExtras[roomProductId] ?? {}
   return Object.values(qtys).reduce((a, b) => a + b, 0)
 }
 
@@ -1079,13 +1028,13 @@ export function roomBreakfastMode(qty: number, occCount: number): RoomBreakfastM
  */
 export function clampBreakfastMap(
   assignment: RoomAssignmentMap,
-  perRoomAddons: Record<string, Record<string, number>>,
+  roomExtras: Record<string, Record<string, number>>,
   prev: BreakfastMap = {},
 ): BreakfastMap {
   const out: BreakfastMap = {}
   const byProduct = occupantsByRoomProduct(assignment)
   for (const [roomProductId, occupants] of byProduct.entries()) {
-    const qty = roomBreakfastQty(roomProductId, perRoomAddons)
+    const qty = roomBreakfastQty(roomProductId, roomExtras)
     if (qty <= 0) continue
     if (qty >= occupants.length) {
       // Everyone gets breakfast — no choice to make.
@@ -1162,10 +1111,10 @@ export function clampBreakfastMap(
  */
 export function deriveBreakfastMap(
   assignment: RoomAssignmentMap,
-  perRoomAddons: Record<string, Record<string, number>>,
+  roomExtras: Record<string, Record<string, number>>,
   prev: BreakfastMap = {},
 ): BreakfastMap {
-  return clampBreakfastMap(assignment, perRoomAddons, prev)
+  return clampBreakfastMap(assignment, roomExtras, prev)
 }
 
 /**
@@ -1190,17 +1139,17 @@ export function deriveBreakfastMap(
  */
 export function assignBreakfastChip(
   assignment: RoomAssignmentMap,
-  perRoomAddons: Record<string, Record<string, number>>,
+  roomExtras: Record<string, Record<string, number>>,
   prev: BreakfastMap,
   memberIndex: number,
   from?: number,
 ): BreakfastMap {
   const entry = assignment[memberIndex]
   // Start from a clamped baseline so the result is always valid.
-  const base = clampBreakfastMap(assignment, perRoomAddons, prev)
+  const base = clampBreakfastMap(assignment, roomExtras, prev)
   if (!entry) return base
   const roomProductId = entry.roomProductId
-  const qty = roomBreakfastQty(roomProductId, perRoomAddons)
+  const qty = roomBreakfastQty(roomProductId, roomExtras)
   if (qty <= 0) return base
   if (base[memberIndex] === true) return base // already holds one
 

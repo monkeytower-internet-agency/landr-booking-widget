@@ -68,7 +68,7 @@ interface Props {
    * Called when the user selects a window so App.tsx can feed the live
    * expanded days into PriceSidebar before Continue is pressed (landr-w7pi).
    */
-  onLiveDaysChange?: (isoDays: string[]) => void
+  onLiveDaysChange?: (isoDays: string[], windowId?: string) => void
   /**
    * landr (breadcrumb): id of the previously-picked window, restored when the
    * customer navigates BACK so the prior window is pre-selected (the committed
@@ -118,33 +118,33 @@ function sortWindows(list: FixedDateWindow[]): FixedDateWindow[] {
  */
 function windowDisplayName(
   list: FixedDateWindow[],
-  window: FixedDateWindow,
+  dateWindow: FixedDateWindow,
   locale: string,
 ): string | null {
-  const label = window.label?.trim()
+  const label = dateWindow.label?.trim()
   if (label) return label
   const twins = list.filter(
     (w) =>
       !w.label?.trim() &&
-      w.start_date === window.start_date &&
-      w.end_date === window.end_date,
+      w.start_date === dateWindow.start_date &&
+      w.end_date === dateWindow.end_date,
   )
   if (twins.length < 2) return null
   return tr('courseFallbackName', locale).replace(
     '{n}',
-    String(twins.findIndex((w) => w.id === window.id) + 1),
+    String(twins.findIndex((w) => w.id === dateWindow.id) + 1),
   )
 }
 
-function windowToSlot(window: FixedDateWindow): AvailabilitySlot {
-  const available = Math.max(0, window.capacity - window.capacity_reserved)
+function windowToSlot(dateWindow: FixedDateWindow): AvailabilitySlot {
+  const available = Math.max(0, dateWindow.capacity - dateWindow.capacity_reserved)
   return {
-    availability_id: window.id,
-    date: window.start_date,
+    availability_id: dateWindow.id,
+    date: dateWindow.start_date,
     start_time: null,
     end_time: null,
-    capacity: window.capacity,
-    capacity_reserved: window.capacity_reserved,
+    capacity: dateWindow.capacity,
+    capacity_reserved: dateWindow.capacity_reserved,
     available_seats: available,
     status: available > 0 ? 'open' : 'fully_booked',
   }
@@ -233,7 +233,7 @@ export function FixedDateWindowPicker({
   // landr (breadcrumb): once the windows load, surface a restored selection in
   // the live sidebar so the price preview reflects the prior pick immediately.
   useEffect(() => {
-    if (selectedWindow) onLiveDaysChange?.(expandWindowDays(selectedWindow))
+    if (selectedWindow) onLiveDaysChange?.(expandWindowDays(selectedWindow), selectedWindow.id)
     // Fire only when the resolved window changes (i.e. the restore resolves).
     // eslint-disable-next-line react-hooks/exhaustive-deps -- fire when the resolved window changes; onLiveDaysChange is a parent callback with unstable identity
   }, [selectedWindow])
@@ -324,11 +324,11 @@ export function FixedDateWindowPicker({
           </p>
         ) : (
           <ul className="flex flex-col gap-2.5">
-            {windows.map((window) => {
-              const displayName = windowDisplayName(windows, window, locale)
+            {windows.map((dateWindow) => {
+              const displayName = windowDisplayName(windows, dateWindow, locale)
               const available = Math.max(
                 0,
-                window.capacity - window.capacity_reserved,
+                dateWindow.capacity - dateWindow.capacity_reserved,
               )
               const isFull = available === 0
               // landr-rmcsu.7: seats left, but fewer than the group needs.
@@ -342,16 +342,16 @@ export function FixedDateWindowPicker({
               // the customer can see the trip exists.
               const windowReasons = forceReasonsFor(
                 !isFull && !isShort,
-                window,
+                dateWindow,
                 product.hotel_offering,
               )
               const leadTimeBlocked =
                 windowReasons.includes('lead_time') ||
                 windowReasons.includes('accommodation_lead_time')
               const blocked = windowReasons.length > 0
-              const isSelected = selectedId === window.id && !selectedUnfit
+              const isSelected = selectedId === dateWindow.id && !selectedUnfit
               return (
-                <li key={window.id}>
+                <li key={dateWindow.id}>
                   {/* landr-3mo4: window rows are now proper OPTION-CARDS —
                       a leading calendar-range icon in a tinted tile, the date
                       range as the label, a borderless seat-state chip, and a
@@ -378,8 +378,8 @@ export function FixedDateWindowPicker({
                           return
                         }
                       }
-                      setSelectedId(window.id)
-                      onLiveDaysChange?.(expandWindowDays(window))
+                      setSelectedId(dateWindow.id)
+                      onLiveDaysChange?.(expandWindowDays(dateWindow), dateWindow.id)
                     }}
                     aria-pressed={isSelected}
                     className={cn(
@@ -414,13 +414,13 @@ export function FixedDateWindowPicker({
                         {displayName ? (
                           <span
                             className="font-semibold"
-                            data-testid={`fixed-date-window-name-${window.id}`}
+                            data-testid={`fixed-date-window-name-${dateWindow.id}`}
                           >
                             {displayName}
                           </span>
                         ) : null}
                         <span className="font-medium tabular-nums">
-                          {formatWindowRangeLabel(window.start_date, window.end_date, locale)}
+                          {formatWindowRangeLabel(dateWindow.start_date, dateWindow.end_date, locale)}
                         </span>
                       </span>
                       {blocked && canForce ? (

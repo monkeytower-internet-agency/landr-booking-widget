@@ -32,13 +32,15 @@
  *   - Happy path: full breakdown with operator/hotel split + applied
  *     discount tags
  */
-import { ALTERNATIVES_SLOT_ID } from '@/components/booking/alternativesSlot'
+import {
+  ALTERNATIVE_BACK_SLOT_ID,
+  ALTERNATIVES_SLOT_ID,
+} from '@/components/booking/alternativesSlot'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronUp, RefreshCw } from 'lucide-react'
-import type { EstimateSlotFields, Product, VoucherStatus } from '@/api/types'
+import type { EstimateLineItem, EstimateSlotFields, Product, VoucherStatus } from '@/api/types'
 import { cn } from '@/lib/utils'
 import { deriveStayWindow, type RoomSelection } from './accommodationCalc'
-import type { AddonSelection } from './addonsState'
 import { formatDayLabel } from './dateLabel'
 import { browserLocale } from '@/lib/locale'
 import {
@@ -59,6 +61,14 @@ import { PerformerPaySections } from './PerformerPaySections'
 import { PriceBreakdown } from './PriceBreakdown'
 import { useBookingEstimate } from './useBookingEstimate'
 import { extraEstimateRequests, mergeEstimates, type ExtraLine } from './crossSell'
+import {
+  cartTree,
+  extraOfferEstimateLines,
+  guestsWire,
+  mainEstimateLines,
+  type OfferPick,
+  type PartyMember,
+} from './offerCart'
 import { useExtraLineEstimates } from './useExtraLineEstimates'
 import {
   buildAddonLines,
@@ -84,7 +94,16 @@ interface Props {
    */
   participantNames?: string[]
   accommodationRooms: RoomSelection[]
-  addons: AddonSelection[]
+  /**
+   * The offers taken (room types' and the main line's, see offerCart.ts):
+   * priced as offer lines of the main estimate, an added product's own on its
+   * estimate. `offerMembers` is the party they name (refs + attributes),
+   * sent as the estimate's `guests` so the server attaches what it attaches.
+   */
+  offerPicks?: OfferPick[]
+  offerMembers?: readonly PartyMember[]
+  /** The visible estimate's line items, for the offer rows' prices. */
+  onLineItemsChange?: (items: EstimateLineItem[] | null) => void
   /**
    * landr-k9pji.25: the picked slot of the product (estimateSlotFields), so
    * start-time prices show before submit. Omitted = no slot picked.
@@ -136,6 +155,11 @@ interface Props {
    * total, so every figure here covers ALL lines of the booking.
    */
   extraLines?: ExtraLine[]
+  /**
+   * landr-hfvyc.2: ages (0-17) of the children among `participantCount`, from
+   * the guest step. Sent as `child_ages` only to occupancy-priced stays.
+   */
+  childAges?: readonly number[]
 }
 
 /** landr-h0opd.3: the estimate's calculated total, lifted out of PriceSidebar. */
@@ -156,6 +180,11 @@ interface BookingOverviewBodyProps
   extends ReturnType<typeof useBookingEstimate> {
   /** ISO YYYY-MM-DD days the customer picked for the guided service. */
   selectedDays: string[]
+  /**
+   * The days a day-pickable companion add-on was picked on, by add-on
+   * product id: its line shows these instead of the whole stay.
+   */
+  companionDays?: Record<string, string[]>
   /**
    * landr-t869m.1: forwarded to deriveStayWindow so the "Hotel: Sun 24 May
    * → …" header respects the product's own check-in offset instead of the
@@ -180,6 +209,7 @@ function BookingOverviewBody({
   isStale,
   error,
   selectedDays,
+  companionDays,
   accommodationCheckinOffsetDays,
   hasHotelRoom,
   voucherRejected = false,
@@ -228,7 +258,7 @@ function BookingOverviewBody({
       </div>
     )
   }
-  const { operator, hotel, performer } = splitLineItems(data.line_items)
+  const { operator, hotel, performer, onSite } = splitLineItems(data.line_items)
   const performerGroups = groupPerformerLines(performer)
   // A standalone stay: the main line (always first) shows the night span,
   // nights × rate and the cleaning fee instead of day chips.
@@ -326,9 +356,9 @@ function BookingOverviewBody({
             {tr('youPayNowHeading', locale)}
           </h4>
           <ul className="space-y-2 text-sm">
-            {operator.map((li) => (
+            {operator.map((li, liIdx) => (
               <li
-                key={`op-${li.product_id}`}
+                key={`op-${li.product_id}-${liIdx}`}
                 className="flex items-baseline justify-between gap-2"
               >
                 <span className="flex-1">
@@ -384,7 +414,7 @@ function BookingOverviewBody({
                     // DayChips: one chip per picked date — replaces the
                     // previous "qty × units days" subtitle which conflated
                     // non-contiguous selections with a range.
-                    <DayChips dates={selectedDays} />
+                    <DayChips dates={companionDays?.[li.product_id] ?? selectedDays} locale={locale} />
                   )}
                   {/* We still show the participant-count multiplier when
                       qty > 1 so the customer sees why the line total scales. */}
@@ -424,6 +454,26 @@ function BookingOverviewBody({
             testIdPrefix="price-sidebar"
             details={discountBlock}
           />
+          {onSite.length > 0 ? (
+            <div data-testid="price-sidebar-on-site" className="mt-3 space-y-1 text-sm">
+              <h4 className="font-semibold">{tr('offerPayOnArrivalTotal', locale)}</h4>
+              <ul className="space-y-0.5">
+                {onSite.map((li, i) => (
+                  <li key={`${li.line_id ?? li.product_id}-${i}`} className="flex justify-between gap-2">
+                    <span>{li.label}</span>
+                    <span>{formatMoney(li.collection_amount ?? li.line_total, data.currency, locale)}</span>
+                  </li>
+                ))}
+              </ul>
+              {data.on_site_total ? (
+                <p className="flex justify-between gap-2 font-medium" data-testid="price-sidebar-on-site-total">
+                  <span>{tr('offerPayOnArrivalTotal', locale)}</span>
+                  <span>{formatMoney(data.on_site_total, data.currency, locale)}</span>
+                </p>
+              ) : null}
+              <p className="text-xs text-muted-foreground">{tr('offerPayOnArrivalNote', locale)}</p>
+            </div>
+          ) : null}
         </section>
       ) : null}
       {voucherRejected ? (
@@ -569,7 +619,9 @@ export default function PriceSidebar(props: Props) {
     participantCount,
     participantNames,
     accommodationRooms,
-    addons,
+    offerPicks,
+    offerMembers,
+    onLineItemsChange,
     slot,
     debounceMs,
     onUnPriceableChange,
@@ -577,12 +629,23 @@ export default function PriceSidebar(props: Props) {
     voucherCode,
     onVoucherStatusChange,
     extraLines,
+    childAges,
   } = props
 
-  const addonLines = useMemo(
-    () => buildAddonLines(accommodationRooms, addons),
-    [accommodationRooms, addons],
+  const offerTree = useMemo(
+    () => cartTree(product, selectedDays, accommodationRooms, extraLines ?? []),
+    [product, selectedDays, accommodationRooms, extraLines],
   )
+  const members = useMemo(() => offerMembers ?? [], [offerMembers])
+  const offerLines = useMemo(
+    () => mainEstimateLines(offerPicks ?? [], offerTree, members),
+    [offerPicks, offerTree, members],
+  )
+  const addonLines = useMemo(
+    () => buildAddonLines(accommodationRooms, offerLines),
+    [accommodationRooms, offerLines],
+  )
+  const guests = useMemo(() => (members.length > 0 ? guestsWire(members) : undefined), [members])
 
   // Human-friendly "for Ada, Grace + 1 other" line. Only renders when
   // DetailsStep has surfaced the names (landr-8c03). Three or fewer
@@ -607,6 +670,11 @@ export default function PriceSidebar(props: Props) {
   // (enabled) and the render (`visible` below) — the hook deliberately
   // keeps the previous response for stale-while-loading, so deselecting
   // the last day would otherwise leave the old price on screen.
+  const companionDays = useMemo(() => {
+    const byProduct: Record<string, string[]> = {}
+    for (const a of offerLines) if (a.selected_days?.length) byProduct[a.product_id] = a.selected_days
+    return byProduct
+  }, [offerLines])
   const hasSelection = selectedDays.length > 0
 
   const estimate = useBookingEstimate({
@@ -617,6 +685,8 @@ export default function PriceSidebar(props: Props) {
     addonLines,
     slot,
     voucherCode,
+    childAges: product.occupancy_pricing ? childAges : undefined,
+    guests,
     enabled: hasSelection,
     debounceMs,
   })
@@ -625,8 +695,12 @@ export default function PriceSidebar(props: Props) {
   // selection exists; collapses to the no-data empty state ("Pick your
   // options to see the price.") when nothing is selected.
   const extraRequests = useMemo(
-    () => extraEstimateRequests(extraLines ?? [], participantCount, browserLocale()),
-    [extraLines, participantCount],
+    () =>
+      extraEstimateRequests(extraLines ?? [], participantCount, browserLocale(), childAges, {
+        linesFor: (lineId) => extraOfferEstimateLines(lineId, offerPicks ?? [], offerTree, members),
+        guests,
+      }),
+    [extraLines, participantCount, childAges, offerPicks, offerTree, members, guests],
   )
   const extras = useExtraLineEstimates(operatorToken, extraRequests)
   // The main estimate with every added line folded in. While an added line's
@@ -650,6 +724,10 @@ export default function PriceSidebar(props: Props) {
         error: null,
         refresh: estimate.refresh,
       }
+
+  useEffect(() => {
+    onLineItemsChange?.(visible.data?.line_items ?? null)
+  }, [visible.data, onLineItemsChange])
 
   // landr-zenj.1: report the visible estimate's un_priceable flag up to
   // the parent (App.tsx lifts it into BookingForm's `unPriceable` prop —
@@ -810,13 +888,21 @@ export default function PriceSidebar(props: Props) {
           <BookingOverviewBody
             {...visible}
             selectedDays={selectedDays}
+            companionDays={companionDays}
             accommodationCheckinOffsetDays={product.accommodation_checkin_offset_days}
             hasHotelRoom={hasHotelRoom}
             voucherRejected={voucherStatus === 'not_applicable'}
           />
         </div>
-        {/* "Also available" panel of the date step portals in here. */}
-        <div id={ALTERNATIVES_SLOT_ID} data-testid="alternatives-desktop-slot" />
+        {/* "Also available" panel of the date step portals in here. The extra
+            top margin (on top of the rail's gap) keeps it clear of the total,
+            so it never reads as part of the price (landr-p2du5). */}
+        <div className="mt-4 flex flex-col gap-4">
+          {/* landr-d9qs8: the way back after an alternative switch sits where
+              the tapped row was, above the new product's own alternatives. */}
+          <div id={ALTERNATIVE_BACK_SLOT_ID} data-testid="alternative-back-desktop-slot" className="empty:hidden" />
+          <div id={ALTERNATIVES_SLOT_ID} data-testid="alternatives-desktop-slot" className="empty:hidden" />
+        </div>
         </div>
       </aside>
 
@@ -938,6 +1024,7 @@ export default function PriceSidebar(props: Props) {
             <BookingOverviewBody
             {...visible}
             selectedDays={selectedDays}
+            companionDays={companionDays}
             accommodationCheckinOffsetDays={product.accommodation_checkin_offset_days}
             hasHotelRoom={hasHotelRoom}
             voucherRejected={voucherStatus === 'not_applicable'}

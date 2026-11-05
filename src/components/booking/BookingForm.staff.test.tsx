@@ -476,6 +476,23 @@ describe('BookingForm — staff mode', () => {
     expect(body.ignore_capacity === true).toBe(ignore)
   })
 
+  it('review step states a past start for staff, and omits it otherwise', () => {
+    renderForm(
+      {
+        kind: 'days',
+        selectedDays: ['2026-02-03', '2026-02-04'],
+        pastStart: { iso: '2026-02-03', daysAgo: 5 },
+      },
+      true,
+    )
+    expect(screen.getByTestId('review-past-start')).toHaveTextContent(/5 days ago/)
+  })
+
+  it('no past-start note without a pastStart', () => {
+    renderForm({ kind: 'days', selectedDays: ['2026-02-03'] }, true)
+    expect(screen.queryByTestId('review-past-start')).not.toBeInTheDocument()
+  })
+
   it('raises ignore_capacity on the STAFF endpoint for a forced selection', async () => {
     renderForm(FORCED_DAYS, true)
     expect(screen.getByTestId('review-forced')).toBeInTheDocument()

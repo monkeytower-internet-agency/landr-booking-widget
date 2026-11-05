@@ -1,3 +1,4 @@
+import { AlternativeBackButton } from '@/components/booking/AlternativeBackButton'
 import { PausedGate } from '@/components/booking/PausedGate'
 import { shouldShowVoucherField } from '@/components/booking/voucherField'
 import { DemoBanner, DemoCongrats } from '@/components/booking/DemoMode'
@@ -33,8 +34,7 @@ import {
   type BookingSelection,
   type InlineAnswers,
 } from '@/components/booking/BookingForm'
-import { ServiceAddonsStep } from '@/components/booking/ServiceAddonsStep'
-import type { AddonSelection } from '@/components/booking/addonsState'
+import { partyMembers, type OfferPick, type PartyMember } from '@/components/booking/offerCart'
 import { CancelPage } from '@/components/booking/CancelPage'
 import { LegalFooter } from '@/components/LegalFooter'
 import { OfferPage } from '@/components/booking/OfferPage'
@@ -42,6 +42,8 @@ import { DetailsPage } from '@/components/booking/DetailsPage'
 import { ApprovalReplyPage } from '@/components/booking/ApprovalReplyPage'
 import { Confirmation } from '@/components/booking/Confirmation'
 import { DetailsStep } from '@/components/booking/DetailsStep'
+import { GuestAttributesStep } from '@/components/booking/GuestAttributesStep'
+import { unansweredCount, unionAttributes } from '@/components/booking/guestAttributes'
 import {
   bookerJoins,
   emptyBilling,
@@ -78,6 +80,7 @@ import { MembershipReturnPage } from '@/components/booking/MembershipReturnPage'
 import { PassCheckoutStep } from '@/components/booking/PassCheckoutStep'
 import { MultiDayStep } from '@/components/booking/MultiDayStep'
 import { PickupLocationPicker } from '@/components/booking/PickupLocationPicker'
+import { childAgesFromRoster, hasOccupancyPricing } from '@/components/booking/occupancyPricing'
 import PriceSidebar, { type CalculatedTotal } from '@/components/booking/PriceSidebar'
 import type { ExtraLine } from '@/components/booking/crossSell'
 import { ProductList } from '@/components/booking/ProductList'
@@ -99,7 +102,6 @@ import {
   getInvitePrefill,
   getOperatorServiceRoles,
   getOperatorSettings,
-  getProductAddons,
   getProductFlow,
   HttpError,
   listProductGroups,
@@ -115,10 +117,10 @@ import type {
   ProductGroup,
   ServiceRole,
   VoucherStatus,
+  EstimateLineItem,
 } from '@/api/types'
 import {
   type Step,
-  type PerRoomAddons,
   type BookingDraft,
   buildBreadcrumb,
   productEntryStep,
@@ -140,6 +142,8 @@ import {
   stepBeforeReview,
   draftForProductSwitch,
   stepForAlternativeSwitch,
+  stepForAlternativeBack,
+  type AlternativeBack,
   partyClampForSwitch,
   type AlternativeCarry,
 } from './appStepMachine'
@@ -269,6 +273,16 @@ function readQueryParams() {
  */
 const APP_CATALOG_WAIT_MS = 1000
 
+
+/** The party as the offers name it, before the review step reports its own. */
+function sidebarOfferMembers(
+  participants: readonly ParticipantDetails[] | undefined,
+  companions: readonly CompanionDetails[] | undefined,
+): PartyMember[] | undefined {
+  if (!participants || participants.length === 0) return undefined
+  return partyMembers(participants, companions ?? [])
+}
+
 function App() {
   // landr-8r6oc.26: re-render once when a late catalog lands (tr()/pickBundle()
   // read module state, so nothing else would trigger a repaint).
@@ -306,7 +320,7 @@ function App() {
               of this scroll container from triggering the browser's
               pull-to-refresh, which would reload the iframe. */}
           <div className="min-h-screen embedded:min-h-0 overscroll-y-contain bg-background text-foreground">
-            <div className="mx-auto flex max-w-md flex-col gap-6 p-6">
+            <div className="mx-auto flex max-w-md flex-col gap-6 p-6 md:max-w-4xl">
               <CancelPage token={route.token} />
               <LegalFooter />
             </div>
@@ -322,7 +336,7 @@ function App() {
         <StaffModeProvider>
           <TierBadge />
           <div className="min-h-screen embedded:min-h-0 overscroll-y-contain bg-background text-foreground">
-            <div className="mx-auto flex max-w-md flex-col gap-6 p-6 md:max-w-3xl">
+            <div className="mx-auto flex max-w-md flex-col gap-6 p-6 md:max-w-4xl">
               <OfferPage token={route.token} />
               <LegalFooter />
             </div>
@@ -339,7 +353,7 @@ function App() {
         <StaffModeProvider>
           <TierBadge />
           <div className="min-h-screen embedded:min-h-0 overscroll-y-contain bg-background text-foreground">
-            <div className="mx-auto flex max-w-md flex-col gap-6 p-6 md:max-w-3xl">
+            <div className="mx-auto flex max-w-md flex-col gap-6 p-6 md:max-w-4xl">
               <OfferPage token={route.token} mode="pay" />
               <LegalFooter />
             </div>
@@ -356,7 +370,7 @@ function App() {
         <StaffModeProvider>
           <TierBadge />
           <div className="min-h-screen embedded:min-h-0 overscroll-y-contain bg-background text-foreground">
-            <div className="mx-auto flex max-w-md flex-col gap-6 p-6 md:max-w-3xl">
+            <div className="mx-auto flex max-w-md flex-col gap-6 p-6 md:max-w-4xl">
               <DetailsPage token={route.token} />
               <LegalFooter />
             </div>
@@ -375,7 +389,7 @@ function App() {
         <StaffModeProvider>
           <TierBadge />
           <div className="min-h-screen embedded:min-h-0 overscroll-y-contain bg-background text-foreground">
-            <div className="mx-auto flex max-w-md flex-col gap-6 p-6">
+            <div className="mx-auto flex max-w-md flex-col gap-6 p-6 md:max-w-4xl">
               <ApprovalReplyPage token={route.token} intent={route.intent} />
               <LegalFooter />
             </div>
@@ -398,7 +412,7 @@ function App() {
         <StaffModeProvider>
           <TierBadge />
           <div className="min-h-screen embedded:min-h-0 overscroll-y-contain bg-background text-foreground">
-            <div className="mx-auto flex max-w-md flex-col gap-6 p-6">
+            <div className="mx-auto flex max-w-md flex-col gap-6 p-6 md:max-w-4xl">
               <MembershipReturnPage
                 status={memberParam === '1' ? 'success' : 'cancelled'}
               />
@@ -516,6 +530,8 @@ function BookingFlowApp() {
   // when leaving the details step so back-nav starts fresh.
   const [liveParticipantCount, setLiveParticipantCount] = useState<number>(0)
   const [liveParticipantNames, setLiveParticipantNames] = useState<string[]>([])
+  // landr-hfvyc.2: children's ages from the guest step, live (valid while liveParticipantCount > 0).
+  const [liveChildAges, setLiveChildAges] = useState<number[]>([])
   // landr-fn4i / landr-5krc: the optional member-perk code, lifted live from
   // DetailsStep (mirrors liveParticipant* above) straight to BookingForm's
   // submit — deliberately NOT part of the Step union / BookingDraft (unlike
@@ -574,7 +590,7 @@ function BookingFlowApp() {
   const [liveAccommodationRooms, setLiveAccommodationRooms] = useState<
     RoomSelection[]
   >([])
-  const [liveAddons, setLiveAddons] = useState<AddonSelection[]>([])
+  const [liveAddons, setLiveAddons] = useState<OfferPick[]>([])
   const [liveAccommodationTouched, setLiveAccommodationTouched] =
     useState<boolean>(false)
   // landr-nmed: the persistent booking-draft. Every step's onConfirm merges
@@ -810,11 +826,38 @@ function BookingFlowApp() {
     sig: string
     lines: ExtraLine[]
     inline?: InlineAnswers
+    /** The offers taken on the review step (offerCart.ts), same lifetime. */
+    picks?: OfferPick[]
   }>({
     sig: '',
     lines: [],
   })
   const extraLines = crossSell.sig === crossSellSig ? crossSell.lines : []
+  const offerPicks = useMemo(
+    () => (crossSell.sig === crossSellSig ? (crossSell.picks ?? []) : []),
+    [crossSell, crossSellSig],
+  )
+  const setOfferPicks = useCallback<Dispatch<SetStateAction<OfferPick[]>>>(
+    (update) =>
+      setCrossSell((prev) => {
+        const same = prev.sig === crossSellSig
+        const base = same ? (prev.picks ?? []) : []
+        const picks = typeof update === 'function' ? update(base) : update
+        if (same && picks === prev.picks) return prev
+        return {
+          sig: crossSellSig,
+          lines: same ? prev.lines : [],
+          inline: same ? prev.inline : undefined,
+          picks,
+        }
+      }),
+    [crossSellSig, setCrossSell],
+  )
+  // The review step's party as the offers name it (refs, answered
+  // attributes, ages), reported by BookingForm for the sidebar's estimate.
+  const [reviewOfferMembers, setReviewOfferMembers] = useState<PartyMember[] | null>(null)
+  // The sidebar estimate's line items, for the offer rows' prices.
+  const [estimateItems, setEstimateItems] = useState<EstimateLineItem[] | null>(null)
   const inlineAnswers = crossSell.sig === crossSellSig ? crossSell.inline : undefined
   const setInlineAnswers = useCallback(
     (inline: InlineAnswers) =>
@@ -826,11 +869,17 @@ function BookingFlowApp() {
         if (
           !inline.languages &&
           !inline.pickupId &&
+          !inline.ages &&
           Object.keys(inline.forms).length === 0 &&
           (same ? !prev.inline : true)
         )
           return prev
-        return { sig: crossSellSig, lines: same ? prev.lines : [], inline }
+        return {
+          sig: crossSellSig,
+          lines: same ? prev.lines : [],
+          inline,
+          picks: same ? prev.picks : undefined,
+        }
       }),
     [crossSellSig, setCrossSell],
   )
@@ -842,6 +891,7 @@ function BookingFlowApp() {
           sig: crossSellSig,
           lines: typeof update === 'function' ? update(base) : update,
           inline: prev.sig === crossSellSig ? prev.inline : undefined,
+          picks: prev.sig === crossSellSig ? prev.picks : undefined,
         }
       }),
     [crossSellSig, setCrossSell],
@@ -1121,7 +1171,7 @@ function BookingFlowApp() {
   // fallback through PR #256; narrowed to two-tier once .1 merged).
   //
   // landr-p68d2.1 also confirmed the submit-side language rule ignores
-  // add-on service lines (is_addon_only / product_addons children) — the
+  // add-on service lines (is_addon_only / offered add-on products) — the
   // widget books exactly one main service product per booking (D4), so
   // keying this off `step.product` (never an add-on) already matches.
   //
@@ -1305,6 +1355,12 @@ function BookingFlowApp() {
     from: string
     to: string
   } | null>(null)
+  // landr-p2du5: the way back to the product the guest switched away from,
+  // with the picks it had. Offered on the target's date step only.
+  const [alternativeBack, setAlternativeBack] = useState<AlternativeBack | null>(null)
+  // The course window last picked live, per product (FixedDateWindowPicker
+  // reports it with the days); read when a switch snapshots a course origin.
+  const liveWindowRef = useRef<{ productId: string; windowId?: string } | null>(null)
   useEffect(() => {
     const lastProductId = lastProductIdRef.current
     if (activeProductId && lastProductId && lastProductId !== activeProductId) {
@@ -1632,13 +1688,10 @@ function BookingFlowApp() {
    *   1. AccommodationStep when the product offers a hotel stay
    *      (landr-vyaz). Add-ons are surfaced INSIDE that step under
    *      each room (landr-cip6).
-   *   2. ServiceAddonsStep when the product has no hotel offering but
-   *      DOES have add-ons configured (landr-cip6). We do a quick
-   *      add-on fetch up front so customers without add-ons don't see
-   *      an empty step appear and disappear.
-   *   3. Straight through to pick-pickup / fill-form for products with
-   *      neither hotel nor add-ons (the legacy short-circuit).
-   * The accommodation/service-addons steps always return through
+   *   2. Straight through to pick-pickup / fill-form otherwise: the
+   *      product's own offers are picked on the review step
+   *      (AddMoreProducts).
+   * The accommodation step always returns through
    * afterAccommodation which preserves the pickup-vs-form decision tree.
    */
   const afterDetails = (
@@ -1652,6 +1705,50 @@ function BookingFlowApp() {
     comment: string,
   ) => {
     commitDetails(product, booker, participants, companions, comment)
+    // The 'About your guests' step: once per booking, right after the party
+    // step and before the extras, only when the product (or an offer that can
+    // be shown for it) asks per-guest attributes. The flow is normally cached
+    // by now (it is fetched when the product is picked); if not, wait for it.
+    const gate = (flow: ProductFlowResponse | null) => {
+      const attributes = flow?.guest_attributes ?? []
+      if (attributes.length > 0) {
+        setStep({
+          name: 'guest-attributes',
+          product,
+          selection,
+          booker,
+          participants,
+          companions,
+          attributes,
+        })
+        return
+      }
+      continueAfterDetails(product, selection, booker, participants, companions)
+    }
+    const cached = resolvedFlowForProduct(product.product_id)
+    if (cached !== undefined) gate(cached)
+    else withResolvedFlow(product.product_id, gate)
+  }
+
+  /** The guest step confirmed: keep the answers in the draft, then run on. */
+  const afterGuestAttributes = (
+    product: Product,
+    selection: BookingSelection,
+    booker: BookerDetails,
+    participants: ParticipantDetails[],
+    companions: CompanionDetails[],
+  ) => {
+    mergeDraft({ participants, companions })
+    continueAfterDetails(product, selection, booker, participants, companions)
+  }
+
+  const continueAfterDetails = (
+    product: Product,
+    selection: BookingSelection,
+    booker: BookerDetails,
+    participants: ParticipantDetails[],
+    companions: CompanionDetails[],
+  ) => {
     const offering = product.hotel_offering ?? 'none'
     if (product.product_kind === 'service' && offering !== 'none') {
       // landr-nmed: re-seed the AccommodationStep from the draft so a customer
@@ -1674,54 +1771,12 @@ function BookingFlowApp() {
         accommodationMode: bookingDraft.accommodationMode,
         roomAssignment: bookingDraft.roomAssignment,
         occupantAgeMap: bookingDraft.occupantAgeMap,
-        perRoomAddons: bookingDraft.perRoomAddons,
         roomProductNames: bookingDraft.roomProductNames,
         breakfastMap: bookingDraft.breakfastMap,
       })
       return
     }
-    // A stay walks the same add-ons probe as a service (breakfast, transfers,
-    // late check-out), priced per its own unit.
-    if (isBookableKind(product.product_kind)) {
-      void (async () => {
-        let hasAddons: boolean
-        try {
-          const addons = await getProductAddons(product.product_id)
-          hasAddons = addons.length > 0
-        } catch {
-          hasAddons = false
-        }
-        if (hasAddons) {
-          setStep({
-            name: 'pick-service-addons',
-            product,
-            selection,
-            booker,
-            participants,
-            companions,
-            // landr-nmed: restore any add-ons already chosen before a Dates jump.
-            addons: bookingDraft.addons,
-          })
-        } else {
-          // landr-yf0n: hadServiceAddons=false here — the customer
-          // skipped this step because the product has no add-ons.
-          afterAccommodation(
-            product,
-            selection,
-            booker,
-            participants,
-            companions,
-            [],
-            null,
-            [],
-            false,
-          )
-        }
-      })()
-      return
-    }
-    // landr-yf0n: hadServiceAddons=false — product has no hotel + no
-    // add-on probe ran (non-service products short-circuit here).
+    // No hotel: the product's offers are picked on the review step.
     afterAccommodation(
       product,
       selection,
@@ -1731,7 +1786,6 @@ function BookingFlowApp() {
       [],
       null,
       [],
-      false,
     )
   }
 
@@ -1744,10 +1798,9 @@ function BookingFlowApp() {
     companions: CompanionDetails[],
     accommodationRooms: RoomSelection[],
     hotelLocationId: string | null,
-    addons: AddonSelection[] = [],
+    addons: OfferPick[] = [],
     // landr-yf0n: provenance flags so back-nav can hop back through the
     // upstream intermediate steps with their previously confirmed state.
-    hadServiceAddons: boolean = false,
     includeHotel: boolean | undefined = undefined,
     // landr-sbhz.4: shared-double flag for back-nav restoration.
     isSharedDouble: boolean | undefined = undefined,
@@ -1757,8 +1810,6 @@ function BookingFlowApp() {
     roomAssignment: RoomAssignmentMap | undefined = undefined,
     // landr-doam.1: per-occupant age band + age for the submit payload.
     occupantAgeMap: OccupantAgeMap | undefined = undefined,
-    // landr-gb2f.5: raw per-room add-on map for the review display.
-    perRoomAddons: PerRoomAddons | undefined = undefined,
     // landr-gb2f.5: room product display names for the review labels.
     roomProductNames: Record<string, string> | undefined = undefined,
     // landr-a4fy: per-occupant breakfast flag map for the submit payload.
@@ -1796,13 +1847,11 @@ function BookingFlowApp() {
       accommodationRooms,
       hotelLocationId,
       addons,
-      hadServiceAddons,
       includeHotel,
       isSharedDouble,
       accommodationMode,
       roomAssignment: partyAssignment,
       occupantAgeMap: partyAgeMap,
-      perRoomAddons,
       roomProductNames,
       breakfastMap: partyBreakfastMap,
     })
@@ -1816,7 +1865,6 @@ function BookingFlowApp() {
       accommodationRooms,
       hotelLocationId,
       addons,
-      hadServiceAddons,
       includeHotel,
       // landr-sbhz.4: shared-double flag threads through for back-nav.
       isSharedDouble,
@@ -1827,8 +1875,6 @@ function BookingFlowApp() {
       partyAssignment,
       // landr-doam.1: per-occupant age band + age threads through.
       partyAgeMap,
-      // landr-gb2f.5: per-room add-on map threads through to the review.
-      perRoomAddons,
       // landr-gb2f.5: room product names thread through to the review.
       roomProductNames,
       // landr-a4fy: breakfast map threads through to the review.
@@ -1874,6 +1920,22 @@ function BookingFlowApp() {
 
   // landr-rmcsu.6: on the dates step of a participants-first flow the party
   // is already committed — price it instead of the count-only default.
+  // landr-hfvyc.2: children's ages for the estimate. Live from the guest step
+  // while it is open; otherwise read off the confirmed roster.
+  const rosterForAges = 'participants' in step ? step.participants : bookingDraft.participants
+  const sidebarChildAges = useMemo(
+    () =>
+      step.name === 'details' && liveParticipantCount > 0
+        ? liveChildAges
+        : step.name === 'fill-form' && inlineAnswers?.childAges
+          ? inlineAnswers.childAges
+          : childAgesFromRoster(
+            rosterForAges ?? [],
+            (rosterForAges ?? []).length || 1,
+          ),
+    [step.name, liveParticipantCount, liveChildAges, rosterForAges, inlineAnswers],
+  )
+
   const sidebarInputs = sidebarInputsForStep(
     step,
     step.name === 'pick-selection' && participantsFirstFor(step.product)
@@ -2057,6 +2119,22 @@ function BookingFlowApp() {
     if (tappedProductId && tappedProductId !== target.product_id) {
       setAlternativeOrigin({ from: tappedProductId, to: target.product_id })
     }
+    setAlternativeBack(
+      (now.name === 'pick-selection' || now.name === 'fully-booked') &&
+        now.product.product_id !== target.product_id
+        ? {
+            from: now,
+            toProductId: target.product_id,
+            days: liveSelectionDays,
+            windowId:
+              liveWindowRef.current?.productId === now.product.product_id
+                ? liveWindowRef.current.windowId
+                : undefined,
+            startTime: liveSlot ? liveSlot.start_time : null,
+            draft: bookingDraft,
+          }
+        : null,
+    )
     setLiveSelectionDays([])
     setLiveSlot(null)
     // The shared-double reference and the live accommodation edits belong to
@@ -2086,6 +2164,28 @@ function BookingFlowApp() {
       }),
     )
   }
+  // landr-p2du5: return from an alternative to the product the guest left,
+  // its day(s)/window/start time and the pre-switch draft restored.
+  const goBackFromAlternative = () => {
+    const back = alternativeBack
+    if (!back) return
+    ++switchSeqRef.current
+    alternativeSwitchRef.current = true
+    setAlternativeBack(null)
+    setAlternativeOrigin(null)
+    setPartyClampNote(null)
+    setLiveSelectionDays([])
+    setLiveSlot(null)
+    setJoinRef(null)
+    clearLiveAccommodation()
+    setBookingDraft(back.draft)
+    setStep(stepForAlternativeBack(back))
+  }
+  const showAlternativeBack =
+    alternativeBack !== null &&
+    step.name === 'pick-selection' &&
+    step.product.product_id === alternativeBack.toProductId
+
   // An invite's hold counts for the product it was minted for only.
   const inviteTokenFor = (p: Product) =>
     inviteData && inviteData.product_id === p.product_id ? (invite ?? undefined) : undefined
@@ -2112,6 +2212,22 @@ function BookingFlowApp() {
   // "still resolving" (see its declaration); once it settles to an object
   // (success, already past this step) or `null` (404 → plain wizard is the
   // intended fallback, so let it through) this gate no longer applies.
+  // A line added on the review step can ask attributes the guest step never
+  // asked (its product, or an offer for it, lists more keys). Until every guest
+  // has them the review is replaced by the same 'About your guests' step.
+  const cartGuestAttributes =
+    step.name === 'fill-form'
+      ? unionAttributes(
+          resolvedFlowForProduct(step.product.product_id)?.guest_attributes,
+          ...extraLines.map((l) => l.flow?.guest_attributes),
+        )
+      : []
+  const reviewGuests =
+    step.name === 'fill-form' ? [...step.participants, ...step.companions] : []
+  const reviewNeedsAttributes =
+    cartGuestAttributes.length > 0 &&
+    unansweredCount(cartGuestAttributes, reviewGuests, {}) > 0
+
   if (invite && inviteData === undefined && step.name === 'pick-product') {
     return (
       <div
@@ -2511,6 +2627,18 @@ function BookingFlowApp() {
           pickedGroupSlug); a top-level ?product= deep link has no
           catalogue to go back to.
         */}
+        {showAlternativeBack && alternativeBack ? (
+          <AlternativeBackButton
+            productName={pickLocalized(
+              alternativeBack.from.product.name,
+              alternativeBack.from.product.name_localized,
+              browserLocale(),
+            )}
+            keepsDates={alternativeBack.days.length > 0}
+            onBack={goBackFromAlternative}
+          />
+        ) : null}
+
         {partyClampNote &&
         (step.name === 'pick-selection' || step.name === 'details') &&
         step.product.product_id === partyClampNote.productId ? (
@@ -2676,20 +2804,23 @@ function BookingFlowApp() {
                     ? (inviteData.fixed_date_window_id ?? undefined)
                     : undefined
             }
-            onConfirm={(_slot, window, forced, forcedReasons) => {
-              const days = expandWindowDays(window)
+            onConfirm={(_slot, dateWindow, forced, forcedReasons) => {
+              const days = expandWindowDays(dateWindow)
               afterSelection(step.product, {
                 kind: 'days',
                 selectedDays: days,
                 // landr-my6fc.7: remember WHICH course window (windows may overlap).
-                fixedDateWindowId: window.id,
+                fixedDateWindowId: dateWindow.id,
                 // landr-aoak.2/t869m.5: a force-booked blocked window marks
                 // ALL its days as forced (so the submit adapter raises
                 // ignore_capacity) and carries WHICH gate(s) it bypassed.
                 ...(forced ? { forcedDays: days, forcedReasons } : {}),
               })
             }}
-            onLiveDaysChange={setLiveSelectionDays}
+            onLiveDaysChange={(days, windowId) => {
+              liveWindowRef.current = { productId: step.product.product_id, windowId }
+              setLiveSelectionDays(days)
+            }}
             onSelectAlternative={onSelectAlternative}
           />
         ) : null}
@@ -2734,10 +2865,11 @@ function BookingFlowApp() {
             operatorToken={token ?? undefined}
             operatorTimezone={operatorSettings.timezone}
             contactEmail={operatorSettings.contact_email ?? null}
-            onConfirm={(selectedDays, forcedDays, forcedReasons) =>
+            onConfirm={(selectedDays, forcedDays, forcedReasons, pastStart) =>
               afterSelection(step.product, {
                 kind: 'days',
                 selectedDays,
+                ...(pastStart ? { pastStart } : {}),
                 // landr-aoak.2/t869m.5: carry the force-booked subset (staff
                 // mode only) and which gate(s) it bypassed.
                 ...(forcedDays && forcedDays.length > 0
@@ -2923,10 +3055,49 @@ function BookingFlowApp() {
             // (participants_count) and aren't needed for any live sidebar
             // state on this step (the committed companions land in step state
             // on Continue), so we intentionally ignore the third arg here.
-            onLiveParticipantsChange={(count, names) => {
+            onLiveParticipantsChange={(count, names, _companions, childAges) => {
               setLiveParticipantCount(count)
               setLiveParticipantNames(names)
+              setLiveChildAges(childAges ?? [])
             }}
+            // landr-hfvyc.2: any stay in the cart (main or cross-sell line)
+            // with occupancy pricing → Adult/Child + age per guest.
+            collectGuestAges={hasOccupancyPricing(
+              step.product,
+              ...extraLines.map((l) => l.product),
+            )}
+          />
+        ) : null}
+
+        {step.name === 'guest-attributes' ? (
+          <GuestAttributesStep
+            productName={pickLocalized(
+              step.product.name,
+              step.product.name_localized,
+              browserLocale(),
+            )}
+            attributes={step.attributes}
+            participants={step.participants}
+            companions={step.companions}
+            onBack={() =>
+              setStep({
+                name: 'details',
+                product: step.product,
+                selection: step.selection,
+                booker: step.booker,
+                participants: step.participants,
+                companions: step.companions,
+              })
+            }
+            onConfirm={(participants, companions) =>
+              afterGuestAttributes(
+                step.product,
+                step.selection,
+                step.booker,
+                participants,
+                companions,
+              )
+            }
           />
         ) : null}
 
@@ -2996,10 +3167,9 @@ function BookingFlowApp() {
                 : (inviteData?.hotel_location_id ?? step.hotelLocationId)
             }
             initialRooms={step.accommodationRooms}
-            initialAddons={step.addons}
-            // landr-gb2f.5: restore the exact per-room add-on map on back-nav
-            // so the breakfast split survives Back→Forward correctly.
-            initialPerRoomAddons={step.perRoomAddons}
+            // The room types' offer picks, restored on back-nav.
+            initialRoomPicks={step.addons}
+            partyMemberIds={buildRoomRoster(step.participants, step.companions)}
             initialIncludeHotel={step.includeHotel}
             initialMode={step.accommodationMode}
             // landr-gb2f.2 / landr-doam.1 / landr-z59y: restore the room
@@ -3044,9 +3214,9 @@ function BookingFlowApp() {
             // sidebar's at-hotel total updates as the customer picks rooms.
             // Sets the `touched` sentinel so App prefers live values over the
             // step's restored values from this point on.
-            onLiveAccommodationChange={(rooms, addons) => {
+            onLiveAccommodationChange={(rooms, roomPicks) => {
               setLiveAccommodationRooms(rooms)
-              setLiveAddons(addons)
+              setLiveAddons(roomPicks)
               setLiveAccommodationTouched(true)
             }}
             onBack={() => {
@@ -3064,7 +3234,7 @@ function BookingFlowApp() {
                 }),
               )
             }}
-            onConfirm={(rooms, hotelLocationId, addons, includeHotel, isSharedDouble, roomAssignment, ageMap, perRoomAddons, roomProductNames, breakfastMap) =>
+            onConfirm={(rooms, hotelLocationId, roomPicks, includeHotel, isSharedDouble, roomAssignment, ageMap, roomProductNames, breakfastMap) =>
               afterAccommodation(
                 step.product,
                 step.selection,
@@ -3074,12 +3244,7 @@ function BookingFlowApp() {
                 step.companions,
                 rooms,
                 hotelLocationId,
-                addons,
-                // Carry forward whether the customer originally went
-                // through ServiceAddonsStep (false here — this product
-                // has a hotel offering, so the service-addons step
-                // never ran).
-                false,
+                roomPicks,
                 includeHotel,
                 isSharedDouble,
                 // landr-ffyg.2: derive the top-level mode from the confirm
@@ -3091,9 +3256,6 @@ function BookingFlowApp() {
                 roomAssignment,
                 // landr-doam.1: thread the age map to the submit step.
                 ageMap,
-                // landr-gb2f.5: thread the per-room add-on map so the
-                // review can show breakfast status per room unit.
-                perRoomAddons,
                 // landr-gb2f.5: thread room product names for review labels.
                 roomProductNames,
                 // landr-a4fy: thread breakfast map to submit step.
@@ -3103,68 +3265,6 @@ function BookingFlowApp() {
           />
         ) : null}
 
-        {step.name === 'pick-service-addons' ? (
-          <ServiceAddonsStep
-            product={step.product}
-            // landr-lmudr.10: the booking's service days + guiding party
-            // size, so a stock-limited (rental) add-on shows sold out.
-            selectedDays={
-              step.selection.kind === 'slot'
-                ? [step.selection.slot.date]
-                : step.selection.selectedDays
-            }
-            participantCount={step.participants.length}
-            // landr-yf0n: thread prior add-on selections back so the
-            // step re-mounts with the customer's choices restored
-            // instead of resetting to the min_qty seed.
-            initialAddons={step.addons}
-            // landr-n6ii3: editable "Anything we should know?" field on
-            // every step from details onward — reads/writes the draft
-            // directly, live, on every keystroke.
-            customerComment={bookingDraft.customerComment ?? ''}
-            onCustomerCommentChange={(comment) =>
-              mergeDraft({ customerComment: comment || null })
-            }
-            // landr-hzovu.9: live-lift the add-on picks so the Booking overview
-            // total updates before Continue (same sentinel as the
-            // accommodation step).
-            onLiveAddonsChange={(addons) => {
-              setLiveAddons(addons)
-              setLiveAccommodationTouched(true)
-            }}
-            onBack={() => {
-              // landr-hzovu.9: leaving the step — clear the live-lift.
-              clearLiveAccommodation()
-              // landr-b3g5: carry booker + participants back so the
-              // DetailsStep re-mount restores them. landr-rmcsu.6: or back to
-              // the dates step when participants ran before it.
-              setStep(
-                frameBackStep({
-                  ...step,
-                  remoteFlow: flowForProduct(step.product.product_id),
-                }),
-              )
-            }}
-            onConfirm={(addons) => {
-              clearLiveAccommodation()
-              afterAccommodation(
-                step.product,
-                step.selection,
-                step.booker,
-                step.participants,
-                // landr-87n9.3: companions roster threads to the submit step.
-                step.companions,
-                [],
-                null,
-                addons,
-                // landr-yf0n: hadServiceAddons=true — the customer
-                // explicitly went through ServiceAddonsStep, so back-
-                // nav from downstream steps must hop back through here.
-                true,
-              )
-            }}
-          />
-        ) : null}
 
         {step.name === 'pick-pickup' ? (
           <PickupLocationPicker
@@ -3201,22 +3301,8 @@ function BookingFlowApp() {
                   accommodationMode: step.accommodationMode,
                   roomAssignment: step.roomAssignment,
                   occupantAgeMap: step.occupantAgeMap,
-                  perRoomAddons: step.perRoomAddons,
                   roomProductNames: step.roomProductNames,
                   breakfastMap: step.breakfastMap,
-                })
-              } else if (step.hadServiceAddons) {
-                // landr-yf0n: the customer originally went through
-                // ServiceAddonsStep — back-nav must hop back through
-                // it instead of jumping straight to DetailsStep.
-                setStep({
-                  name: 'pick-service-addons',
-                  product: step.product,
-                  selection: step.selection,
-                  booker: step.booker,
-                  participants: step.participants,
-                  companions: step.companions,
-                  addons: step.addons,
                 })
               } else {
                 // landr-b3g5: preserve booker + participants when
@@ -3250,13 +3336,11 @@ function BookingFlowApp() {
                 // upstream intermediate steps with their state.
                 // landr-sbhz.4: also carry isSharedDouble.
                 hotelLocationId: step.hotelLocationId,
-                hadServiceAddons: step.hadServiceAddons,
                 includeHotel: step.includeHotel,
                 isSharedDouble: step.isSharedDouble,
                 accommodationMode: step.accommodationMode,
                 roomAssignment: step.roomAssignment,
                 occupantAgeMap: step.occupantAgeMap,
-                perRoomAddons: step.perRoomAddons,
                 roomProductNames: step.roomProductNames,
                 breakfastMap: step.breakfastMap,
               }
@@ -3343,13 +3427,11 @@ function BookingFlowApp() {
                   accommodationRooms: step.accommodationRooms,
                   addons: step.addons,
                   hotelLocationId: step.hotelLocationId,
-                  hadServiceAddons: step.hadServiceAddons,
                   includeHotel: step.includeHotel,
                   isSharedDouble: step.isSharedDouble,
                   accommodationMode: step.accommodationMode,
                   roomAssignment: step.roomAssignment,
                   occupantAgeMap: step.occupantAgeMap,
-                  perRoomAddons: step.perRoomAddons,
                   roomProductNames: step.roomProductNames,
                   breakfastMap: step.breakfastMap,
                   // landr-rmcsu.6: frame back-target (details vs dates).
@@ -3379,13 +3461,11 @@ function BookingFlowApp() {
                     accommodationRooms: step.accommodationRooms,
                     addons: step.addons,
                     hotelLocationId: step.hotelLocationId,
-                    hadServiceAddons: step.hadServiceAddons,
                     includeHotel: step.includeHotel,
                     isSharedDouble: step.isSharedDouble,
                     accommodationMode: step.accommodationMode,
                     roomAssignment: step.roomAssignment,
                     occupantAgeMap: step.occupantAgeMap,
-                    perRoomAddons: step.perRoomAddons,
                     roomProductNames: step.roomProductNames,
                     breakfastMap: step.breakfastMap,
                   },
@@ -3441,13 +3521,11 @@ function BookingFlowApp() {
                     accommodationRooms: step.accommodationRooms,
                     addons: step.addons,
                     hotelLocationId: step.hotelLocationId,
-                    hadServiceAddons: step.hadServiceAddons,
                     includeHotel: step.includeHotel,
                     isSharedDouble: step.isSharedDouble,
                     accommodationMode: step.accommodationMode,
                     roomAssignment: step.roomAssignment,
                     occupantAgeMap: step.occupantAgeMap,
-                    perRoomAddons: step.perRoomAddons,
                     roomProductNames: step.roomProductNames,
                     breakfastMap: step.breakfastMap,
                     remoteFlow: flowForProduct(step.product.product_id),
@@ -3478,13 +3556,11 @@ function BookingFlowApp() {
                     accommodationRooms: step.accommodationRooms,
                     addons: step.addons,
                     hotelLocationId: step.hotelLocationId,
-                    hadServiceAddons: step.hadServiceAddons,
                     includeHotel: step.includeHotel,
                     isSharedDouble: step.isSharedDouble,
                     accommodationMode: step.accommodationMode,
                     roomAssignment: step.roomAssignment,
                     occupantAgeMap: step.occupantAgeMap,
-                    perRoomAddons: step.perRoomAddons,
                     roomProductNames: step.roomProductNames,
                     breakfastMap: step.breakfastMap,
                   },
@@ -3519,13 +3595,11 @@ function BookingFlowApp() {
                     accommodationRooms: step.accommodationRooms,
                     addons: step.addons,
                     hotelLocationId: step.hotelLocationId,
-                    hadServiceAddons: step.hadServiceAddons,
                     includeHotel: step.includeHotel,
                     isSharedDouble: step.isSharedDouble,
                     accommodationMode: step.accommodationMode,
                     roomAssignment: step.roomAssignment,
                     occupantAgeMap: step.occupantAgeMap,
-                    perRoomAddons: step.perRoomAddons,
                     roomProductNames: step.roomProductNames,
                     breakfastMap: step.breakfastMap,
                   },
@@ -3538,7 +3612,33 @@ function BookingFlowApp() {
           />
         ) : null}
 
-        {step.name === 'fill-form' ? (
+        {step.name === 'fill-form' && reviewNeedsAttributes ? (
+          <GuestAttributesStep
+            productName={pickLocalized(
+              step.product.name,
+              step.product.name_localized,
+              browserLocale(),
+            )}
+            attributes={cartGuestAttributes}
+            participants={step.participants}
+            companions={step.companions}
+            onBack={() =>
+              // Take the lines that need more answers back off the cart.
+              setExtraLines((lines) =>
+                lines.filter(
+                  (l) =>
+                    unansweredCount(unionAttributes(l.flow?.guest_attributes), reviewGuests, {}) === 0,
+                ),
+              )
+            }
+            onConfirm={(participants, companions) => {
+              mergeDraft({ participants, companions })
+              setStep({ ...step, participants, companions })
+            }}
+          />
+        ) : null}
+
+        {step.name === 'fill-form' && !reviewNeedsAttributes ? (
           <BookingForm
             widgetToken={token!}
             previewToken={previewToken ?? undefined}
@@ -3556,7 +3656,11 @@ function BookingFlowApp() {
             companions={step.companions}
             pickupLocationId={step.pickupLocationId}
             accommodationRooms={step.accommodationRooms}
-            addons={step.addons}
+            roomPicks={step.addons}
+            offerPicks={offerPicks}
+            onOfferPicksChange={setOfferPicks}
+            onOfferMembersChange={setReviewOfferMembers}
+            estimateItems={estimateItems}
             customerDeclarations={step.customerDeclarations}
             customerLanguages={step.customerLanguages}
             customerOtherLanguages={step.customerOtherLanguages}
@@ -3615,9 +3719,6 @@ function BookingFlowApp() {
                   toIndexKeyed(draftLanguagesForProduct(step.product), roster),
               }
             })()}
-            // landr-gb2f.5: thread the per-room add-on map so BookingForm
-            // can show breakfast status per room unit in the review.
-            perRoomAddons={step.perRoomAddons}
             // landr-gb2f.5: thread room product names for the review labels.
             roomProductNames={step.roomProductNames}
             // landr-71kz.4: custom form answers collected by CustomFormStep(s).
@@ -3668,10 +3769,10 @@ function BookingFlowApp() {
             // placeholder — see PriceSidebar's onCalculatedTotalChange.
             calculatedTotal={estimateTotal}
             extraLines={extraLines}
-            onExtraLinesChange={
-              operatorSettings.widget_cross_sell_enabled === false ? undefined : setExtraLines
-            }
-            crossSellProductIds={operatorSettings.widget_cross_sell_product_ids}
+            onExtraLinesChange={setExtraLines}
+            // The operator's cross-sell switch now only hides the offers
+            // every booking gets (parent-less) and the products they add.
+            crossSellEnabled={operatorSettings.widget_cross_sell_enabled !== false}
             inlineAnswers={inlineAnswers}
             onInlineAnswersChange={setInlineAnswers}
             // landr-rmcsu.5: keep the committed dates (like Back does) so the
@@ -3702,13 +3803,11 @@ function BookingFlowApp() {
                   accommodationRooms: step.accommodationRooms,
                   addons: step.addons,
                   hotelLocationId: step.hotelLocationId,
-                  hadServiceAddons: step.hadServiceAddons,
                   includeHotel: step.includeHotel,
                   isSharedDouble: step.isSharedDouble,
                   accommodationMode: step.accommodationMode,
                   roomAssignment: step.roomAssignment,
                   occupantAgeMap: step.occupantAgeMap,
-                  perRoomAddons: step.perRoomAddons,
                   roomProductNames: step.roomProductNames,
                   breakfastMap: step.breakfastMap,
                   remoteFlow: flowForProduct(step.product.product_id),
@@ -3817,14 +3916,23 @@ function BookingFlowApp() {
                 ? liveAccommodationRooms
                 : sidebarInputs.accommodationRooms
             }
-            // landr-hzovu.9: the service add-ons step lifts its live picks too.
-            addons={
-              (step.name === 'pick-accommodation' ||
-                step.name === 'pick-service-addons') &&
-              liveAccommodationTouched
+            // The offers taken: the room types' (live on the accommodation
+            // step) and, on the review step, the main line's.
+            offerPicks={
+              step.name === 'pick-accommodation' && liveAccommodationTouched
                 ? liveAddons
-                : sidebarInputs.addons
+                : step.name === 'fill-form'
+                  ? [...sidebarInputs.addons, ...offerPicks]
+                  : sidebarInputs.addons
             }
+            offerMembers={
+              step.name === 'fill-form' && reviewOfferMembers
+                ? reviewOfferMembers
+                : 'participants' in step && 'companions' in step
+                  ? sidebarOfferMembers(step.participants, step.companions)
+                  : undefined
+            }
+            onLineItemsChange={setEstimateItems}
             // landr-k9pji.25: the committed slot prices start-time adjustments
             // (same fields BookingForm submits).
             // landr-mfgx4: on the dates step price the live pick, matching
@@ -3845,6 +3953,7 @@ function BookingFlowApp() {
             voucherCode={voucherCode}
             onVoucherStatusChange={setVoucherStatus}
             extraLines={step.name === 'fill-form' ? extraLines : undefined}
+            childAges={sidebarChildAges}
           />
         ) : null}
         </div>

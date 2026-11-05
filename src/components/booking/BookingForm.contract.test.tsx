@@ -18,6 +18,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { Product } from '@/api/types'
+import { breakfastPick } from './offerTestFixtures'
 import { BookingForm, type BookingSelection } from './BookingForm'
 import type {
   BookerDetails,
@@ -30,7 +31,12 @@ import type {
 // submit POST these tests assert on.
 vi.mock('@/api/client', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/api/client')>()
-  return { ...actual, getAvailability: vi.fn().mockResolvedValue([]) }
+  return {
+    ...actual,
+    getAvailability: vi.fn().mockResolvedValue([]),
+    listProducts: vi.fn().mockResolvedValue([]),
+    getOffers: vi.fn().mockResolvedValue({ lines: [] }),
+  }
 })
 
 vi.stubEnv('VITE_USE_MOCKS', '0')
@@ -116,15 +122,13 @@ describe('BookingForm submit body — matches /api/public/bookings PublicSubmitB
   let fetchSpy: ReturnType<typeof vi.spyOn>
 
   beforeEach(() => {
-    fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(
+    fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response(
         JSON.stringify({
           booking_id: 'b-1',
           semantic_state: 'pending',
         }),
         { status: 201, headers: { 'Content-Type': 'application/json' } },
-      ),
-    )
+      ))
   })
 
   afterEach(() => {
@@ -141,10 +145,7 @@ describe('BookingForm submit body — matches /api/public/bookings PublicSubmitB
         participants={PARTICIPANTS}
         pickupLocationId="loc-pickup-1"
         accommodationRooms={[{ productId: 'room-deluxe', quantity: 2 }]}
-        addons={[
-          { productId: 'breakfast-1', quantity: 4, productKind: 'hotel_room' },
-          { productId: 'video-pkg', quantity: 1, productKind: 'service' },
-        ]}
+        roomPicks={[breakfastPick('room-deluxe', 4)]}
         onBack={vi.fn()}
         onConfirmed={vi.fn()}
       />,
@@ -194,9 +195,9 @@ describe('BookingForm submit body — matches /api/public/bookings PublicSubmitB
     expect(typeof body.cancellation_deadline).toBe('string')
     expect(body.cancellation_deadline).toBe('2026-06-09T00:00:00.000Z')
 
-    // products: service + 1 room + 2 addons = 4 lines, each with required ProductLineIn fields
+    // products: service + 1 room + 1 room offer line = 3 lines, each with required ProductLineIn fields
     const products = body.products as Array<Record<string, unknown>>
-    expect(products).toHaveLength(4)
+    expect(products).toHaveLength(3)
     for (const line of products) {
       for (const key of REQUIRED_PRODUCT_LINE) {
         expect(line, `product line must have "${key}"`).toHaveProperty(key)
@@ -223,8 +224,8 @@ describe('BookingForm submit body — matches /api/public/bookings PublicSubmitB
       selected_days: ['2026-06-09', '2026-06-10', '2026-06-11', '2026-06-12'],
     })
 
-    // Add-on lines (per-line item, not folded into a separate field).
-    // landr-fxza.4: THE MISSING ASSERTION — a room-tied add-on
+    // Offer lines (per-line item, not folded into a separate field).
+    // landr-fxza.4: THE MISSING ASSERTION — a room-tied offer line
     // (product_kind='hotel_room', e.g. breakfast) must get the SAME night
     // window as the room line above (products[1]), NOT the 3 raw service
     // days. Pre-fix this line asserted only { product_id, quantity },
@@ -235,13 +236,16 @@ describe('BookingForm submit body — matches /api/public/bookings PublicSubmitB
       quantity: 4,
       selected_days: ['2026-06-09', '2026-06-10', '2026-06-11', '2026-06-12'],
     })
-    // A service-tied add-on (product_kind='service', e.g. Video Package)
-    // correctly keeps the raw service-day window — NOT the room's nights.
-    expect(products[3]).toMatchObject({
-      product_id: 'video-pkg',
-      quantity: 1,
-      selected_days: SELECTED_DAYS,
+    // The offer line hangs off its room type and names the offer; it never
+    // carries a price, collection, mode, schedule or binding.
+    expect(products[2]).toMatchObject({
+      line_id: 'a1',
+      parent_line_id: 'r-room-deluxe',
+      offer_id: 'offer-breakfast-1',
     })
+    for (const k of ['price', 'collection', 'mode', 'schedule', 'binding']) {
+      expect(products[2]).not.toHaveProperty(k)
+    }
 
     // participants: 2 entries, each with required ParticipantIn fields
     const participants = body.participants as Array<Record<string, unknown>>
@@ -286,7 +290,7 @@ describe('BookingForm submit body — matches /api/public/bookings PublicSubmitB
         participants={[{ ...BOOKER, service_role_code: '' }]}
         pickupLocationId="loc-pickup-1"
         accommodationRooms={[{ productId: 'room-1', quantity: 1 }]}
-        addons={[{ productId: 'breakfast-1', quantity: 1, productKind: 'hotel_room' }]}
+        roomPicks={[breakfastPick('room-1', 1)]}
         onBack={vi.fn()}
         onConfirmed={vi.fn()}
       />,
@@ -805,7 +809,7 @@ describe('BookingForm submit body — matches /api/public/bookings PublicSubmitB
         participants={[{ ...BOOKER, service_role_code: '' }]}
         pickupLocationId={null}
         accommodationRooms={[{ productId: 'room-deluxe', quantity: 1 }]}
-        addons={[{ productId: 'breakfast-1', quantity: 1 }]}
+        roomPicks={[breakfastPick('room-deluxe', 1)]}
         onBack={vi.fn()}
         onConfirmed={vi.fn()}
       />,
@@ -1079,8 +1083,7 @@ describe('BookingForm submit body — matches /api/public/bookings PublicSubmitB
   })
 
   it('reads share_secret/invites/group/join_error from the response without throwing (contract carries them through)', async () => {
-    fetchSpy.mockResolvedValue(
-      new Response(
+    fetchSpy.mockImplementation(async () => new Response(
         JSON.stringify({
           booking_id: 'b-1',
           semantic_state: 'pending',
@@ -1113,8 +1116,7 @@ describe('BookingForm submit body — matches /api/public/bookings PublicSubmitB
           join_error: null,
         }),
         { status: 201, headers: { 'Content-Type': 'application/json' } },
-      ),
-    )
+      ))
     const onConfirmed = vi.fn()
     render(
       <BookingForm
@@ -1144,12 +1146,10 @@ describe('BookingForm submit body — billing address (landr-uuntm.3)', () => {
   let fetchSpy: ReturnType<typeof vi.spyOn>
 
   beforeEach(() => {
-    fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify({ booking_id: 'b-1', semantic_state: 'pending' }), {
+    fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response(JSON.stringify({ booking_id: 'b-1', semantic_state: 'pending' }), {
         status: 201,
         headers: { 'Content-Type': 'application/json' },
-      }),
-    )
+      }))
   })
   afterEach(() => fetchSpy.mockRestore())
 
@@ -1163,7 +1163,6 @@ describe('BookingForm submit body — billing address (landr-uuntm.3)', () => {
         participants={PARTICIPANTS}
         pickupLocationId={null}
         accommodationRooms={[]}
-        addons={[]}
         onBack={vi.fn()}
         onConfirmed={vi.fn()}
       />,
@@ -1231,12 +1230,10 @@ describe('BookingForm submit body — booker not taking part (landr-jiagg.2)', (
   let fetchSpy: ReturnType<typeof vi.spyOn>
 
   beforeEach(() => {
-    fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify({ booking_id: 'b-1', semantic_state: 'pending' }), {
+    fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response(JSON.stringify({ booking_id: 'b-1', semantic_state: 'pending' }), {
         status: 201,
         headers: { 'Content-Type': 'application/json' },
-      }),
-    )
+      }))
   })
   afterEach(() => fetchSpy.mockRestore())
 
@@ -1271,7 +1268,6 @@ describe('BookingForm submit body — booker not taking part (landr-jiagg.2)', (
         participants={participants}
         pickupLocationId={extra.pickupLocationId ?? null}
         accommodationRooms={[]}
-        addons={[]}
         isSharedDouble={extra.isSharedDouble}
         onBack={vi.fn()}
         onConfirmed={vi.fn()}
@@ -1376,7 +1372,6 @@ describe('BookingForm submit body — booker not taking part (landr-jiagg.2)', (
         participants={[CHILD]}
         pickupLocationId="hotel-a"
         accommodationRooms={[]}
-        addons={[]}
         isSharedDouble
         joinRef="A1B2C3D4"
         onBack={vi.fn()}
@@ -1403,7 +1398,6 @@ describe('BookingForm submit body — booker not taking part (landr-jiagg.2)', (
         participants={[{ ...BOOKER, id: 'booker', service_role_code: 'participant' }]}
         pickupLocationId="hotel-a"
         accommodationRooms={[]}
-        addons={[]}
         isSharedDouble
         joinRef="A1B2C3D4"
         onBack={vi.fn()}

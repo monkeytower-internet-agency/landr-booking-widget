@@ -88,9 +88,7 @@ describe('preview mode (landr-7zc5.3)', () => {
   it('preview_token forwarded to fetch: appends ?preview_token to the products URL', async () => {
     vi.stubEnv('VITE_USE_MOCKS', '0')
     vi.stubEnv('VITE_API_BASE_URL', 'https://api.example.com')
-    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify([]), { status: 200 }),
-    )
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response(JSON.stringify([]), { status: 200 }))
     await client.listProducts('tok-abc', { previewToken: 'prev-xyz' })
     const calledUrl = fetchSpy.mock.calls[0]?.[0] as string
     expect(calledUrl).toContain('preview_token=prev-xyz')
@@ -100,9 +98,7 @@ describe('preview mode (landr-7zc5.3)', () => {
   it('absent preview_token → fetch URL has NO preview_token param', async () => {
     vi.stubEnv('VITE_USE_MOCKS', '0')
     vi.stubEnv('VITE_API_BASE_URL', 'https://api.example.com')
-    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify([]), { status: 200 }),
-    )
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response(JSON.stringify([]), { status: 200 }))
     await client.listProducts('tok-abc')
     const calledUrl = fetchSpy.mock.calls[0]?.[0] as string
     expect(calledUrl).not.toContain('preview_token')
@@ -111,9 +107,7 @@ describe('preview mode (landr-7zc5.3)', () => {
   it('preview_token forwarded on submit: body includes preview_token field', async () => {
     vi.stubEnv('VITE_USE_MOCKS', '0')
     vi.stubEnv('VITE_API_BASE_URL', 'https://api.example.com')
-    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify({ booking_id: 'b-1', semantic_state: 'pending' }), { status: 200 }),
-    )
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response(JSON.stringify({ booking_id: 'b-1', semantic_state: 'pending' }), { status: 200 }))
     const baseBody: SubmitBookingBody = {
       widget_token: 'tok-abc',
       customer_first_name: 'Ada',
@@ -130,9 +124,7 @@ describe('preview mode (landr-7zc5.3)', () => {
   it('absent preview_token on submit → body has no preview_token field', async () => {
     vi.stubEnv('VITE_USE_MOCKS', '0')
     vi.stubEnv('VITE_API_BASE_URL', 'https://api.example.com')
-    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify({ booking_id: 'b-1', semantic_state: 'pending' }), { status: 200 }),
-    )
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response(JSON.stringify({ booking_id: 'b-1', semantic_state: 'pending' }), { status: 200 }))
     const baseBody: SubmitBookingBody = {
       widget_token: 'tok-abc',
       customer_first_name: 'Ada',
@@ -176,8 +168,7 @@ describe('submitStaffBooking (landr-aoak.4)', () => {
   it('POSTs the staff endpoint at the operator-scoped path with the session body', async () => {
     vi.stubEnv('VITE_USE_MOCKS', '0')
     vi.stubEnv('VITE_API_BASE_URL', 'https://api.example.com')
-    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response(
         JSON.stringify({
           booking_id: 'bk-staff-1',
           semantic_state: 'pending',
@@ -187,8 +178,7 @@ describe('submitStaffBooking (landr-aoak.4)', () => {
           price_overridden: true,
         }),
         { status: 201 },
-      ),
-    )
+      ))
 
     const res = await client.submitStaffBooking(OPERATOR_ID, staffBody())
 
@@ -220,11 +210,9 @@ describe('submitStaffBooking (landr-aoak.4)', () => {
   it('encodes the operator id into the path', async () => {
     vi.stubEnv('VITE_USE_MOCKS', '0')
     vi.stubEnv('VITE_API_BASE_URL', 'https://api.example.com')
-    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify({ booking_id: 'b', semantic_state: 'pending' }), {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response(JSON.stringify({ booking_id: 'b', semantic_state: 'pending' }), {
         status: 201,
-      }),
-    )
+      }))
     await client.submitStaffBooking('op/with space', staffBody())
     const calledUrl = fetchSpy.mock.calls[0]?.[0] as string
     expect(calledUrl).toContain('/api/staff/operators/op%2Fwith%20space/bookings/submit')
@@ -261,8 +249,7 @@ describe('initiatePayment — wire "amount" is a STRING, not a number (landr-k9p
     // a JSON string like "336.00", confirmed against origin/dev. Every
     // other money field the endpoint returns (deposit_percent, balance_due)
     // is stringified the same way, but the widget doesn't read those today.
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response(
         JSON.stringify({
           checkout_url: 'https://checkout.stripe.com/pay/cs_test_abc',
           payment_id: 'pay-1',
@@ -270,8 +257,7 @@ describe('initiatePayment — wire "amount" is a STRING, not a number (landr-k9p
           amount: '336.00',
         }),
         { status: 200 },
-      ),
-    )
+      ))
 
     const resp = await client.initiatePayment(REQUEST)
 
@@ -282,16 +268,14 @@ describe('initiatePayment — wire "amount" is a STRING, not a number (landr-k9p
   it('leaves amount undefined (never NaN) when the wire field is absent — older API deploy', async () => {
     vi.stubEnv('VITE_USE_MOCKS', '0')
     vi.stubEnv('VITE_API_BASE_URL', 'https://api.example.com')
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response(
         JSON.stringify({
           checkout_url: 'https://checkout.stripe.com/pay/cs_test_abc',
           payment_id: 'pay-1',
           stripe_payment_intent_id: 'pi_1',
         }),
         { status: 200 },
-      ),
-    )
+      ))
 
     const resp = await client.initiatePayment(REQUEST)
 
@@ -301,8 +285,7 @@ describe('initiatePayment — wire "amount" is a STRING, not a number (landr-k9p
   it('leaves amount undefined (never NaN) when the wire field is non-numeric junk', async () => {
     vi.stubEnv('VITE_USE_MOCKS', '0')
     vi.stubEnv('VITE_API_BASE_URL', 'https://api.example.com')
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response(
         JSON.stringify({
           checkout_url: 'https://checkout.stripe.com/pay/cs_test_abc',
           payment_id: 'pay-1',
@@ -310,8 +293,7 @@ describe('initiatePayment — wire "amount" is a STRING, not a number (landr-k9p
           amount: 'not-a-number',
         }),
         { status: 200 },
-      ),
-    )
+      ))
 
     const resp = await client.initiatePayment(REQUEST)
 

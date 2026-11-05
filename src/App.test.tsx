@@ -33,7 +33,6 @@ const { mocks } = vi.hoisted(() => ({
     // back-nav + live-total tests.
     getHotelsForOperator: vi.fn(),
     getHotelRoomsForHotel: vi.fn(),
-    getProductAddons: vi.fn(),
     estimateBookingPrice: vi.fn(),
     // landr-71kz.10: the product-flow RPC. Default {modules: null} (legacy/no
     // custom-form). Per-test overrides supply a custom_form module to exercise
@@ -68,7 +67,6 @@ vi.mock('@/api/client', async (importOriginal) => {
     requestSubscriptionPerkOtp: mocks.requestSubscriptionPerkOtp,
     getHotelsForOperator: mocks.getHotelsForOperator,
     getHotelRoomsForHotel: mocks.getHotelRoomsForHotel,
-    getProductAddons: mocks.getProductAddons,
     estimateBookingPrice: mocks.estimateBookingPrice,
     getProductFlow: mocks.getProductFlow,
     getInvitePrefill: mocks.getInvitePrefill,
@@ -221,7 +219,6 @@ describe('App', () => {
     // client. Per-test overrides supply richer data where needed.
     mocks.getHotelsForOperator.mockResolvedValue([])
     mocks.getHotelRoomsForHotel.mockResolvedValue([])
-    mocks.getProductAddons.mockResolvedValue([])
     // landr-fn4i / landr-5krc: always answers 202 {ok:true} by contract —
     // see requestSubscriptionPerkOtp's doc for why no test should ever need
     // a different value here.
@@ -1858,9 +1855,8 @@ describe('App', () => {
   // downstream steps. PickupLocationPicker is the easiest to exercise
   // at the App level — the only extra mock it needs is
   // listPickupLocationsForOperator (landr-lmudr.12; was listLocations),
-  // already wired in the suite's beforeEach. The AccommodationStep +
-  // ServiceAddonsStep paths require getHotelsForOperator /
-  // getProductAddons mocks which the per-step tests already cover; this
+  // already wired in the suite's beforeEach. The AccommodationStep path
+  // requires getHotelsForOperator mocks which the per-step tests already cover; this
   // App-level test just guards the App.tsx wiring for pick-pickup.
   describe('back-nav state restoration (landr-yf0n)', () => {
     async function pickProduct(name: string) {
@@ -2185,6 +2181,8 @@ describe('App', () => {
       fireEvent.click(
         screen.getByRole('button', { name: /Increase Double Room quantity/i }),
       )
+      // The room types' offers are evaluated before Continue turns ready.
+      await waitFor(() => expect(screen.getByText('Ready to continue.')).toBeInTheDocument())
       fireEvent.click(screen.getByRole('button', { name: /Continue/i }))
 
       // The hotel is the pickup → pick-pickup is SKIPPED → custom form next.
@@ -2393,6 +2391,8 @@ describe('App', () => {
 
       // Continue so the arrangement is COMMITTED into the booking draft (it
       // only lives in AccommodationStep state until then).
+      // The room types' offers are evaluated before Continue turns ready.
+      await waitFor(() => expect(screen.getByText('Ready to continue.')).toBeInTheDocument())
       fireEvent.click(screen.getByRole('button', { name: /Continue/i }))
       await passLanguageStep()
       await waitFor(() =>
@@ -6339,6 +6339,184 @@ describe('App', () => {
         participants: Array<Record<string, unknown>>
       }
       expect(body.participants[0]).toMatchObject({ language: 'de' })
+    })
+
+    it('asks the guest attributes once after the party step and submits them per participant', async () => {
+      const today = new Date()
+      today.setHours(12, 0, 0, 0)
+      mocks.getOperatorSettings.mockResolvedValue({
+        slug: 'para42',
+        expose_seats_to_customer: false,
+      })
+      mocks.getProductFlow.mockResolvedValue({
+        modules: null,
+        guest_attributes: [
+          { key: 'weight_kg', label: 'Weight', value_type: 'number', unit: 'kg' },
+        ],
+      })
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          product_kind: 'service',
+          service_time_shape: 'single_date',
+          name: 'Weighed Flight',
+          needs_pickup: false,
+          hotel_offering: 'none',
+          // Any language: no language step in between.
+          guide_languages: [],
+        }),
+      ])
+      mocks.getAvailability.mockResolvedValue([
+        {
+          availability_id: 'a-1',
+          date: today.toISOString().slice(0, 10),
+          start_time: null,
+          end_time: null,
+          capacity: 10,
+          capacity_reserved: 0,
+          available_seats: 10,
+          status: 'open',
+        },
+      ])
+      mocks.submitBooking.mockResolvedValue({
+        booking_id: 'b-3',
+        semantic_state: 'pending',
+      })
+
+      render(<App />)
+      await waitFor(() => screen.getByText('Weighed Flight'))
+      fireEvent.click(screen.getByRole('button', { name: 'Weighed Flight' }))
+      fireEvent.click(await screen.findByTestId('product-detail-book-cta'))
+      await waitFor(() =>
+        expect(screen.getByText(/Pick a date/i)).toBeInTheDocument(),
+      )
+      const days = screen
+        .getAllByRole('gridcell')
+        .map((cell) => cell.querySelector('button'))
+        .filter((b): b is HTMLButtonElement => !!b && !b.disabled)
+      fireEvent.click(days[0]!)
+      fireEvent.click(await screen.findByRole('button', { name: /continue/i }))
+      await waitFor(() =>
+        expect(screen.getByText(/your contact details/i)).toBeInTheDocument(),
+      )
+      const setField = (name: string, value: string) =>
+        fireEvent.change(
+          document.querySelector<HTMLInputElement>(`input[name="${name}"]`)!,
+          { target: { value } },
+        )
+      setField('booker_first_name', 'Ada')
+      setField('booker_last_name', 'Lovelace')
+      setField('booker_email', 'ada@example.com')
+      setField('booker_phone', '+34600000001')
+      fillBillingFields()
+      fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+
+      await waitFor(() =>
+        expect(screen.getByTestId('guest-attributes-step')).toBeInTheDocument(),
+      )
+      expect(screen.getByTestId('guest-attrs-submit')).toBeDisabled()
+      fireEvent.change(screen.getByTestId('guest-attr-0-weight_kg'), {
+        target: { value: '70' },
+      })
+      fireEvent.click(screen.getByTestId('guest-attrs-submit'))
+
+      await waitFor(() =>
+        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
+      )
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+      await waitFor(() => expect(mocks.submitBooking).toHaveBeenCalled())
+      const body = mocks.submitBooking.mock.calls[0][0] as {
+        participants: Array<Record<string, unknown>>
+      }
+      expect(body.participants[0]).toMatchObject({
+        guest_attributes: { weight_kg: 70 },
+      })
+    })
+
+    it('keeps the guest answers on Back and prefills the step again', async () => {
+      const today = new Date()
+      today.setHours(12, 0, 0, 0)
+      mocks.getOperatorSettings.mockResolvedValue({
+        slug: 'para42',
+        expose_seats_to_customer: false,
+      })
+      mocks.getProductFlow.mockResolvedValue({
+        modules: null,
+        guest_attributes: [
+          { key: 'age', label: 'Age', value_type: 'integer', unit: 'years' },
+          { key: 'weight_kg', label: 'Weight', value_type: 'number', unit: 'kg' },
+        ],
+      })
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          product_kind: 'service',
+          service_time_shape: 'single_date',
+          name: 'Back Flight',
+          needs_pickup: false,
+          hotel_offering: 'none',
+          guide_languages: [],
+        }),
+      ])
+      mocks.getAvailability.mockResolvedValue([
+        {
+          availability_id: 'a-1',
+          date: today.toISOString().slice(0, 10),
+          start_time: null,
+          end_time: null,
+          capacity: 10,
+          capacity_reserved: 0,
+          available_seats: 10,
+          status: 'open',
+        },
+      ])
+      render(<App />)
+      await waitFor(() => screen.getByText('Back Flight'))
+      fireEvent.click(screen.getByRole('button', { name: 'Back Flight' }))
+      fireEvent.click(await screen.findByTestId('product-detail-book-cta'))
+      await waitFor(() =>
+        expect(screen.getByText(/Pick a date/i)).toBeInTheDocument(),
+      )
+      const days = screen
+        .getAllByRole('gridcell')
+        .map((cell) => cell.querySelector('button'))
+        .filter((b): b is HTMLButtonElement => !!b && !b.disabled)
+      fireEvent.click(days[0]!)
+      fireEvent.click(await screen.findByRole('button', { name: /continue/i }))
+      await waitFor(() =>
+        expect(screen.getByText(/your contact details/i)).toBeInTheDocument(),
+      )
+      const setField = (name: string, value: string) =>
+        fireEvent.change(
+          document.querySelector<HTMLInputElement>(`input[name="${name}"]`)!,
+          { target: { value } },
+        )
+      setField('booker_first_name', 'Ada')
+      setField('booker_last_name', 'Lovelace')
+      setField('booker_email', 'ada@example.com')
+      setField('booker_phone', '+34600000001')
+      fillBillingFields()
+      fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+
+      await waitFor(() =>
+        expect(screen.getByTestId('guest-attributes-step')).toBeInTheDocument(),
+      )
+      fireEvent.change(screen.getByTestId('guest-attr-0-age'), { target: { value: '34' } })
+      fireEvent.change(screen.getByTestId('guest-attr-0-weight_kg'), { target: { value: '70' } })
+      fireEvent.click(screen.getByTestId('guest-attrs-submit'))
+      await waitFor(() =>
+        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
+      )
+
+      // Back to the party step and on again: the step comes back prefilled.
+      fireEvent.click(screen.getByTestId('step-back-button'))
+      await waitFor(() =>
+        expect(screen.getByText(/your contact details/i)).toBeInTheDocument(),
+      )
+      fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+      await waitFor(() =>
+        expect(screen.getByTestId('guest-attributes-step')).toBeInTheDocument(),
+      )
+      expect((screen.getByTestId('guest-attr-0-age') as HTMLInputElement).value).toBe('34')
+      expect((screen.getByTestId('guest-attr-0-weight_kg') as HTMLInputElement).value).toBe('70')
     })
 
     it('keeps each person their own language when a participant is removed after assigning', async () => {

@@ -26,7 +26,6 @@ const { mocks } = vi.hoisted(() => ({
     requestSubscriptionPerkOtp: vi.fn(),
     getHotelsForOperator: vi.fn(),
     getHotelRoomsForHotel: vi.fn(),
-    getProductAddons: vi.fn(),
     estimateBookingPrice: vi.fn(),
     getProductFlow: vi.fn(),
     getInvitePrefill: vi.fn(),
@@ -173,7 +172,6 @@ beforeEach(() => {
   mocks.listPickupLocationsForOperator.mockResolvedValue([])
   mocks.getHotelsForOperator.mockResolvedValue([])
   mocks.getHotelRoomsForHotel.mockResolvedValue([])
-  mocks.getProductAddons.mockResolvedValue([])
   mocks.requestSubscriptionPerkOtp.mockResolvedValue({ ok: true })
   mocks.getProductFlow.mockResolvedValue({ modules: null })
   mocks.estimateBookingPrice.mockResolvedValue({

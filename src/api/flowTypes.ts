@@ -103,9 +103,29 @@ export interface FlowModuleDef {
   form: FlowFormDef | null
 }
 
+/**
+ * One guest attribute the product (and the offers that can be shown for it)
+ * asks per guest: a row of the operator's attribute catalogue.
+ */
+export interface FlowGuestAttribute {
+  key: string
+  label: string
+  label_localized?: Record<string, string> | null
+  value_type: 'number' | 'integer' | 'text' | 'choice'
+  unit?: string | null
+  choices?: string[] | null
+  min_value?: number | null
+  max_value?: number | null
+}
+
 /** Top-level response of GET …/products/{id}/flow. */
 export interface ProductFlowResponse {
   modules: FlowModuleDef[] | null
+  /**
+   * The attributes to ask per guest (union over the product and every offer
+   * that can be shown for it). Absent = nothing to ask.
+   */
+  guest_attributes?: FlowGuestAttribute[]
 }
 
 /**

@@ -20,7 +20,7 @@
  *     ("Email (optional)", "Reason for the fixed price (required)")
  *     as code, and the attribute scan only covered aria-label/placeholder/
  *     title/alt — missing `label=` and other text-bearing component props
- *     (`heading=` on AddonsList, for one).
+ *     (`heading=` on the add-on rows, for one).
  *
  * The AST walk sidesteps all three: JsxText nodes are already correctly
  * segmented around `{expr}` children by the parser, a real parser never
@@ -37,7 +37,7 @@
  * trailing literal) and dropping the substitutions themselves — an
  * interpolated name/count isn't itself chrome. Because
  * `collectChildLiterals` is shared, this covers the shape both in JSX
- * ATTRIBUTE position (the actual target here — see AddonsList,
+ * ATTRIBUTE position (the actual target here — see the add-on rows,
  * AccommodationStep, RoomAssignment, ParticipantLanguageBoard,
  * RankedLanguagePicker, DetailsStep) and in JSX child position for free;
  * child position had zero real instances in this tree at the time (a
