@@ -22934,6 +22934,136 @@
         "title": "PriceCellPatchOut",
         "type": "object"
       },
+      "PriceCorrectionNoticeRequest": {
+        "properties": {
+          "dry_run": {
+            "default": true,
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "force": {
+            "default": false,
+            "title": "Force",
+            "type": "boolean"
+          },
+          "locale_override": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Locale Override"
+          },
+          "test_recipient": {
+            "anyOf": [
+              {
+                "maxLength": 254,
+                "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Test Recipient"
+          }
+        },
+        "title": "PriceCorrectionNoticeRequest",
+        "type": "object"
+      },
+      "PriceCorrectionNoticeResponse": {
+        "properties": {
+          "customer_page_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customer Page Url"
+          },
+          "locale": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Locale"
+          },
+          "new_total": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "New Total"
+          },
+          "old_total": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Old Total"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "subject": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subject"
+          },
+          "to": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "PriceCorrectionNoticeResponse",
+        "type": "object"
+      },
       "PriceHeadlineOut": {
         "properties": {
           "amount": {
@@ -58283,6 +58413,79 @@
         "summary": "Send Payment Receipt",
         "tags": [
           "staff-bookings-payment-receipt"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/price-correction-notice": {
+      "post": {
+        "operationId": "price_correction_notice",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "title": "Booking Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/PriceCorrectionNoticeRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PriceCorrectionNoticeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Price Correction Notice",
+        "tags": [
+          "staff-bookings-price-correction-notice"
         ]
       }
     },
