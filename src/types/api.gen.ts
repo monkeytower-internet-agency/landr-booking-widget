@@ -7020,6 +7020,26 @@ export interface paths {
         patch: operations["staff_patch_participant_pickup_details"];
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/participants/{participant_id}/replace": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Replace Booking Participant
+         * @description Re-point a participant seat to another person (see the module docstring).
+         */
+        post: operations["staff_replace_booking_participant"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/bookings/{booking_id}/payment-link": {
         parameters: {
             query?: never;
@@ -7065,6 +7085,23 @@ export interface paths {
         put?: never;
         /** Send Payment Receipt */
         post: operations["send_payment_receipt"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/price-correction-notice": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Price Correction Notice */
+        post: operations["price_correction_notice"];
         delete?: never;
         options?: never;
         head?: never;
@@ -19508,6 +19545,17 @@ export interface components {
             /** Phone */
             phone?: string | null;
         };
+        /** NewParticipantContact */
+        NewParticipantContact: {
+            /** Email */
+            email?: string | null;
+            /** First Name */
+            first_name: string;
+            /** Last Name */
+            last_name?: string | null;
+            /** Phone */
+            phone?: string | null;
+        };
         /** NoShowIn */
         NoShowIn: {
             /**
@@ -21288,6 +21336,42 @@ export interface components {
             column: string;
             /** Product Id */
             product_id: string;
+        };
+        /** PriceCorrectionNoticeRequest */
+        PriceCorrectionNoticeRequest: {
+            /**
+             * Dry Run
+             * @default true
+             */
+            dry_run: boolean;
+            /**
+             * Force
+             * @default false
+             */
+            force: boolean;
+            /** Locale Override */
+            locale_override?: string | null;
+            /** Test Recipient */
+            test_recipient?: string | null;
+        };
+        /** PriceCorrectionNoticeResponse */
+        PriceCorrectionNoticeResponse: {
+            /** Customer Page Url */
+            customer_page_url?: string | null;
+            /** Locale */
+            locale?: string | null;
+            /** New Total */
+            new_total?: string | null;
+            /** Old Total */
+            old_total?: string | null;
+            /** Reason */
+            reason?: string | null;
+            /** Status */
+            status: string;
+            /** Subject */
+            subject?: string | null;
+            /** To */
+            to?: string | null;
         };
         /** PriceHeadlineOut */
         PriceHeadlineOut: {
@@ -23455,6 +23539,39 @@ export interface components {
         ReorderIn: {
             /** Ids */
             ids: string[];
+        };
+        /** ReplaceParticipantIn */
+        ReplaceParticipantIn: {
+            /** Contact Id */
+            contact_id?: string | null;
+            new_contact?: components["schemas"]["NewParticipantContact"] | null;
+        };
+        /** ReplaceParticipantOut */
+        ReplaceParticipantOut: {
+            /** Changed */
+            changed: boolean;
+            contact: components["schemas"]["ReplacedContactOut"];
+            /** Matched Existing */
+            matched_existing: boolean;
+            /** Old Contact Id */
+            old_contact_id: string;
+            /** Participant Id */
+            participant_id: string;
+            /** Shared Email */
+            shared_email?: string | null;
+        };
+        /** ReplacedContactOut */
+        ReplacedContactOut: {
+            /** Email */
+            email?: string | null;
+            /** First Name */
+            first_name?: string | null;
+            /** Id */
+            id: string;
+            /** Last Name */
+            last_name?: string | null;
+            /** Phone */
+            phone?: string | null;
         };
         /** RequestChannelIn */
         RequestChannelIn: {
@@ -38116,6 +38233,43 @@ export interface operations {
             };
         };
     };
+    staff_replace_booking_participant: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                booking_id: string;
+                participant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReplaceParticipantIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReplaceParticipantOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     payment_link: {
         parameters: {
             query?: never;
@@ -38205,6 +38359,42 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SendReceiptOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    price_correction_notice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                booking_id: string;
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PriceCorrectionNoticeRequest"] | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PriceCorrectionNoticeResponse"];
                 };
             };
             /** @description Validation Error */
