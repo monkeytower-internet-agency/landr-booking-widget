@@ -9734,6 +9734,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/plan-change/personal-cap": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Personal Cap
+         * @description landr-243rh.2: this month's priced bookings against the plan's cap and
+         *     the requests held over it (the dashboard Plan page meter and banner).
+         */
+        get: operations["get_personal_cap"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/plan-change/scheduled": {
         parameters: {
             query?: never;
@@ -21566,6 +21587,37 @@ export interface components {
             /** Sync Log Id */
             sync_log_id: string;
         };
+        /**
+         * PersonalCapHold
+         * @description One held request and the deadline the DB enforces for it.
+         */
+        PersonalCapHold: {
+            /** Booking Id */
+            booking_id: string;
+            /** Hold Expires At */
+            hold_expires_at: string | null;
+        };
+        /**
+         * PersonalCapState
+         * @description landr-243rh.2: the priced booking cap this calendar month (operator
+         *     timezone). ``cap`` None = the plan has no cap. ``used`` counts priced, not
+         *     cancelled bookings created this month that are not held; ``held_*`` are
+         *     every request currently held over the cap.
+         */
+        PersonalCapState: {
+            /** Cap */
+            cap: number | null;
+            /** Held Booking Ids */
+            held_booking_ids: string[];
+            /** Held Count */
+            held_count: number;
+            /** Holds */
+            holds: components["schemas"]["PersonalCapHold"][];
+            /** Month */
+            month: string;
+            /** Used */
+            used: number;
+        };
         /** PhotoResponse */
         PhotoResponse: {
             /** Bucket Id */
@@ -26359,6 +26411,10 @@ export interface components {
             group?: {
                 [key: string]: unknown;
             } | null;
+            /** Held Over Cap */
+            held_over_cap?: boolean | null;
+            /** Hold Expires At */
+            hold_expires_at?: string | null;
             /** Ical Url */
             ical_url?: string | null;
             /** Invites */
@@ -44156,6 +44212,37 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_personal_cap: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PersonalCapState"];
                 };
             };
             /** @description Validation Error */

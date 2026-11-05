@@ -50,7 +50,8 @@ import {
   holdNotHeldLabel,
   holdRequestedLabel,
 } from '@/lib/strings'
-import { formatHoldDeadline } from '@/lib/seatHold'
+import { formatHoldDeadline, formatRequestDeadline } from '@/lib/seatHold'
+import { paysDirectly } from '@/lib/paymentMode'
 
 interface Props {
   response: SubmitBookingResponse
@@ -77,6 +78,12 @@ interface Props {
    * older API, or a caller that does not know the product) → false.
    */
   shareReferenceEnabled?: boolean
+  /**
+   * The operator's public contact email (OperatorSettings.contact_email),
+   * shown on the held-request screen so the guest can reach them. Absent or
+   * blank hides the line.
+   */
+  contactEmail?: string | null
 }
 
 /**
@@ -999,6 +1006,7 @@ export function Confirmation({
   isSharedDouble,
   shareReferenceEnabled = false,
   operatorName = null,
+  contactEmail = null,
 }: Props) {
   const locale = browserLocale()
   /**
@@ -1069,6 +1077,12 @@ export function Confirmation({
   // "payment link on its way") applies to it.
   const isFreeBooking = summary !== null && Number(summary.grand_total) === 0
 
+  // A request held over the operator's monthly cap is received, not confirmed
+  // and not an error. Customer-facing only: staff keep their own screen.
+  const held = response.held_over_cap === true && !staff.active
+  const heldDeadline = held ? formatRequestDeadline(response.hold_expires_at, locale) : null
+  const payDirectly = paysDirectly(response.payment_methods)
+
   return (
     <Card>
       <CardHeader>
@@ -1090,7 +1104,9 @@ export function Confirmation({
         <CardTitle data-testid="confirmation-title">
           {staff.active
             ? tr('bookingCreated', locale)
-            : approvalKind === 'auto'
+            : held
+              ? tr('heldTitle', locale)
+              : approvalKind === 'auto'
               ? tr('bookingConfirmed', locale)
               : tr('bookingReceived', locale)}
         </CardTitle>
@@ -1158,7 +1174,35 @@ export function Confirmation({
         {response.verification && !staff.active ? (
           <VerificationStatusPanel initial={response.verification} locale={locale} />
         ) : null}
-        {emailStatusKind === 'failed' ? (
+        {held ? (
+          <div
+            role="status"
+            data-testid="confirmation-held"
+            className="space-y-2 rounded-md border border-primary/40 bg-primary/5 px-4 py-3 text-sm"
+          >
+            <p className="font-medium" data-testid="confirmation-held-deadline">
+              {heldDeadline
+                ? fmt(
+                    changeHintOperator
+                      ? tr('heldWillConfirmBy', locale)
+                      : tr('heldWillConfirmByNoOperator', locale),
+                    { operator: changeHintOperator ?? '', when: heldDeadline },
+                  )
+                : changeHintOperator
+                  ? fmt(tr('heldNoDeadline', locale), { operator: changeHintOperator })
+                  : tr('heldNoDeadlineNoOperator', locale)}
+            </p>
+            <p>{tr('heldNotConfirmed', locale)}</p>
+            {contactEmail?.trim() ? (
+              <p data-testid="confirmation-held-contact">
+                {tr('heldContactLabel', locale)}:{' '}
+                <a className="underline" href={`mailto:${contactEmail.trim()}`}>
+                  {contactEmail.trim()}
+                </a>
+              </p>
+            ) : null}
+          </div>
+        ) : emailStatusKind === 'failed' ? (
           /*
            * landr-y31z: amber notice when the confirmation email could not
            * be sent. Booking IS saved (reference is shown in the CardDescription
@@ -1293,6 +1337,13 @@ export function Confirmation({
 
         {/* landr-nva1a.4 step 5: price breakdown. */}
         {summary ? <ConfirmationPriceBreakdown summary={summary} /> : null}
+        {summary && payDirectly && !isFreeBooking ? (
+          <p className="text-sm text-muted-foreground" data-testid="confirmation-pay-directly">
+            {changeHintOperator
+              ? fmt(tr('payDirectlyNote', locale), { operator: changeHintOperator })
+              : tr('payDirectlyNoteNoOperator', locale)}
+          </p>
+        ) : null}
 
         {/* landr-otml0.4 (D9): "Booked together with" — other live members
             of this booking's group, when it has any. */}
@@ -1342,7 +1393,7 @@ export function Confirmation({
           filename carries the booking reference, never the UUID (same
           name the API's Content-Disposition uses).
          */}
-        {response.ical_url ? (
+        {response.ical_url && !held ? (
           <div className="flex flex-wrap gap-2">
             {googleUrl ? (
               <Button asChild type="button" variant="outline">
