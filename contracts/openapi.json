@@ -22946,6 +22946,85 @@
         "title": "PendingDecisionSummary",
         "type": "object"
       },
+      "PersonalCapHold": {
+        "description": "One held request and the deadline the DB enforces for it.",
+        "properties": {
+          "booking_id": {
+            "title": "Booking Id",
+            "type": "string"
+          },
+          "hold_expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hold Expires At"
+          }
+        },
+        "required": [
+          "booking_id",
+          "hold_expires_at"
+        ],
+        "title": "PersonalCapHold",
+        "type": "object"
+      },
+      "PersonalCapState": {
+        "description": "landr-243rh.2: the priced booking cap this calendar month (operator\ntimezone). ``cap`` None = the plan has no cap. ``used`` counts priced, not\ncancelled bookings created this month that are not held; ``held_*`` are\nevery request currently held over the cap.",
+        "properties": {
+          "cap": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cap"
+          },
+          "held_booking_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Held Booking Ids",
+            "type": "array"
+          },
+          "held_count": {
+            "title": "Held Count",
+            "type": "integer"
+          },
+          "holds": {
+            "items": {
+              "$ref": "#/components/schemas/PersonalCapHold"
+            },
+            "title": "Holds",
+            "type": "array"
+          },
+          "month": {
+            "title": "Month",
+            "type": "string"
+          },
+          "used": {
+            "title": "Used",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "used",
+          "cap",
+          "month",
+          "held_count",
+          "held_booking_ids",
+          "holds"
+        ],
+        "title": "PersonalCapState",
+        "type": "object"
+      },
       "PhotoResponse": {
         "properties": {
           "bucket_id": {
@@ -37051,6 +37130,29 @@
               }
             ],
             "title": "Group"
+          },
+          "held_over_cap": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Held Over Cap"
+          },
+          "hold_expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hold Expires At"
           },
           "ical_url": {
             "anyOf": [
@@ -68681,6 +68783,54 @@
           }
         ],
         "summary": "Post Plan Change",
+        "tags": [
+          "plan-change"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/plan-change/personal-cap": {
+      "get": {
+        "description": "landr-243rh.2: this month's priced bookings against the plan's cap and\nthe requests held over it (the dashboard Plan page meter and banner).",
+        "operationId": "get_personal_cap",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PersonalCapState"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Personal Cap",
         "tags": [
           "plan-change"
         ]
