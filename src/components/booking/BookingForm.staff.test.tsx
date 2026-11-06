@@ -16,6 +16,7 @@ import type { BookerDetails, ParticipantDetails } from './detailsTypes'
 import { StaffModeProvider } from '@/lib/staffMode.tsx'
 import {
   ALL_STAFF_POWERS,
+  resolveParentTargetOrigin,
   parseStaffSession,
   staffInitFromMessage,
   type StaffSession,
@@ -570,6 +571,58 @@ describe('BookingForm — staff mode', () => {
     })
     expect(targetOrigin).not.toBe('*')
     parentSpy.mockRestore()
+  })
+
+  describe('a staff submit refused by the plan cap', () => {
+    function stubParent() {
+      const postSpy = vi.fn()
+      const parentSpy = vi
+        .spyOn(window, 'parent', 'get')
+        .mockReturnValue({ postMessage: postSpy } as unknown as Window)
+      return { postSpy, parentSpy }
+    }
+    function refusal(status: number, detail: unknown) {
+      return new HttpError(status, 'Conflict', JSON.stringify({ detail }))
+    }
+
+    it('409 personal_cap_reached posts landr:booking-refused once to the allow-listed origin and shows the cap message', async () => {
+      const { postSpy, parentSpy } = stubParent()
+      vi.mocked(submitStaffBooking).mockRejectedValue(
+        refusal(409, { error: 'personal_cap_reached', message: 'limit reached' }),
+      )
+      renderForm(DAYS, true)
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+      })
+      await waitFor(() => expect(postSpy).toHaveBeenCalledTimes(1))
+      const [payload, targetOrigin] = postSpy.mock.calls[0]!
+      expect(payload).toEqual({
+        type: 'landr:booking-refused',
+        status: 409,
+        error: 'personal_cap_reached',
+      })
+      expect(targetOrigin).toBe(resolveParentTargetOrigin())
+      expect(targetOrigin).not.toBe('*')
+      expect(screen.getByTestId('review-error')).toHaveTextContent(/limit of priced bookings/i)
+      parentSpy.mockRestore()
+    })
+
+    it.each([
+      ['another 409', 409, { error: 'daily_cap_reached', message: 'full' }],
+      ['a 400', 400, { error: 'rpc_error', message: 'nope' }],
+      ['a 500', 500, undefined],
+    ])('%s posts no refusal message', async (_label, status, detail) => {
+      const { postSpy, parentSpy } = stubParent()
+      vi.mocked(submitStaffBooking).mockRejectedValue(refusal(status, detail))
+      renderForm(DAYS, true)
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+      })
+      await waitFor(() => expect(screen.getByTestId('review-error')).toBeInTheDocument())
+      expect(postSpy).not.toHaveBeenCalled()
+      expect(screen.getByTestId('review-error')).not.toHaveTextContent(/limit of priced bookings/i)
+      parentSpy.mockRestore()
+    })
   })
 
   it('without an operator id, a staff submit is blocked (no silent downgrade to the public path)', async () => {
