@@ -21548,6 +21548,20 @@
             "title": "Offer Account Link",
             "type": "boolean"
           },
+          "payment_methods": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payment Methods"
+          },
           "primary_color": {
             "anyOf": [
               {
