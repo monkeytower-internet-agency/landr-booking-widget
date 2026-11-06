@@ -21816,10 +21816,18 @@ export interface components {
             /** Pct */
             pct: number;
         };
-        /** PitchIn */
+        /**
+         * PitchIn
+         * @description EN (fallback) and DE stay required: the operators_template_pitch_shape
+         *     CHECK needs both keys. The other site locales are optional (landr-e7xif);
+         *     a missing one is simply absent from the stored pitch.
+         */
         PitchIn: {
             de: components["schemas"]["PitchLocaleIn"];
             en: components["schemas"]["PitchLocaleIn"];
+            es?: components["schemas"]["PitchLocaleIn"] | null;
+            it?: components["schemas"]["PitchLocaleIn"] | null;
+            tr?: components["schemas"]["PitchLocaleIn"] | null;
         };
         /** PitchLocaleIn */
         PitchLocaleIn: {
