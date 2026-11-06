@@ -15274,6 +15274,32 @@ export interface components {
             /** Sent */
             sent: number;
         };
+        /** CalendarBlockOut */
+        CalendarBlockOut: {
+            /** Conflict */
+            conflict: boolean;
+            /**
+             * End Date
+             * Format: date
+             */
+            end_date: string;
+            /** Platform */
+            platform: string;
+            /** Resource Id */
+            resource_id: string;
+            /**
+             * Start Date
+             * Format: date
+             */
+            start_date: string;
+        };
+        /** CalendarExportOut */
+        CalendarExportOut: {
+            /** Token */
+            token: string | null;
+            /** Url */
+            url: string | null;
+        };
         /** CalendarFeedCreate */
         CalendarFeedCreate: {
             /**
@@ -15286,6 +15312,26 @@ export interface components {
             resource_id: string;
             /** Url */
             url: string;
+        };
+        /**
+         * CalendarFeedOut
+         * @description Public view of a feed. Never carries the URL (a secret), only its host.
+         */
+        CalendarFeedOut: {
+            /** Id */
+            id: string;
+            /** Last Error */
+            last_error?: string | null;
+            /** Last Synced At */
+            last_synced_at?: string | null;
+            /** Platform */
+            platform: string;
+            /** Resource Id */
+            resource_id: string;
+            /** Status */
+            status: string;
+            /** Url Host */
+            url_host?: string | null;
         };
         /**
          * CampaignIn
@@ -39521,9 +39567,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    }[];
+                    "application/json": components["schemas"]["CalendarBlockOut"][];
                 };
             };
             /** @description Validation Error */
@@ -39554,9 +39598,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    }[];
+                    "application/json": components["schemas"]["CalendarFeedOut"][];
                 };
             };
             /** @description Validation Error */
@@ -39591,9 +39633,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["CalendarFeedOut"];
                 };
             };
             /** @description Validation Error */
@@ -48499,9 +48539,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["CalendarExportOut"];
                 };
             };
             /** @description Validation Error */
@@ -48533,9 +48571,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["CalendarExportOut"];
                 };
             };
             /** @description Validation Error */
