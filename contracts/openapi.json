@@ -21762,6 +21762,107 @@
         "title": "OperatorSettings",
         "type": "object"
       },
+      "OperatorTemplateOut": {
+        "properties": {
+          "flow": {
+            "enum": [
+              "solo",
+              "company"
+            ],
+            "title": "Flow",
+            "type": "string"
+          },
+          "missing_kinds": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Missing Kinds",
+            "type": "array"
+          },
+          "onboarding_preset_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Onboarding Preset Key"
+          },
+          "pitch": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/TemplatePitchLocale"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pitch"
+          },
+          "product_count": {
+            "title": "Product Count",
+            "type": "integer"
+          },
+          "product_kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Kind"
+          },
+          "product_kinds": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Product Kinds",
+            "type": "array"
+          },
+          "sellable": {
+            "default": true,
+            "title": "Sellable",
+            "type": "boolean"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "uses_pools": {
+            "title": "Uses Pools",
+            "type": "boolean"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          },
+          "website_listed": {
+            "default": false,
+            "title": "Website Listed",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "slug",
+          "version",
+          "flow",
+          "onboarding_preset_key",
+          "product_count",
+          "uses_pools",
+          "pitch"
+        ],
+        "title": "OperatorTemplateOut",
+        "type": "object"
+      },
       "PackagePriceIn": {
         "properties": {
           "base_fee_monthly": {
@@ -36303,6 +36404,14 @@
             ],
             "title": "Product Kind"
           },
+          "product_kinds": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Product Kinds",
+            "type": "array"
+          },
           "slug": {
             "title": "Slug",
             "type": "string"
@@ -38174,6 +38283,14 @@
               }
             ],
             "title": "Product Kind"
+          },
+          "product_kinds": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Product Kinds",
+            "type": "array"
           },
           "slug": {
             "title": "Slug",
@@ -80308,6 +80425,57 @@
         "summary": "List Tax Rates",
         "tags": [
           "staff-operator-tax-rates"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/templates": {
+      "get": {
+        "operationId": "staff_list_operator_templates",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/OperatorTemplateOut"
+                  },
+                  "title": "Response Staff List Operator Templates",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Staff List Operator Templates",
+        "tags": [
+          "staff-operator-templates"
         ]
       }
     },
