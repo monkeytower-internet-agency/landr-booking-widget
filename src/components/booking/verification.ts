@@ -111,6 +111,20 @@ export function isDailyCapReached(err: unknown): boolean {
   )
 }
 
+/**
+ * Staff submit: 409 whose `detail.error` is `personal_cap_reached` — the
+ * operator's plan has no more priced bookings this month.
+ */
+export function isPersonalCapReached(err: unknown): boolean {
+  if (!(err instanceof HttpError) || err.status !== 409) return false
+  const detail = err.detail
+  return (
+    detail !== null &&
+    typeof detail === 'object' &&
+    (detail as { error?: unknown }).error === 'personal_cap_reached'
+  )
+}
+
 /** The server's own sentence for a full day, or a generic fallback. */
 export function dailyCapMessage(err: HttpError): string {
   const message = (err.detail as { message?: unknown } | undefined)?.message

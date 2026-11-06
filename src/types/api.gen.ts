@@ -15274,6 +15274,35 @@ export interface components {
             /** Sent */
             sent: number;
         };
+        /** CalendarBlockOut */
+        CalendarBlockOut: {
+            /** Conflict */
+            conflict: boolean;
+            /**
+             * End Date
+             * Format: date
+             */
+            end_date: string;
+            /**
+             * Platform
+             * @enum {string}
+             */
+            platform: "airbnb" | "traumferienwohnungen" | "other";
+            /** Resource Id */
+            resource_id: string;
+            /**
+             * Start Date
+             * Format: date
+             */
+            start_date: string;
+        };
+        /** CalendarExportOut */
+        CalendarExportOut: {
+            /** Token */
+            token: string | null;
+            /** Url */
+            url: string | null;
+        };
         /** CalendarFeedCreate */
         CalendarFeedCreate: {
             /**
@@ -15286,6 +15315,32 @@ export interface components {
             resource_id: string;
             /** Url */
             url: string;
+        };
+        /**
+         * CalendarFeedOut
+         * @description Public view of a feed. Never carries the URL (a secret), only its host.
+         */
+        CalendarFeedOut: {
+            /** Id */
+            id: string;
+            /** Last Error */
+            last_error?: string | null;
+            /** Last Synced At */
+            last_synced_at?: string | null;
+            /**
+             * Platform
+             * @enum {string}
+             */
+            platform: "airbnb" | "traumferienwohnungen" | "other";
+            /** Resource Id */
+            resource_id: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending" | "ok" | "error";
+            /** Url Host */
+            url_host?: string | null;
         };
         /**
          * CampaignIn
@@ -21761,10 +21816,18 @@ export interface components {
             /** Pct */
             pct: number;
         };
-        /** PitchIn */
+        /**
+         * PitchIn
+         * @description EN (fallback) and DE stay required: the operators_template_pitch_shape
+         *     CHECK needs both keys. The other site locales are optional (landr-e7xif);
+         *     a missing one is simply absent from the stored pitch.
+         */
         PitchIn: {
             de: components["schemas"]["PitchLocaleIn"];
             en: components["schemas"]["PitchLocaleIn"];
+            es?: components["schemas"]["PitchLocaleIn"] | null;
+            it?: components["schemas"]["PitchLocaleIn"] | null;
+            tr?: components["schemas"]["PitchLocaleIn"] | null;
         };
         /** PitchLocaleIn */
         PitchLocaleIn: {
@@ -39521,9 +39584,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    }[];
+                    "application/json": components["schemas"]["CalendarBlockOut"][];
                 };
             };
             /** @description Validation Error */
@@ -39554,9 +39615,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    }[];
+                    "application/json": components["schemas"]["CalendarFeedOut"][];
                 };
             };
             /** @description Validation Error */
@@ -39591,9 +39650,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["CalendarFeedOut"];
                 };
             };
             /** @description Validation Error */
@@ -48499,9 +48556,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["CalendarExportOut"];
                 };
             };
             /** @description Validation Error */
@@ -48533,9 +48588,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["CalendarExportOut"];
                 };
             };
             /** @description Validation Error */
