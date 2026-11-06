@@ -4338,6 +4338,36 @@
         "title": "BulkReminderOut",
         "type": "object"
       },
+      "CalendarFeedCreate": {
+        "properties": {
+          "platform": {
+            "default": "other",
+            "enum": [
+              "airbnb",
+              "traumferienwohnungen",
+              "other"
+            ],
+            "title": "Platform",
+            "type": "string"
+          },
+          "resource_id": {
+            "title": "Resource Id",
+            "type": "string"
+          },
+          "url": {
+            "maxLength": 2048,
+            "minLength": 1,
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "resource_id",
+          "url"
+        ],
+        "title": "CalendarFeedCreate",
+        "type": "object"
+      },
       "CampaignIn": {
         "description": "Create payload for a new campaign.\n\n`code` and `label` are required; `kind` is required (no sensible\ndefault). `scope` defaults to 'booking' to match the DB default.\n`end_date` is optional (open-ended campaigns); when present it must\nnot precede `start_date`.",
         "properties": {
@@ -19592,6 +19622,594 @@
         "title": "OfferTotals",
         "type": "object"
       },
+      "OperatorLinkCalendarOut": {
+        "properties": {
+          "details": {
+            "items": {
+              "$ref": "#/components/schemas/OperatorLinkDetailsEntry"
+            },
+            "title": "Details",
+            "type": "array"
+          },
+          "level": {
+            "enum": [
+              "occupancy",
+              "details"
+            ],
+            "title": "Level",
+            "type": "string"
+          },
+          "link_id": {
+            "title": "Link Id",
+            "type": "string"
+          },
+          "occupancy": {
+            "items": {
+              "$ref": "#/components/schemas/OperatorLinkOccupancyEntry"
+            },
+            "title": "Occupancy",
+            "type": "array"
+          },
+          "partner_operator_id": {
+            "title": "Partner Operator Id",
+            "type": "string"
+          },
+          "suspended": {
+            "default": false,
+            "title": "Suspended",
+            "type": "boolean"
+          },
+          "suspended_reason": {
+            "anyOf": [
+              {
+                "const": "plan",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Suspended Reason"
+          }
+        },
+        "required": [
+          "link_id",
+          "partner_operator_id",
+          "level"
+        ],
+        "title": "OperatorLinkCalendarOut",
+        "type": "object"
+      },
+      "OperatorLinkClauseOut": {
+        "properties": {
+          "texts": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/OperatorLinkClauseTextOut"
+            },
+            "title": "Texts",
+            "type": "object"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "texts"
+        ],
+        "title": "OperatorLinkClauseOut",
+        "type": "object"
+      },
+      "OperatorLinkClauseTextOut": {
+        "properties": {
+          "body": {
+            "title": "Body",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "body"
+        ],
+        "title": "OperatorLinkClauseTextOut",
+        "type": "object"
+      },
+      "OperatorLinkDetailsEntry": {
+        "description": "Details level: the occupancy columns plus booking id and guest contact.",
+        "properties": {
+          "booking_id": {
+            "title": "Booking Id",
+            "type": "string"
+          },
+          "booking_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Booking Status"
+          },
+          "date_range_end": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date Range End"
+          },
+          "date_range_start": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date Range Start"
+          },
+          "guest_email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Guest Email"
+          },
+          "guest_first_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Guest First Name"
+          },
+          "guest_last_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Guest Last Name"
+          },
+          "guest_phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Guest Phone"
+          },
+          "headcount": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Headcount"
+          },
+          "is_addon_only": {
+            "default": false,
+            "title": "Is Addon Only",
+            "type": "boolean"
+          },
+          "product_id": {
+            "title": "Product Id",
+            "type": "string"
+          },
+          "product_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Name"
+          },
+          "selected_days": {
+            "anyOf": [
+              {
+                "items": {
+                  "format": "date",
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selected Days"
+          },
+          "slot_start_time": {
+            "anyOf": [
+              {
+                "format": "time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slot Start Time"
+          }
+        },
+        "required": [
+          "product_id",
+          "booking_id"
+        ],
+        "title": "OperatorLinkDetailsEntry",
+        "type": "object"
+      },
+      "OperatorLinkInviteIn": {
+        "properties": {
+          "slug": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug"
+        ],
+        "title": "OperatorLinkInviteIn",
+        "type": "object"
+      },
+      "OperatorLinkOccupancyEntry": {
+        "description": "Occupancy level: no booking id, guest, contact or money field.",
+        "properties": {
+          "booking_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Booking Status"
+          },
+          "date_range_end": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date Range End"
+          },
+          "date_range_start": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date Range Start"
+          },
+          "headcount": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Headcount"
+          },
+          "is_addon_only": {
+            "default": false,
+            "title": "Is Addon Only",
+            "type": "boolean"
+          },
+          "product_id": {
+            "title": "Product Id",
+            "type": "string"
+          },
+          "product_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Name"
+          },
+          "selected_days": {
+            "anyOf": [
+              {
+                "items": {
+                  "format": "date",
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selected Days"
+          },
+          "slot_start_time": {
+            "anyOf": [
+              {
+                "format": "time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slot Start Time"
+          }
+        },
+        "required": [
+          "product_id"
+        ],
+        "title": "OperatorLinkOccupancyEntry",
+        "type": "object"
+      },
+      "OperatorLinkOut": {
+        "properties": {
+          "accepted_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accepted At"
+          },
+          "direction": {
+            "enum": [
+              "outgoing",
+              "incoming"
+            ],
+            "title": "Direction",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "invited_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Invited At"
+          },
+          "my_clause_accepted_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "My Clause Accepted At"
+          },
+          "my_clause_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "My Clause Version"
+          },
+          "my_share_level": {
+            "enum": [
+              "occupancy",
+              "details"
+            ],
+            "title": "My Share Level",
+            "type": "string"
+          },
+          "partner": {
+            "$ref": "#/components/schemas/OperatorLinkPartnerOut"
+          },
+          "partner_share_level": {
+            "enum": [
+              "occupancy",
+              "details"
+            ],
+            "title": "Partner Share Level",
+            "type": "string"
+          },
+          "revoked_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revoked At"
+          },
+          "revoked_by": {
+            "anyOf": [
+              {
+                "enum": [
+                  "me",
+                  "partner"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revoked By"
+          },
+          "status": {
+            "enum": [
+              "invited",
+              "accepted",
+              "revoked"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "suspended": {
+            "default": false,
+            "title": "Suspended",
+            "type": "boolean"
+          },
+          "suspended_reason": {
+            "anyOf": [
+              {
+                "const": "plan",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Suspended Reason"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "direction",
+          "partner",
+          "my_share_level",
+          "partner_share_level"
+        ],
+        "title": "OperatorLinkOut",
+        "type": "object"
+      },
+      "OperatorLinkPartnerOut": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "slug": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slug"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "title": "OperatorLinkPartnerOut",
+        "type": "object"
+      },
+      "OperatorLinkShareLevelIn": {
+        "properties": {
+          "clause_version": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clause Version"
+          },
+          "level": {
+            "enum": [
+              "occupancy",
+              "details"
+            ],
+            "title": "Level",
+            "type": "string"
+          }
+        },
+        "required": [
+          "level"
+        ],
+        "title": "OperatorLinkShareLevelIn",
+        "type": "object"
+      },
       "OperatorPatch": {
         "description": "Partial update payload \u2014 every field is optional.",
         "properties": {
@@ -20930,6 +21548,20 @@
             "title": "Offer Account Link",
             "type": "boolean"
           },
+          "payment_methods": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payment Methods"
+          },
           "primary_color": {
             "anyOf": [
               {
@@ -21142,6 +21774,107 @@
           "slug"
         ],
         "title": "OperatorSettings",
+        "type": "object"
+      },
+      "OperatorTemplateOut": {
+        "properties": {
+          "flow": {
+            "enum": [
+              "solo",
+              "company"
+            ],
+            "title": "Flow",
+            "type": "string"
+          },
+          "missing_kinds": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Missing Kinds",
+            "type": "array"
+          },
+          "onboarding_preset_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Onboarding Preset Key"
+          },
+          "pitch": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/TemplatePitchLocale"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pitch"
+          },
+          "product_count": {
+            "title": "Product Count",
+            "type": "integer"
+          },
+          "product_kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Kind"
+          },
+          "product_kinds": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Product Kinds",
+            "type": "array"
+          },
+          "sellable": {
+            "default": true,
+            "title": "Sellable",
+            "type": "boolean"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "uses_pools": {
+            "title": "Uses Pools",
+            "type": "boolean"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          },
+          "website_listed": {
+            "default": false,
+            "title": "Website Listed",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "slug",
+          "version",
+          "flow",
+          "onboarding_preset_key",
+          "product_count",
+          "uses_pools",
+          "pitch"
+        ],
+        "title": "OperatorTemplateOut",
         "type": "object"
       },
       "PackagePriceIn": {
@@ -22326,6 +23059,85 @@
           "created_at"
         ],
         "title": "PendingDecisionSummary",
+        "type": "object"
+      },
+      "PersonalCapHold": {
+        "description": "One held request and the deadline the DB enforces for it.",
+        "properties": {
+          "booking_id": {
+            "title": "Booking Id",
+            "type": "string"
+          },
+          "hold_expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hold Expires At"
+          }
+        },
+        "required": [
+          "booking_id",
+          "hold_expires_at"
+        ],
+        "title": "PersonalCapHold",
+        "type": "object"
+      },
+      "PersonalCapState": {
+        "description": "landr-243rh.2: the priced booking cap this calendar month (operator\ntimezone). ``cap`` None = the plan has no cap. ``used`` counts priced, not\ncancelled bookings created this month that are not held; ``held_*`` are\nevery request currently held over the cap.",
+        "properties": {
+          "cap": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cap"
+          },
+          "held_booking_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Held Booking Ids",
+            "type": "array"
+          },
+          "held_count": {
+            "title": "Held Count",
+            "type": "integer"
+          },
+          "holds": {
+            "items": {
+              "$ref": "#/components/schemas/PersonalCapHold"
+            },
+            "title": "Holds",
+            "type": "array"
+          },
+          "month": {
+            "title": "Month",
+            "type": "string"
+          },
+          "used": {
+            "title": "Used",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "used",
+          "cap",
+          "month",
+          "held_count",
+          "held_booking_ids",
+          "holds"
+        ],
+        "title": "PersonalCapState",
         "type": "object"
       },
       "PhotoResponse": {
@@ -34614,7 +35426,7 @@
         "type": "object"
       },
       "SignupRequest": {
-        "description": "POST /api/public/signup body.\n\n`name` is the operator/business display name (-> operators.name). `slug` is\nthe desired public handle. `turnstile_token` is the Cloudflare widget's\nclient response token. `password` is the new account password (GoTrue\nenforces its own minimum; we keep a soft floor here). `locale` selects the\nverification-email language (any `public.ui_locales` code or\nbrowser tag such as `es-ES`; bundled en/de/es/tr, else en; defaults en).\n\nBoth field names and their marketing-site aliases are accepted (back-compat):\n  name / operator_name, slug / operator_slug  (landr-oqrz.1)\n\n`preset_key` (optional, landr-k9pji.2) pre-selects the onboarding path,\ne.g. `solo_pilot` from the website's solo landing CTA. One of\n`app/services/onboarding_flow.py` FLOW_KEYS or a live operator-template\nslug (landr-m6tp4.1; stored as that template's preset key), else 422\n`unknown_preset_key`. Blank = not sent. Stored on the operator only; the\nwizard applies the template.",
+        "description": "POST /api/public/signup body.\n\n`name` is the operator/business display name (-> operators.name). `slug` is\nthe desired public handle. `turnstile_token` is the Cloudflare widget's\nclient response token. `password` is the new account password (GoTrue\nenforces its own minimum; we keep a soft floor here). `locale` selects the\nverification-email language (any `public.ui_locales` code or\nbrowser tag such as `es-ES`; bundled en/de/es/tr, else en; defaults en).\n\nBoth field names and their marketing-site aliases are accepted (back-compat):\n  name / operator_name, slug / operator_slug  (landr-oqrz.1)\n\n`preset_key` (optional, landr-k9pji.2) pre-selects the onboarding path,\ne.g. `solo_pilot` from the website's solo landing CTA. One of\n`app/services/onboarding_flow.py` FLOW_KEYS or a live operator-template\nslug (landr-m6tp4.1; stored as that template's preset key), else 422\n`unknown_preset_key`. Blank = not sent. Stored on the operator only; the\nwizard applies the template.\n\n`plan` (optional, landr-243rh.11) is a package *hint*: only `personal` is\nhonoured, anything else is dropped to None (Solo). The package is resolved\nserver-side (see `_resolve_plan_slug`); the client never names a package id.",
         "properties": {
           "email": {
             "maxLength": 320,
@@ -34639,6 +35451,18 @@
             "minLength": 8,
             "title": "Password",
             "type": "string"
+          },
+          "plan": {
+            "anyOf": [
+              {
+                "const": "personal",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plan"
           },
           "preset_key": {
             "anyOf": [
@@ -35606,6 +36430,14 @@
             ],
             "title": "Product Kind"
           },
+          "product_kinds": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Product Kinds",
+            "type": "array"
+          },
           "slug": {
             "title": "Slug",
             "type": "string"
@@ -36433,6 +37265,29 @@
               }
             ],
             "title": "Group"
+          },
+          "held_over_cap": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Held Over Cap"
+          },
+          "hold_expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hold Expires At"
           },
           "ical_url": {
             "anyOf": [
@@ -37454,6 +38309,14 @@
               }
             ],
             "title": "Product Kind"
+          },
+          "product_kinds": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Product Kinds",
+            "type": "array"
           },
           "slug": {
             "title": "Slug",
@@ -51732,6 +52595,46 @@
         ]
       }
     },
+    "/api/public/resource-calendars/{token}.ics": {
+      "get": {
+        "operationId": "get_resource_calendar",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Resource Calendar",
+        "tags": [
+          "public-resource-calendars"
+        ]
+      }
+    },
     "/api/public/short-links/{code}": {
       "get": {
         "operationId": "public_resolve_short_link",
@@ -59437,6 +60340,250 @@
         ]
       }
     },
+    "/api/staff/operators/{operator_id}/calendar-blocks": {
+      "get": {
+        "operationId": "list_calendar_blocks",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "From"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "To"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "title": "Response List Calendar Blocks",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Calendar Blocks",
+        "tags": [
+          "staff-resource-calendar-export"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/calendar-feeds": {
+      "get": {
+        "operationId": "list_calendar_feeds",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "title": "Response List Calendar Feeds",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Calendar Feeds",
+        "tags": [
+          "staff-platform-calendar-feeds"
+        ]
+      },
+      "post": {
+        "operationId": "create_calendar_feed",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CalendarFeedCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Create Calendar Feed",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Calendar Feed",
+        "tags": [
+          "staff-platform-calendar-feeds"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/calendar-feeds/{feed_id}": {
+      "delete": {
+        "operationId": "delete_calendar_feed",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "feed_id",
+            "required": true,
+            "schema": {
+              "title": "Feed Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Delete Calendar Feed",
+        "tags": [
+          "staff-platform-calendar-feeds"
+        ]
+      }
+    },
     "/api/staff/operators/{operator_id}/campaigns": {
       "get": {
         "description": "List an operator's campaigns. Soft-deleted rows are excluded.\n\nOrdered by (sort_order, code) to match the dashboard's manual-order\nexpectation while keeping a deterministic tiebreak.",
@@ -64277,6 +65424,473 @@
         ]
       }
     },
+    "/api/staff/operators/{operator_id}/links": {
+      "get": {
+        "description": "Every link of this operator, newest change first (all statuses, so a\ndowngraded account still sees and can end its links).",
+        "operationId": "list_operator_links",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/OperatorLinkOut"
+                  },
+                  "title": "Response List Operator Links",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Links",
+        "tags": [
+          "operator-links"
+        ]
+      },
+      "post": {
+        "operationId": "invite",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OperatorLinkInviteIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperatorLinkOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Invite",
+        "tags": [
+          "operator-links"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/links/clause": {
+      "get": {
+        "operationId": "get_clause",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperatorLinkClauseOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Clause",
+        "tags": [
+          "operator-links"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/links/{link_id}/accept": {
+      "post": {
+        "operationId": "accept",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "link_id",
+            "required": true,
+            "schema": {
+              "title": "Link Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperatorLinkOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Accept",
+        "tags": [
+          "operator-links"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/links/{link_id}/calendar": {
+      "get": {
+        "description": "The partner's calendar lines in [from, to], at the level the partner\nshares with this operator (details only for roles that may see guest\ncontacts, else occupancy).",
+        "operationId": "linked_calendar",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "link_id",
+            "required": true,
+            "schema": {
+              "title": "Link Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "from",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "From",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "To",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperatorLinkCalendarOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Linked Calendar",
+        "tags": [
+          "operator-links"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/links/{link_id}/decline": {
+      "post": {
+        "operationId": "decline",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "link_id",
+            "required": true,
+            "schema": {
+              "title": "Link Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperatorLinkOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Decline",
+        "tags": [
+          "operator-links"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/links/{link_id}/revoke": {
+      "post": {
+        "description": "Either side ends an accepted link or withdraws / declines an open\ninvite. Works without ``account_linking`` (a downgraded account can end its links).",
+        "operationId": "revoke",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "link_id",
+            "required": true,
+            "schema": {
+              "title": "Link Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperatorLinkOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Revoke",
+        "tags": [
+          "operator-links"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/links/{link_id}/share-level": {
+      "put": {
+        "description": "Change YOUR direction's level. Raising to ``details`` needs the feature\non both sides and the current clause version; lowering needs neither.",
+        "operationId": "set_share_level",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "link_id",
+            "required": true,
+            "schema": {
+              "title": "Link Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OperatorLinkShareLevelIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperatorLinkOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Set Share Level",
+        "tags": [
+          "operator-links"
+        ]
+      }
+    },
     "/api/staff/operators/{operator_id}/location-role-types": {
       "get": {
         "deprecated": true,
@@ -67312,6 +68926,54 @@
           }
         ],
         "summary": "Post Plan Change",
+        "tags": [
+          "plan-change"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/plan-change/personal-cap": {
+      "get": {
+        "description": "landr-243rh.2: this month's priced bookings against the plan's cap and\nthe requests held over it (the dashboard Plan page meter and banner).",
+        "operationId": "get_personal_cap",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PersonalCapState"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Personal Cap",
         "tags": [
           "plan-change"
         ]
@@ -75267,6 +76929,122 @@
         ]
       }
     },
+    "/api/staff/operators/{operator_id}/resources/{resource_id}/calendar-export": {
+      "get": {
+        "operationId": "get_calendar_export",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "resource_id",
+            "required": true,
+            "schema": {
+              "title": "Resource Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Calendar Export",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Calendar Export",
+        "tags": [
+          "staff-resource-calendar-export"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/resources/{resource_id}/calendar-export/rotate-token": {
+      "post": {
+        "operationId": "rotate_calendar_export_token",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "resource_id",
+            "required": true,
+            "schema": {
+              "title": "Resource Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Rotate Calendar Export Token",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Rotate Calendar Export Token",
+        "tags": [
+          "staff-resource-calendar-export"
+        ]
+      }
+    },
     "/api/staff/operators/{operator_id}/resources/{resource_id}/day-assignments/{assignment_date}": {
       "delete": {
         "operationId": "clear_day_assignments",
@@ -78673,6 +80451,57 @@
         "summary": "List Tax Rates",
         "tags": [
           "staff-operator-tax-rates"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/templates": {
+      "get": {
+        "operationId": "staff_list_operator_templates",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/OperatorTemplateOut"
+                  },
+                  "title": "Response Staff List Operator Templates",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Staff List Operator Templates",
+        "tags": [
+          "staff-operator-templates"
         ]
       }
     },

@@ -167,6 +167,7 @@ import {
   pickLocalized,
 } from '@/lib/locale'
 import { seatsNeeded } from '@/lib/seatHold'
+import { paysDirectly } from '@/lib/paymentMode'
 import { InviteHoldNote } from '@/components/booking/InviteHoldNote'
 import { CategoryStep } from '@/components/booking/CategoryStep'
 import { ExpandedCatalog } from '@/components/booking/ExpandedCatalog'
@@ -3865,6 +3866,7 @@ function BookingFlowApp() {
               isSharedDouble={step.isSharedDouble}
               shareReferenceEnabled={step.shareReferenceEnabled}
               operatorName={operatorSettings.name ?? null}
+              contactEmail={operatorSettings.contact_email ?? null}
             />
             {/* landr-atwy: the account-link prompt creates a real LANDR
                 account, so it only shows when the operator opts in. */}
@@ -3954,6 +3956,8 @@ function BookingFlowApp() {
             onVoucherStatusChange={setVoucherStatus}
             extraLines={step.name === 'fill-form' ? extraLines : undefined}
             childAges={sidebarChildAges}
+            payDirectly={paysDirectly(operatorSettings.payment_methods)}
+            operatorName={operatorSettings.name ?? null}
           />
         ) : null}
         </div>

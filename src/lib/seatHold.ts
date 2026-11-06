@@ -137,3 +137,16 @@ export function formatHoldDeadline(
   else if (dayKey(d) === dayKey(tomorrow)) hint = t.tomorrow
   return hint ? `${absolute} (${hint.replace('{time}', time)})` : absolute
 }
+
+/**
+ * The deadline of a request the operator holds, formatted for the guest, or
+ * null when the API sent no usable timestamp (absent or unparseable). Never
+ * throws: a render-time throw would blank the whole widget.
+ */
+export function formatRequestDeadline(
+  iso: string | null | undefined,
+  locale?: string,
+): string | null {
+  if (!iso || Number.isNaN(new Date(iso).getTime())) return null
+  return formatHoldDeadline(iso, locale)
+}
