@@ -147,6 +147,8 @@ export const tr: Bundle = {
   readyToContinueWithHostsDates: 'Ev sahibinin tarihleriyle devam etmeye hazır.',
   continueWithTheseDates: 'Bu tarihlerle devam edin',
   changeDates: 'Tarihleri değiştir',
+  personalCapReached:
+    'Mevcut planın aylık ücretli rezervasyon sınırına ulaşıldı. Daha fazlasını eklemek için planı değiştirin.',
   pickCourse: 'Bir kurs seçin',
   courseFallbackName: 'Kurs {n}',
   fixedDateWindowAmbiguousMessage:

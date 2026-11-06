@@ -143,6 +143,8 @@ export const es: Bundle = {
   readyToContinueWithHostsDates: 'Listo para continuar con las fechas del anfitrión.',
   continueWithTheseDates: 'Continuar con estas fechas',
   changeDates: 'Cambiar fechas',
+  personalCapReached:
+    'Se ha alcanzado el límite mensual de reservas de pago del plan actual. Cambia de plan para añadir más.',
   pickCourse: 'Elige un curso',
   courseFallbackName: 'Curso {n}',
   fixedDateWindowAmbiguousMessage:
