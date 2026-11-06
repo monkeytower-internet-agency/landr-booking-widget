@@ -172,6 +172,7 @@ import {
   dailyCapMessage,
   EMPTY_VERIFICATION,
   isDailyCapReached,
+  isPersonalCapReached,
   needsVerification,
   toWaiver,
   uploadChosenFiles,
@@ -2101,8 +2102,20 @@ export function BookingForm({
     } catch (err) {
       if (err instanceof HttpError) {
         const timedSlot = selection.kind === 'slot' && !!selection.slot.start_time
+        // The Personal plan's monthly cap refused this staff-typed booking: tell
+        // the embedding dashboard (explicit origin, staff mode only) so it can
+        // offer the plan switch, and say so here instead of a generic error.
+        const capRefused = staff.active && isPersonalCapReached(err)
+        if (capRefused && typeof window !== 'undefined' && window.parent !== window) {
+          window.parent.postMessage(
+            { type: 'landr:booking-refused', status: 409, error: 'personal_cap_reached' },
+            resolveParentTargetOrigin(),
+          )
+        }
         setServerError(
-          isDailyCapReached(err)
+          capRefused
+            ? tr('personalCapReached', locale)
+            : isDailyCapReached(err)
             ? dailyCapMessage(err)
             : formatHttpError(err, partyMemberLabels, participants.length, timedSlot, productFlow),
         )

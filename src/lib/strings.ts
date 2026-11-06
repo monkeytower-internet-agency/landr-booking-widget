@@ -178,6 +178,8 @@ export type Bundle = {
   readyToContinueWithHostsDates: string
   continueWithTheseDates: string
   changeDates: string
+  /** Staff mode: the plan's monthly limit of priced bookings is reached (the API's 409 personal_cap_reached). */
+  personalCapReached: string
   pickCourse: string
   courseFallbackName: string
   fixedDateWindowAmbiguousMessage: string
@@ -1234,6 +1236,8 @@ const en: Bundle = {
   readyToContinueWithHostsDates: "Ready to continue with the host's dates.",
   continueWithTheseDates: 'Continue with these dates',
   changeDates: 'Change dates',
+  personalCapReached:
+    "This month's limit of priced bookings on the current plan is reached. Switch plan to add more.",
   pickCourse: 'Pick a course',
   courseFallbackName: 'Course {n}',
   fixedDateWindowAmbiguousMessage:

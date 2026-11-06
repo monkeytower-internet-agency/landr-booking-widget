@@ -146,6 +146,8 @@ export const de: Bundle = {
   readyToContinueWithHostsDates: 'Bereit, mit den Terminen des Gastgebers fortzufahren.',
   continueWithTheseDates: 'Mit diesen Terminen fortfahren',
   changeDates: 'Termine ändern',
+  personalCapReached:
+    'Das Monatslimit für kostenpflichtige Buchungen des aktuellen Tarifs ist erreicht. Wechseln Sie den Tarif, um weitere hinzuzufügen.',
   pickCourse: 'Kurs wählen',
   courseFallbackName: 'Kurs {n}',
   fixedDateWindowAmbiguousMessage:
