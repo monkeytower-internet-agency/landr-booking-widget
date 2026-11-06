@@ -4646,6 +4646,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/public/resource-calendars/{token}.ics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Resource Calendar */
+        get: operations["get_resource_calendar"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/public/short-links/{code}": {
         parameters: {
             query?: never;
@@ -7375,6 +7392,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/calendar-blocks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Calendar Blocks */
+        get: operations["list_calendar_blocks"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/calendar-feeds": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Calendar Feeds */
+        get: operations["list_calendar_feeds"];
+        put?: never;
+        /** Create Calendar Feed */
+        post: operations["create_calendar_feed"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/calendar-feeds/{feed_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Calendar Feed */
+        delete: operations["delete_calendar_feed"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/campaigns": {
         parameters: {
             query?: never;
@@ -8844,6 +8913,143 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/links": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Links
+         * @description Every link of this operator, newest change first (all statuses, so a
+         *     downgraded account still sees and can end its links).
+         */
+        get: operations["list_operator_links"];
+        put?: never;
+        /** Invite */
+        post: operations["invite"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/links/clause": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Clause */
+        get: operations["get_clause"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/links/{link_id}/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Accept */
+        post: operations["accept"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/links/{link_id}/calendar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Linked Calendar
+         * @description The partner's calendar lines in [from, to], at the level the partner
+         *     shares with this operator (details only for roles that may see guest
+         *     contacts, else occupancy).
+         */
+        get: operations["linked_calendar"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/links/{link_id}/decline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Decline */
+        post: operations["decline"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/links/{link_id}/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Revoke
+         * @description Either side ends an accepted link or withdraws / declines an open
+         *     invite. Works without ``account_linking`` (a downgraded account can end its links).
+         */
+        post: operations["revoke"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/links/{link_id}/share-level": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set Share Level
+         * @description Change YOUR direction's level. Raising to ``details`` needs the feature
+         *     on both sides and the current clause version; lowering needs neither.
+         */
+        put: operations["set_share_level"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/location-role-types": {
         parameters: {
             query?: never;
@@ -9522,6 +9728,27 @@ export interface paths {
         put?: never;
         /** Post Plan Change */
         post: operations["post_plan_change"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/plan-change/personal-cap": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Personal Cap
+         * @description landr-243rh.2: this month's priced bookings against the plan's cap and
+         *     the requests held over it (the dashboard Plan page meter and banner).
+         */
+        get: operations["get_personal_cap"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -11664,6 +11891,40 @@ export interface paths {
         patch: operations["patch_resource"];
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/resources/{resource_id}/calendar-export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Calendar Export */
+        get: operations["get_calendar_export"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/resources/{resource_id}/calendar-export/rotate-token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Rotate Calendar Export Token */
+        post: operations["rotate_calendar_export_token"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/resources/{resource_id}/day-assignments/{assignment_date}": {
         parameters: {
             query?: never;
@@ -12579,6 +12840,23 @@ export interface paths {
         };
         /** List Tax Rates */
         get: operations["list_tax_rates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Staff List Operator Templates */
+        get: operations["staff_list_operator_templates"];
         put?: never;
         post?: never;
         delete?: never;
@@ -14995,6 +15273,19 @@ export interface components {
             failed: string[];
             /** Sent */
             sent: number;
+        };
+        /** CalendarFeedCreate */
+        CalendarFeedCreate: {
+            /**
+             * Platform
+             * @default other
+             * @enum {string}
+             */
+            platform: "airbnb" | "traumferienwohnungen" | "other";
+            /** Resource Id */
+            resource_id: string;
+            /** Url */
+            url: string;
         };
         /**
          * CampaignIn
@@ -20349,6 +20640,180 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /** OperatorLinkCalendarOut */
+        OperatorLinkCalendarOut: {
+            /** Details */
+            details?: components["schemas"]["OperatorLinkDetailsEntry"][];
+            /**
+             * Level
+             * @enum {string}
+             */
+            level: "occupancy" | "details";
+            /** Link Id */
+            link_id: string;
+            /** Occupancy */
+            occupancy?: components["schemas"]["OperatorLinkOccupancyEntry"][];
+            /** Partner Operator Id */
+            partner_operator_id: string;
+            /**
+             * Suspended
+             * @default false
+             */
+            suspended: boolean;
+            /** Suspended Reason */
+            suspended_reason?: "plan" | null;
+        };
+        /** OperatorLinkClauseOut */
+        OperatorLinkClauseOut: {
+            /** Texts */
+            texts: {
+                [key: string]: components["schemas"]["OperatorLinkClauseTextOut"];
+            };
+            /** Version */
+            version: string;
+        };
+        /** OperatorLinkClauseTextOut */
+        OperatorLinkClauseTextOut: {
+            /** Body */
+            body: string;
+            /** Title */
+            title: string;
+        };
+        /**
+         * OperatorLinkDetailsEntry
+         * @description Details level: the occupancy columns plus booking id and guest contact.
+         */
+        OperatorLinkDetailsEntry: {
+            /** Booking Id */
+            booking_id: string;
+            /** Booking Status */
+            booking_status?: string | null;
+            /** Date Range End */
+            date_range_end?: string | null;
+            /** Date Range Start */
+            date_range_start?: string | null;
+            /** Guest Email */
+            guest_email?: string | null;
+            /** Guest First Name */
+            guest_first_name?: string | null;
+            /** Guest Last Name */
+            guest_last_name?: string | null;
+            /** Guest Phone */
+            guest_phone?: string | null;
+            /** Headcount */
+            headcount?: number | null;
+            /**
+             * Is Addon Only
+             * @default false
+             */
+            is_addon_only: boolean;
+            /** Product Id */
+            product_id: string;
+            /** Product Name */
+            product_name?: string | null;
+            /** Selected Days */
+            selected_days?: string[] | null;
+            /** Slot Start Time */
+            slot_start_time?: string | null;
+        };
+        /** OperatorLinkInviteIn */
+        OperatorLinkInviteIn: {
+            /** Slug */
+            slug: string;
+        };
+        /**
+         * OperatorLinkOccupancyEntry
+         * @description Occupancy level: no booking id, guest, contact or money field.
+         */
+        OperatorLinkOccupancyEntry: {
+            /** Booking Status */
+            booking_status?: string | null;
+            /** Date Range End */
+            date_range_end?: string | null;
+            /** Date Range Start */
+            date_range_start?: string | null;
+            /** Headcount */
+            headcount?: number | null;
+            /**
+             * Is Addon Only
+             * @default false
+             */
+            is_addon_only: boolean;
+            /** Product Id */
+            product_id: string;
+            /** Product Name */
+            product_name?: string | null;
+            /** Selected Days */
+            selected_days?: string[] | null;
+            /** Slot Start Time */
+            slot_start_time?: string | null;
+        };
+        /** OperatorLinkOut */
+        OperatorLinkOut: {
+            /** Accepted At */
+            accepted_at?: string | null;
+            /**
+             * Direction
+             * @enum {string}
+             */
+            direction: "outgoing" | "incoming";
+            /** Id */
+            id: string;
+            /** Invited At */
+            invited_at?: string | null;
+            /** My Clause Accepted At */
+            my_clause_accepted_at?: string | null;
+            /** My Clause Version */
+            my_clause_version?: string | null;
+            /**
+             * My Share Level
+             * @enum {string}
+             */
+            my_share_level: "occupancy" | "details";
+            partner: components["schemas"]["OperatorLinkPartnerOut"];
+            /**
+             * Partner Share Level
+             * @enum {string}
+             */
+            partner_share_level: "occupancy" | "details";
+            /** Revoked At */
+            revoked_at?: string | null;
+            /** Revoked By */
+            revoked_by?: ("me" | "partner") | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "invited" | "accepted" | "revoked";
+            /**
+             * Suspended
+             * @default false
+             */
+            suspended: boolean;
+            /** Suspended Reason */
+            suspended_reason?: "plan" | null;
+            /** Updated At */
+            updated_at?: string | null;
+        };
+        /** OperatorLinkPartnerOut */
+        OperatorLinkPartnerOut: {
+            /** Id */
+            id: string;
+            /** Name */
+            name?: string | null;
+            /** Slug */
+            slug?: string | null;
+        };
+        /** OperatorLinkShareLevelIn */
+        OperatorLinkShareLevelIn: {
+            /** Clause Version */
+            clause_version?: string | null;
+            /**
+             * Level
+             * @enum {string}
+             */
+            level: "occupancy" | "details";
+        };
         /**
          * OperatorPatch
          * @description Partial update payload — every field is optional.
@@ -20687,6 +21152,8 @@ export interface components {
              * @default false
              */
             offer_account_link: boolean;
+            /** Payment Methods */
+            payment_methods?: string[] | null;
             /** Primary Color */
             primary_color?: string | null;
             /**
@@ -20755,6 +21222,50 @@ export interface components {
             widget_variant?: string | null;
         } & {
             [key: string]: unknown;
+        };
+        /** OperatorTemplateOut */
+        OperatorTemplateOut: {
+            /**
+             * Flow
+             * @enum {string}
+             */
+            flow: "solo" | "company";
+            /**
+             * Missing Kinds
+             * @default []
+             */
+            missing_kinds: string[];
+            /** Onboarding Preset Key */
+            onboarding_preset_key: string | null;
+            /** Pitch */
+            pitch: {
+                [key: string]: components["schemas"]["TemplatePitchLocale"];
+            } | null;
+            /** Product Count */
+            product_count: number;
+            /** Product Kind */
+            product_kind?: string | null;
+            /**
+             * Product Kinds
+             * @default []
+             */
+            product_kinds: string[];
+            /**
+             * Sellable
+             * @default true
+             */
+            sellable: boolean;
+            /** Slug */
+            slug: string;
+            /** Uses Pools */
+            uses_pools: boolean;
+            /** Version */
+            version: number;
+            /**
+             * Website Listed
+             * @default false
+             */
+            website_listed: boolean;
         };
         /** PackagePriceIn */
         PackagePriceIn: {
@@ -21138,6 +21649,37 @@ export interface components {
             reason: string;
             /** Sync Log Id */
             sync_log_id: string;
+        };
+        /**
+         * PersonalCapHold
+         * @description One held request and the deadline the DB enforces for it.
+         */
+        PersonalCapHold: {
+            /** Booking Id */
+            booking_id: string;
+            /** Hold Expires At */
+            hold_expires_at: string | null;
+        };
+        /**
+         * PersonalCapState
+         * @description landr-243rh.2: the priced booking cap this calendar month (operator
+         *     timezone). ``cap`` None = the plan has no cap. ``used`` counts priced, not
+         *     cancelled bookings created this month that are not held; ``held_*`` are
+         *     every request currently held over the cap.
+         */
+        PersonalCapState: {
+            /** Cap */
+            cap: number | null;
+            /** Held Booking Ids */
+            held_booking_ids: string[];
+            /** Held Count */
+            held_count: number;
+            /** Holds */
+            holds: components["schemas"]["PersonalCapHold"][];
+            /** Month */
+            month: string;
+            /** Used */
+            used: number;
         };
         /** PhotoResponse */
         PhotoResponse: {
@@ -25289,6 +25831,10 @@ export interface components {
          *     slug (landr-m6tp4.1; stored as that template's preset key), else 422
          *     `unknown_preset_key`. Blank = not sent. Stored on the operator only; the
          *     wizard applies the template.
+         *
+         *     `plan` (optional, landr-243rh.11) is a package *hint*: only `personal` is
+         *     honoured, anything else is dropped to None (Solo). The package is resolved
+         *     server-side (see `_resolve_plan_slug`); the client never names a package id.
          */
         SignupRequest: {
             /** Email */
@@ -25302,6 +25848,8 @@ export interface components {
             name: string;
             /** Password */
             password: string;
+            /** Plan */
+            plan?: "personal" | null;
             /** Preset Key */
             preset_key?: string | null;
             /** Slug */
@@ -25611,6 +26159,11 @@ export interface components {
             product_count: number;
             /** Product Kind */
             product_kind?: string | null;
+            /**
+             * Product Kinds
+             * @default []
+             */
+            product_kinds: string[];
             /** Slug */
             slug: string;
             /** @default {} */
@@ -25932,6 +26485,10 @@ export interface components {
             group?: {
                 [key: string]: unknown;
             } | null;
+            /** Held Over Cap */
+            held_over_cap?: boolean | null;
+            /** Hold Expires At */
+            hold_expires_at?: string | null;
             /** Ical Url */
             ical_url?: string | null;
             /** Invites */
@@ -26316,6 +26873,11 @@ export interface components {
             product_count: number;
             /** Product Kind */
             product_kind?: string | null;
+            /**
+             * Product Kinds
+             * @default []
+             */
+            product_kinds: string[];
             /** Slug */
             slug: string;
             /** Uses Pools */
@@ -34464,6 +35026,37 @@ export interface operations {
             };
         };
     };
+    get_resource_calendar: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     public_resolve_short_link: {
         parameters: {
             query?: never;
@@ -38908,6 +39501,142 @@ export interface operations {
             };
         };
     };
+    list_calendar_blocks: {
+        parameters: {
+            query?: {
+                from?: string | null;
+                to?: string | null;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    }[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_calendar_feeds: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    }[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_calendar_feed: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CalendarFeedCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_calendar_feed: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                feed_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_campaigns: {
         parameters: {
             query?: never;
@@ -41546,6 +42275,270 @@ export interface operations {
             };
         };
     };
+    list_operator_links: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OperatorLinkOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    invite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OperatorLinkInviteIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OperatorLinkOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_clause: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OperatorLinkClauseOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    accept: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                link_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OperatorLinkOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    linked_calendar: {
+        parameters: {
+            query: {
+                from: string;
+                to: string;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+                link_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OperatorLinkCalendarOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    decline: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                link_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OperatorLinkOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    revoke: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                link_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OperatorLinkOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_share_level: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                link_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OperatorLinkShareLevelIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OperatorLinkOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_role_types: {
         parameters: {
             query?: never;
@@ -43298,6 +44291,37 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_personal_cap: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PersonalCapState"];
                 };
             };
             /** @description Validation Error */
@@ -47457,6 +48481,74 @@ export interface operations {
             };
         };
     };
+    get_calendar_export: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                resource_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    rotate_calendar_export_token: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                resource_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     put_day_assignments: {
         parameters: {
             query?: never;
@@ -49334,6 +50426,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TaxRateItem"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_list_operator_templates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OperatorTemplateOut"][];
                 };
             };
             /** @description Validation Error */

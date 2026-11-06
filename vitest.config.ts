@@ -37,6 +37,9 @@ export default defineConfig({
           // Prevent vitest from sweeping .claude/worktrees — same fix as dashboard PR #257.
           include: ['src/**/*.test.{ts,tsx}', 'functions/**/*.test.ts', 'scripts/**/*.test.mjs'],
           exclude: ['**/node_modules/**', TZ_FILES],
+          // App.test.tsx drives full booking flows; under full-suite load on a
+          // shared runner a few of them run close to the 5 s default.
+          testTimeout: 15_000,
         },
       },
       ...['Pacific/Auckland', 'America/Los_Angeles'].map((tz) => ({

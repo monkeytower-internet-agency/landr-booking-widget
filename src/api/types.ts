@@ -645,6 +645,14 @@ export interface OperatorSettings {
    */
   remove_powered_by?: boolean
   /**
+   * The payment methods the operator accepts ('online' | 'bank_transfer' |
+   * 'on_site'). When the list is present and has no 'online', the guest pays
+   * the operator directly and the widget shows prices with "pay directly to
+   * <operator>" (see lib/paymentMode.ts). Optional for rolling deploy: an
+   * absent value changes nothing.
+   */
+  payment_methods?: ('online' | 'bank_transfer' | 'on_site')[] | null
+  /**
    * Whether the operator has a voucher a guest could redeem right now. Only an
    * explicit `false` hides the checkout's voucher-code field (a `?voucher=`
    * link still keeps it). Optional for rolling deploy — an older API sends no
@@ -1713,6 +1721,24 @@ export interface SubmitBookingResponse {
    * falls back to today's payment_link_sent-based copy when absent.
    */
   payment_mode?: 'online' | 'bank_transfer' | 'on_site'
+  /**
+   * The operator's accepted payment methods, the list `payment_mode` is
+   * derived from. Optional so the widget tolerates an older API deploy.
+   */
+  payment_methods?: ('online' | 'bank_transfer' | 'on_site')[] | null
+  /**
+   * True when the request arrived over the operator's monthly cap on priced
+   * bookings and is HELD: received, not confirmed, not an error. The operator
+   * decides within the window below. False/absent for every other booking.
+   */
+  held_over_cap?: boolean | null
+  /**
+   * ISO timestamp of the enforced deadline for a held request: the earlier of
+   * seven days after the request and the end of the first booked day. Present
+   * only when `held_over_cap` is true. Always render from this field; never
+   * hard-code the window.
+   */
+  hold_expires_at?: string | null
   /**
    * landr-k9pji.15 (API, landr-k9pji.4 PR #848 review): the operator's raw
    * deposit_percent setting (1..100), or null/absent when no deposit is

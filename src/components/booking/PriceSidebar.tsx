@@ -45,6 +45,7 @@ import { formatDayLabel } from './dateLabel'
 import { browserLocale } from '@/lib/locale'
 import {
   addonUnitsTimesRate,
+  fmt,
   forNamesLine,
   hotelSpanLabel,
   payeeText,
@@ -160,6 +161,14 @@ interface Props {
    * the guest step. Sent as `child_ages` only to occupancy-priced stays.
    */
   childAges?: readonly number[]
+  /**
+   * True when the operator takes no online payment (derived from the public
+   * config's payment methods): the price is shown with "pay directly to
+   * <operator>" under the total.
+   */
+  payDirectly?: boolean
+  /** The operator's display name for the "pay directly" line. */
+  operatorName?: string | null
 }
 
 /** landr-h0opd.3: the estimate's calculated total, lifted out of PriceSidebar. */
@@ -201,6 +210,9 @@ interface BookingOverviewBodyProps
   hasHotelRoom: boolean
   /** The customer's voucher code did not apply: show the hint under the total. */
   voucherRejected?: boolean
+  /** No online payment: show "pay directly to <operator>" under the total. */
+  payDirectly?: boolean
+  operatorName?: string | null
 }
 
 function BookingOverviewBody({
@@ -213,6 +225,8 @@ function BookingOverviewBody({
   accommodationCheckinOffsetDays,
   hasHotelRoom,
   voucherRejected = false,
+  payDirectly = false,
+  operatorName = null,
 }: BookingOverviewBodyProps) {
   const locale = browserLocale()
   if (!data && isLoading) {
@@ -353,7 +367,7 @@ function BookingOverviewBody({
       {operator.length > 0 ? (
         <section data-testid="price-sidebar-operator-section">
           <h4 className="mb-1 text-sm font-semibold text-foreground">
-            {tr('youPayNowHeading', locale)}
+            {tr(payDirectly ? 'yourPriceHeading' : 'youPayNowHeading', locale)}
           </h4>
           <ul className="space-y-2 text-sm">
             {operator.map((li, liIdx) => (
@@ -454,6 +468,13 @@ function BookingOverviewBody({
             testIdPrefix="price-sidebar"
             details={discountBlock}
           />
+          {payDirectly ? (
+            <p className="mt-2 text-xs text-muted-foreground" data-testid="price-sidebar-pay-directly">
+              {operatorName?.trim()
+                ? fmt(tr('payDirectlyNote', locale), { operator: operatorName.trim() })
+                : tr('payDirectlyNoteNoOperator', locale)}
+            </p>
+          ) : null}
           {onSite.length > 0 ? (
             <div data-testid="price-sidebar-on-site" className="mt-3 space-y-1 text-sm">
               <h4 className="font-semibold">{tr('offerPayOnArrivalTotal', locale)}</h4>
@@ -630,6 +651,8 @@ export default function PriceSidebar(props: Props) {
     onVoucherStatusChange,
     extraLines,
     childAges,
+    payDirectly,
+    operatorName,
   } = props
 
   const offerTree = useMemo(
@@ -892,6 +915,8 @@ export default function PriceSidebar(props: Props) {
             accommodationCheckinOffsetDays={product.accommodation_checkin_offset_days}
             hasHotelRoom={hasHotelRoom}
             voucherRejected={voucherStatus === 'not_applicable'}
+            payDirectly={payDirectly}
+            operatorName={operatorName}
           />
         </div>
         {/* "Also available" panel of the date step portals in here. The extra
@@ -1028,6 +1053,8 @@ export default function PriceSidebar(props: Props) {
             accommodationCheckinOffsetDays={product.accommodation_checkin_offset_days}
             hasHotelRoom={hasHotelRoom}
             voucherRejected={voucherStatus === 'not_applicable'}
+            payDirectly={payDirectly}
+            operatorName={operatorName}
           />
           </div>
         ) : null}

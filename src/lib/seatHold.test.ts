@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { AvailabilitySlot } from '@/api/types'
 import {
   formatHoldDeadline,
+  formatRequestDeadline,
   holdIsLive,
   maxPartySize,
   seatFit,
@@ -114,5 +115,20 @@ describe('windowRangeLabel (landr-rmcsu.5)', () => {
   it('formats the loaded window as a month range', () => {
     expect(windowRangeLabel('2026-10-14', '2027-03-01', 'en-GB')).toBe('October 2026 – March 2027')
     expect(windowRangeLabel('2026-10-01', '2026-10-30', 'en-GB')).toBe('October 2026')
+  })
+})
+
+describe('formatRequestDeadline', () => {
+  it('formats a valid ISO timestamp', () => {
+    expect(formatRequestDeadline('2031-03-07T21:59:00Z', 'en')).toBe(
+      formatHoldDeadline('2031-03-07T21:59:00Z', 'en'),
+    )
+  })
+
+  it('returns null instead of throwing for a missing or unparseable value', () => {
+    expect(formatRequestDeadline(null)).toBeNull()
+    expect(formatRequestDeadline(undefined)).toBeNull()
+    expect(formatRequestDeadline('')).toBeNull()
+    expect(formatRequestDeadline('garbage')).toBeNull()
   })
 })
