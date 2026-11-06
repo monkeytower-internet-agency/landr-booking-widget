@@ -12848,6 +12848,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Staff List Operator Templates */
+        get: operations["staff_list_operator_templates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/today/board-messages": {
         parameters: {
             query?: never;
@@ -21204,6 +21221,50 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /** OperatorTemplateOut */
+        OperatorTemplateOut: {
+            /**
+             * Flow
+             * @enum {string}
+             */
+            flow: "solo" | "company";
+            /**
+             * Missing Kinds
+             * @default []
+             */
+            missing_kinds: string[];
+            /** Onboarding Preset Key */
+            onboarding_preset_key: string | null;
+            /** Pitch */
+            pitch: {
+                [key: string]: components["schemas"]["TemplatePitchLocale"];
+            } | null;
+            /** Product Count */
+            product_count: number;
+            /** Product Kind */
+            product_kind?: string | null;
+            /**
+             * Product Kinds
+             * @default []
+             */
+            product_kinds: string[];
+            /**
+             * Sellable
+             * @default true
+             */
+            sellable: boolean;
+            /** Slug */
+            slug: string;
+            /** Uses Pools */
+            uses_pools: boolean;
+            /** Version */
+            version: number;
+            /**
+             * Website Listed
+             * @default false
+             */
+            website_listed: boolean;
+        };
         /** PackagePriceIn */
         PackagePriceIn: {
             /** Base Fee Monthly */
@@ -26090,6 +26151,11 @@ export interface components {
             product_count: number;
             /** Product Kind */
             product_kind?: string | null;
+            /**
+             * Product Kinds
+             * @default []
+             */
+            product_kinds: string[];
             /** Slug */
             slug: string;
             /** @default {} */
@@ -26799,6 +26865,11 @@ export interface components {
             product_count: number;
             /** Product Kind */
             product_kind?: string | null;
+            /**
+             * Product Kinds
+             * @default []
+             */
+            product_kinds: string[];
             /** Slug */
             slug: string;
             /** Uses Pools */
@@ -50347,6 +50418,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TaxRateItem"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_list_operator_templates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OperatorTemplateOut"][];
                 };
             };
             /** @description Validation Error */
