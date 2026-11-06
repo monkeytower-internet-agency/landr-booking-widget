@@ -36550,6 +36550,15 @@
             "title": "Hero Urls",
             "type": "object"
           },
+          "listing_source": {
+            "default": "local",
+            "enum": [
+              "local",
+              "staging"
+            ],
+            "title": "Listing Source",
+            "type": "string"
+          },
           "name": {
             "anyOf": [
               {
@@ -46858,7 +46867,7 @@
     },
     "/api/landr-staff/templates/website-deploy": {
       "post": {
-        "description": "Rebuild the staging marketing site so saved listing changes show up\n(landr-956lq). Relays to the dev control plane, which dispatches the\nwebsite's deploy workflow on ``staging``.",
+        "description": "Rebuild THIS tier's marketing site so listing changes show up\n(landr-956lq, every tier since landr-8zjdw). Relays to the dev control\nplane, which dispatches the website's deploy workflow on this tier's\nbranch. Production's main deploy stays behind the website's\nci-prod-deploy-guard.sh: a dispatch at main's unchanged tip (a release\nconsole merge) passes, nothing else is let through.",
         "operationId": "landr_staff_deploy_website",
         "responses": {
           "200": {
@@ -47235,7 +47244,7 @@
     },
     "/api/landr-staff/templates/{slug}/website-listing": {
       "put": {
-        "description": "Show / hide the template on the marketing website. Not editor-gated:\nthe flag is per environment, so it works on production too.",
+        "description": "Show / hide the template on the marketing website. Authored on staging\nonly (landr-8zjdw): every other tier reports staging's flag and answers\n403 ``listing_edited_on_staging`` here.",
         "operationId": "landr_staff_set_website_listing",
         "parameters": [
           {
