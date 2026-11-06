@@ -25829,6 +25829,10 @@ export interface components {
          *     slug (landr-m6tp4.1; stored as that template's preset key), else 422
          *     `unknown_preset_key`. Blank = not sent. Stored on the operator only; the
          *     wizard applies the template.
+         *
+         *     `plan` (optional, landr-243rh.11) is a package *hint*: only `personal` is
+         *     honoured, anything else is dropped to None (Solo). The package is resolved
+         *     server-side (see `_resolve_plan_slug`); the client never names a package id.
          */
         SignupRequest: {
             /** Email */
@@ -25842,6 +25846,8 @@ export interface components {
             name: string;
             /** Password */
             password: string;
+            /** Plan */
+            plan?: "personal" | null;
             /** Preset Key */
             preset_key?: string | null;
             /** Slug */

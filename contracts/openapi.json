@@ -35412,7 +35412,7 @@
         "type": "object"
       },
       "SignupRequest": {
-        "description": "POST /api/public/signup body.\n\n`name` is the operator/business display name (-> operators.name). `slug` is\nthe desired public handle. `turnstile_token` is the Cloudflare widget's\nclient response token. `password` is the new account password (GoTrue\nenforces its own minimum; we keep a soft floor here). `locale` selects the\nverification-email language (any `public.ui_locales` code or\nbrowser tag such as `es-ES`; bundled en/de/es/tr, else en; defaults en).\n\nBoth field names and their marketing-site aliases are accepted (back-compat):\n  name / operator_name, slug / operator_slug  (landr-oqrz.1)\n\n`preset_key` (optional, landr-k9pji.2) pre-selects the onboarding path,\ne.g. `solo_pilot` from the website's solo landing CTA. One of\n`app/services/onboarding_flow.py` FLOW_KEYS or a live operator-template\nslug (landr-m6tp4.1; stored as that template's preset key), else 422\n`unknown_preset_key`. Blank = not sent. Stored on the operator only; the\nwizard applies the template.",
+        "description": "POST /api/public/signup body.\n\n`name` is the operator/business display name (-> operators.name). `slug` is\nthe desired public handle. `turnstile_token` is the Cloudflare widget's\nclient response token. `password` is the new account password (GoTrue\nenforces its own minimum; we keep a soft floor here). `locale` selects the\nverification-email language (any `public.ui_locales` code or\nbrowser tag such as `es-ES`; bundled en/de/es/tr, else en; defaults en).\n\nBoth field names and their marketing-site aliases are accepted (back-compat):\n  name / operator_name, slug / operator_slug  (landr-oqrz.1)\n\n`preset_key` (optional, landr-k9pji.2) pre-selects the onboarding path,\ne.g. `solo_pilot` from the website's solo landing CTA. One of\n`app/services/onboarding_flow.py` FLOW_KEYS or a live operator-template\nslug (landr-m6tp4.1; stored as that template's preset key), else 422\n`unknown_preset_key`. Blank = not sent. Stored on the operator only; the\nwizard applies the template.\n\n`plan` (optional, landr-243rh.11) is a package *hint*: only `personal` is\nhonoured, anything else is dropped to None (Solo). The package is resolved\nserver-side (see `_resolve_plan_slug`); the client never names a package id.",
         "properties": {
           "email": {
             "maxLength": 320,
@@ -35437,6 +35437,18 @@
             "minLength": 8,
             "title": "Password",
             "type": "string"
+          },
+          "plan": {
+            "anyOf": [
+              {
+                "const": "personal",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plan"
           },
           "preset_key": {
             "anyOf": [
