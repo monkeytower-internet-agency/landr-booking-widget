@@ -82,6 +82,21 @@ describe('PriceSidebar: operator without online payment', () => {
     expect(desktop).toHaveTextContent('Pay directly to Sky Club. There is no online payment.')
   })
 
+  it('shows the German wording for a German browser', async () => {
+    const spy = vi.spyOn(navigator, 'language', 'get').mockReturnValue('de-DE')
+    try {
+      renderSidebar({ payDirectly: true, operatorName: 'Sky Club' })
+      await waitFor(() => {
+        expect(screen.getAllByTestId('price-sidebar-pay-directly').length).toBeGreaterThan(0)
+      })
+      expect(screen.getByTestId('price-sidebar-desktop')).toHaveTextContent(
+        'Bitte zahlen Sie direkt an Sky Club. Es gibt keine Online-Zahlung.',
+      )
+    } finally {
+      spy.mockRestore()
+    }
+  })
+
   it('uses generic wording when the operator has no name', async () => {
     renderSidebar({ payDirectly: true, operatorName: null })
     await waitFor(() => {

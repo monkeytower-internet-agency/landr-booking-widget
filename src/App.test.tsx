@@ -6011,6 +6011,72 @@ describe('App', () => {
       expect(screen.queryByText('Booking confirmed')).not.toBeInTheDocument()
     })
 
+    // The pre-submit price line comes from the operator settings alone: the
+    // booking has not been sent yet, so there is no create response to read.
+    async function reachReviewWithPaymentMethods(
+      paymentMethods: ('online' | 'bank_transfer' | 'on_site')[],
+    ) {
+      mocks.getOperatorSettings.mockResolvedValue({
+        slug: 'sky-club',
+        name: 'Sky Club',
+        expose_seats_to_customer: false,
+        payment_methods: paymentMethods,
+      })
+      mocks.estimateBookingPrice.mockResolvedValue({
+        line_items: [
+          {
+            product_id: 'svc',
+            label: 'Any Tandem',
+            qty: 1,
+            units: 1,
+            unit_price: '120.00',
+            line_total: '120.00',
+            paid_to: 'operator',
+          },
+        ],
+        operator_total: '120.00',
+        hotel_total: '0.00',
+        grand_total: '120.00',
+        currency: 'EUR',
+        applied_rules: [],
+        warnings: [],
+        un_priceable: false,
+      })
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          product_kind: 'service',
+          service_time_shape: 'single_date',
+          name: 'Any Tandem',
+          needs_pickup: false,
+          hotel_offering: 'none',
+          guide_languages: [],
+        }),
+      ])
+      render(<App />)
+      await pickProduct('Any Tandem')
+      await fillDateThenBooker()
+      await waitFor(() => expect(mocks.estimateBookingPrice).toHaveBeenCalled())
+    }
+
+    it('says "pay directly" before sending when the settings list on-site payment only', async () => {
+      await reachReviewWithPaymentMethods(['on_site'])
+      await waitFor(() =>
+        expect(screen.getAllByTestId('price-sidebar-pay-directly').length).toBeGreaterThan(0),
+      )
+      expect(screen.getAllByTestId('price-sidebar-pay-directly')[0]).toHaveTextContent(
+        'Pay directly to Sky Club. There is no online payment.',
+      )
+      expect(mocks.submitBooking).not.toHaveBeenCalled()
+    })
+
+    it('shows no "pay directly" line when the settings list online payment too', async () => {
+      await reachReviewWithPaymentMethods(['online', 'on_site'])
+      await waitFor(() =>
+        expect(screen.getAllByTestId('price-sidebar-amount-due').length).toBeGreaterThan(0),
+      )
+      expect(screen.queryAllByTestId('price-sidebar-pay-directly')).toHaveLength(0)
+    })
+
     it('still runs the language step for a restricted product', async () => {
       mocks.listProducts.mockResolvedValue([
         makeProduct({
