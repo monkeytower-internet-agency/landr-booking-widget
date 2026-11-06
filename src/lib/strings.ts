@@ -531,6 +531,15 @@ export type Bundle = {
   contactOperatorToConfirm: string
   changeActivityHint: string
   changeActivityHintNoOperator: string
+  heldTitle: string
+  heldWillConfirmBy: string
+  heldWillConfirmByNoOperator: string
+  heldNoDeadline: string
+  heldNoDeadlineNoOperator: string
+  heldNotConfirmed: string
+  heldContactLabel: string
+  payDirectlyNote: string
+  payDirectlyNoteNoOperator: string
   nextStepSendGroupLinkSingular: string
   nextStepSendGroupLinkPlural: string
   eachCompletesOwnBooking: string
@@ -832,6 +841,7 @@ export type Bundle = {
   forNamesOtherSingularTemplate: string
   forNamesOtherPluralTemplate: string
   youPayNowHeading: string
+  yourPriceHeading: string
   atHotelTotalPayAtCheckin: string
   hotelSpanTemplate: string
   stayWindowTemplate: string
@@ -1573,6 +1583,15 @@ const en: Bundle = {
   contactOperatorToConfirm: 'Please contact the operator directly to confirm your booking details.',
   changeActivityHint: 'Want a different activity? Contact {operator} to change it.',
   changeActivityHintNoOperator: 'Want a different activity? Contact the operator to change it.',
+  heldTitle: 'Request received',
+  heldWillConfirmBy: '{operator} will confirm your request by {when}.',
+  heldWillConfirmByNoOperator: 'The operator will confirm your request by {when}.',
+  heldNoDeadline: '{operator} will get back to you about your request.',
+  heldNoDeadlineNoOperator: 'The operator will get back to you about your request.',
+  heldNotConfirmed: 'This is a request, not a confirmed booking. Nothing is due now.',
+  heldContactLabel: 'Contact',
+  payDirectlyNote: 'Pay directly to {operator}. There is no online payment.',
+  payDirectlyNoteNoOperator: 'Pay directly to the operator. There is no online payment.',
   nextStepSendGroupLinkSingular: 'Next step: send your group their booking link',
   nextStepSendGroupLinkPlural: 'Next step: send your group their booking links',
   eachCompletesOwnBooking: 'Each of them completes their own booking from their link.',
@@ -1865,6 +1884,7 @@ const en: Bundle = {
   forNamesOtherSingularTemplate: 'For {names} + {n} other',
   forNamesOtherPluralTemplate: 'For {names} + {n} others',
   youPayNowHeading: 'You pay now',
+  yourPriceHeading: 'Your price',
   atHotelTotalPayAtCheckin: 'At-hotel total · pay at check-in',
   hotelSpanTemplate: 'Hotel: {from} → {to}, {nights} {nightWord}',
   stayWindowTemplate: 'Check-in {checkIn} – Check-out {checkOut} ({nights} {nightWord})',

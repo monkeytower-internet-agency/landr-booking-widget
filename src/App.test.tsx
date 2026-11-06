@@ -5935,6 +5935,82 @@ describe('App', () => {
       expect(body).not.toHaveProperty('customer_languages')
     })
 
+    // An operator that takes no online payment (Personal): the checkout has no
+    // payment step, the price says who to pay, and a request held over the
+    // operator's cap lands on "request received", not "confirmed".
+    it('checks out without a payment step and shows a held request as received', async () => {
+      mocks.getOperatorSettings.mockResolvedValue({
+        slug: 'sky-club',
+        name: 'Sky Club',
+        contact_email: 'hello@skyclub.example',
+        expose_seats_to_customer: false,
+        payment_methods: ['on_site'],
+      })
+      mocks.estimateBookingPrice.mockResolvedValue({
+        line_items: [
+          {
+            product_id: 'svc',
+            label: 'Any Tandem',
+            qty: 1,
+            units: 1,
+            unit_price: '120.00',
+            line_total: '120.00',
+            paid_to: 'operator',
+          },
+        ],
+        operator_total: '120.00',
+        hotel_total: '0.00',
+        grand_total: '120.00',
+        currency: 'EUR',
+        applied_rules: [],
+        warnings: [],
+        un_priceable: false,
+      })
+      mocks.submitBooking.mockResolvedValue({
+        booking_id: 'b-held',
+        semantic_state: 'pending',
+        held_over_cap: true,
+        hold_expires_at: '2031-03-07T21:59:00Z',
+        payment_mode: 'on_site',
+        payment_methods: ['on_site'],
+      })
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          product_kind: 'service',
+          service_time_shape: 'single_date',
+          name: 'Any Tandem',
+          needs_pickup: false,
+          hotel_offering: 'none',
+          guide_languages: [],
+        }),
+      ])
+      render(<App />)
+      await pickProduct('Any Tandem')
+      await fillDateThenBooker()
+      await waitFor(() =>
+        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
+      )
+      // The price names who to pay; there is no payment or card step.
+      await waitFor(() =>
+        expect(screen.getAllByTestId('price-sidebar-pay-directly').length).toBeGreaterThan(0),
+      )
+      expect(screen.getAllByTestId('price-sidebar-pay-directly')[0]).toHaveTextContent(
+        'Pay directly to Sky Club',
+      )
+      expect(screen.queryByText(/card number|pay now|payment details/i)).not.toBeInTheDocument()
+      expect(screen.getAllByText('Your price').length).toBeGreaterThan(0)
+
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+      await waitFor(() => expect(mocks.submitBooking).toHaveBeenCalled())
+      expect(await screen.findByTestId('confirmation-held')).toBeInTheDocument()
+      expect(screen.getByTestId('confirmation-title')).toHaveTextContent('Request received')
+      expect(screen.getByTestId('confirmation-held-deadline')).toHaveTextContent(
+        'Sky Club will confirm your request by',
+      )
+      expect(screen.getByRole('link', { name: 'hello@skyclub.example' })).toBeInTheDocument()
+      expect(screen.queryByText('Booking confirmed')).not.toBeInTheDocument()
+    })
+
     it('still runs the language step for a restricted product', async () => {
       mocks.listProducts.mockResolvedValue([
         makeProduct({
