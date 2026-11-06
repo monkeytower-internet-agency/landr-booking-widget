@@ -15283,8 +15283,11 @@ export interface components {
              * Format: date
              */
             end_date: string;
-            /** Platform */
-            platform: string;
+            /**
+             * Platform
+             * @enum {string}
+             */
+            platform: "airbnb" | "traumferienwohnungen" | "other";
             /** Resource Id */
             resource_id: string;
             /**
@@ -15324,12 +15327,18 @@ export interface components {
             last_error?: string | null;
             /** Last Synced At */
             last_synced_at?: string | null;
-            /** Platform */
-            platform: string;
+            /**
+             * Platform
+             * @enum {string}
+             */
+            platform: "airbnb" | "traumferienwohnungen" | "other";
             /** Resource Id */
             resource_id: string;
-            /** Status */
-            status: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending" | "ok" | "error";
             /** Url Host */
             url_host?: string | null;
         };
