@@ -2159,9 +2159,12 @@ export interface paths {
         put?: never;
         /**
          * Landr Staff Deploy Website
-         * @description Rebuild the staging marketing site so saved listing changes show up
-         *     (landr-956lq). Relays to the dev control plane, which dispatches the
-         *     website's deploy workflow on ``staging``.
+         * @description Rebuild THIS tier's marketing site so listing changes show up
+         *     (landr-956lq, every tier since landr-8zjdw). Relays to the dev control
+         *     plane, which dispatches the website's deploy workflow on this tier's
+         *     branch. Production's main deploy stays behind the website's
+         *     ci-prod-deploy-guard.sh: a dispatch at main's unchanged tip (a release
+         *     console merge) passes, nothing else is let through.
          */
         post: operations["landr_staff_deploy_website"];
         delete?: never;
@@ -2299,8 +2302,9 @@ export interface paths {
         get?: never;
         /**
          * Landr Staff Set Website Listing
-         * @description Show / hide the template on the marketing website. Not editor-gated:
-         *     the flag is per environment, so it works on production too.
+         * @description Show / hide the template on the marketing website. Authored on staging
+         *     only (landr-8zjdw): every other tier reports staging's flag and answers
+         *     403 ``listing_edited_on_staging`` here.
          */
         put: operations["landr_staff_set_website_listing"];
         post?: never;
@@ -26208,6 +26212,12 @@ export interface components {
             hero_urls: {
                 [key: string]: string | null;
             };
+            /**
+             * Listing Source
+             * @default local
+             * @enum {string}
+             */
+            listing_source: "local" | "staging";
             /** Name */
             name: string | null;
             /** Onboarding Preset Key */
