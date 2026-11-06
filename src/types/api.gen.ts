@@ -21152,6 +21152,8 @@ export interface components {
              * @default false
              */
             offer_account_link: boolean;
+            /** Payment Methods */
+            payment_methods?: string[] | null;
             /** Primary Color */
             primary_color?: string | null;
             /**
