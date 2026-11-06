@@ -23551,12 +23551,43 @@
         "type": "object"
       },
       "PitchIn": {
+        "description": "EN (fallback) and DE stay required: the operators_template_pitch_shape\nCHECK needs both keys. The other site locales are optional (landr-e7xif);\na missing one is simply absent from the stored pitch.",
         "properties": {
           "de": {
             "$ref": "#/components/schemas/PitchLocaleIn"
           },
           "en": {
             "$ref": "#/components/schemas/PitchLocaleIn"
+          },
+          "es": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PitchLocaleIn"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "it": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PitchLocaleIn"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tr": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PitchLocaleIn"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
