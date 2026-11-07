@@ -1000,6 +1000,11 @@ export interface OfferEvaluateRequest {
 export interface OfferEvaluateResponse {
   lines: EvaluatedLine[]
   required_attribute_keys?: string[]
+  /**
+   * landr-zcb24.17: the keys the cart's offers read that the operator collects
+   * before arrival, not at booking. Never blocks booking; absent = [].
+   */
+  deferred_attribute_keys?: string[]
 }
 
 /**

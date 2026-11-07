@@ -346,6 +346,7 @@ export const it: Bundle = {
   guestAttrsOk: 'Tutti i dati sono completi.',
   guestAttrsInvalid: 'Controlla questo valore.',
   guestAttrsRange: '{min}-{max}',
+  guestAttrsLater: 'Puoi aggiungerlo più tardi — te lo chiederemo prima del tuo arrivo',
   breakfastLabel: 'Colazione',
   emptyLabel: 'Vuota',
   swapInHereLabel: 'Scambia qui',

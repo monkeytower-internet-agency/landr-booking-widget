@@ -124,6 +124,13 @@ export interface FlowGuestAttribute {
   collect_as?: 'exact' | 'ranges'
   /** The ranges of a `collect_as: 'ranges'` attribute, ascending. */
   ranges?: FlowRange[]
+  /**
+   * landr-zcb24.17: the operator wants this before arrival, not at booking.
+   * `required_now: false` (= `deferred: true`) renders it optional with an 'add
+   * later' hint and never blocks Continue. Absent (an older API) = required now.
+   */
+  required_now?: boolean
+  deferred?: boolean
 }
 
 /**

@@ -352,6 +352,7 @@ export const de: Bundle = {
   guestAttrsOk: 'Alle Angaben sind da.',
   guestAttrsInvalid: 'Bitte prüfe diesen Wert.',
   guestAttrsRange: '{min}-{max}',
+  guestAttrsLater: 'Das kannst du später nachtragen — wir fragen vor deiner Anreise noch einmal nach',
   breakfastLabel: 'Frühstück',
   emptyLabel: 'Leer',
   swapInHereLabel: 'Hier tauschen',

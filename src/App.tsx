@@ -43,7 +43,12 @@ import { ApprovalReplyPage } from '@/components/booking/ApprovalReplyPage'
 import { Confirmation } from '@/components/booking/Confirmation'
 import { DetailsStep } from '@/components/booking/DetailsStep'
 import { GuestAttributesStep } from '@/components/booking/GuestAttributesStep'
-import { askedAttributes, unansweredCount, unionAttributes } from '@/components/booking/guestAttributes'
+import {
+  askedAttributes,
+  guestStepNeeded,
+  unansweredCount,
+  unionAttributes,
+} from '@/components/booking/guestAttributes'
 import {
   bookerJoins,
   emptyBilling,
@@ -1712,7 +1717,7 @@ function BookingFlowApp() {
     // by now (it is fetched when the product is picked); if not, wait for it.
     const gate = (flow: ProductFlowResponse | null) => {
       const attributes = askedAttributes(flow)
-      if (attributes.length > 0) {
+      if (guestStepNeeded(attributes, [...participants, ...companions])) {
         setStep({
           name: 'guest-attributes',
           product,

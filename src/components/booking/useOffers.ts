@@ -21,6 +21,8 @@ export interface OffersState {
   /** line id -> verdict, from the last answered request (empty before the first). */
   byLine: Record<string, EvaluatedLine>
   requiredAttributeKeys: string[]
+  /** Keys collected before arrival, not at booking: never block on them. */
+  deferredAttributeKeys: string[]
   /** The request changed and its answer is not in yet. */
   isPending: boolean
   /** The last request failed (error, timeout, 429); the previous verdict stays. */
@@ -73,9 +75,10 @@ export function useOffers({
   const [state, setState] = useState<{
     byLine: Record<string, EvaluatedLine>
     requiredAttributeKeys: string[]
+    deferredAttributeKeys: string[]
     answeredKey: string | null
     failedKey: string | null
-  }>({ byLine: {}, requiredAttributeKeys: [], answeredKey: null, failedKey: null })
+  }>({ byLine: {}, requiredAttributeKeys: [], deferredAttributeKeys: [], answeredKey: null, failedKey: null })
 
   const active = enabled && !!widgetToken && lines.length > 0
   useEffect(() => {
@@ -94,6 +97,7 @@ export function useOffers({
         setState({
           byLine,
           requiredAttributeKeys: res.required_attribute_keys ?? [],
+          deferredAttributeKeys: res.deferred_attribute_keys ?? [],
           answeredKey: requestKey,
           failedKey: null,
         })
@@ -111,6 +115,7 @@ export function useOffers({
   return {
     byLine: state.byLine,
     requiredAttributeKeys: state.requiredAttributeKeys,
+    deferredAttributeKeys: state.deferredAttributeKeys,
     isPending: active && !checkFailed && state.answeredKey !== key,
     checkFailed,
     answeredKey: state.answeredKey,

@@ -5,7 +5,9 @@ import {
   applyAttributes,
   checkAttribute,
   guestAttributesWire,
+  guestStepNeeded,
   initialText,
+  isDeferred,
   unansweredCount,
   unionAttributes,
 } from './guestAttributes'
@@ -179,5 +181,43 @@ describe('attributes collected as ranges (landr-zcb24.7)', () => {
     ])
     // a single list is untouched
     expect(unionAttributes([RANGED], [{ ...RANGED, collect_as: 'exact' }])[0]).toBe(RANGED)
+  })
+})
+
+describe('deferred attributes (landr-zcb24.17)', () => {
+  const guests = [{ first_name: 'Ada', last_name: '' }]
+  const LATER: FlowGuestAttribute = { ...WEIGHT, required_now: false, deferred: true }
+
+  it('reads either flag; an older flow with neither is required now', () => {
+    expect(isDeferred(LATER)).toBe(true)
+    expect(isDeferred({ ...WEIGHT, deferred: true })).toBe(true)
+    expect(isDeferred({ ...WEIGHT, required_now: false })).toBe(true)
+    expect(isDeferred({ ...WEIGHT, required_now: true, deferred: false })).toBe(false)
+    expect(isDeferred(WEIGHT)).toBe(false)
+  })
+
+  it('never counts a deferred attribute as unanswered', () => {
+    expect(unansweredCount([AGE, LATER], guests, {})).toBe(1)
+    expect(unansweredCount([LATER], guests, {})).toBe(0)
+    expect(allAnswered([LATER], guests, {})).toBe(true)
+    expect(allAnswered([AGE, LATER], guests, { 0: { age: '30' } })).toBe(true)
+  })
+
+  it('drops an invalid deferred value instead of blocking', () => {
+    const out = applyAttributes(guests[0]!, [LATER], { weight_kg: '9999' })
+    expect(out.guest_attributes).toEqual({})
+  })
+
+  it('needs the step only for a required-now attribute or an already filled one', () => {
+    expect(guestStepNeeded([], guests)).toBe(false)
+    expect(guestStepNeeded([LATER], guests)).toBe(false)
+    expect(guestStepNeeded([AGE, LATER], guests)).toBe(true)
+    expect(guestStepNeeded([LATER], [{ ...guests[0]!, guest_attributes: { weight_kg: 70 } }])).toBe(true)
+  })
+
+  it('required now wins when another line asks the same key at booking', () => {
+    const [merged] = unionAttributes([LATER], [WEIGHT])
+    expect(isDeferred(merged!)).toBe(false)
+    expect(unionAttributes([LATER], [LATER])[0]).toEqual(LATER)
   })
 })

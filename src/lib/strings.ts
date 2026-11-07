@@ -373,6 +373,7 @@ export type Bundle = {
   guestAttrsOk: string
   guestAttrsInvalid: string
   guestAttrsRange: string
+  guestAttrsLater: string
   breakfastLabel: string
   emptyLabel: string
   swapInHereLabel: string
@@ -1444,6 +1445,7 @@ const en: Bundle = {
   guestAttrsOk: 'All guest details are in.',
   guestAttrsInvalid: 'Please check this value.',
   guestAttrsRange: '{min}-{max}',
+  guestAttrsLater: "You can add this later — we'll ask before your arrival",
   breakfastLabel: 'Breakfast',
   emptyLabel: 'Empty',
   swapInHereLabel: 'Swap in here',
