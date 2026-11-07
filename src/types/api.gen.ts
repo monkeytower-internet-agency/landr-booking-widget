@@ -14776,6 +14776,10 @@ export interface components {
         BookingMissingAttributesOut: {
             /** Participants */
             participants: components["schemas"]["ParticipantMissingKeysOut"][];
+            /** Range Options */
+            range_options?: {
+                [key: string]: components["schemas"]["RangeOptionOut"][];
+            };
         };
         /**
          * BookingNoteIn
@@ -24208,6 +24212,19 @@ export interface components {
              * @default 25
              */
             radius_km: number;
+        };
+        /**
+         * RangeOptionOut
+         * @description One range staff can pick: ``min`` is the floor that gets stored, ``max`` the
+         *     EXCLUSIVE upper edge (null for the last range).
+         */
+        RangeOptionOut: {
+            /** Label */
+            label: string;
+            /** Max */
+            max: number | null;
+            /** Min */
+            min: number;
         };
         /**
          * RecipientSetIn
