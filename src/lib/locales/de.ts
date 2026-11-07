@@ -339,6 +339,8 @@ export const de: Bundle = {
   guestAgeRequired: 'Bitte wähle das Alter jedes Kindes.',
   agePlaceholder: 'Alter',
   bookerAdultConfirm: 'Ich bin 18 Jahre oder älter',
+  ageRefineIntro: 'Die hinzugefügten Extras nutzen eine feinere Altersgruppierung. Bitte wähle die Altersgruppe erneut für:',
+  ageRefineChoose: 'Altersgruppe wählen',
   bookerAdultRequired: 'Bitte bestätige, dass du mindestens 18 Jahre alt bist, um zu buchen.',
   exactAgeAria: 'Alter',
   exactAgeRequired: 'Bitte gib das Alter jedes Gasts ein.',

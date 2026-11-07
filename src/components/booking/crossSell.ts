@@ -24,7 +24,7 @@ import type {
   ProductLine,
 } from '@/api/types'
 import type { FlowAgeBand, FlowFormDef, ProductFlowResponse } from '@/api/flowTypes'
-import { isValidExactAge, mergeBands } from './ageBands'
+import { adultBandsOf, guestsToReask, isValidExactAge, mergeBands } from './ageBands'
 import { isStayKind } from '@/flowPlan'
 import { hasFixedStartTimes, toHHMM } from './slotKey'
 import { expandWindowDays } from './expandWindowDays'
@@ -105,6 +105,16 @@ export interface CrossSellContext {
    * for Adult/Child + age (no occupancy-priced stay was in the cart then).
    */
   agesNeeded?: boolean
+  /**
+   * landr-zcb24.12: the party step already asked the ages as bands (the main
+   * flow's `bands`) and stored each adult's band floor (`floors`, by roster
+   * index). An added line whose flow brings a finer cut re-asks the guests whose
+   * band it splits.
+   */
+  ageRefine?: {
+    bands: readonly FlowAgeBand[]
+    floors: Readonly<Record<number, number | undefined>>
+  }
 }
 
 /** One guest's Adult/Child band (+ age 0-17 for a child). */
@@ -238,6 +248,31 @@ export interface LineNeeds {
    * (the booker 18 or older) instead of picking a band.
    */
   ageExact?: boolean
+  /**
+   * landr-zcb24.12: only these roster guests are asked (the party step asked the
+   * ages already; an added line split their band): `ageBands` are the refined
+   * bands and each of them must pick an adult floor again.
+   */
+  ageGuests?: readonly number[]
+}
+
+/**
+ * The bands the whole cart needs and the guests an added line's finer cuts make
+ * ask again; null when the party step did not ask bands or nothing splits.
+ */
+export function refinedAges(
+  ctx: CrossSellContext,
+  lines: readonly ExtraLine[],
+): { bands: readonly FlowAgeBand[]; guests: readonly number[] } | null {
+  const refine = ctx.ageRefine
+  if (!refine) return null
+  const added = lines.filter(
+    (l) => l.flow?.age_needed === true && l.flow.age_collect_as !== 'exact' && (l.flow.age_bands?.length ?? 0) > 0,
+  )
+  if (added.length === 0) return null
+  const bands = mergeBands([refine.bands, ...added.map((l) => l.flow?.age_bands)])
+  const guests = guestsToReask(refine.bands, bands, refine.floors)
+  return guests.length > 0 ? { bands, guests } : null
 }
 
 /**
@@ -261,6 +296,7 @@ export function lineNeeds(
   let languageClaimed = false
   let pickupClaimed = false
   let agesClaimed = false
+  const refine = ctx.agesNeeded ? null : refinedAges(ctx, lines)
   for (const line of lines) {
     const needs: LineNeeds = { language: false, pickup: false, forms: [] }
     if (languageMissing && !languageClaimed && productOfferedLanguages(line.product).length > 0) {
@@ -288,6 +324,12 @@ export function lineNeeds(
         needs.ageBands = mergeBands(lines.filter((l) => l.flow?.age_needed).map((l) => l.flow?.age_bands))
         if (lines.some((l) => l.flow?.age_needed === true && l.flow.age_collect_as === 'exact')) needs.ageExact = true
       }
+    }
+    if (refine && !agesClaimed && line.flow?.age_needed === true) {
+      needs.ages = true
+      needs.ageBands = refine.bands
+      needs.ageGuests = refine.guests
+      agesClaimed = true
     }
     for (const m of line.flow?.modules ?? []) {
       if (m.kind !== 'custom_form' || m.form == null) continue
@@ -331,6 +373,19 @@ export function childAgesFromEntries(
   return out.slice(0, Math.max(0, participantCount - 1))
 }
 
+/** True when a re-asked guest has not (re-)picked one of the refined adult floors. */
+function refinedFloorMissing(
+  guests: readonly number[],
+  bands: readonly FlowAgeBand[] | undefined,
+  ages: Readonly<Record<number, GuestAgeEntry>> | null | undefined,
+): boolean {
+  const floors = new Set(adultBandsOf(bands ?? []).map((b) => b.min_age))
+  return guests.some((i) => {
+    const floor = ages?.[i]?.floor
+    return floor === undefined || !floors.has(floor)
+  })
+}
+
 /** True while an inline module of an added line still waits for the customer. */
 export function inlineModulesPending(
   lines: readonly ExtraLine[],
@@ -346,6 +401,10 @@ export function inlineModulesPending(
         !(offer && languagesCover(inline.languages ?? {}, ctx.participantCount, offer))) ||
       (n.pickup && inline.pickupLocationId === null) ||
       (n.ages === true &&
+        n.ageGuests !== undefined &&
+        refinedFloorMissing(n.ageGuests, n.ageBands, inline.ages)) ||
+      (n.ages === true &&
+        n.ageGuests === undefined &&
         (n.ageExact === true
           ? exactAgeEntryMissing(inline.ages, ctx.participantCount)
           : hasChildWithoutAgeEntry(inline.ages) ||

@@ -333,6 +333,8 @@ export const it: Bundle = {
   guestAgeRequired: 'Seleziona l\'età di ogni bambino.',
   agePlaceholder: 'Età',
   bookerAdultConfirm: 'Ho 18 anni o più',
+  ageRefineIntro: "Gli extra aggiunti usano una suddivisione per età più precisa. Scegli di nuovo la fascia d'età per:",
+  ageRefineChoose: "Scegli la fascia d'età",
   bookerAdultRequired: 'Conferma di avere almeno 18 anni per prenotare.',
   exactAgeAria: 'Età',
   exactAgeRequired: 'Inserisci l’età di ogni ospite.',

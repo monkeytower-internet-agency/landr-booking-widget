@@ -4,6 +4,7 @@ import {
   inheritLine,
   inlineModulesPending,
   lineNeeds,
+  refinedAges,
   type CrossSellContext,
   type InlineModuleState,
 } from './crossSell'
@@ -55,5 +56,64 @@ describe('cross-sell inline exact ages (landr-zcb24.7)', () => {
     expect(inlineModulesPending([line], CTX, kidOnly)).toBe(true)
     const done = { ...NONE, ages: { 0: { band: 'adult' as const, age: 40 }, 1: { band: 'child' as const, age: 9 } } }
     expect(inlineModulesPending([line], CTX, done)).toBe(false)
+  })
+})
+
+describe('cross-sell lines refine the ages the party step asked (landr-zcb24.12)', () => {
+  const product = { ...mockOccupancyStay, occupancy_pricing: undefined }
+  const MAIN_BANDS = [
+    { key: 'child', min_age: 0, max_age: 17 },
+    { key: 'adult', min_age: 18, max_age: null },
+  ]
+  const NEW_CUT = {
+    modules: null,
+    age_needed: true,
+    age_bands: [
+      { key: 'child', min_age: 0, max_age: 17 },
+      { key: 'adult', min_age: 18, max_age: 64 },
+      { key: 'age_65_plus', min_age: 65, max_age: null },
+    ],
+  }
+  // the party step asked (agesNeeded false) and stored floors: guests 0 and 1 picked 'Adult 18+', guest 2 is a child
+  const ASKED: CrossSellContext = {
+    ...CTX,
+    participantCount: 3,
+    agesNeeded: false,
+    ageRefine: { bands: MAIN_BANDS, floors: { 0: 18, 1: 18 } },
+  }
+  const line = inheritLine(product, ['2026-12-01'], 'l1', NEW_CUT)
+
+  it('re-asks the guests whose band the added line splits, with the refined bands', () => {
+    const needs = lineNeeds([line], ASKED).l1
+    expect(needs.ages).toBe(true)
+    expect(needs.ageGuests).toEqual([0, 1])
+    expect(needs.ageBands?.map((b) => b.min_age)).toEqual([0, 18, 65])
+  })
+
+  it('asks nothing when the added line brings no new cut, or the party step did not ask bands', () => {
+    const same = inheritLine(product, ['2026-12-01'], 'l2', { ...NEW_CUT, age_bands: MAIN_BANDS })
+    expect(lineNeeds([same], ASKED).l2.ages).toBeUndefined()
+    expect(lineNeeds([line], { ...ASKED, ageRefine: undefined }).l1.ages).toBeUndefined()
+    expect(refinedAges({ ...ASKED, ageRefine: { bands: MAIN_BANDS, floors: { 0: undefined } } }, [line])).toBeNull()
+    const exact = inheritLine(product, ['2026-12-01'], 'l3', { ...NEW_CUT, age_collect_as: 'exact' })
+    expect(lineNeeds([exact], ASKED).l3.ages).toBeUndefined()
+  })
+
+  it('stays pending until every re-asked guest picked one of the refined floors', () => {
+    const none: InlineModuleState = { ...NONE }
+    expect(inlineModulesPending([line], ASKED, none)).toBe(true)
+    const one = { ...NONE, ages: { 0: { band: 'adult' as const, age: null, floor: 65 } } }
+    expect(inlineModulesPending([line], ASKED, one)).toBe(true)
+    const stale = { ...NONE, ages: { 0: { band: 'adult' as const, age: null, floor: 18 }, 1: { band: 'adult' as const, age: null, floor: 33 } } }
+    expect(inlineModulesPending([line], ASKED, stale)).toBe(true)
+    const both = {
+      ...NONE,
+      ages: { 0: { band: 'adult' as const, age: null, floor: 18 }, 1: { band: 'adult' as const, age: null, floor: 65 } },
+    }
+    expect(inlineModulesPending([line], ASKED, both)).toBe(false)
+  })
+
+  it('removing the line takes the question away', () => {
+    expect(inlineModulesPending([], ASKED, NONE)).toBe(false)
   })
 })

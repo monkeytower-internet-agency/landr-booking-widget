@@ -11,6 +11,7 @@ import {
   withExactAge,
   bandLabel,
   DEFAULT_AGE_BANDS,
+  guestsToReask,
   mergeBands,
   resolveBands,
   stampAge,
@@ -128,5 +129,35 @@ describe('age bands (landr-zcb24.2)', () => {
       weight_kg: 80,
       _inexact: ['age', 'weight_kg'],
     })
+  })
+})
+
+describe('guestsToReask (landr-zcb24.12)', () => {
+  const band = (min: number, max: number | null): FlowAgeBand => ({
+    key: min === 18 ? 'adult' : `age_${min}_${max ?? 'plus'}`,
+    min_age: min,
+    max_age: max,
+  })
+  const CHILD: FlowAgeBand = { key: 'child', min_age: 0, max_age: 17 }
+  const MAIN = [CHILD, band(18, 64), band(65, null)]
+  const REFINED = [CHILD, band(18, 39), band(40, 64), band(65, null)]
+
+  it('asks the guests whose stored band a new cut splits', () => {
+    expect(guestsToReask(MAIN, REFINED, { 0: 18, 1: 18, 2: 65 })).toEqual([0, 1])
+  })
+
+  it('leaves guests whose band stays whole', () => {
+    expect(guestsToReask(MAIN, REFINED, { 2: 65 })).toEqual([])
+    expect(guestsToReask(MAIN, MAIN, { 0: 18, 1: 65 })).toEqual([])
+    expect(guestsToReask(MAIN, REFINED, {})).toEqual([])
+  })
+
+  it('a cut inside the last band splits it', () => {
+    const merged = [CHILD, band(18, 64), band(65, 79), band(80, null)]
+    expect(guestsToReask(MAIN, merged, { 0: 18, 1: 65 })).toEqual([1])
+  })
+
+  it('children and exact ages carry no floor and are never asked again', () => {
+    expect(guestsToReask(MAIN, REFINED, { 0: undefined })).toEqual([])
   })
 })

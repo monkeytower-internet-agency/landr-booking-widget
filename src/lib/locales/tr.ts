@@ -337,6 +337,8 @@ export const tr: Bundle = {
   guestAgeRequired: 'Lütfen her çocuğun yaşını seçin.',
   agePlaceholder: 'Yaş',
   bookerAdultConfirm: '18 yaşında veya daha büyüğüm',
+  ageRefineIntro: 'Eklediğiniz ekstralar daha ayrıntılı bir yaş gruplaması kullanıyor. Lütfen şu kişiler için yaş grubunu yeniden seçin:',
+  ageRefineChoose: 'Yaş grubunu seçin',
   bookerAdultRequired: 'Rezervasyon yapmak için 18 yaşında veya daha büyük olduğunuzu onaylayın.',
   exactAgeAria: 'Yaş',
   exactAgeRequired: 'Lütfen her misafirin yaşını girin.',
