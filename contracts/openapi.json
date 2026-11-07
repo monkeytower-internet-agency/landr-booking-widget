@@ -2836,6 +2836,16 @@
             },
             "title": "Participants",
             "type": "array"
+          },
+          "range_options": {
+            "additionalProperties": {
+              "items": {
+                "$ref": "#/components/schemas/RangeOptionOut"
+              },
+              "type": "array"
+            },
+            "title": "Range Options",
+            "type": "object"
           }
         },
         "required": [
@@ -30737,6 +30747,47 @@
           "lng"
         ],
         "title": "RaiseSosRequest",
+        "type": "object"
+      },
+      "RangeOptionOut": {
+        "description": "One range staff can pick: ``min`` is the floor that gets stored, ``max`` the\nEXCLUSIVE upper edge (null for the last range).",
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "max": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max"
+          },
+          "min": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Min"
+          }
+        },
+        "required": [
+          "min",
+          "max",
+          "label"
+        ],
+        "title": "RangeOptionOut",
         "type": "object"
       },
       "RecipientSetIn": {
