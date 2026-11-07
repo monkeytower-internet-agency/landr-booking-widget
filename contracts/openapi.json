@@ -9984,6 +9984,55 @@
         "title": "DayUnitSortItem",
         "type": "object"
       },
+      "DerivedCut": {
+        "description": "A cut point a rule or a price adds on top of the operator's ``range_cuts``\n(landr-zcb24.18): read-only, computed like the ranges guests pick from.",
+        "properties": {
+          "source": {
+            "$ref": "#/components/schemas/DerivedCutSource"
+          },
+          "value": {
+            "title": "Value",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "value",
+          "source"
+        ],
+        "title": "DerivedCut",
+        "type": "object"
+      },
+      "DerivedCutSource": {
+        "description": "The rule that adds a derived cut: ``eligibility`` (a product's eligibility\nrules; id/label = the product), ``offer_rule`` (an offer's rules; id = the\noffer, label = the offered product), ``price_rule`` (an ``attribute_bands``\nprice) or ``occupancy`` (``occupancy_pricing`` child bands); id = the pricing\nrule, label = its price list.",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "price_rule",
+              "offer_rule",
+              "eligibility",
+              "occupancy"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "id",
+          "label"
+        ],
+        "title": "DerivedCutSource",
+        "type": "object"
+      },
       "DetailsFormAnswers": {
         "description": "Answers of one form, in the shape PUT takes: booking-scope ``answers``\nplus ``people`` keyed by booking_participant_id.",
         "properties": {
@@ -13747,6 +13796,13 @@
             "default": false,
             "title": "Decisive",
             "type": "boolean"
+          },
+          "derived_cuts": {
+            "items": {
+              "$ref": "#/components/schemas/DerivedCut"
+            },
+            "title": "Derived Cuts",
+            "type": "array"
           },
           "id": {
             "format": "uuid",
@@ -49427,7 +49483,7 @@
     },
     "/api/operators/{operator_id}/guest-attribute-definitions": {
       "get": {
-        "description": "The operator's attribute catalogue: the five well-known keys plus custom ones.",
+        "description": "The operator's attribute catalogue: the five well-known keys plus custom ones, each numeric\none with the rule-derived cut points (``derived_cuts``) and the rule that adds each.",
         "operationId": "list_guest_attribute_definitions",
         "parameters": [
           {
