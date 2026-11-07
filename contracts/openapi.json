@@ -2827,6 +2827,23 @@
         "title": "BookingLineStayWindow",
         "type": "object"
       },
+      "BookingMissingAttributesOut": {
+        "description": "Only participants who still owe something are listed; ``[]`` = nobody.",
+        "properties": {
+          "participants": {
+            "items": {
+              "$ref": "#/components/schemas/ParticipantMissingKeysOut"
+            },
+            "title": "Participants",
+            "type": "array"
+          }
+        },
+        "required": [
+          "participants"
+        ],
+        "title": "BookingMissingAttributesOut",
+        "type": "object"
+      },
       "BookingNoteIn": {
         "description": "POST body \u2014 the note text. Whitespace-only rejected at the model\nlevel (the DB CHECK constraint catches it too, but a 422 from Pydantic\nis the cleaner client surface).",
         "properties": {
@@ -17851,6 +17868,24 @@
         "title": "MessageTemplatePatch",
         "type": "object"
       },
+      "MissingGuestKeyOut": {
+        "properties": {
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "label"
+        ],
+        "title": "MissingGuestKeyOut",
+        "type": "object"
+      },
       "MultiDaySavingsOut": {
         "additionalProperties": true,
         "description": "Congrats-card payload (landr-nva1a.1): ``days`` = longest\nconsecutive run (streak pricing) or total priced days (total-days\npricing); ``amount`` = the summed multi-day saving.",
@@ -22888,6 +22923,28 @@
           "service_role_code"
         ],
         "title": "ParticipantIn",
+        "type": "object"
+      },
+      "ParticipantMissingKeysOut": {
+        "properties": {
+          "missing": {
+            "items": {
+              "$ref": "#/components/schemas/MissingGuestKeyOut"
+            },
+            "title": "Missing",
+            "type": "array"
+          },
+          "participant_id": {
+            "format": "uuid",
+            "title": "Participant Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "participant_id",
+          "missing"
+        ],
+        "title": "ParticipantMissingKeysOut",
         "type": "object"
       },
       "ParticipantMissingOut": {
@@ -49174,6 +49231,64 @@
         "summary": "Acknowledge Terms Change",
         "tags": [
           "operator-terms-changes"
+        ]
+      }
+    },
+    "/api/operators/{operator_id}/bookings/{booking_id}/guest-attributes/missing": {
+      "get": {
+        "description": "Per participant, the before-arrival guest details still missing (landr-zcb24.15).",
+        "operationId": "staff_get_booking_missing_guest_attributes",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Booking Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingMissingAttributesOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Booking Missing Guest Attributes",
+        "tags": [
+          "staff-booking-guest-attributes"
         ]
       }
     },
