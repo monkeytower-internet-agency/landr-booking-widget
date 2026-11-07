@@ -15227,6 +15227,8 @@ export interface components {
          *     owes which keys; both empty when there is nothing left to ask.
          */
         BriefingGuestAttributesOut: {
+            /** Answered */
+            answered?: components["schemas"]["ParticipantAnsweredOut"][];
             /** Attributes */
             attributes: components["schemas"]["FlowAttributeOut"][];
             /** Participants */
@@ -21603,6 +21605,22 @@ export interface components {
             lines: components["schemas"]["CreditLineIn"][];
             /** Reason */
             reason: string;
+        };
+        /**
+         * ParticipantAnsweredOut
+         * @description What one participant answered as a RANGE, shown as the range ('80-100 kg')
+         *     and not as the floor that is stored (landr-zcb24.12).
+         */
+        ParticipantAnsweredOut: {
+            /** Guest Attributes Display */
+            guest_attributes_display: {
+                [key: string]: string;
+            };
+            /**
+             * Participant Id
+             * Format: uuid
+             */
+            participant_id: string;
         };
         /** ParticipantAttributesIn */
         ParticipantAttributesIn: {

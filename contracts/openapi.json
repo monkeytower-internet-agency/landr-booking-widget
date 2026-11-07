@@ -4025,6 +4025,13 @@
       "BriefingGuestAttributesOut": {
         "description": "``attributes`` are the collectable definitions, ``participants`` who still\nowes which keys; both empty when there is nothing left to ask.",
         "properties": {
+          "answered": {
+            "items": {
+              "$ref": "#/components/schemas/ParticipantAnsweredOut"
+            },
+            "title": "Answered",
+            "type": "array"
+          },
           "attributes": {
             "items": {
               "$ref": "#/components/schemas/FlowAttributeOut"
@@ -22574,6 +22581,29 @@
           "lines"
         ],
         "title": "PartialCreditNoteIn",
+        "type": "object"
+      },
+      "ParticipantAnsweredOut": {
+        "description": "What one participant answered as a RANGE, shown as the range ('80-100 kg')\nand not as the floor that is stored (landr-zcb24.12).",
+        "properties": {
+          "guest_attributes_display": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Guest Attributes Display",
+            "type": "object"
+          },
+          "participant_id": {
+            "format": "uuid",
+            "title": "Participant Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "participant_id",
+          "guest_attributes_display"
+        ],
+        "title": "ParticipantAnsweredOut",
         "type": "object"
       },
       "ParticipantAttributesIn": {
