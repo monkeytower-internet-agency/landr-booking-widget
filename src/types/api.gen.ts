@@ -2961,6 +2961,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/operators/{operator_id}/bookings/{booking_id}/guest-attributes/missing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Booking Missing Guest Attributes
+         * @description Per participant, the before-arrival guest details still missing (landr-zcb24.15).
+         */
+        get: operations["staff_get_booking_missing_guest_attributes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/operators/{operator_id}/bookings/{booking_id}/participants/{participant_id}/attributes": {
         parameters: {
             query?: never;
@@ -14750,6 +14770,14 @@ export interface components {
             nights: number;
         };
         /**
+         * BookingMissingAttributesOut
+         * @description Only participants who still owe something are listed; ``[]`` = nobody.
+         */
+        BookingMissingAttributesOut: {
+            /** Participants */
+            participants: components["schemas"]["ParticipantMissingKeysOut"][];
+        };
+        /**
          * BookingNoteIn
          * @description POST body — the note text. Whitespace-only rejected at the model
          *     level (the DB CHECK constraint catches it too, but a 422 from Pydantic
@@ -20035,6 +20063,13 @@ export interface components {
             /** Sort Order */
             sort_order?: number | null;
         };
+        /** MissingGuestKeyOut */
+        MissingGuestKeyOut: {
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+        };
         /**
          * MultiDaySavingsOut
          * @description Congrats-card payload (landr-nva1a.1): ``days`` = longest
@@ -21686,6 +21721,16 @@ export interface components {
             room_unit_index?: number | null;
             /** Service Role Code */
             service_role_code: string;
+        };
+        /** ParticipantMissingKeysOut */
+        ParticipantMissingKeysOut: {
+            /** Missing */
+            missing: components["schemas"]["MissingGuestKeyOut"][];
+            /**
+             * Participant Id
+             * Format: uuid
+             */
+            participant_id: string;
         };
         /** ParticipantMissingOut */
         ParticipantMissingOut: {
@@ -32787,6 +32832,38 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_get_booking_missing_guest_attributes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BookingMissingAttributesOut"];
                 };
             };
             /** @description Validation Error */
