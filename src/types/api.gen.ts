@@ -17995,6 +17995,23 @@ export interface components {
             slug: string;
         };
         /**
+         * FlowAgeBand
+         * @description One age band of the cart (landr-zcb24.1): Child is 0-17 (exact age), an
+         *     adult band is picked and stored as its floor ``min_age``.
+         */
+        FlowAgeBand: {
+            /** Key */
+            key: string;
+            /** Label Localized */
+            label_localized?: {
+                [key: string]: string;
+            };
+            /** Max Age */
+            max_age?: number | null;
+            /** Min Age */
+            min_age: number;
+        };
+        /**
          * FlowFieldDef
          * @description One field definition from the form RPC (verbatim wire keys).
          *     Mirrors the widget's ``FlowFieldDef`` TypeScript interface.
@@ -22904,6 +22921,13 @@ export interface components {
          *     shape) or list of modules otherwise.
          */
         ProductFlowResponse: {
+            /** Age Bands */
+            age_bands?: components["schemas"]["FlowAgeBand"][];
+            /**
+             * Age Needed
+             * @default false
+             */
+            age_needed: boolean;
             /** Eligibility Reason Key */
             eligibility_reason_key?: string | null;
             /** Eligible */

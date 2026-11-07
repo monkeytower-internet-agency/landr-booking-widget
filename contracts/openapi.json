@@ -12191,6 +12191,43 @@
         "title": "FlagTemplateIn",
         "type": "object"
       },
+      "FlowAgeBand": {
+        "description": "One age band of the cart (landr-zcb24.1): Child is 0-17 (exact age), an\nadult band is picked and stored as its floor ``min_age``.",
+        "properties": {
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "label_localized": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Label Localized",
+            "type": "object"
+          },
+          "max_age": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Age"
+          },
+          "min_age": {
+            "title": "Min Age",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "key",
+          "min_age"
+        ],
+        "title": "FlowAgeBand",
+        "type": "object"
+      },
       "FlowFieldDef": {
         "additionalProperties": true,
         "description": "One field definition from the form RPC (verbatim wire keys).\nMirrors the widget's ``FlowFieldDef`` TypeScript interface.",
@@ -26601,6 +26638,18 @@
         "additionalProperties": true,
         "description": "Response of GET \u2026/products/{id}/flow. Mirrors the widget's\n``ProductFlowResponse`` TypeScript interface (src/api/flowTypes.ts).\n``modules`` is null for products with no configured flow (legacy\nshape) or list of modules otherwise.",
         "properties": {
+          "age_bands": {
+            "items": {
+              "$ref": "#/components/schemas/FlowAgeBand"
+            },
+            "title": "Age Bands",
+            "type": "array"
+          },
+          "age_needed": {
+            "default": false,
+            "title": "Age Needed",
+            "type": "boolean"
+          },
           "eligibility_reason_key": {
             "anyOf": [
               {
