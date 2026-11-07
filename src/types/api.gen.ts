@@ -3061,7 +3061,8 @@ export interface paths {
         };
         /**
          * List Guest Attribute Definitions
-         * @description The operator's attribute catalogue: the five well-known keys plus custom ones.
+         * @description The operator's attribute catalogue: the five well-known keys plus custom ones, each numeric
+         *     one with the rule-derived cut points (``derived_cuts``) and the rule that adds each.
          */
         get: operations["list_guest_attribute_definitions"];
         put?: never;
@@ -17218,6 +17219,38 @@ export interface components {
             unit_id?: string | null;
         };
         /**
+         * DerivedCut
+         * @description A cut point a rule or a price adds on top of the operator's ``range_cuts``
+         *     (landr-zcb24.18): read-only, computed like the ranges guests pick from.
+         */
+        DerivedCut: {
+            source: components["schemas"]["DerivedCutSource"];
+            /** Value */
+            value: number;
+        };
+        /**
+         * DerivedCutSource
+         * @description The rule that adds a derived cut: ``eligibility`` (a product's eligibility
+         *     rules; id/label = the product), ``offer_rule`` (an offer's rules; id = the
+         *     offer, label = the offered product), ``price_rule`` (an ``attribute_bands``
+         *     price) or ``occupancy`` (``occupancy_pricing`` child bands); id = the pricing
+         *     rule, label = its price list.
+         */
+        DerivedCutSource: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "price_rule" | "offer_rule" | "eligibility" | "occupancy";
+            /** Label */
+            label: string;
+        };
+        /**
          * DetailsFormAnswers
          * @description Answers of one form, in the shape PUT takes: booking-scope ``answers``
          *     plus ``people`` keyed by booking_participant_id.
@@ -18580,6 +18613,8 @@ export interface components {
              * @default false
              */
             decisive: boolean;
+            /** Derived Cuts */
+            derived_cuts?: components["schemas"]["DerivedCut"][];
             /**
              * Id
              * Format: uuid
