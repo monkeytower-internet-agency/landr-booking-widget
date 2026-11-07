@@ -42,6 +42,15 @@ export interface Checked {
   problem?: AttributeProblem
 }
 
+/**
+ * landr-zcb24.17: true when the operator collects this attribute before
+ * arrival, not at booking. Either flag says so (`deferred` == not
+ * `required_now`); a flow from an older API carries neither = required now.
+ */
+export function isDeferred(def: FlowGuestAttribute): boolean {
+  return def.deferred === true || def.required_now === false
+}
+
 export function attributeLabel(def: FlowGuestAttribute, locale: string): string {
   return pickLocalized(def.label, def.label_localized, locale)
 }
@@ -100,6 +109,21 @@ export function askedAttributes(
 }
 
 /**
+ * Whether the 'About your guests' step is worth showing: some attribute is
+ * required now, or a deferred one already has an answer the guest may want to
+ * change (they came back). When every attribute is deferred and nothing is
+ * filled, the step is skipped -- the operator asks before arrival instead.
+ */
+export function guestStepNeeded(
+  attributes: readonly FlowGuestAttribute[],
+  guests: readonly GuestLike[],
+): boolean {
+  if (attributes.length === 0) return false
+  if (attributes.some((a) => !isDeferred(a))) return true
+  return guests.some((g) => attributes.some((a) => currentValue(g, a.key) !== undefined))
+}
+
+/**
  * The ranges of one attribute across several lines, split at every line's floors
  * (a range must not straddle a cut that another line's rules or prices use). A
  * range the lines agree on keeps its label; a new split gets a generated one.
@@ -134,7 +158,12 @@ export function unionAttributes(
   return [...seen.values()].map((defs) => {
     const first = defs[0]!
     const ranged = defs.filter((d) => rangesOf(d) !== null)
-    return rangesOf(first) !== null && ranged.length > 1 ? { ...first, ranges: mergeRanges(ranged) } : first
+    const merged =
+      rangesOf(first) !== null && ranged.length > 1 ? { ...first, ranges: mergeRanges(ranged) } : first
+    // Asked at booking by any line = asked at booking: required now wins over deferred.
+    return isDeferred(merged) && defs.some((d) => !isDeferred(d))
+      ? { ...merged, required_now: true, deferred: false }
+      : merged
   })
 }
 
@@ -176,18 +205,21 @@ export function checkAttribute(def: FlowGuestAttribute, raw: string): Checked {
 /** Raw input strings per guest index and attribute key. */
 export type AttributeInputs = Record<number, Record<string, string>>
 
-/** True when every guest has a valid value for every asked attribute. */
+/** True when every guest has a valid value for every attribute required now. */
 export function allAnswered(
   defs: readonly FlowGuestAttribute[],
   guests: readonly GuestLike[],
   inputs: AttributeInputs,
 ): boolean {
   return guests.every((g, i) =>
-    defs.every((d) => checkAttribute(d, inputs[i]?.[d.key] ?? initialText(g, d.key, d)).value !== undefined),
+    defs.filter((d) => !isDeferred(d)).every((d) => checkAttribute(d, inputs[i]?.[d.key] ?? initialText(g, d.key, d)).value !== undefined),
   )
 }
 
-/** Count of (guest, attribute) pairs still without a valid value. */
+/**
+ * Count of (guest, attribute) pairs still without a valid value. Deferred
+ * attributes never count: they are optional and never block Continue.
+ */
 export function unansweredCount(
   defs: readonly FlowGuestAttribute[],
   guests: readonly GuestLike[],
@@ -196,6 +228,7 @@ export function unansweredCount(
   let n = 0
   guests.forEach((g, i) => {
     for (const d of defs) {
+      if (isDeferred(d)) continue
       if (checkAttribute(d, inputs[i]?.[d.key] ?? initialText(g, d.key, d)).value === undefined) n += 1
     }
   })

@@ -19,6 +19,7 @@ import {
   checkAttribute,
   guestName,
   initialText,
+  isDeferred,
   rangeLabel,
   rangesOf,
   unansweredCount,
@@ -97,11 +98,16 @@ export function GuestAttributesStep({
                     const value = text(i, def)
                     const ranges = rangesOf(def)
                     const checked = checkAttribute(def, value)
-                    const showProblem =
-                      touched[`${i}:${def.key}`] === true && checked.problem !== undefined
+                    const touchedNow = touched[`${i}:${def.key}`] === true
                     const id = `guest-attr-${i}-${def.key}`
                     const [lo, hi] = attributeBounds(def)
                     const label = attributeLabel(def, locale)
+                    const deferred = isDeferred(def)
+                    // A deferred attribute is optional: a blank is not a problem.
+                    const showProblem =
+                      touchedNow &&
+                      checked.problem !== undefined &&
+                      !(deferred && value.trim() === '')
                     return (
                       <div key={def.key} className="flex flex-col gap-1">
                         <label htmlFor={id} className="text-xs text-muted-foreground">
@@ -155,6 +161,14 @@ export function GuestAttributesStep({
                             onChange={(e) => set(i, def.key, e.target.value)}
                           />
                         )}
+                        {deferred ? (
+                          <span
+                            className="text-xs text-muted-foreground"
+                            data-testid={`guest-attr-later-${i}-${def.key}`}
+                          >
+                            {tr('guestAttrsLater', locale)}
+                          </span>
+                        ) : null}
                         {showProblem ? (
                           <span className="text-xs text-destructive" role="alert">
                             {lo !== null && hi !== null && checked.problem === 'range'

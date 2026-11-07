@@ -6574,6 +6574,83 @@ describe('App', () => {
       })
     })
 
+    it('skips the guest step when every attribute is deferred to before arrival (landr-zcb24.17)', async () => {
+      const today = new Date()
+      today.setHours(12, 0, 0, 0)
+      mocks.getOperatorSettings.mockResolvedValue({
+        slug: 'para42',
+        expose_seats_to_customer: false,
+      })
+      mocks.getProductFlow.mockResolvedValue({
+        modules: null,
+        guest_attributes: [
+          {
+            key: 'weight_kg',
+            label: 'Weight',
+            value_type: 'number',
+            unit: 'kg',
+            required_now: false,
+            deferred: true,
+          },
+        ],
+      })
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          product_kind: 'service',
+          service_time_shape: 'single_date',
+          name: 'Later Flight',
+          needs_pickup: false,
+          hotel_offering: 'none',
+          guide_languages: [],
+        }),
+      ])
+      mocks.getAvailability.mockResolvedValue([
+        {
+          availability_id: 'a-1',
+          date: today.toISOString().slice(0, 10),
+          start_time: null,
+          end_time: null,
+          capacity: 10,
+          capacity_reserved: 0,
+          available_seats: 10,
+          status: 'open',
+        },
+      ])
+      mocks.submitBooking.mockResolvedValue({ booking_id: 'b-4', semantic_state: 'pending' })
+
+      render(<App />)
+      await waitFor(() => screen.getByText('Later Flight'))
+      fireEvent.click(screen.getByRole('button', { name: 'Later Flight' }))
+      fireEvent.click(await screen.findByTestId('product-detail-book-cta'))
+      await waitFor(() => expect(screen.getByText(/Pick a date/i)).toBeInTheDocument())
+      const days = screen
+        .getAllByRole('gridcell')
+        .map((cell) => cell.querySelector('button'))
+        .filter((b): b is HTMLButtonElement => !!b && !b.disabled)
+      fireEvent.click(days[0]!)
+      fireEvent.click(await screen.findByRole('button', { name: /continue/i }))
+      await waitFor(() => expect(screen.getByText(/your contact details/i)).toBeInTheDocument())
+      const setField = (name: string, value: string) =>
+        fireEvent.change(document.querySelector<HTMLInputElement>(`input[name="${name}"]`)!, {
+          target: { value },
+        })
+      setField('booker_first_name', 'Ada')
+      setField('booker_last_name', 'Lovelace')
+      setField('booker_email', 'ada@example.com')
+      setField('booker_phone', '+34600000001')
+      fillBillingFields()
+      fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+
+      await waitFor(() => expect(screen.getByText(/review your booking/i)).toBeInTheDocument())
+      expect(screen.queryByTestId('guest-attributes-step')).toBeNull()
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+      await waitFor(() => expect(mocks.submitBooking).toHaveBeenCalled())
+      const body = mocks.submitBooking.mock.calls[0][0] as {
+        participants: Array<Record<string, unknown>>
+      }
+      expect(body.participants[0]).not.toHaveProperty('guest_attributes')
+    })
+
     it('keeps the guest answers on Back and prefills the step again', async () => {
       const today = new Date()
       today.setHours(12, 0, 0, 0)

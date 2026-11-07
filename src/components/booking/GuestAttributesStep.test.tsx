@@ -106,4 +106,75 @@ describe('GuestAttributesStep', () => {
     fireEvent.click(submit)
     expect(onConfirm.mock.calls[0]![0][0].guest_attributes).toEqual({ weight_kg: 45, _inexact: ['weight_kg'] })
   })
+
+  describe('deferred attributes (landr-zcb24.17)', () => {
+    const LATER: FlowGuestAttribute[] = [
+      { key: 'age', label: 'Age', value_type: 'integer', unit: 'years' },
+      { key: 'shoe_size_eu', label: 'Shoe size', value_type: 'integer', required_now: false, deferred: true },
+    ]
+    const renderLater = (onConfirm = vi.fn()) => {
+      render(
+        <GuestAttributesStep
+          productName="Tandem"
+          attributes={LATER}
+          participants={[person('Ada')]}
+          companions={[]}
+          onConfirm={onConfirm}
+        />,
+      )
+      return onConfirm
+    }
+
+    it('shows the add-later hint on the deferred attribute only', () => {
+      renderLater()
+      expect(screen.getByTestId('guest-attr-later-0-shoe_size_eu').textContent).toBe(
+        "You can add this later \u2014 we'll ask before your arrival",
+      )
+      expect(screen.queryByTestId('guest-attr-later-0-age')).toBeNull()
+    })
+
+    it('Continue waits only for the required-now attribute and confirms without the deferred one', () => {
+      const onConfirm = renderLater()
+      const submit = screen.getByTestId('guest-attrs-submit') as HTMLButtonElement
+      expect(submit.disabled).toBe(true)
+      fireEvent.change(screen.getByTestId('guest-attr-0-age'), { target: { value: '30' } })
+      expect(submit.disabled).toBe(false)
+      fireEvent.click(submit)
+      expect(onConfirm.mock.calls[0]![0][0].guest_attributes).toEqual({ age: 30 })
+    })
+
+    it('keeps a deferred value the guest did fill in', () => {
+      const onConfirm = renderLater()
+      fireEvent.change(screen.getByTestId('guest-attr-0-age'), { target: { value: '30' } })
+      fireEvent.change(screen.getByTestId('guest-attr-0-shoe_size_eu'), { target: { value: '42' } })
+      fireEvent.click(screen.getByTestId('guest-attrs-submit'))
+      expect(onConfirm.mock.calls[0]![0][0].guest_attributes).toEqual({ age: 30, shoe_size_eu: 42 })
+    })
+
+    it('does not block Continue on a bad deferred value, but says so', () => {
+      const onConfirm = renderLater()
+      fireEvent.change(screen.getByTestId('guest-attr-0-age'), { target: { value: '30' } })
+      fireEvent.change(screen.getByTestId('guest-attr-0-shoe_size_eu'), { target: { value: '999' } })
+      expect(screen.getByRole('alert')).toBeTruthy()
+      const submit = screen.getByTestId('guest-attrs-submit') as HTMLButtonElement
+      expect(submit.disabled).toBe(false)
+      fireEvent.click(submit)
+      expect(onConfirm.mock.calls[0]![0][0].guest_attributes).toEqual({ age: 30 })
+    })
+
+    it('an all-deferred step lets Continue through straight away', () => {
+      const onConfirm = vi.fn()
+      render(
+        <GuestAttributesStep
+          productName="Tandem"
+          attributes={[LATER[1]!]}
+          participants={[person('Ada')]}
+          companions={[]}
+          onConfirm={onConfirm}
+        />,
+      )
+      const submit = screen.getByTestId('guest-attrs-submit') as HTMLButtonElement
+      expect(submit.disabled).toBe(false)
+    })
+  })
 })

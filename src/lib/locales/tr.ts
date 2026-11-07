@@ -350,6 +350,7 @@ export const tr: Bundle = {
   guestAttrsOk: 'Tüm bilgiler tamam.',
   guestAttrsInvalid: 'Lütfen bu değeri kontrol edin.',
   guestAttrsRange: '{min}-{max}',
+  guestAttrsLater: 'Bunu daha sonra ekleyebilirsiniz — varışınızdan önce tekrar soracağız',
   breakfastLabel: 'Kahvaltı',
   emptyLabel: 'Boş',
   swapInHereLabel: 'Buraya yerleştir',
