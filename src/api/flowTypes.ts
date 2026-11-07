@@ -118,6 +118,18 @@ export interface FlowGuestAttribute {
   max_value?: number | null
 }
 
+/**
+ * One age band of the cart: Child (0-17, the exact age is asked) and the adult
+ * side, each picked as a band and stored as its floor `min_age`.
+ */
+export interface FlowAgeBand {
+  key: string
+  min_age: number
+  /** null = open-ended (the last adult band). */
+  max_age?: number | null
+  label_localized?: Record<string, string> | null
+}
+
 /** Top-level response of GET …/products/{id}/flow. */
 export interface ProductFlowResponse {
   modules: FlowModuleDef[] | null
@@ -126,6 +138,13 @@ export interface ProductFlowResponse {
    * that can be shown for it). Absent = nothing to ask.
    */
   guest_attributes?: FlowGuestAttribute[]
+  /**
+   * The cart asks every guest's age: the party step collects it (and `age`
+   * is no longer in `guest_attributes`). Absent = false.
+   */
+  age_needed?: boolean
+  /** The bands the party step offers when `age_needed`. Absent = []. */
+  age_bands?: FlowAgeBand[]
 }
 
 /**

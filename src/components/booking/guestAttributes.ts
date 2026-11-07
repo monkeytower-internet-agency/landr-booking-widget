@@ -59,7 +59,20 @@ export function attributeBounds(def: FlowGuestAttribute): [number | null, number
  */
 export function currentValue(guest: GuestLike, key: string): number | string | undefined {
   if (key === 'age') return typeof guest.occupant_age === 'number' ? guest.occupant_age : undefined
-  return guest.guest_attributes?.[key]
+  const v = guest.guest_attributes?.[key]
+  return typeof v === 'boolean' ? undefined : v
+}
+
+/**
+ * What the 'About your guests' step asks of a flow: its `guest_attributes`
+ * without `age` once the party step collects the age (`age_needed`; the API
+ * already leaves it out, this keeps an older response from asking twice).
+ */
+export function askedAttributes(
+  flow: { guest_attributes?: FlowGuestAttribute[]; age_needed?: boolean } | null | undefined,
+): FlowGuestAttribute[] {
+  const all = flow?.guest_attributes ?? []
+  return flow?.age_needed ? all.filter((a) => a.key !== 'age') : all
 }
 
 /** The attributes of several lists, each key once, first definition wins. */

@@ -57,7 +57,7 @@ import {
   type CompanionDetails,
   type ParticipantDetails,
 } from './detailsTypes'
-import { guestAttributesWire } from './guestAttributes'
+import { adultAgeWire } from './ageBands'
 import { ContinueAction } from './ContinueAction'
 import { isOwnAccommodation, ownAccommodationWire } from './ownAccommodation'
 import { CustomerCommentField } from './CustomerCommentField'
@@ -1171,7 +1171,7 @@ export function BookingForm({
   const agesNeeded =
     participants.length >= 2 && !participants.some((p) => p.occupant_age_band !== undefined)
   const inlineAgesApply =
-    agesNeeded && crossSellLines.some((l) => l.product.occupancy_pricing)
+    agesNeeded && crossSellLines.some((l) => l.product.occupancy_pricing || l.flow?.age_needed === true)
   const inlineChildAges = useMemo(
     () => (inlineAgesApply ? childAgesFromEntries(inlineAges, participants.length) : undefined),
     [inlineAgesApply, inlineAges, participants.length],
@@ -1838,7 +1838,12 @@ export function BookingForm({
                   occupant_age: ageEntry.age ?? null,
                 }
               : {}),
-            ...guestAttributesWire(p),
+            // landr-zcb24.2: an adult band is sent as its floor + age_exact=false.
+            ...adultAgeWire(
+              p,
+              isChild,
+              inlineAgesApply ? inlineAges?.[idx]?.floor : undefined,
+            ),
             // landr-a4fy wire field (PINNED contract):
             // omit when false to keep the payload compact.
             ...(hasBreakfast ? { has_breakfast: true as const } : {}),
@@ -1873,7 +1878,12 @@ export function BookingForm({
                   ? undefined
                   : roomAssignment?.[memberIdx]
                 // landr-doam.1: per-occupant age band + age for companions.
-                const ageEntry = occupantAgeMap[memberIdx]
+                // landr-zcb24.2: falls back to the child age the party step took.
+                const ageEntry =
+                  occupantAgeMap[memberIdx] ??
+                  (c.occupant_age_band === 'child'
+                    ? { band: 'child' as const, age: c.occupant_age ?? null }
+                    : undefined)
                 const isChild = ageEntry?.band === 'child'
                 // landr-a4fy: per-occupant breakfast flag for companions.
                 const hasBreakfast = breakfastMap[memberIdx] === true
@@ -1893,7 +1903,7 @@ export function BookingForm({
                         occupant_age: ageEntry.age ?? null,
                       }
                     : {}),
-                  ...guestAttributesWire(c),
+                  ...adultAgeWire(c, isChild),
                   // landr-a4fy wire field (PINNED contract):
                   // omit when false to keep the payload compact.
                   ...(hasBreakfast ? { has_breakfast: true as const } : {}),

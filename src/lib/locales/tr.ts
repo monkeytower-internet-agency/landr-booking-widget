@@ -336,6 +336,8 @@ export const tr: Bundle = {
   occupancyChildBandFree: 'çocuklar {from}-{to} ücretsiz',
   guestAgeRequired: 'Lütfen her çocuğun yaşını seçin.',
   agePlaceholder: 'Yaş',
+  bookerAdultConfirm: '18 yaşında veya daha büyüğüm',
+  bookerAdultRequired: 'Rezervasyon yapmak için 18 yaşında veya daha büyük olduğunuzu onaylayın.',
   guestAttrsTitle: 'Misafirleriniz hakkında',
   guestAttrsIntro: 'Doğru ekipmanı ve fiyatı hazırlayabilmemiz için kişi başına birkaç bilgi.',
   guestAttrsFallback: 'Misafir {n}',

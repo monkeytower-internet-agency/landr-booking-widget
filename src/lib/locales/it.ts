@@ -332,6 +332,8 @@ export const it: Bundle = {
   occupancyChildBandFree: 'bambini {from}-{to} gratis',
   guestAgeRequired: 'Seleziona l\'età di ogni bambino.',
   agePlaceholder: 'Età',
+  bookerAdultConfirm: 'Ho 18 anni o più',
+  bookerAdultRequired: 'Conferma di avere almeno 18 anni per prenotare.',
   guestAttrsTitle: 'Sugli ospiti',
   guestAttrsIntro: 'Qualche dato per ogni ospite, per preparare l\'attrezzatura e il prezzo giusti.',
   guestAttrsFallback: 'Ospite {n}',
