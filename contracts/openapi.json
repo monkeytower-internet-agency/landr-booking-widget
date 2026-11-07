@@ -3986,6 +3986,50 @@
         "title": "BriefingDayIn",
         "type": "object"
       },
+      "BriefingGuestAttributesIn": {
+        "additionalProperties": false,
+        "properties": {
+          "participants": {
+            "items": {
+              "$ref": "#/components/schemas/ParticipantAttributesIn"
+            },
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "Participants",
+            "type": "array"
+          }
+        },
+        "required": [
+          "participants"
+        ],
+        "title": "BriefingGuestAttributesIn",
+        "type": "object"
+      },
+      "BriefingGuestAttributesOut": {
+        "description": "``attributes`` are the collectable definitions, ``participants`` who still\nowes which keys; both empty when there is nothing left to ask.",
+        "properties": {
+          "attributes": {
+            "items": {
+              "$ref": "#/components/schemas/FlowAttributeOut"
+            },
+            "title": "Attributes",
+            "type": "array"
+          },
+          "participants": {
+            "items": {
+              "$ref": "#/components/schemas/ParticipantMissingOut"
+            },
+            "title": "Participants",
+            "type": "array"
+          }
+        },
+        "required": [
+          "attributes",
+          "participants"
+        ],
+        "title": "BriefingGuestAttributesOut",
+        "type": "object"
+      },
       "BriefingJoinIn": {
         "description": "The host's booking reference, typed on the customer page (epic D4/D6).",
         "properties": {
@@ -12228,6 +12272,83 @@
         "title": "FlowAgeBand",
         "type": "object"
       },
+      "FlowAttributeOut": {
+        "properties": {
+          "choices": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Choices"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "label_localized": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Label Localized",
+            "type": "object"
+          },
+          "max_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Value"
+          },
+          "min_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Value"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          },
+          "value_type": {
+            "title": "Value Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "value_type"
+        ],
+        "title": "FlowAttributeOut",
+        "type": "object"
+      },
       "FlowFieldDef": {
         "additionalProperties": true,
         "description": "One field definition from the form RPC (verbatim wire keys).\nMirrors the widget's ``FlowFieldDef`` TypeScript interface.",
@@ -12532,6 +12653,11 @@
             ],
             "title": "Choices"
           },
+          "deferred": {
+            "default": false,
+            "title": "Deferred",
+            "type": "boolean"
+          },
           "key": {
             "title": "Key",
             "type": "string"
@@ -12568,6 +12694,11 @@
               }
             ],
             "title": "Min Value"
+          },
+          "required_now": {
+            "default": true,
+            "title": "Required Now",
+            "type": "boolean"
           },
           "unit": {
             "anyOf": [
@@ -13492,10 +13623,24 @@
             ],
             "title": "Choices"
           },
+          "collect_when": {
+            "default": "booking",
+            "enum": [
+              "booking",
+              "before_arrival"
+            ],
+            "title": "Collect When",
+            "type": "string"
+          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
             "type": "string"
+          },
+          "decisive": {
+            "default": false,
+            "title": "Decisive",
+            "type": "boolean"
           },
           "id": {
             "format": "uuid",
@@ -13622,6 +13767,15 @@
             ],
             "title": "Choices"
           },
+          "collect_when": {
+            "default": "booking",
+            "enum": [
+              "booking",
+              "before_arrival"
+            ],
+            "title": "Collect When",
+            "type": "string"
+          },
           "key": {
             "pattern": "^[a-z][a-z0-9_]{0,39}$",
             "title": "Key",
@@ -13726,6 +13880,21 @@
               }
             ],
             "title": "Choices"
+          },
+          "collect_when": {
+            "anyOf": [
+              {
+                "enum": [
+                  "booking",
+                  "before_arrival"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collect When"
           },
           "label": {
             "anyOf": [
@@ -22142,6 +22311,46 @@
         "title": "PartialCreditNoteIn",
         "type": "object"
       },
+      "ParticipantAttributesIn": {
+        "additionalProperties": false,
+        "properties": {
+          "attributes": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "maxProperties": 32,
+            "title": "Attributes",
+            "type": "object"
+          },
+          "participant_id": {
+            "format": "uuid",
+            "title": "Participant Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "participant_id",
+          "attributes"
+        ],
+        "title": "ParticipantAttributesIn",
+        "type": "object"
+      },
       "ParticipantDayStatusIn": {
         "description": "Create payload for a new participant-day status.\n\n`semantic_state` is required here \u2014 and ONLY here, see\n`ParticipantDayStatusPatch` below and the module docstring. `leaves_unit`\nis optional here \u2014 omitting it lets the DB's `BEFORE INSERT` trigger\ndefault it from `semantic_state` (see module docstring) \u2014 but, unlike\n`semantic_state`, remains mutable after create via\n`ParticipantDayStatusPatch`.",
         "properties": {
@@ -22443,6 +22652,39 @@
           "service_role_code"
         ],
         "title": "ParticipantIn",
+        "type": "object"
+      },
+      "ParticipantMissingOut": {
+        "properties": {
+          "first_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Name"
+          },
+          "missing": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Missing",
+            "type": "array"
+          },
+          "participant_id": {
+            "format": "uuid",
+            "title": "Participant Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "participant_id",
+          "missing"
+        ],
+        "title": "ParticipantMissingOut",
         "type": "object"
       },
       "PartnerOut": {
@@ -50815,6 +51057,100 @@
         "summary": "List Checkins",
         "tags": [
           "public-briefings"
+        ]
+      }
+    },
+    "/api/public/briefings/{token}/guest-attributes": {
+      "get": {
+        "description": "The before-arrival guest details still missing, per participant.",
+        "operationId": "public_briefing_get_guest_attributes",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BriefingGuestAttributesOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Briefing Guest Attributes",
+        "tags": [
+          "public-briefings-guest-attributes"
+        ]
+      },
+      "put": {
+        "description": "Store before-arrival values per participant; returns what is still missing.\n\n422 ``attribute_not_collectable`` (``key``) for a key the page may not collect\n(decisive, ``age``, not asked by this booking); 422 ``attribute_invalid`` /\n``attribute_unknown`` as the public submit; 404 for a participant who is not on\nthis booking. Nothing is written unless every participant validates.",
+        "operationId": "public_briefing_put_guest_attributes",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BriefingGuestAttributesIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BriefingGuestAttributesOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Briefing Guest Attributes",
+        "tags": [
+          "public-briefings-guest-attributes"
         ]
       }
     },
