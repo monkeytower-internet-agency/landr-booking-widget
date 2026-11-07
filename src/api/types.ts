@@ -1153,7 +1153,7 @@ export interface Participant {
    * server validates them against the operator's attribute catalogue. `age`
    * is the same value as occupant_age.
    */
-  guest_attributes?: Record<string, number | string>
+  guest_attributes?: Record<string, number | string | boolean>
   /**
    * landr-a4fy: per-occupant breakfast flag. true when this participant
    * has breakfast included (tied to the breakfast add-on selection in
@@ -1229,7 +1229,7 @@ export interface Companion {
    * server validates them against the operator's attribute catalogue. `age`
    * is the same value as occupant_age.
    */
-  guest_attributes?: Record<string, number | string>
+  guest_attributes?: Record<string, number | string | boolean>
   /**
    * landr-a4fy: per-occupant breakfast flag for companions. Mirrors the
    * Participant field exactly — true when this companion has breakfast.

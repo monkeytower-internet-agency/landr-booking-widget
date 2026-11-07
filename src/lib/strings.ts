@@ -359,6 +359,8 @@ export type Bundle = {
   occupancyChildBandFree: string
   guestAgeRequired: string
   agePlaceholder: string
+  bookerAdultConfirm: string
+  bookerAdultRequired: string
   guestAttrsTitle: string
   guestAttrsIntro: string
   guestAttrsFallback: string
@@ -1425,6 +1427,8 @@ const en: Bundle = {
   occupancyChildBandFree: 'children {from}-{to} free',
   guestAgeRequired: 'Please select the age of each child.',
   agePlaceholder: 'Age',
+  bookerAdultConfirm: 'I am 18 or older',
+  bookerAdultRequired: 'Please confirm that you are 18 or older to book.',
   guestAttrsTitle: 'About your guests',
   guestAttrsIntro: 'A few details per guest, so we can prepare the right gear and price.',
   guestAttrsFallback: 'Guest {n}',

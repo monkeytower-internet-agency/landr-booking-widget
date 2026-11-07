@@ -634,6 +634,7 @@ export function AddMoreProducts({
                 value={modules.state.ages ?? {}}
                 onChange={modules.onAges}
                 locale={locale}
+                ageBands={needs.ageBands}
               />
             ) : null}
 

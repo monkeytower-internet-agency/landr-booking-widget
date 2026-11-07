@@ -23,7 +23,8 @@ import type {
   Product,
   ProductLine,
 } from '@/api/types'
-import type { FlowFormDef, ProductFlowResponse } from '@/api/flowTypes'
+import type { FlowAgeBand, FlowFormDef, ProductFlowResponse } from '@/api/flowTypes'
+import { mergeBands } from './ageBands'
 import { isStayKind } from '@/flowPlan'
 import { hasFixedStartTimes, toHHMM } from './slotKey'
 import { expandWindowDays } from './expandWindowDays'
@@ -110,6 +111,10 @@ export interface CrossSellContext {
 export interface GuestAgeEntry {
   band: 'adult' | 'child'
   age: number | null
+  /** landr-zcb24.2: an adult band's floor, sent as the age (+ age_exact=false). */
+  floor?: number
+  /** landr-zcb24.2: the booker (entry 0) ticked "I am 18 or older". */
+  confirmed?: boolean
 }
 
 /**
@@ -223,6 +228,11 @@ export interface LineNeeds {
   forms: FlowFormDef[]
   /** landr-hfvyc.2: Adult/Child + age per guest (owned by the first occupancy-priced line). */
   ages?: boolean
+  /**
+   * landr-zcb24.2: the line's flow asks every guest's age (age_needed): the
+   * bands to offer (all added lines merged) — and the booker confirms 18+.
+   */
+  ageBands?: readonly FlowAgeBand[]
 }
 
 /**
@@ -262,9 +272,16 @@ export function lineNeeds(
       needs.pickup = true
       pickupClaimed = true
     }
-    if (ctx.agesNeeded && !agesClaimed && line.product.occupancy_pricing) {
+    if (
+      ctx.agesNeeded &&
+      !agesClaimed &&
+      (line.product.occupancy_pricing || line.flow?.age_needed === true)
+    ) {
       needs.ages = true
       agesClaimed = true
+      if (lines.some((l) => l.flow?.age_needed === true)) {
+        needs.ageBands = mergeBands(lines.filter((l) => l.flow?.age_needed).map((l) => l.flow?.age_bands))
+      }
     }
     for (const m of line.flow?.modules ?? []) {
       if (m.kind !== 'custom_form' || m.form == null) continue
@@ -311,7 +328,9 @@ export function inlineModulesPending(
       (n.language &&
         !(offer && languagesCover(inline.languages ?? {}, ctx.participantCount, offer))) ||
       (n.pickup && inline.pickupLocationId === null) ||
-      (n.ages === true && hasChildWithoutAgeEntry(inline.ages)) ||
+      (n.ages === true &&
+        (hasChildWithoutAgeEntry(inline.ages) ||
+          (n.ageBands !== undefined && inline.ages?.[0]?.confirmed !== true))) ||
       n.forms.some((f) => !answered.has(f.key)),
   )
 }

@@ -96,13 +96,15 @@ interface GuestRow {
   id?: string
   first_name?: string
   last_name?: string
-  guest_attributes?: Record<string, string | number>
+  guest_attributes?: Record<string, string | number | boolean>
   occupant_age_band?: 'adult' | 'child' | null
   occupant_age?: number | null
 }
 
 /** Per-member age entry (party index -> band + age), as RoomAssignment keeps it. */
-export type MemberAgeMap = Readonly<Record<number, { band: 'adult' | 'child'; age: number | null }>>
+export type MemberAgeMap = Readonly<
+  Record<number, { band: 'adult' | 'child'; age: number | null; floor?: number }>
+>
 
 /** Party order: participants first, then companions. */
 export function partyRef(index: number): string {
@@ -124,12 +126,21 @@ export function partyMembers(
   return [...participants, ...companions].map((p, i) => {
     const attributes: Record<string, GuestAttributeWireValue> = { ...(p.guest_attributes ?? {}) }
     const entry = ageMap[i]
+    // landr-zcb24.2: an adult band's floor (age_exact=false) is the age the
+    // offer rules judge; the flag itself is not an attribute.
+    const floor =
+      p.guest_attributes?.age_exact === false && typeof p.occupant_age === 'number'
+        ? p.occupant_age
+        : null
+    delete attributes.age_exact
     const age =
       entry?.band === 'child'
         ? entry.age
-        : p.occupant_age_band === 'child'
+        : entry?.floor !== undefined
+          ? entry.floor
+          : p.occupant_age_band === 'child'
           ? (p.occupant_age ?? null)
-          : null
+          : floor
     if (attributes.age === undefined && typeof age === 'number') attributes.age = age
     const name = `${p.first_name ?? ''} ${p.last_name ?? ''}`.trim()
     return {
