@@ -3745,6 +3745,35 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/public/briefings/{token}/guest-attributes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Briefing Guest Attributes
+         * @description The before-arrival guest details still missing, per participant.
+         */
+        get: operations["public_briefing_get_guest_attributes"];
+        /**
+         * Put Briefing Guest Attributes
+         * @description Store before-arrival values per participant; returns what is still missing.
+         *
+         *     422 ``attribute_not_collectable`` (``key``) for a key the page may not collect
+         *     (decisive, ``age``, not asked by this booking); 422 ``attribute_invalid`` /
+         *     ``attribute_unknown`` as the public submit; 404 for a participant who is not on
+         *     this booking. Nothing is written unless every participant validates.
+         */
+        put: operations["public_briefing_put_guest_attributes"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/public/briefings/{token}/join": {
         parameters: {
             query?: never;
@@ -15158,6 +15187,22 @@ export interface components {
             /** Plan Headline */
             plan_headline?: string | null;
         };
+        /** BriefingGuestAttributesIn */
+        BriefingGuestAttributesIn: {
+            /** Participants */
+            participants: components["schemas"]["ParticipantAttributesIn"][];
+        };
+        /**
+         * BriefingGuestAttributesOut
+         * @description ``attributes`` are the collectable definitions, ``participants`` who still
+         *     owes which keys; both empty when there is nothing left to ask.
+         */
+        BriefingGuestAttributesOut: {
+            /** Attributes */
+            attributes: components["schemas"]["FlowAttributeOut"][];
+            /** Participants */
+            participants: components["schemas"]["ParticipantMissingOut"][];
+        };
         /**
          * BriefingJoinIn
          * @description The host's booking reference, typed on the customer page (epic D4/D6).
@@ -18011,6 +18056,27 @@ export interface components {
             /** Min Age */
             min_age: number;
         };
+        /** FlowAttributeOut */
+        FlowAttributeOut: {
+            /** Choices */
+            choices?: string[] | null;
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /** Label Localized */
+            label_localized?: {
+                [key: string]: string;
+            };
+            /** Max Value */
+            max_value?: number | null;
+            /** Min Value */
+            min_value?: number | null;
+            /** Unit */
+            unit?: string | null;
+            /** Value Type */
+            value_type: string;
+        };
         /**
          * FlowFieldDef
          * @description One field definition from the form RPC (verbatim wire keys).
@@ -18133,6 +18199,11 @@ export interface components {
         FlowGuestAttribute: {
             /** Choices */
             choices?: string[] | null;
+            /**
+             * Deferred
+             * @default false
+             */
+            deferred: boolean;
             /** Key */
             key: string;
             /** Label */
@@ -18145,6 +18216,11 @@ export interface components {
             max_value?: number | null;
             /** Min Value */
             min_value?: number | null;
+            /**
+             * Required Now
+             * @default true
+             */
+            required_now: boolean;
             /** Unit */
             unit?: string | null;
             /**
@@ -18439,10 +18515,21 @@ export interface components {
             /** Choices */
             choices: string[] | null;
             /**
+             * Collect When
+             * @default booking
+             * @enum {string}
+             */
+            collect_when: "booking" | "before_arrival";
+            /**
              * Created At
              * Format: date-time
              */
             created_at: string;
+            /**
+             * Decisive
+             * @default false
+             */
+            decisive: boolean;
             /**
              * Id
              * Format: uuid
@@ -18494,6 +18581,12 @@ export interface components {
             active: boolean;
             /** Choices */
             choices?: string[] | null;
+            /**
+             * Collect When
+             * @default booking
+             * @enum {string}
+             */
+            collect_when: "booking" | "before_arrival";
             /** Key */
             key: string;
             /** Label */
@@ -18529,6 +18622,8 @@ export interface components {
             active?: boolean | null;
             /** Choices */
             choices?: string[] | null;
+            /** Collect When */
+            collect_when?: ("booking" | "before_arrival") | null;
             /** Label */
             label?: string | null;
             /** Label Localized */
@@ -21369,6 +21464,18 @@ export interface components {
             /** Reason */
             reason: string;
         };
+        /** ParticipantAttributesIn */
+        ParticipantAttributesIn: {
+            /** Attributes */
+            attributes: {
+                [key: string]: boolean | number | string | null;
+            };
+            /**
+             * Participant Id
+             * Format: uuid
+             */
+            participant_id: string;
+        };
         /**
          * ParticipantDayStatusIn
          * @description Create payload for a new participant-day status.
@@ -21474,6 +21581,18 @@ export interface components {
             room_unit_index?: number | null;
             /** Service Role Code */
             service_role_code: string;
+        };
+        /** ParticipantMissingOut */
+        ParticipantMissingOut: {
+            /** First Name */
+            first_name?: string | null;
+            /** Missing */
+            missing: string[];
+            /**
+             * Participant Id
+             * Format: uuid
+             */
+            participant_id: string;
         };
         /** PartnerOut */
         PartnerOut: {
@@ -33873,6 +33992,72 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_briefing_get_guest_attributes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BriefingGuestAttributesOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_briefing_put_guest_attributes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BriefingGuestAttributesIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BriefingGuestAttributesOut"];
                 };
             };
             /** @description Validation Error */
