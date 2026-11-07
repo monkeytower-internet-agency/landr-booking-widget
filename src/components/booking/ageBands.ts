@@ -173,6 +173,32 @@ export function mergeBands(lists: ReadonlyArray<readonly FlowAgeBand[] | null | 
 }
 
 /**
+ * landr-zcb24.12: the guests the review step must ask again. The party step
+ * asked with the main flow's bands (`base`) and stored each adult's band FLOOR.
+ * An added line can bring a cut the main bands lack, so `merged` splits some
+ * band in two: a guest whose floor sits in a band that now splits (a merged floor
+ * strictly between their floor and the next base floor) may be on either side,
+ * and their stored floor would judge a rule of the new cut wrongly. `floors` are
+ * the stored adult floors by roster index (children and exact ages are not
+ * listed: a child's age is exact already).
+ */
+export function guestsToReask(
+  base: readonly FlowAgeBand[],
+  merged: readonly FlowAgeBand[],
+  floors: Readonly<Record<number, number | undefined>>,
+): number[] {
+  const baseFloors = adultBandsOf(base).map((b) => b.min_age)
+  const mergedFloors = adultBandsOf(merged).map((b) => b.min_age)
+  const out: number[] = []
+  for (const [k, floor] of Object.entries(floors)) {
+    if (floor === undefined) continue
+    const next = baseFloors.find((f) => f > floor) ?? Infinity
+    if (mergedFloors.some((f) => f > floor && f < next)) out.push(Number(k))
+  }
+  return out.sort((a, b) => a - b)
+}
+
+/**
  * The wire fields of a guest's age that ride beside the child fields:
  * an adult band's floor as `occupant_age` plus `age` in `guest_attributes._inexact`.
  * An adult with an exact age (`exactAge`, the party step's number or the review

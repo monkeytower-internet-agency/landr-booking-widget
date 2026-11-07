@@ -7,6 +7,10 @@
  * flow asks ages (`ageBands` given) the first guest (the booker) shows too:
  * adult bands only plus a required "I am 18 or older", and an adult band is
  * stored as its floor.
+ *
+ * landr-zcb24.12: with `only` the party step already asked the ages and an added
+ * line split some bands: just those guests pick their adult band again (from the
+ * refined `ageBands`), nobody else shows.
  */
 import type { FlowAgeBand } from '@/api/flowTypes'
 import { tr } from '@/lib/strings'
@@ -24,15 +28,53 @@ interface Props {
   ageBands?: readonly FlowAgeBand[]
   /** landr-zcb24.7: the operator collects age as exact: a number per guest, the booker 18+. */
   exact?: boolean
+  /** landr-zcb24.12: only these roster guests pick an adult band again. */
+  only?: readonly number[]
 }
 
 const SELECT = 'border-input bg-surface-page h-9 rounded-md border px-2 text-sm'
 
-export function InlineGuestAges({ labels, value, onChange, locale, ageBands, exact = false }: Props) {
+export function InlineGuestAges({ labels, value, onChange, locale, ageBands, exact = false, only }: Props) {
   const storeFloor = ageBands !== undefined
   const bands = ageBands ?? DEFAULT_AGE_BANDS
   const adults = adultBandsOf(bands)
   const set = (i: number, entry: GuestAgeEntry) => onChange({ ...value, [i]: entry })
+  if (only !== undefined) {
+    return (
+      <div className="space-y-2" data-testid="inline-guest-ages-refine">
+        <p className="text-sm text-muted-foreground">{tr('ageRefineIntro', locale)}</p>
+        <ul className="space-y-2" data-testid="inline-guest-ages">
+          {labels.map((label, i) => {
+            if (!only.includes(i)) return null
+            const picked = adults.find((b) => b.min_age === value[i]?.floor)
+            return (
+              <li key={i} className="flex flex-wrap items-center gap-2 text-sm">
+                <span className="min-w-24">{label}</span>
+                <select
+                  data-testid={`inline-age-band-${i}`}
+                  aria-label={tr('ageBandAria', locale)}
+                  aria-invalid={picked ? undefined : true}
+                  value={picked?.key ?? ''}
+                  onChange={(e) => {
+                    const band = adults.find((b) => b.key === e.target.value)
+                    if (band) set(i, { band: 'adult', age: null, floor: band.min_age })
+                  }}
+                  className={SELECT}
+                >
+                  {picked ? null : <option value="">{tr('ageRefineChoose', locale)}</option>}
+                  {adults.map((b) => (
+                    <option key={b.key} value={b.key}>
+                      {bandLabel(b, bands, locale)}
+                    </option>
+                  ))}
+                </select>
+              </li>
+            )
+          })}
+        </ul>
+      </div>
+    )
+  }
   return (
     <ul className="space-y-2" data-testid="inline-guest-ages">
       {labels.map((label, i) => {

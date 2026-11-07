@@ -57,7 +57,7 @@ import {
   type CompanionDetails,
   type ParticipantDetails,
 } from './detailsTypes'
-import { adultAgeWire } from './ageBands'
+import { adultAgeWire, adultFloorOf, resolveBands } from './ageBands'
 import { ContinueAction } from './ContinueAction'
 import { isOwnAccommodation, ownAccommodationWire } from './ownAccommodation'
 import { CustomerCommentField } from './CustomerCommentField'
@@ -1186,6 +1186,19 @@ export function BookingForm({
     })
   }, [inlineLanguages, inlineForms, inlinePickupId, inlineAges, inlineChildAges, onInlineAnswersChange])
   const mainOfferedLanguages = useMemo(() => productOfferedLanguages(product), [product])
+  // landr-zcb24.12: the party step asked the ages as the main flow's bands and
+  // stored each adult's band floor. An added line with a finer cut re-asks the
+  // guests whose band it splits (see `refinedAges`).
+  const mainAgeBands =
+    productFlow?.age_needed === true && productFlow.age_collect_as !== 'exact'
+      ? resolveBands(productFlow.age_bands)
+      : null
+  const storedAdultFloors: Record<number, number | undefined> = {}
+  if (mainAgeBands) {
+    participantsForSubmit(booker, participants).forEach((p, i) => {
+      if (p.occupant_age_band !== 'child') storedAdultFloors[i] = adultFloorOf(p)
+    })
+  }
   const crossSellContext: CrossSellContext = {
     participantLanguages: mainParticipantLanguages,
     participantCount: participants.length,
@@ -1193,6 +1206,7 @@ export function BookingForm({
     answeredFormKeys: (mainFormResponses ?? []).map((f) => f.form_key),
     hasPickup: mainPickupLocationId != null || (accommodationRooms ?? []).length > 0,
     agesNeeded,
+    ...(mainAgeBands ? { ageRefine: { bands: mainAgeBands, floors: storedAdultFloors } } : {}),
   }
   const inlineModuleState: InlineModuleState = {
     languages: inlineLanguages,
@@ -1201,6 +1215,10 @@ export function BookingForm({
     ages: inlineAges,
   }
   const addedNeeds = Object.values(lineNeeds(crossSellLines, crossSellContext))
+  // The roster guests re-asked with the refined bands, and the floors they picked.
+  const refinedGuests = addedNeeds.find((n) => n.ageGuests !== undefined)?.ageGuests ?? []
+  const refinedFloor = (idx: number): number | undefined =>
+    refinedGuests.includes(idx) ? inlineAges?.[idx]?.floor : undefined
   const participantLanguages = effectiveLanguages(
     mainParticipantLanguages,
     inlineLanguages,
@@ -1237,6 +1255,11 @@ export function BookingForm({
   const offerMembersKey = (() => {
     const ages: Record<number, GuestAgeEntry> = { ...(inlineAgesApply ? (inlineAges ?? {}) : {}) }
     for (const [k, v] of Object.entries(occupantAgeMap)) ages[Number(k)] = v
+    // a re-asked guest's refined floor judges the offers, not the stale party-step one
+    for (const i of refinedGuests) {
+      const picked = inlineAges?.[i]
+      if (picked?.floor !== undefined) ages[i] = picked
+    }
     return JSON.stringify(
       partyMembers(participantsForSubmit(booker, participants), companions, ages, (n) =>
         tr('guestFallbackTemplate', locale).replace('{n}', String(n)),
@@ -1842,7 +1865,7 @@ export function BookingForm({
             ...adultAgeWire(
               p,
               isChild,
-              inlineAgesApply ? inlineAges?.[idx]?.floor : undefined,
+              inlineAgesApply ? inlineAges?.[idx]?.floor : refinedFloor(idx),
               inlineAgesApply ? (inlineAges?.[idx]?.age ?? undefined) : undefined,
             ),
             // landr-a4fy wire field (PINNED contract):

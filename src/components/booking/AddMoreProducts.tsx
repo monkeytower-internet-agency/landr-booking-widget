@@ -636,6 +636,7 @@ export function AddMoreProducts({
                 locale={locale}
                 ageBands={needs.ageBands}
                 exact={needs.ageExact === true}
+                only={needs.ageGuests}
               />
             ) : null}
 

@@ -81,3 +81,45 @@ describe('InlineGuestAges exact (landr-zcb24.7)', () => {
     })
   })
 })
+
+describe('InlineGuestAges re-ask (landr-zcb24.12)', () => {
+  function RefineHarness({ onChange }: { onChange: (v: Record<number, GuestAgeEntry>) => void }) {
+    const [value, setValue] = useState<Record<number, GuestAgeEntry>>({})
+    return (
+      <InlineGuestAges
+        labels={['Ada', 'Tim', 'Kid']}
+        value={value}
+        onChange={(v) => {
+          setValue(v)
+          onChange(v)
+        }}
+        locale="en"
+        ageBands={BANDS}
+        only={[0, 1]}
+      />
+    )
+  }
+
+  it('shows only the re-asked guests, adult bands only, with a prompt and no 18+ confirmation', () => {
+    render(<RefineHarness onChange={vi.fn()} />)
+    expect(screen.getByTestId('inline-age-band-0')).toBeInTheDocument()
+    expect(screen.getByTestId('inline-age-band-1')).toBeInTheDocument()
+    expect(screen.queryByTestId('inline-age-band-2')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('inline-booker-adult-confirm')).not.toBeInTheDocument()
+    expect(Array.from(screen.getByTestId('inline-age-band-1').querySelectorAll('option')).map((o) => o.textContent)).toEqual([
+      'Choose age group',
+      'Adult 18-64',
+      'Senior 65+',
+    ])
+  })
+
+  it('stores the picked adult floor', () => {
+    const onChange = vi.fn()
+    render(<RefineHarness onChange={onChange} />)
+    fireEvent.change(screen.getByTestId('inline-age-band-1'), { target: { value: 'age_65_plus' } })
+    expect(onChange).toHaveBeenLastCalledWith({ 1: { band: 'adult', age: null, floor: 65 } })
+    expect(
+      Array.from(screen.getByTestId('inline-age-band-1').querySelectorAll('option')).map((o) => o.textContent),
+    ).toEqual(['Adult 18-64', 'Senior 65+'])
+  })
+})
