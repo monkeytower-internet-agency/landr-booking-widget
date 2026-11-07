@@ -10,6 +10,8 @@ import {
   extraOfferEstimateLines,
   guestsWire,
   instantGate,
+  lineDays,
+  lineIsStay,
   MAIN_LINE_ID,
   mainEstimateLines,
   MAX_EVALUATE_LINES,
@@ -472,5 +474,67 @@ describe('review fixes', () => {
     const withPick = [newPick(offer('pass'), MAIN_LINE_ID, 'o1', DAYS)]
     expect([...orphanExtraKeys(extras, tree, withPick)]).toEqual([])
     expect([...orphanExtraKeys(extras, tree, [])].sort()).toEqual(['shoes', 'tour'])
+  })
+})
+
+describe('one-day schedules (first_day / last_day)', () => {
+  const stayTree: OfferTreeInput = {
+    main: { lineId: MAIN_LINE_ID, productId: STAY, parentLineId: null, days: DAYS, isStay: true },
+  }
+  const activityTree: OfferTreeInput = {
+    main: { lineId: MAIN_LINE_ID, productId: STAY, parentLineId: null, days: DAYS },
+  }
+  const pickOf = (schedule: 'first_day' | 'last_day', tree: OfferTreeInput) => {
+    const o = offer(schedule, { schedule })
+    return newPick(o, tree.main.lineId, 'o1', DAYS)
+  }
+
+  it('carries no days of its own', () => {
+    expect(pickOf('first_day', stayTree).days).toEqual([])
+    expect(pickOf('last_day', stayTree).schedule).toBe('last_day')
+  })
+
+  it('stay parent: arrival is the first night, departure the last night plus one', () => {
+    expect(lineDays('o1', stayTree, [pickOf('first_day', stayTree)])).toEqual(['2027-05-01'])
+    expect(lineDays('o1', stayTree, [pickOf('last_day', stayTree)])).toEqual(['2027-05-05'])
+  })
+
+  it('departure rolls over a month end', () => {
+    const tree: OfferTreeInput = {
+      main: { ...stayTree.main, days: ['2027-05-30', '2027-05-31'] },
+    }
+    expect(lineDays('o1', tree, [pickOf('last_day', tree)])).toEqual(['2027-06-01'])
+  })
+
+  it('non-stay parent: its first / last day', () => {
+    expect(lineDays('o1', activityTree, [pickOf('first_day', activityTree)])).toEqual(['2027-05-01'])
+    expect(lineDays('o1', activityTree, [pickOf('last_day', activityTree)])).toEqual(['2027-05-04'])
+  })
+
+  it('ignores the order of the parent days', () => {
+    const tree: OfferTreeInput = { main: { ...activityTree.main, days: [...DAYS].reverse() } }
+    expect(lineDays('o1', tree, [pickOf('last_day', tree)])).toEqual(['2027-05-04'])
+  })
+
+  it('sends the single day on the wire', () => {
+    const lines = evaluateLines(stayTree, [pickOf('last_day', stayTree)])
+    expect(lines.find((l) => l.line_id === 'o1')?.selected_days).toEqual(['2027-05-05'])
+  })
+
+  it('cartTree marks rooms and a stay main as stays', () => {
+    const t = cartTree({ product_id: 'p', product_kind: 'stay' }, DAYS, [
+      { productId: 'r1', quantity: 1 } as never,
+    ])
+    expect(t.main.isStay).toBe(true)
+    expect(t.rooms?.[0]?.isStay).toBe(true)
+    expect(cartTree({ product_id: 'p' }, DAYS).main.isStay).toBe(false)
+    expect(lineIsStay('main', stayTree, [])).toBe(true)
+    expect(lineIsStay('main', activityTree, [])).toBe(false)
+  })
+
+  it('resolves a stay-kind parent pick from its offer', () => {
+    const parent = newPick(offer('p', { product_kind: 'stay' }), MAIN_LINE_ID, 'o1', DAYS)
+    const child = { ...newPick(offer('c', { schedule: 'last_day' }), 'o1', 'o2', DAYS) }
+    expect(lineDays('o2', activityTree, [parent, child])).toEqual(['2027-05-05'])
   })
 })

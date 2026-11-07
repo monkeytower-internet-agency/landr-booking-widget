@@ -21,12 +21,14 @@ function Row({
   members = PARTY,
   locale = 'en',
   estimate,
+  parentIsStay,
 }: {
   offer: EvaluatedOffer
   initial?: OfferPick[]
   members?: PartyMember[]
   locale?: string
   estimate?: readonly EstimateLineItem[]
+  parentIsStay?: boolean
 }) {
   const [picks, setPicks] = useState<OfferPick[]>(initial)
   const pick = picks.find((p) => p.offerId === offer.id)
@@ -36,6 +38,7 @@ function Row({
         offer={offer}
         parentLineId="main"
         parentDays={STAY_DAYS}
+        parentIsStay={parentIsStay}
         pick={pick}
         members={members}
         tree={TREE}
@@ -120,6 +123,34 @@ describe('OfferRow: binding booking', () => {
     render(<Row offer={offer} initial={[picked(offer)]} />)
     expect(screen.getByTestId('offer-period-towels').textContent).toMatch(/whole stay/i)
     expect(screen.queryByTestId('offer-days-towels')).toBeNull()
+  })
+})
+
+describe('OfferRow: one-day schedules', () => {
+  const lateOut = evalOffer('late', { schedule: 'last_day' })
+  const earlyIn = evalOffer('early', { schedule: 'first_day' })
+
+  it('stay parent: names the arrival and the check-out day', () => {
+    const { unmount } = render(<Row offer={earlyIn} parentIsStay initial={[picked(earlyIn)]} />)
+    expect(screen.getByTestId('offer-period-early').textContent).toMatch(/On your arrival day: .*Nov.*2/)
+    unmount()
+    render(<Row offer={lateOut} parentIsStay initial={[picked(lateOut)]} />)
+    // The last night is Nov 4, so check-out is Nov 5.
+    expect(screen.getByTestId('offer-period-late').textContent).toMatch(/On your check-out day: .*Nov.*5/)
+    expect(screen.queryByTestId('offer-days-late')).toBeNull()
+  })
+
+  it('non-stay parent: the first and the last day', () => {
+    const { unmount } = render(<Row offer={earlyIn} initial={[picked(earlyIn)]} />)
+    expect(screen.getByTestId('offer-period-early').textContent).toMatch(/On the first day: .*Nov.*2/)
+    unmount()
+    render(<Row offer={lateOut} initial={[picked(lateOut)]} />)
+    expect(screen.getByTestId('offer-period-late').textContent).toMatch(/On the last day: .*Nov.*4/)
+  })
+
+  it('does not say whole stay', () => {
+    render(<Row offer={lateOut} parentIsStay initial={[picked(lateOut)]} />)
+    expect(screen.getByTestId('offer-period-late').textContent).not.toMatch(/whole stay/i)
   })
 })
 

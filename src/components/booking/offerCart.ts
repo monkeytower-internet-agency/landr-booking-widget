@@ -45,6 +45,7 @@ import type { ExtraLine } from './crossSell'
 import type { GuestAttributeValues } from './detailsTypes'
 import { INEXACT_KEY } from './inexact'
 import { stayNightIsos, type RoomSelection } from './accommodationCalc'
+import { addDays } from './offerDates'
 
 export const MAIN_LINE_ID = 'main'
 /** Depth of a pick counted from the stay line (depth 0); a chain stops here. */
@@ -185,6 +186,8 @@ export interface TreeLine {
   parentLineId: string | null
   /** Booked days (nights for a room / stay). */
   days: string[]
+  /** A stay: its days are nights, so its last day is the departure date. */
+  isStay?: boolean
 }
 
 /** The cart tree the picks hang in. */
@@ -199,6 +202,52 @@ function treeLines(tree: OfferTreeInput): TreeLine[] {
   return [tree.main, ...(tree.rooms ?? []), ...(tree.extras ?? [])]
 }
 
+/** Whether a product kind is a stay (as the API's offer resolver reads it). */
+const isStayKind = (kind: string | null | undefined): boolean => kind === 'stay' || kind === 'hotel_room'
+
+/**
+ * The one day a `first_day` / `last_day` line is priced on. Mirrors the API's
+ * schedule_days: a stay parent's days are nights, so first = arrival (first
+ * night) and last = departure (last night + 1); any other parent: its first /
+ * last day. Empty while the parent has no days.
+ */
+export function anchoredDay(
+  schedule: 'first_day' | 'last_day',
+  parentDays: readonly string[],
+  parentIsStay: boolean,
+): string[] {
+  if (parentDays.length === 0) return []
+  const sorted = [...parentDays].sort()
+  if (schedule === 'first_day') return [sorted[0]!]
+  const last = sorted[sorted.length - 1]!
+  return [parentIsStay ? addDays(last, 1) : last]
+}
+
+function lineInfo(
+  lineId: string,
+  tree: OfferTreeInput,
+  picks: readonly OfferPick[],
+  seen: ReadonlySet<string>,
+): { days: string[]; isStay: boolean } {
+  const line = treeLines(tree).find((l) => l.lineId === lineId)
+  if (line) return { days: line.days, isStay: line.isStay === true }
+  const pick = picks.find((p) => p.lineId === lineId)
+  if (!pick || seen.has(lineId)) return { days: [], isStay: false }
+  return {
+    days: lineDays(lineId, tree, picks, seen),
+    isStay: isStayKind(pick.seen.product_kind),
+  }
+}
+
+/** Whether line `lineId` is a stay (its days are nights, its last day the departure). */
+export function lineIsStay(
+  lineId: string,
+  tree: OfferTreeInput,
+  picks: readonly OfferPick[],
+): boolean {
+  return lineInfo(lineId, tree, picks, new Set()).isStay
+}
+
 /** The booked days of line `lineId` (a pick's days follow its schedule). */
 export function lineDays(
   lineId: string,
@@ -211,7 +260,12 @@ export function lineDays(
   const pick = picks.find((p) => p.lineId === lineId)
   if (!pick || seen.has(lineId)) return []
   if (pick.schedule === 'subset') return pick.days
-  return lineDays(pick.parentLineId, tree, picks, new Set([...seen, lineId]))
+  const next = new Set([...seen, lineId])
+  if (pick.schedule === 'first_day' || pick.schedule === 'last_day') {
+    const parent = lineInfo(pick.parentLineId, tree, picks, next)
+    return anchoredDay(pick.schedule, parent.days, parent.isStay)
+  }
+  return lineDays(pick.parentLineId, tree, picks, next)
 }
 
 /** Depth of a line: main / rooms 0, an added product or pick one more than its parent. */
@@ -831,6 +885,7 @@ export function extraTreeLine(l: ExtraLine): TreeLine | null {
     productId: l.product.product_id,
     parentLineId: l.parentLineId ?? MAIN_LINE_ID,
     days: [...l.days].sort(),
+    isStay: isStayKind(l.product.product_kind),
   }
 }
 
@@ -839,7 +894,11 @@ export function extraTreeLine(l: ExtraLine): TreeLine | null {
  * room type on the stay's nights, the products added from own-dated offers.
  */
 export function cartTree(
-  product: { product_id: string; accommodation_checkin_offset_days?: number | null },
+  product: {
+    product_id: string
+    product_kind?: string | null
+    accommodation_checkin_offset_days?: number | null
+  },
   mainDays: readonly string[],
   rooms: readonly RoomSelection[] = [],
   extras: readonly ExtraLine[] = [],
@@ -855,12 +914,14 @@ export function cartTree(
       productId: product.product_id,
       parentLineId: null,
       days: [...mainDays].sort(),
+      isStay: isStayKind(product.product_kind),
     },
     rooms: booked.map((r) => ({
       lineId: roomLineId(r.productId),
       productId: r.productId,
       parentLineId: null,
       days: nights,
+      isStay: true,
     })),
     extras: extras.flatMap((l) => {
       const t = extraTreeLine(l)

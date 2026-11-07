@@ -21,6 +21,7 @@ import {
   addPick,
   admittedMembers,
   clampOfferQty,
+  anchoredDay,
   effectiveSchedule,
   isOfferSoldOut,
   missingOption,
@@ -52,6 +53,8 @@ interface Props {
   parentLineId: string
   parentDays: readonly string[]
   pick: OfferPick | undefined
+  /** The parent line is a stay: its days are nights (anchors the one-day schedules). */
+  parentIsStay?: boolean
   members: readonly PartyMember[]
   tree: OfferTreeInput
   /** Pick ids this surface mints: `o` (review) / `a` (accommodation). */
@@ -80,6 +83,7 @@ export function OfferRow({
   offer,
   parentLineId,
   parentDays,
+  parentIsStay = false,
   pick,
   members,
   tree,
@@ -335,6 +339,18 @@ export function OfferRow({
           disabled={disabled}
           onToggle={onDay}
         />
+      ) : (pick || serverAttached) && parentDays.length > 0 && (schedule === 'first_day' || schedule === 'last_day') ? (
+        <p className="text-xs text-muted-foreground" data-testid={`offer-period-${offer.id}`}>
+          {fmt(
+            tr(
+              schedule === 'first_day'
+                ? parentIsStay ? 'offerOnArrivalDay' : 'offerOnFirstDay'
+                : parentIsStay ? 'offerOnDepartureDay' : 'offerOnLastDay',
+              locale,
+            ),
+            { day: formatDayLabel(anchoredDay(schedule, parentDays, parentIsStay)[0]!, locale) },
+          )}
+        </p>
       ) : (pick || serverAttached) && parentDays.length > 0 && schedule === 'locked' ? (
         <p className="text-xs text-muted-foreground" data-testid={`offer-period-${offer.id}`}>
           {fmt(tr('offerPeriodLocked', locale), {

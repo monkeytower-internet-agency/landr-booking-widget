@@ -656,6 +656,9 @@ export const MOCK_OFFER_IDS = {
   garage: '00000000-0000-0000-0000-0000000005a5',
   wifi: '00000000-0000-0000-0000-0000000005a6',
   yoga: '00000000-0000-0000-0000-0000000005a7',
+  lateCheckOut: '00000000-0000-0000-0000-0000000005a8',
+  earlyCheckIn: '00000000-0000-0000-0000-0000000005a9',
+  welcomeBasket: '00000000-0000-0000-0000-0000000005aa',
 } as const
 
 export const MOCK_OFFER_PRODUCTS = {
@@ -666,6 +669,9 @@ export const MOCK_OFFER_PRODUCTS = {
   garage: '00000000-0000-0000-0000-0000000006a5',
   wifi: '00000000-0000-0000-0000-0000000006a6',
   yoga: '00000000-0000-0000-0000-0000000006a7',
+  lateCheckOut: '00000000-0000-0000-0000-0000000006a8',
+  earlyCheckIn: '00000000-0000-0000-0000-0000000006a9',
+  welcomeBasket: '00000000-0000-0000-0000-0000000006aa',
 } as const
 
 /**
@@ -723,6 +729,22 @@ export function mockOfferStayOffers(): EvaluatedOffer[] {
       mode: 'info',
       sort_order: 6,
       short_description: 'Fast Wi-Fi in every room.',
+    }),
+    // One-day add-ons: priced on the arrival / check-out day, never per night.
+    mockOffer(MOCK_OFFER_IDS.lateCheckOut, stay, MOCK_OFFER_PRODUCTS.lateCheckOut, 'Late check-out', {
+      schedule: 'last_day',
+      sort_order: 7,
+      price_preview: preview(2500),
+    }),
+    mockOffer(MOCK_OFFER_IDS.earlyCheckIn, stay, MOCK_OFFER_PRODUCTS.earlyCheckIn, 'Early check-in', {
+      schedule: 'first_day',
+      sort_order: 8,
+      price_preview: preview(2000),
+    }),
+    mockOffer(MOCK_OFFER_IDS.welcomeBasket, stay, MOCK_OFFER_PRODUCTS.welcomeBasket, 'Welcome basket', {
+      schedule: 'first_day',
+      sort_order: 9,
+      price_preview: preview(1800),
     }),
   ]
 }
