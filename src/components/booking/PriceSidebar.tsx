@@ -407,7 +407,11 @@ function BookingOverviewBody({
                           className="block text-xs text-muted-foreground tabular-nums"
                           data-testid="price-sidebar-cleaning-fee"
                         >
-                          {tr('cleaningFeeLabel', locale)}{' '}
+                          {stayEstimate.check_out
+                            ? fmt(tr('cleaningFeeOnDay', locale), {
+                                day: formatDayLabel(stayEstimate.check_out, locale),
+                              })
+                            : tr('cleaningFeeLabel', locale)}{' '}
                           {formatMoney(li.cleaning_fee, data.currency, locale)}
                         </span>
                       ) : null}

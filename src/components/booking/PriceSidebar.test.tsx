@@ -303,6 +303,51 @@ describe('PriceSidebar — day chips + hotel span + names (landr-2wyi)', () => {
     ])
   })
 
+  it('shows one day chip for a last_day line and the cleaning fee on check-out day', async () => {
+    vi.spyOn(client, 'estimateBookingPrice').mockResolvedValue({
+      ...SAMPLE,
+      line_items: [
+        {
+          product_id: 'stay',
+          label: 'Studio',
+          qty: 1,
+          units: 3,
+          unit_price: '85.00',
+          line_total: '295.00',
+          cleaning_fee: '40.00',
+          paid_to: 'operator',
+        },
+        { product_id: 'late', label: 'Late check-out', qty: 1, units: 1, unit_price: '25.00', line_total: '25.00', paid_to: 'operator' },
+      ],
+      stay: { check_in: '2026-11-09', check_out: '2026-11-12', nights: 3, cleaning_fee: '40.00', errors: [] },
+    })
+    render(
+      <PriceSidebar
+        operatorToken="para42"
+        product={makeProduct({ product_kind: 'stay' })}
+        selectedDays={['2026-11-09', '2026-11-10', '2026-11-11']}
+        participantCount={1}
+        accommodationRooms={[]}
+        offerPicks={[
+          newPick(
+            evalOffer('of-late', { product_id: 'late', schedule: 'last_day' }),
+            'main',
+            'o1',
+            [],
+          ),
+        ]}
+      />,
+    )
+    const fee = (await screen.findAllByTestId('price-sidebar-cleaning-fee'))[0]!
+    expect(fee.textContent).toMatch(/Cleaning fee · .*Nov.*12.*40/)
+    const desktop = screen.getByTestId('price-sidebar-desktop')
+    await waitFor(() => expect(desktop.querySelectorAll('[data-testid="day-chips"]').length).toBeGreaterThan(0))
+    const chips = [...desktop.querySelectorAll('[data-testid="day-chips"]')].map((l) =>
+      [...l.querySelectorAll('[data-day]')].map((e) => e.getAttribute('data-day')),
+    )
+    expect(chips).toContainEqual(['2026-11-12'])
+  })
+
   it('lists an on-site line in its own group with on_site_total, apart from the amount due', async () => {
     vi.spyOn(client, 'estimateBookingPrice').mockResolvedValue({
       ...SAMPLE,

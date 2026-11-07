@@ -11195,7 +11195,9 @@
                 "enum": [
                   "locked",
                   "subset",
-                  "own"
+                  "own",
+                  "first_day",
+                  "last_day"
                 ],
                 "type": "string"
               },
@@ -11775,7 +11777,9 @@
                 "enum": [
                   "locked",
                   "subset",
-                  "own"
+                  "own",
+                  "first_day",
+                  "last_day"
                 ],
                 "type": "string"
               },
@@ -11891,7 +11895,9 @@
             "enum": [
               "locked",
               "subset",
-              "own"
+              "own",
+              "first_day",
+              "last_day"
             ],
             "title": "Schedule",
             "type": "string"
@@ -18918,7 +18924,9 @@
             "enum": [
               "locked",
               "subset",
-              "own"
+              "own",
+              "first_day",
+              "last_day"
             ],
             "title": "Schedule",
             "type": "string"
@@ -19268,7 +19276,9 @@
                 "enum": [
                   "locked",
                   "subset",
-                  "own"
+                  "own",
+                  "first_day",
+                  "last_day"
                 ],
                 "type": "string"
               },
@@ -28435,7 +28445,9 @@
             "enum": [
               "locked",
               "subset",
-              "own"
+              "own",
+              "first_day",
+              "last_day"
             ],
             "title": "Schedule",
             "type": "string"

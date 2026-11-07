@@ -1040,6 +1040,11 @@ export type Bundle = {
   offerOptionRequired: string
   offerOptionForTemplate: string
   offerPeriodLocked: string
+  offerOnArrivalDay: string
+  offerOnDepartureDay: string
+  offerOnFirstDay: string
+  offerOnLastDay: string
+  cleaningFeeOnDay: string
   offerPickDays: string
   offerAutoFor: string
   offerQuantity: string
@@ -2088,6 +2093,11 @@ const en: Bundle = {
   offerOptionRequired: 'Please choose an option.',
   offerOptionForTemplate: 'Option for {name}',
   offerPeriodLocked: 'For your whole stay: {period}',
+  offerOnArrivalDay: 'On your arrival day: {day}',
+  offerOnDepartureDay: 'On your check-out day: {day}',
+  offerOnFirstDay: 'On the first day: {day}',
+  offerOnLastDay: 'On the last day: {day}',
+  cleaningFeeOnDay: 'Cleaning fee · {day}',
   offerPickDays: 'Pick the days',
   offerAutoFor: 'Added for {names}',
   offerQuantity: 'Quantity',

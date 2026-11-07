@@ -17710,7 +17710,7 @@ export interface components {
             /** Qty */
             qty: number;
             /** Schedule */
-            schedule?: ("locked" | "subset" | "own") | null;
+            schedule?: ("locked" | "subset" | "own" | "first_day" | "last_day") | null;
             /** Unit Price */
             unit_price: string;
             /** Units */
@@ -17887,7 +17887,7 @@ export interface components {
              */
             draft: boolean;
             /** Effective Schedule */
-            effective_schedule?: ("locked" | "subset" | "own") | null;
+            effective_schedule?: ("locked" | "subset" | "own" | "first_day" | "last_day") | null;
             /**
              * Id
              * Format: uuid
@@ -17935,7 +17935,7 @@ export interface components {
              * Schedule
              * @enum {string}
              */
-            schedule: "locked" | "subset" | "own";
+            schedule: "locked" | "subset" | "own" | "first_day" | "last_day";
             /**
              * Server Attached
              * @default false
@@ -20484,7 +20484,7 @@ export interface components {
              * @default locked
              * @enum {string}
              */
-            schedule: "locked" | "subset" | "own";
+            schedule: "locked" | "subset" | "own" | "first_day" | "last_day";
             /**
              * Sort Order
              * @default 0
@@ -20589,7 +20589,7 @@ export interface components {
             required_attributes?: string[] | null;
             rules?: components["schemas"]["OfferRules"] | null;
             /** Schedule */
-            schedule?: ("locked" | "subset" | "own") | null;
+            schedule?: ("locked" | "subset" | "own" | "first_day" | "last_day") | null;
             /** Sort Order */
             sort_order?: number | null;
         };
@@ -23582,7 +23582,7 @@ export interface components {
              * Schedule
              * @enum {string}
              */
-            schedule: "locked" | "subset" | "own";
+            schedule: "locked" | "subset" | "own" | "first_day" | "last_day";
             /** Sort Order */
             sort_order: number;
             /**
