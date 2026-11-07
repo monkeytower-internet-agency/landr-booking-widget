@@ -146,6 +146,42 @@ describe('DetailsStep age bands (landr-zcb24.2)', () => {
     })
   })
 
+  it('Adult / Child only (landr-zcb24.31): a companion gets the band control and a child needs an age', () => {
+    const onConfirm = setup([], {
+      ageNeeded: false,
+      product: { ...mockOccupancyStay, occupancy_pricing: undefined, product_kind: 'service', hotel_offering: 'optional' },
+    })
+    fireEvent.click(screen.getByTestId('add-companion'))
+    expect(options('guest-age-band-companion-0')).toEqual(['Adult', 'Child'])
+    fireEvent.change(byName('companion_1_first_name'), { target: { value: 'Tom' } })
+    fireEvent.change(byName('companion_1_last_name'), { target: { value: 'Hopper' } })
+    fireEvent.click(screen.getByTestId('booker-adult-confirm'))
+    fireEvent.change(screen.getByTestId('guest-age-band-companion-0'), { target: { value: 'child' } })
+
+    // a child companion without an age blocks Continue
+    fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+    expect(onConfirm).not.toHaveBeenCalled()
+
+    fireEvent.change(screen.getByTestId('guest-age-companion-0'), { target: { value: '9' } })
+    fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+    expect(onConfirm).toHaveBeenCalledTimes(1)
+    expect(onConfirm.mock.calls[0][2][0]).toMatchObject({ occupant_age_band: 'child', occupant_age: 9 })
+  })
+
+  it('Adult / Child only: an untouched companion is stamped an adult', () => {
+    const onConfirm = setup([], {
+      ageNeeded: false,
+      product: { ...mockOccupancyStay, occupancy_pricing: undefined, product_kind: 'service', hotel_offering: 'optional' },
+    })
+    fireEvent.click(screen.getByTestId('add-companion'))
+    fireEvent.change(byName('companion_1_first_name'), { target: { value: 'Tom' } })
+    fireEvent.change(byName('companion_1_last_name'), { target: { value: 'Hopper' } })
+    fireEvent.click(screen.getByTestId('booker-adult-confirm'))
+    fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+    expect(onConfirm.mock.calls[0][2][0]).toMatchObject({ occupant_age_band: 'adult' })
+    expect(onConfirm.mock.calls[0][2][0].occupant_age).toBeFalsy()
+  })
+
   it('shows no age UI, no 18+ box and stamps nothing when the cart asks no age', () => {
     const onConfirm = setup(ITALY_BANDS, { collectGuestAges: false, ageNeeded: false })
     expect(screen.queryByTestId('booker-adult-confirm')).not.toBeInTheDocument()
