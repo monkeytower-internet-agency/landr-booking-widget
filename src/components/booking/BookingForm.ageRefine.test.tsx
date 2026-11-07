@@ -12,7 +12,7 @@ import type { Product } from '@/api/types'
 import { getAvailability, getOffers, submitBooking } from '@/api/client'
 import { BookingForm, type BookingSelection } from './BookingForm'
 import { inheritLine } from './crossSell'
-import type { BookerDetails, ParticipantDetails } from './detailsTypes'
+import type { BookerDetails, CompanionDetails, ParticipantDetails } from './detailsTypes'
 
 vi.mock('@/api/client', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/api/client')>()
@@ -99,16 +99,46 @@ beforeEach(() => {
   vi.mocked(getOffers).mockReset().mockResolvedValue({ lines: [{ line_id: 'main', eligible: true, offers: [], draft: false }] })
 })
 
-function renderForm(extraFlow: ProductFlowResponse) {
+// the party step stored 'Adult 18+' for a companion too
+function companion(first: string, over: Partial<CompanionDetails> = {}): CompanionDetails {
+  return {
+    first_name: first,
+    last_name: '',
+    email: '',
+    phone: '',
+    companion_kind: 'guest',
+    occupant_age_band: 'adult',
+    occupant_age: 18,
+    guest_attributes: { age: 18, _inexact: ['age'] },
+    ...over,
+  }
+}
+
+// the party step asked Adult/Child only: an adult carries no age
+function plainAdult(first: string): ParticipantDetails {
+  const row = adult(first)
+  delete row.occupant_age
+  delete row.guest_attributes
+  return row
+}
+
+interface Opts {
+  mainFlow?: ProductFlowResponse
+  participants?: ParticipantDetails[]
+  companions?: CompanionDetails[]
+}
+
+function renderForm(extraFlow: ProductFlowResponse, opts: Opts = {}) {
   const line = { ...inheritLine(makeService('extra-1'), DAYS, 'l1', extraFlow), checking: false }
   return render(
     <BookingForm
       widgetToken="para42"
       product={makeService('main-1')}
-      productFlow={MAIN_FLOW}
+      productFlow={opts.mainFlow ?? MAIN_FLOW}
       selection={SELECTION}
       booker={BOOKER}
-      participants={[adult('Ada'), adult('Grace')]}
+      participants={opts.participants ?? [adult('Ada'), adult('Grace')]}
+      companions={opts.companions}
       pickupLocationId={null}
       onBack={vi.fn()}
       onConfirmed={vi.fn()}
@@ -145,6 +175,71 @@ describe('review step re-asks the guests an added line splits (landr-zcb24.12)',
 
   it('asks nothing when the added line brings no new cut', async () => {
     renderForm(MAIN_FLOW)
+    await waitFor(() => expect(confirmButton()).not.toBeDisabled())
+    expect(screen.queryByTestId('inline-age-band-0')).not.toBeInTheDocument()
+  })
+
+  it('re-asks a companion too, and sends the companion its refined floor (landr-zcb24.27)', async () => {
+    vi.mocked(submitBooking).mockResolvedValue({ booking_id: 'b-1', semantic_state: 'pending' })
+    renderForm(EXTRA_FLOW, { companions: [companion('Linus')] })
+    expect(await screen.findByTestId('inline-age-band-2')).toBeInTheDocument()
+    expect(screen.getByText('Linus')).toBeInTheDocument()
+    await waitFor(() => expect(confirmButton()).toBeDisabled())
+
+    fireEvent.change(screen.getByTestId('inline-age-band-0'), { target: { value: 'adult' } })
+    fireEvent.change(screen.getByTestId('inline-age-band-1'), { target: { value: 'adult' } })
+    await waitFor(() => expect(confirmButton()).toBeDisabled()) // the companion still has to pick
+    fireEvent.change(screen.getByTestId('inline-age-band-2'), { target: { value: 'age_65_plus' } })
+    await waitFor(() => expect(confirmButton()).not.toBeDisabled())
+    await act(async () => {
+      fireEvent.click(confirmButton())
+    })
+    await waitFor(() => expect(submitBooking).toHaveBeenCalledTimes(1))
+    const body = vi.mocked(submitBooking).mock.calls[0]![0]
+    expect(body.participants.map((p) => p.occupant_age)).toEqual([18, 18])
+    expect(body.companions?.map((c) => c.occupant_age)).toEqual([65])
+    expect(body.companions?.[0]?.guest_attributes).toEqual({ age: 18, _inexact: ['age'] })
+  })
+
+  it('leaves a child companion alone', async () => {
+    renderForm(EXTRA_FLOW, {
+      companions: [companion('Tim', { occupant_age_band: 'child', occupant_age: 9, guest_attributes: {} })],
+    })
+    expect(await screen.findByTestId('inline-age-band-0')).toBeInTheDocument()
+    expect(screen.queryByTestId('inline-age-band-2')).not.toBeInTheDocument()
+  })
+
+  it('asks the adults when the party step asked Adult/Child only and the added line needs bands', async () => {
+    vi.mocked(submitBooking).mockResolvedValue({ booking_id: 'b-1', semantic_state: 'pending' })
+    renderForm(EXTRA_FLOW, {
+      mainFlow: { modules: null } as unknown as ProductFlowResponse,
+      participants: [plainAdult('Ada'), plainAdult('Grace')],
+      companions: [companion('Linus', { occupant_age: undefined, guest_attributes: {} })],
+    })
+    expect(await screen.findByTestId('inline-age-band-0')).toBeInTheDocument()
+    expect(screen.getByTestId('inline-age-band-1')).toBeInTheDocument()
+    expect(screen.getByTestId('inline-age-band-2')).toBeInTheDocument()
+    await waitFor(() => expect(confirmButton()).toBeDisabled())
+
+    fireEvent.change(screen.getByTestId('inline-age-band-0'), { target: { value: 'age_65_plus' } })
+    fireEvent.change(screen.getByTestId('inline-age-band-1'), { target: { value: 'adult' } })
+    fireEvent.change(screen.getByTestId('inline-age-band-2'), { target: { value: 'adult' } })
+    await waitFor(() => expect(confirmButton()).not.toBeDisabled())
+    await act(async () => {
+      fireEvent.click(confirmButton())
+    })
+    await waitFor(() => expect(submitBooking).toHaveBeenCalledTimes(1))
+    const body = vi.mocked(submitBooking).mock.calls[0]![0]
+    expect(body.participants.map((p) => p.occupant_age)).toEqual([65, 18])
+    expect(body.participants[0]?.guest_attributes).toEqual({ _inexact: ['age'] })
+    expect(body.companions?.map((c) => c.occupant_age)).toEqual([18])
+  })
+
+  it('asks nobody when Adult/Child was asked and the added line has the single adult band', async () => {
+    renderForm(MAIN_FLOW, {
+      mainFlow: { modules: null } as unknown as ProductFlowResponse,
+      participants: [plainAdult('Ada'), plainAdult('Grace')],
+    })
     await waitFor(() => expect(confirmButton()).not.toBeDisabled())
     expect(screen.queryByTestId('inline-age-band-0')).not.toBeInTheDocument()
   })

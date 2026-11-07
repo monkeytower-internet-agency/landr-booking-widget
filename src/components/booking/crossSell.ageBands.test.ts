@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { mockOccupancyStay } from '@/api/mocks'
+import { DEFAULT_AGE_BANDS } from './ageBands'
 import {
   inheritLine,
   inlineModulesPending,
@@ -111,6 +112,16 @@ describe('cross-sell lines refine the ages the party step asked (landr-zcb24.12)
       ages: { 0: { band: 'adult' as const, age: null, floor: 18 }, 1: { band: 'adult' as const, age: null, floor: 65 } },
     }
     expect(inlineModulesPending([line], ASKED, both)).toBe(false)
+  })
+
+  it('re-asks the unaged adults of an Adult/Child-only party step (floor 18), companions included', () => {
+    const base = DEFAULT_AGE_BANDS
+    const plain: CrossSellContext = { ...ASKED, ageRefine: { bands: base, floors: { 0: 18, 1: 18, 3: 18 } } }
+    const needs = lineNeeds([line], plain).l1
+    expect(needs.ageGuests).toEqual([0, 1, 3])
+    expect(needs.ageBands?.map((b) => b.min_age)).toEqual([0, 18, 65])
+    const single = inheritLine(product, ['2026-12-01'], 'l9', { ...NEW_CUT, age_bands: MAIN_BANDS })
+    expect(lineNeeds([single], plain).l9.ages).toBeUndefined()
   })
 
   it('removing the line takes the question away', () => {

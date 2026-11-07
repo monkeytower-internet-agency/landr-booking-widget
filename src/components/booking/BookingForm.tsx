@@ -57,7 +57,7 @@ import {
   type CompanionDetails,
   type ParticipantDetails,
 } from './detailsTypes'
-import { adultAgeWire, adultFloorOf, resolveBands } from './ageBands'
+import { ADULT_FROM, DEFAULT_AGE_BANDS, adultAgeWire, adultFloorOf, resolveBands } from './ageBands'
 import { ContinueAction } from './ContinueAction'
 import { isOwnAccommodation, ownAccommodationWire } from './ownAccommodation'
 import { CustomerCommentField } from './CustomerCommentField'
@@ -1186,19 +1186,27 @@ export function BookingForm({
     })
   }, [inlineLanguages, inlineForms, inlinePickupId, inlineAges, inlineChildAges, onInlineAnswersChange])
   const mainOfferedLanguages = useMemo(() => productOfferedLanguages(product), [product])
-  // landr-zcb24.12: the party step asked the ages as the main flow's bands and
-  // stored each adult's band floor. An added line with a finer cut re-asks the
-  // guests whose band it splits (see `refinedAges`).
+  // landr-zcb24.12/.27: the party step asked the ages as the main flow's bands and
+  // stored each adult's band floor, or asked Adult/Child only (no bands: an adult
+  // is at least 18). An added line with a finer cut re-asks the guests whose band
+  // it splits (see `refinedAges`): the companions too, indexed after the
+  // participants like the rest of the party.
   const mainAgeBands =
     productFlow?.age_needed === true && productFlow.age_collect_as !== 'exact'
       ? resolveBands(productFlow.age_bands)
       : null
+  const partyAskedAdultChild =
+    !agesNeeded && mainAgeBands === null && participants.some((p) => p.occupant_age_band != null)
   const storedAdultFloors: Record<number, number | undefined> = {}
-  if (mainAgeBands) {
-    participantsForSubmit(booker, participants).forEach((p, i) => {
-      if (p.occupant_age_band !== 'child') storedAdultFloors[i] = adultFloorOf(p)
+  if (mainAgeBands || partyAskedAdultChild) {
+    ;[...participantsForSubmit(booker, participants), ...companions].forEach((g, i) => {
+      if (g.occupant_age_band === 'child') return
+      if (mainAgeBands) storedAdultFloors[i] = adultFloorOf(g)
+      // Adult/Child only: an adult without an exact age is known to be 18 or older
+      else if (typeof g.occupant_age !== 'number') storedAdultFloors[i] = ADULT_FROM
     })
   }
+  const ageRefineBands = mainAgeBands ?? (partyAskedAdultChild ? DEFAULT_AGE_BANDS : null)
   const crossSellContext: CrossSellContext = {
     participantLanguages: mainParticipantLanguages,
     participantCount: participants.length,
@@ -1206,7 +1214,7 @@ export function BookingForm({
     answeredFormKeys: (mainFormResponses ?? []).map((f) => f.form_key),
     hasPickup: mainPickupLocationId != null || (accommodationRooms ?? []).length > 0,
     agesNeeded,
-    ...(mainAgeBands ? { ageRefine: { bands: mainAgeBands, floors: storedAdultFloors } } : {}),
+    ...(ageRefineBands ? { ageRefine: { bands: ageRefineBands, floors: storedAdultFloors } } : {}),
   }
   const inlineModuleState: InlineModuleState = {
     languages: inlineLanguages,
@@ -1927,7 +1935,7 @@ export function BookingForm({
                         occupant_age: ageEntry.age ?? null,
                       }
                     : {}),
-                  ...adultAgeWire(c, isChild),
+                  ...adultAgeWire(c, isChild, refinedFloor(memberIdx)),
                   // landr-a4fy wire field (PINNED contract):
                   // omit when false to keep the payload compact.
                   ...(hasBreakfast ? { has_breakfast: true as const } : {}),
@@ -2667,6 +2675,7 @@ export function BookingForm({
                 Object.entries(inlineForms).map(([k, v]) => [k, v.raw]),
               ),
               participantLabels: partyMemberLabels.slice(0, participants.length),
+              partyLabels: partyMemberLabels,
               participants,
               companions,
               onLanguages: setInlineLanguages,
