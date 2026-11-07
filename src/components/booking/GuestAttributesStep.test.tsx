@@ -66,4 +66,44 @@ describe('GuestAttributesStep', () => {
     expect(screen.getByRole('alert').textContent).toContain('0-120')
     expect((screen.getByTestId('guest-attrs-submit') as HTMLButtonElement).disabled).toBe(true)
   })
+
+  it('renders a select of the flow ranges and confirms the floor with _inexact (landr-zcb24.7)', () => {
+    const onConfirm = vi.fn()
+    render(
+      <GuestAttributesStep
+        productName="Tandem"
+        attributes={[
+          {
+            key: 'weight_kg',
+            label: 'Weight',
+            value_type: 'number',
+            unit: 'kg',
+            collect_as: 'ranges',
+            ranges: [
+              { min: 1, max: 45, label: '<45 kg' },
+              { min: 45, max: 80, label: '45-80 kg' },
+              { min: 80, max: null, label: '80+ kg' },
+            ],
+          },
+        ]}
+        participants={[person('Ada')]}
+        companions={[]}
+        onConfirm={onConfirm}
+      />,
+    )
+    const select = screen.getByTestId('guest-attr-0-weight_kg')
+    expect(select.tagName).toBe('SELECT')
+    expect(Array.from(select.querySelectorAll('option')).map((o) => o.textContent)).toEqual([
+      'Choose',
+      '<45 kg',
+      '45-80 kg',
+      '80+ kg',
+    ])
+    const submit = screen.getByTestId('guest-attrs-submit') as HTMLButtonElement
+    expect(submit.disabled).toBe(true)
+    fireEvent.change(select, { target: { value: '45' } })
+    expect(submit.disabled).toBe(false)
+    fireEvent.click(submit)
+    expect(onConfirm.mock.calls[0]![0][0].guest_attributes).toEqual({ weight_kg: 45, _inexact: ['weight_kg'] })
+  })
 })

@@ -57,8 +57,18 @@ import {
 } from './detailsTypes'
 import { childAgesFromRoster, hasChildWithoutAge } from './occupancyPricing'
 import type { FlowAgeBand } from '@/api/flowTypes'
-import { AgeBandControls } from './AgeBandControls'
-import { adultBandsOf, ageChoice, resolveBands, stampAge, withAgeChoice } from './ageBands'
+import { AgeBandControls, ExactAgeControl } from './AgeBandControls'
+import {
+  adultBandsOf,
+  ageChoice,
+  type AgeCarrier,
+  exactAgeOf,
+  isValidExactAge,
+  resolveBands,
+  stampAge,
+  withAgeChoice,
+  withExactAge,
+} from './ageBands'
 // landr-uwvl: stable per-member identity for the room-assignment maps.
 import { isStayKind } from '@/flowPlan'
 import { withMemberId } from './partyIdentity'
@@ -256,6 +266,12 @@ interface Props {
   ageNeeded?: boolean
   ageBands?: readonly FlowAgeBand[]
   /**
+   * landr-zcb24.7: the operator collects `age` as exact (`age_collect_as`): no
+   * bands, every guest gives a number (the booker 18 or older), nothing flagged
+   * as a range floor.
+   */
+  ageExact?: boolean
+  /**
    * landr-fn4i / landr-5krc: fires on every keystroke in the optional
    * member-perk code field, lifting the live value straight into App.tsx's
    * top-level state (mirrors onLiveParticipantsChange's "fire from the event
@@ -387,6 +403,7 @@ export function DetailsStep({
   collectGuestAges = false,
   ageNeeded = false,
   ageBands,
+  ageExact: ageExactProp = false,
   onMemberPerkOtpChange,
   initialVoucherCode,
   onVoucherCodeChange,
@@ -461,7 +478,8 @@ export function DetailsStep({
   // landr-zcb24.2: the age bands of the cart (Child / Adult when the flow names
   // none). An adult band's floor is what gets stored once the flow asks age.
   const bands = resolveBands(ageBands)
-  const storeFloor = ageNeeded
+  const ageExact = ageNeeded && ageExactProp
+  const storeFloor = ageNeeded && !ageExact
   const bookerAdultBands = adultBandsOf(bands)
   // The booker is never a child: the adult band they stand on (the first one
   // until they pick), written onto their mirror row when the flow asks age.
@@ -470,6 +488,14 @@ export function DetailsStep({
     collectGuestAges && joins && storeFloor ? stampAge({ ...data, occupant_age_band: 'adult' as const }, bands, true) : data
   const setBookerBand = (bandKey: string) =>
     setBookerGuestData((prev) => withAgeChoice(prev, bands, bandKey, null, storeFloor))
+  // landr-zcb24.7: exact age. A booker who takes part types theirs (18 or older)
+  // instead of ticking "I am 18 or older"; one who does not still ticks it.
+  const exactBooker = collectGuestAges && ageExact && joins
+  const bookerAdultOk = exactBooker
+    ? isValidExactAge(bookerGuestData.occupant_age, true)
+    : booker.adult_confirmed === true
+  const setBookerExactAge = (age: number | null) =>
+    setBookerGuestData((prev) => withExactAge(prev, age))
   // landr-zy2wm.2: product cap on total participants (booker included).
   // null/undefined/invalid = no product cap. 1 => no additional-participants UI.
   const maxAdditional = additionalCap(product.max_party_size)
@@ -944,6 +970,24 @@ export function DetailsStep({
     notifyLive(booker, next, companions)
   }
 
+  const setGuestExactAge = (idx: number, age: number | null) => {
+    const row = additional[idx]
+    if (!row) return
+    const next = additional.slice()
+    next[idx] = withExactAge(row, age)
+    setAdditional(next)
+    notifyLive(booker, next, companions)
+  }
+
+  const setCompanionExactAge = (idx: number, age: number | null) => {
+    const row = companions[idx]
+    if (!row) return
+    const next = companions.slice()
+    next[idx] = withExactAge(row, age)
+    setCompanions(next)
+    notifyLive(booker, additional, next)
+  }
+
   const setCompanionAge = (idx: number, bandKey: string, age: number | null) => {
     const row = companions[idx]
     if (!row) return
@@ -1075,7 +1119,7 @@ export function DetailsStep({
   const fieldIdForKey = (key: string): string | undefined => {
     switch (key) {
       case 'booker.adult':
-        return 'booker-adult-confirm'
+        return exactBooker ? 'guest-age-input-booker' : 'booker-adult-confirm'
       case 'booker.first_name':
         return 'booker-first'
       case 'booker.last_name':
@@ -1125,7 +1169,7 @@ export function DetailsStep({
   const isFieldInvalid = (key: string): boolean => {
     switch (key) {
       case 'booker.adult':
-        return booker.adult_confirmed !== true
+        return !bookerAdultOk
       case 'booker.first_name':
         return !booker.first_name.trim()
       case 'booker.last_name':
@@ -1258,10 +1302,16 @@ export function DetailsStep({
   // above the product cap until the customer removes one — block Continue.
   const withinCap =
     additional.length <= rowCap && additional.length + companions.length <= othersCap
+  const exactAgeMissing = (rows: readonly AgeCarrier[]) =>
+    rows.some((r) => !isValidExactAge(exactAgeOf(r)))
   const guestAgeMissing =
-    collectGuestAges && (hasChildWithoutAge(additional) || (ageNeeded && hasChildWithoutAge(companions)))
-  // landr-zcb24.2: the booker confirms "I am 18 or older" whenever ages are asked.
-  const adultConfirmMissing = collectGuestAges && booker.adult_confirmed !== true
+    collectGuestAges &&
+    (ageExact
+      ? exactAgeMissing(additional) || exactAgeMissing(companions)
+      : hasChildWithoutAge(additional) || (ageNeeded && hasChildWithoutAge(companions)))
+  // landr-zcb24.2: the booker confirms "I am 18 or older" whenever ages are asked
+  // (landr-zcb24.7: an exact-age flow asks the booker's age instead).
+  const adultConfirmMissing = collectGuestAges && !bookerAdultOk
   const canContinue =
     withinCap &&
     !guestAgeMissing &&
@@ -1454,7 +1504,16 @@ export function DetailsStep({
               cart has several adult bands — which adult band they stand in. */}
           {collectGuestAges ? (
             <div className="flex flex-col gap-2" data-testid="booker-adult-block">
-              {joins && bookerAdultBands.length > 1 ? (
+              {exactBooker ? (
+                <ExactAgeControl
+                  id="booker"
+                  booker
+                  age={exactAgeOf(bookerGuestData)}
+                  onChange={setBookerExactAge}
+                  locale={locale}
+                />
+              ) : null}
+              {joins && !ageExact && bookerAdultBands.length > 1 ? (
                 <AgeBandControls
                   id="booker"
                   adultOnly
@@ -1464,23 +1523,25 @@ export function DetailsStep({
                   locale={locale}
                 />
               ) : null}
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="booker-adult-confirm"
-                  checked={booker.adult_confirmed === true}
-                  onCheckedChange={(v) => {
-                    setBooker((prev) => ({ ...prev, adult_confirmed: v === true }))
-                    markTouched('booker.adult')
-                  }}
-                  aria-invalid={touched.has('booker.adult') && booker.adult_confirmed !== true ? true : undefined}
-                  data-testid="booker-adult-confirm"
-                  className="border-foreground/60 bg-background dark:border-foreground/70 dark:bg-background"
-                />
-                <Label htmlFor="booker-adult-confirm" className="text-sm font-normal">
-                  {tr('bookerAdultConfirm', locale)}
-                </Label>
-              </div>
-              {touched.has('booker.adult') && booker.adult_confirmed !== true ? (
+              {!exactBooker ? (
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="booker-adult-confirm"
+                    checked={booker.adult_confirmed === true}
+                    onCheckedChange={(v) => {
+                      setBooker((prev) => ({ ...prev, adult_confirmed: v === true }))
+                      markTouched('booker.adult')
+                    }}
+                    aria-invalid={touched.has('booker.adult') && !bookerAdultOk ? true : undefined}
+                    data-testid="booker-adult-confirm"
+                    className="border-foreground/60 bg-background dark:border-foreground/70 dark:bg-background"
+                  />
+                  <Label htmlFor="booker-adult-confirm" className="text-sm font-normal">
+                    {tr('bookerAdultConfirm', locale)}
+                  </Label>
+                </div>
+              ) : null}
+              {!exactBooker && touched.has('booker.adult') && !bookerAdultOk ? (
                 <p className="text-xs text-destructive" role="alert" data-testid="booker-adult-error">
                   {tr('bookerAdultRequired', locale)}
                 </p>
@@ -1907,7 +1968,14 @@ export function DetailsStep({
                 </Button>
                 ) : null}
               </div>
-              {collectGuestAges && (!isFirstOfRoster || ageNeeded) ? (
+              {collectGuestAges && (!isFirstOfRoster || ageNeeded) && ageExact ? (
+                <ExactAgeControl
+                  id={String(n)}
+                  age={exactAgeOf(row)}
+                  onChange={(age) => setGuestExactAge(idx, age)}
+                  locale={locale}
+                />
+              ) : collectGuestAges && (!isFirstOfRoster || ageNeeded) ? (
                 <AgeBandControls
                   id={String(n)}
                   bands={bands}
@@ -2281,7 +2349,14 @@ export function DetailsStep({
                   ) : null}
                 </div>
               ) : null}
-              {collectGuestAges && ageNeeded ? (
+              {collectGuestAges && ageNeeded && ageExact ? (
+                <ExactAgeControl
+                  id={`companion-${idx}`}
+                  age={exactAgeOf(row)}
+                  onChange={(age) => setCompanionExactAge(idx, age)}
+                  locale={locale}
+                />
+              ) : collectGuestAges && ageNeeded ? (
                 <AgeBandControls
                   id={`companion-${idx}`}
                   bands={bands}

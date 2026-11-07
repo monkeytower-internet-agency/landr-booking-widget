@@ -635,6 +635,7 @@ export function AddMoreProducts({
                 onChange={modules.onAges}
                 locale={locale}
                 ageBands={needs.ageBands}
+                exact={needs.ageExact === true}
               />
             ) : null}
 

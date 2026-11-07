@@ -76,10 +76,11 @@ export function bookerJoins(b: Pick<BookerDetails, 'joins'> | undefined): boolea
 }
 
 /**
- * {attribute key: number | text} — what the step collects per guest, plus the
- * boolean flag `age_exact` (false = `age` is an adult band's floor).
+ * {attribute key: number | text} — what the step collects per guest, plus
+ * `_inexact`: the keys whose value is a range's floor (an adult age band, a
+ * weight range), the way the API stores and validates them (landr-zcb24.6).
  */
-export type GuestAttributeValues = Record<string, number | string | boolean>
+export type GuestAttributeValues = Record<string, number | string | boolean | string[]>
 
 export interface ParticipantDetails {
   /**

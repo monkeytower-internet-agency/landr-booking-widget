@@ -3,13 +3,18 @@
  * (`age_bands`) names the bands the cart needs: Child (exact age 0-17) and the
  * adult side, split at every age cut a price or rule uses ("Adult 18-64",
  * "Senior 65+"). An adult picks a band and the band FLOOR is stored as the age
- * with `guest_attributes.age_exact = false`; a band never straddles a cut, so
- * the floor judges every rule like any real age in the band. Pure helpers.
+ * with `age` listed in `guest_attributes._inexact`; a band never straddles a cut,
+ * so the floor judges every rule like any real age in the band.
+ *
+ * landr-zcb24.7: when the operator collects `age` as exact (`age_collect_as`) the
+ * flow has no bands: every guest gives an exact age (the booker 18+), stored
+ * unflagged. Pure helpers.
  */
 import type { FlowAgeBand } from '@/api/flowTypes'
 import { pickLocalized } from '@/lib/locale'
 import { tr } from '@/lib/strings'
 import type { GuestAttributeValues } from './detailsTypes'
+import { isInexact, withInexact } from './inexact'
 
 /** From this age on a guest is an adult (the API's occupant_age_band split). */
 export const ADULT_FROM = 18
@@ -85,9 +90,8 @@ export function withAgeChoice<G extends AgeCarrier>(
 ): G {
   const band = bands.find((b) => b.key === bandKey) ?? adultBandsOf(bands)[0]
   // The age lives in occupant_age: a stale copy in guest_attributes would disagree.
-  const rest: GuestAttributeValues = { ...(g.guest_attributes ?? {}) }
+  const rest: GuestAttributeValues = withInexact(g.guest_attributes, 'age', false)
   delete rest.age
-  delete rest.age_exact
   if (band && !isAdultBand(band)) {
     return { ...g, occupant_age_band: 'child', occupant_age: childAge, guest_attributes: rest }
   }
@@ -96,11 +100,48 @@ export function withAgeChoice<G extends AgeCarrier>(
       ...g,
       occupant_age_band: 'adult',
       occupant_age: band.min_age,
-      guest_attributes: { ...rest, age_exact: false },
+      guest_attributes: withInexact(rest, 'age', true),
     }
   }
   return { ...g, occupant_age_band: 'adult', occupant_age: null, guest_attributes: rest }
 }
+
+/** The smallest exact age of an adult guest and the booker; the largest anyone can give. */
+export const MAX_EXACT_AGE = 120
+
+/** `raw` read as a whole age, else null (blank, fractional, negative, over 120). */
+export function parseExactAge(raw: string): number | null {
+  const text = raw.trim()
+  if (!/^\d{1,3}$/.test(text)) return null
+  const n = Number(text)
+  return n <= MAX_EXACT_AGE ? n : null
+}
+
+/** True when `age` is a usable exact age (the booker: 18 or older). */
+export const isValidExactAge = (age: number | null | undefined, booker = false): boolean =>
+  typeof age === 'number' &&
+  Number.isInteger(age) &&
+  age >= (booker ? ADULT_FROM : 0) &&
+  age <= MAX_EXACT_AGE
+
+/**
+ * The guest with an exact age (`age_collect_as = exact`): the age is the roster
+ * age, under 18 the guest is a child; null until typed. Never flagged inexact.
+ */
+export function withExactAge<G extends AgeCarrier>(g: G, age: number | null): G {
+  const rest: GuestAttributeValues = withInexact(g.guest_attributes, 'age', false)
+  delete rest.age
+  return {
+    ...g,
+    occupant_age_band: age !== null && age < ADULT_FROM ? 'child' : 'adult',
+    occupant_age: age,
+    guest_attributes: rest,
+  }
+}
+
+/** The exact age a guest has, else null. */
+export const exactAgeOf = (g: AgeCarrier): number | null =>
+  typeof g.occupant_age === 'number' ? g.occupant_age : null
 
 /** `g` with its current band written out (an untouched guest is stamped adult). */
 export function stampAge<G extends AgeCarrier>(g: G, bands: readonly FlowAgeBand[], storeFloor: boolean): G {
@@ -108,10 +149,10 @@ export function stampAge<G extends AgeCarrier>(g: G, bands: readonly FlowAgeBand
   return withAgeChoice(g, bands, c.bandKey, c.age, storeFloor)
 }
 
-/** The floor an adult band was stored as (age_exact=false), else undefined. */
+/** The floor an adult band was stored as (`age` in `_inexact`), else undefined. */
 export function adultFloorOf(g: AgeCarrier): number | undefined {
   return g.occupant_age_band !== 'child' &&
-    g.guest_attributes?.age_exact === false &&
+    isInexact(g.guest_attributes, 'age') &&
     typeof g.occupant_age === 'number'
     ? g.occupant_age
     : undefined
@@ -133,18 +174,24 @@ export function mergeBands(lists: ReadonlyArray<readonly FlowAgeBand[] | null | 
 
 /**
  * The wire fields of a guest's age that ride beside the child fields:
- * an adult band's floor as `occupant_age` plus `guest_attributes.age_exact =
- * false`. A child (or a guest without a floor) sends the attributes without
- * the flag. `inlineFloor` is the floor picked on the review step.
+ * an adult band's floor as `occupant_age` plus `age` in `guest_attributes._inexact`.
+ * An adult with an exact age (`exactAge`, the party step's number or the review
+ * step's inline one) sends it as `occupant_age` unflagged. A child (or a guest
+ * without either) sends the attributes without the flag. `inlineFloor` is the
+ * floor picked on the review step.
  */
 export function adultAgeWire(
   g: AgeCarrier,
   isChild: boolean,
   inlineFloor?: number,
+  inlineExactAge?: number,
 ): { occupant_age?: number; guest_attributes?: GuestAttributeValues } {
-  const attrs: GuestAttributeValues = { ...(g.guest_attributes ?? {}) }
-  delete attrs.age_exact
+  const attrs = withInexact(g.guest_attributes, 'age', false)
   const floor = isChild ? undefined : (inlineFloor ?? adultFloorOf(g))
-  if (floor === undefined) return Object.keys(attrs).length > 0 ? { guest_attributes: attrs } : {}
-  return { occupant_age: floor, guest_attributes: { ...attrs, age_exact: false } }
+  if (floor !== undefined) {
+    return { occupant_age: floor, guest_attributes: withInexact(attrs, 'age', true) }
+  }
+  const exact = isChild ? undefined : (inlineExactAge ?? (typeof g.occupant_age === 'number' ? g.occupant_age : undefined))
+  const rest: { guest_attributes?: GuestAttributeValues } = Object.keys(attrs).length > 0 ? { guest_attributes: attrs } : {}
+  return exact !== undefined ? { occupant_age: exact, ...rest } : rest
 }

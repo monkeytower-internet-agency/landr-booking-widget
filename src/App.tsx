@@ -3070,6 +3070,7 @@ function BookingFlowApp() {
               resolvedFlowForProduct(step.product.product_id)?.age_needed === true
             }
             ageNeeded={resolvedFlowForProduct(step.product.product_id)?.age_needed === true}
+            ageExact={resolvedFlowForProduct(step.product.product_id)?.age_collect_as === 'exact'}
             ageBands={resolvedFlowForProduct(step.product.product_id)?.age_bands}
           />
         ) : null}

@@ -116,6 +116,25 @@ export interface FlowGuestAttribute {
   choices?: string[] | null
   min_value?: number | null
   max_value?: number | null
+  /**
+   * landr-zcb24.6: `ranges` = the guest picks one of `ranges` (a select) and the
+   * range's floor is stored + flagged in `guest_attributes._inexact`; `exact`
+   * (default, absent on an older API) = the guest types the number.
+   */
+  collect_as?: 'exact' | 'ranges'
+  /** The ranges of a `collect_as: 'ranges'` attribute, ascending. */
+  ranges?: FlowRange[]
+}
+
+/**
+ * One range of an attribute collected as `ranges`: `min` is stored when the
+ * guest picks it, `max` is the EXCLUSIVE upper edge (null = open-ended), `label`
+ * reads '<45 kg', '45-80 kg', '120+ kg'.
+ */
+export interface FlowRange {
+  min: number
+  max?: number | null
+  label: string
 }
 
 /**
@@ -145,6 +164,12 @@ export interface ProductFlowResponse {
   age_needed?: boolean
   /** The bands the party step offers when `age_needed`. Absent = []. */
   age_bands?: FlowAgeBand[]
+  /**
+   * landr-zcb24.6: how `age` is collected when `age_needed`: `ranges` = the
+   * `age_bands` select; `exact` = every guest types an exact age (no bands).
+   * Absent / null = `ranges` (an older API).
+   */
+  age_collect_as?: 'exact' | 'ranges' | null
 }
 
 /**

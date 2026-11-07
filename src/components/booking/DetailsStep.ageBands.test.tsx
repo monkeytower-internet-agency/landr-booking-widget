@@ -82,14 +82,14 @@ describe('DetailsStep age bands (landr-zcb24.2)', () => {
       first_name: 'Ada',
       occupant_age_band: 'adult',
       occupant_age: 18,
-      guest_attributes: { age_exact: false },
+      guest_attributes: { _inexact: ['age'] },
     })
     // the child keeps its exact age and no floor flag
     expect(participants[1]).toMatchObject({ first_name: 'Tim', occupant_age_band: 'child', occupant_age: 8 })
-    expect(participants[1].guest_attributes?.age_exact).toBeUndefined()
+    expect(participants[1].guest_attributes?._inexact).toBeUndefined()
   })
 
-  it('senior band flow: guests pick Senior 65+, stored as 65 with age_exact=false', () => {
+  it('senior band flow: guests pick Senior 65+, stored as 65 with age in _inexact', () => {
     const onConfirm = setup(SENIOR_BANDS)
     fireEvent.click(screen.getByTestId('add-participant'))
     expect(options('guest-age-band-2')).toEqual(['Adult 18-64', 'Senior 65+', 'Child'])
@@ -103,7 +103,7 @@ describe('DetailsStep age bands (landr-zcb24.2)', () => {
     expect(participants[1]).toMatchObject({
       occupant_age_band: 'adult',
       occupant_age: 65,
-      guest_attributes: { age_exact: false },
+      guest_attributes: { _inexact: ['age'] },
     })
     // an untouched guest and the booker sit in the first adult band
     expect(participants[0]).toMatchObject({ occupant_age: 18 })
@@ -118,7 +118,7 @@ describe('DetailsStep age bands (landr-zcb24.2)', () => {
     expect(onConfirm.mock.calls[0][1][0]).toMatchObject({
       occupant_age_band: 'adult',
       occupant_age: 65,
-      guest_attributes: { age_exact: false },
+      guest_attributes: { _inexact: ['age'] },
     })
   })
 
@@ -142,7 +142,7 @@ describe('DetailsStep age bands (landr-zcb24.2)', () => {
     fireEvent.click(screen.getByRole('button', { name: /continue/i }))
     expect(onConfirm.mock.calls[0][2][0]).toMatchObject({
       occupant_age: 65,
-      guest_attributes: { age_exact: false },
+      guest_attributes: { _inexact: ['age'] },
     })
   })
 
@@ -151,5 +151,49 @@ describe('DetailsStep age bands (landr-zcb24.2)', () => {
     expect(screen.queryByTestId('booker-adult-confirm')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /continue/i }))
     expect(onConfirm.mock.calls[0][1][0].occupant_age).toBeUndefined()
+  })
+
+  it('exact age (landr-zcb24.7): a number for every guest, the booker 18+, nothing flagged', () => {
+    const onConfirm = setup([], { ageExact: true })
+    fireEvent.click(screen.getByTestId('add-participant'))
+    // no bands, no 18+ tick: the booker types their own age
+    expect(screen.queryByTestId('guest-age-band-booker')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('booker-adult-confirm')).not.toBeInTheDocument()
+    expect(screen.getByTestId('guest-age-booker')).toBeInTheDocument()
+    expect(screen.getByTestId('guest-age-2')).toBeInTheDocument()
+
+    fireEvent.change(byName('participant_2_first_name'), { target: { value: 'Tim' } })
+    fireEvent.change(byName('participant_2_last_name'), { target: { value: 'Lovelace' } })
+    fireEvent.change(byName('participant_2_phone'), { target: { value: '+34 600 000 001' } })
+
+    fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+    expect(onConfirm).not.toHaveBeenCalled()
+
+    fireEvent.change(screen.getByTestId('guest-age-2'), { target: { value: '8' } })
+    // a minor cannot book
+    fireEvent.change(screen.getByTestId('guest-age-booker'), { target: { value: '17' } })
+    expect(screen.getByTestId('guest-age-error-booker')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+    expect(onConfirm).not.toHaveBeenCalled()
+
+    fireEvent.change(screen.getByTestId('guest-age-booker'), { target: { value: '34' } })
+    fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+    expect(onConfirm).toHaveBeenCalledTimes(1)
+    const participants = onConfirm.mock.calls[0][1]
+    expect(participants[0]).toMatchObject({ occupant_age_band: 'adult', occupant_age: 34 })
+    expect(participants[0].guest_attributes?._inexact).toBeUndefined()
+    expect(participants[1]).toMatchObject({ occupant_age_band: 'child', occupant_age: 8 })
+  })
+
+  it('exact age: a booker who does not take part still ticks 18+, and companions need an age', () => {
+    setup([], {
+      ageExact: true,
+      product: { ...mockOccupancyStay, occupancy_pricing: undefined, product_kind: 'service', hotel_offering: 'optional' },
+    })
+    fireEvent.click(screen.getByTestId('add-companion'))
+    expect(screen.getByTestId('guest-age-companion-0')).toBeInTheDocument()
+    fireEvent.click(screen.getByTestId('booker-not-joining-toggle'))
+    expect(screen.queryByTestId('guest-age-booker')).not.toBeInTheDocument()
+    expect(screen.getByTestId('booker-adult-confirm')).toBeInTheDocument()
   })
 })

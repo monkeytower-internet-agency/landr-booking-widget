@@ -361,6 +361,9 @@ export type Bundle = {
   agePlaceholder: string
   bookerAdultConfirm: string
   bookerAdultRequired: string
+  exactAgeAria: string
+  exactAgeRequired: string
+  bookerExactAgeRequired: string
   guestAttrsTitle: string
   guestAttrsIntro: string
   guestAttrsFallback: string
@@ -1429,6 +1432,9 @@ const en: Bundle = {
   agePlaceholder: 'Age',
   bookerAdultConfirm: 'I am 18 or older',
   bookerAdultRequired: 'Please confirm that you are 18 or older to book.',
+  exactAgeAria: 'Age',
+  exactAgeRequired: 'Please enter the age of each guest.',
+  bookerExactAgeRequired: 'Please enter your age (18 or older) to book.',
   guestAttrsTitle: 'About your guests',
   guestAttrsIntro: 'A few details per guest, so we can prepare the right gear and price.',
   guestAttrsFallback: 'Guest {n}',
