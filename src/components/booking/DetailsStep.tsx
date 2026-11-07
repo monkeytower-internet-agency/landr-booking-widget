@@ -260,8 +260,10 @@ interface Props {
   /**
    * landr-zcb24.2: the product flow asks every guest's age (`age_needed`) and
    * names the bands (`age_bands`). The age is then stored with the guest: an
-   * adult band as its floor (`age_exact=false`), companions get the control
-   * too, and 'About your guests' no longer asks it. Absent = Child / Adult only.
+   * adult band as its floor (`age_exact=false`), and 'About your guests' no
+   * longer asks it. Absent = Child / Adult only. Companions get the control in
+   * every mode (landr-zcb24.31), so a child companion is never priced or taxed
+   * as an adult.
    */
   ageNeeded?: boolean
   ageBands?: readonly FlowAgeBand[]
@@ -1308,7 +1310,7 @@ export function DetailsStep({
     collectGuestAges &&
     (ageExact
       ? exactAgeMissing(additional) || exactAgeMissing(companions)
-      : hasChildWithoutAge(additional) || (ageNeeded && hasChildWithoutAge(companions)))
+      : hasChildWithoutAge(additional) || hasChildWithoutAge(companions))
   // landr-zcb24.2: the booker confirms "I am 18 or older" whenever ages are asked
   // (landr-zcb24.7: an exact-age flow asks the booker's age instead).
   const adultConfirmMissing = collectGuestAges && !bookerAdultOk
@@ -1370,7 +1372,14 @@ export function DetailsStep({
             ),
           )
         : companions.map((c) => normalizeOwnAccommodation(c, true))
-      ).map((c) => (collectGuestAges && storeFloor ? stampAge(c, bands, true) : c)),
+      ).map((c) =>
+        !collectGuestAges
+          ? c
+          : storeFloor
+            ? stampAge(c, bands, true)
+            : // landr-zcb24.31: Adult / Child only: an untouched companion is an adult.
+              { ...c, occupant_age_band: c.occupant_age_band ?? ('adult' as const) },
+      ),
       comment.trim(),
     )
   }
@@ -2349,14 +2358,14 @@ export function DetailsStep({
                   ) : null}
                 </div>
               ) : null}
-              {collectGuestAges && ageNeeded && ageExact ? (
+              {collectGuestAges && ageExact ? (
                 <ExactAgeControl
                   id={`companion-${idx}`}
                   age={exactAgeOf(row)}
                   onChange={(age) => setCompanionExactAge(idx, age)}
                   locale={locale}
                 />
-              ) : collectGuestAges && ageNeeded ? (
+              ) : collectGuestAges ? (
                 <AgeBandControls
                   id={`companion-${idx}`}
                   bands={bands}
