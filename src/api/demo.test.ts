@@ -393,6 +393,16 @@ describe('demo mode: stay, pass and verification templates (landr-m6tp4.46)', ()
         price_preview: { unit_price_cents: 1200, price_unit: 'night', currency: 'EUR' },
       })
     })
+
+    it('carries the catalogue schedule of a first-day or last-day add-on', async () => {
+      bikeStay({ schedule: 'last_day', day_selection: 'parent_all' })
+      const [studio] = await listProducts('demo-apartment')
+      const [late] = await offersOf(studio.product_id)
+      expect(late.schedule).toBe('last_day')
+      bikeStay({ schedule: 'first_day', day_selection: 'parent_all' })
+      const [early] = await offersOf((await listProducts('demo-apartment'))[0]!.product_id)
+      expect(early.schedule).toBe('first_day')
+    })
   })
 
   it('reports the stay rules a range breaks, so checkout is blocked as in production', async () => {

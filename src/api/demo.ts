@@ -90,6 +90,8 @@ export interface DemoCatalogueAddon {
   addon_quantity_max?: number | null
   /** landr-a27k9.1: 'parent_subset' = a companion booked on a subset of the parent's days. */
   day_selection?: 'parent_all' | 'parent_subset' | null
+  /** The offer's schedule (which days it uses); absent on an older API = derived from day_selection. */
+  schedule?: 'locked' | 'subset' | 'own' | 'first_day' | 'last_day' | null
   short_description?: string | null
   short_description_localized?: Record<string, string> | null
   images?: ProductImage[] | null
@@ -921,7 +923,7 @@ export function demoEvaluateOffers(template: DemoTemplate, body: OfferEvaluateRe
               : a.addon_quantity_rule === 'one_per_booking'
                 ? 'booking'
                 : 'free',
-          schedule: a.day_selection === 'parent_subset' ? 'subset' : 'locked',
+          schedule: a.schedule ?? (a.day_selection === 'parent_subset' ? 'subset' : 'locked'),
           collection: 'online',
           mode: a.is_required ? 'mandatory' : 'optional',
           options: [],
