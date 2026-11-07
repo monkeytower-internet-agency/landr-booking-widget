@@ -43,7 +43,12 @@ import { ApprovalReplyPage } from '@/components/booking/ApprovalReplyPage'
 import { Confirmation } from '@/components/booking/Confirmation'
 import { DetailsStep } from '@/components/booking/DetailsStep'
 import { GuestAttributesStep } from '@/components/booking/GuestAttributesStep'
-import { unansweredCount, unionAttributes } from '@/components/booking/guestAttributes'
+import {
+  askedAttributes,
+  guestStepNeeded,
+  unansweredCount,
+  unionAttributes,
+} from '@/components/booking/guestAttributes'
 import {
   bookerJoins,
   emptyBilling,
@@ -1711,8 +1716,8 @@ function BookingFlowApp() {
     // be shown for it) asks per-guest attributes. The flow is normally cached
     // by now (it is fetched when the product is picked); if not, wait for it.
     const gate = (flow: ProductFlowResponse | null) => {
-      const attributes = flow?.guest_attributes ?? []
-      if (attributes.length > 0) {
+      const attributes = askedAttributes(flow)
+      if (guestStepNeeded(attributes, [...participants, ...companions])) {
         setStep({
           name: 'guest-attributes',
           product,
@@ -2219,8 +2224,8 @@ function BookingFlowApp() {
   const cartGuestAttributes =
     step.name === 'fill-form'
       ? unionAttributes(
-          resolvedFlowForProduct(step.product.product_id)?.guest_attributes,
-          ...extraLines.map((l) => l.flow?.guest_attributes),
+          askedAttributes(resolvedFlowForProduct(step.product.product_id)),
+          ...extraLines.map((l) => askedAttributes(l.flow)),
         )
       : []
   const reviewGuests =
@@ -3063,10 +3068,15 @@ function BookingFlowApp() {
             }}
             // landr-hfvyc.2: any stay in the cart (main or cross-sell line)
             // with occupancy pricing → Adult/Child + age per guest.
-            collectGuestAges={hasOccupancyPricing(
-              step.product,
-              ...extraLines.map((l) => l.product),
-            )}
+            // landr-zcb24.2: also whenever the product flow asks ages
+            // (age_needed): the bands come from the flow.
+            collectGuestAges={
+              hasOccupancyPricing(step.product, ...extraLines.map((l) => l.product)) ||
+              resolvedFlowForProduct(step.product.product_id)?.age_needed === true
+            }
+            ageNeeded={resolvedFlowForProduct(step.product.product_id)?.age_needed === true}
+            ageExact={resolvedFlowForProduct(step.product.product_id)?.age_collect_as === 'exact'}
+            ageBands={resolvedFlowForProduct(step.product.product_id)?.age_bands}
           />
         ) : null}
 
@@ -3628,7 +3638,7 @@ function BookingFlowApp() {
               setExtraLines((lines) =>
                 lines.filter(
                   (l) =>
-                    unansweredCount(unionAttributes(l.flow?.guest_attributes), reviewGuests, {}) === 0,
+                    unansweredCount(unionAttributes(askedAttributes(l.flow)), reviewGuests, {}) === 0,
                 ),
               )
             }

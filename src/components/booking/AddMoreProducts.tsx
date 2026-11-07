@@ -108,6 +108,8 @@ export interface InlineModules {
   formAnswers: Readonly<Record<string, Record<string, unknown>>>
   /** Participants' display labels (the language board's rows). */
   participantLabels: string[]
+  /** landr-zcb24.27: everyone on the booking, companions after the participants (the age re-ask). */
+  partyLabels?: string[]
   participants: readonly FormPersonSource[]
   companions: readonly FormPersonSource[]
   onLanguages: (assignment: ParticipantLanguageMap) => void
@@ -630,10 +632,13 @@ export function AddMoreProducts({
 
             {needs?.ages ? (
               <InlineGuestAges
-                labels={modules.participantLabels}
+                labels={needs.ageGuests !== undefined ? (modules.partyLabels ?? modules.participantLabels) : modules.participantLabels}
                 value={modules.state.ages ?? {}}
                 onChange={modules.onAges}
                 locale={locale}
+                ageBands={needs.ageBands}
+                exact={needs.ageExact === true}
+                only={needs.ageGuests}
               />
             ) : null}
 

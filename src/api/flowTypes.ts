@@ -116,6 +116,44 @@ export interface FlowGuestAttribute {
   choices?: string[] | null
   min_value?: number | null
   max_value?: number | null
+  /**
+   * landr-zcb24.6: `ranges` = the guest picks one of `ranges` (a select) and the
+   * range's floor is stored + flagged in `guest_attributes._inexact`; `exact`
+   * (default, absent on an older API) = the guest types the number.
+   */
+  collect_as?: 'exact' | 'ranges'
+  /** The ranges of a `collect_as: 'ranges'` attribute, ascending. */
+  ranges?: FlowRange[]
+  /**
+   * landr-zcb24.17: the operator wants this before arrival, not at booking.
+   * `required_now: false` (= `deferred: true`) renders it optional with an 'add
+   * later' hint and never blocks Continue. Absent (an older API) = required now.
+   */
+  required_now?: boolean
+  deferred?: boolean
+}
+
+/**
+ * One range of an attribute collected as `ranges`: `min` is stored when the
+ * guest picks it, `max` is the EXCLUSIVE upper edge (null = open-ended), `label`
+ * reads '<45 kg', '45-80 kg', '120+ kg'.
+ */
+export interface FlowRange {
+  min: number
+  max?: number | null
+  label: string
+}
+
+/**
+ * One age band of the cart: Child (0-17, the exact age is asked) and the adult
+ * side, each picked as a band and stored as its floor `min_age`.
+ */
+export interface FlowAgeBand {
+  key: string
+  min_age: number
+  /** null = open-ended (the last adult band). */
+  max_age?: number | null
+  label_localized?: Record<string, string> | null
 }
 
 /** Top-level response of GET …/products/{id}/flow. */
@@ -126,6 +164,19 @@ export interface ProductFlowResponse {
    * that can be shown for it). Absent = nothing to ask.
    */
   guest_attributes?: FlowGuestAttribute[]
+  /**
+   * The cart asks every guest's age: the party step collects it (and `age`
+   * is no longer in `guest_attributes`). Absent = false.
+   */
+  age_needed?: boolean
+  /** The bands the party step offers when `age_needed`. Absent = []. */
+  age_bands?: FlowAgeBand[]
+  /**
+   * landr-zcb24.6: how `age` is collected when `age_needed`: `ranges` = the
+   * `age_bands` select; `exact` = every guest types an exact age (no bands).
+   * Absent / null = `ranges` (an older API).
+   */
+  age_collect_as?: 'exact' | 'ranges' | null
 }
 
 /**

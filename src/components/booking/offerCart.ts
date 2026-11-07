@@ -42,6 +42,8 @@ import { ruleMatches } from '@/lib/offerRules'
 import { fmt, tr } from '@/lib/strings'
 import { formatMoney } from './priceSidebarHelpers'
 import type { ExtraLine } from './crossSell'
+import type { GuestAttributeValues } from './detailsTypes'
+import { INEXACT_KEY } from './inexact'
 import { stayNightIsos, type RoomSelection } from './accommodationCalc'
 
 export const MAIN_LINE_ID = 'main'
@@ -96,13 +98,15 @@ interface GuestRow {
   id?: string
   first_name?: string
   last_name?: string
-  guest_attributes?: Record<string, string | number>
+  guest_attributes?: GuestAttributeValues
   occupant_age_band?: 'adult' | 'child' | null
   occupant_age?: number | null
 }
 
 /** Per-member age entry (party index -> band + age), as RoomAssignment keeps it. */
-export type MemberAgeMap = Readonly<Record<number, { band: 'adult' | 'child'; age: number | null }>>
+export type MemberAgeMap = Readonly<
+  Record<number, { band: 'adult' | 'child'; age: number | null; floor?: number }>
+>
 
 /** Party order: participants first, then companions. */
 export function partyRef(index: number): string {
@@ -122,14 +126,25 @@ export function partyMembers(
   fallbackName: (n: number) => string = (n) => `#${n}`,
 ): PartyMember[] {
   return [...participants, ...companions].map((p, i) => {
-    const attributes: Record<string, GuestAttributeWireValue> = { ...(p.guest_attributes ?? {}) }
+    // The offer rules judge the values; which of them are range floors is not
+    // an attribute (`_inexact` and the legacy `age_exact` flag stay out).
+    const attributes: Record<string, GuestAttributeWireValue> = {}
+    for (const [k, v] of Object.entries(p.guest_attributes ?? {})) {
+      if (k !== INEXACT_KEY && k !== 'age_exact' && !Array.isArray(v)) attributes[k] = v
+    }
     const entry = ageMap[i]
+    // landr-zcb24.2/.7: an adult's age is the band floor or the exact age they gave.
+    const stored = typeof p.occupant_age === 'number' ? p.occupant_age : null
     const age =
       entry?.band === 'child'
         ? entry.age
-        : p.occupant_age_band === 'child'
-          ? (p.occupant_age ?? null)
-          : null
+        : entry?.floor !== undefined
+          ? entry.floor
+          : entry?.age != null
+            ? entry.age
+            : p.occupant_age_band === 'child'
+              ? (p.occupant_age ?? null)
+              : stored
     if (attributes.age === undefined && typeof age === 'number') attributes.age = age
     const name = `${p.first_name ?? ''} ${p.last_name ?? ''}`.trim()
     return {

@@ -19,6 +19,9 @@ import {
   checkAttribute,
   guestName,
   initialText,
+  isDeferred,
+  rangeLabel,
+  rangesOf,
   unansweredCount,
   type AttributeInputs,
   type GuestLike,
@@ -55,7 +58,8 @@ export function GuestAttributesStep({
   const [inputs, setInputs] = useState<AttributeInputs>({})
   const [touched, setTouched] = useState<Record<string, true>>({})
 
-  const text = (i: number, key: string): string => inputs[i]?.[key] ?? initialText(guests[i]!, key)
+  const text = (i: number, def: FlowGuestAttribute): string =>
+    inputs[i]?.[def.key] ?? initialText(guests[i]!, def.key, def)
   const set = (i: number, key: string, value: string) => {
     setInputs((prev) => ({ ...prev, [i]: { ...(prev[i] ?? {}), [key]: value } }))
     setTouched((prev) => ({ ...prev, [`${i}:${key}`]: true }))
@@ -91,20 +95,42 @@ export function GuestAttributesStep({
                 </span>
                 <div className="grid gap-3 sm:grid-cols-2">
                   {attributes.map((def) => {
-                    const value = text(i, def.key)
+                    const value = text(i, def)
+                    const ranges = rangesOf(def)
                     const checked = checkAttribute(def, value)
-                    const showProblem =
-                      touched[`${i}:${def.key}`] === true && checked.problem !== undefined
+                    const touchedNow = touched[`${i}:${def.key}`] === true
                     const id = `guest-attr-${i}-${def.key}`
                     const [lo, hi] = attributeBounds(def)
                     const label = attributeLabel(def, locale)
+                    const deferred = isDeferred(def)
+                    // A deferred attribute is optional: a blank is not a problem.
+                    const showProblem =
+                      touchedNow &&
+                      checked.problem !== undefined &&
+                      !(deferred && value.trim() === '')
                     return (
                       <div key={def.key} className="flex flex-col gap-1">
                         <label htmlFor={id} className="text-xs text-muted-foreground">
                           {label}
-                          {def.unit ? ` (${def.unit})` : ''}
+                          {def.unit && !ranges ? ` (${def.unit})` : ''}
                         </label>
-                        {def.value_type === 'choice' ? (
+                        {ranges ? (
+                          <select
+                            id={id}
+                            data-testid={id}
+                            value={value}
+                            aria-invalid={showProblem ? true : undefined}
+                            onChange={(e) => set(i, def.key, e.target.value)}
+                            className="border-input bg-surface-page h-9 rounded-md border px-2 text-sm"
+                          >
+                            <option value="">{tr('guestAttrsChoose', locale)}</option>
+                            {ranges.map((r) => (
+                              <option key={r.min} value={String(r.min)}>
+                                {rangeLabel(r, def.unit)}
+                              </option>
+                            ))}
+                          </select>
+                        ) : def.value_type === 'choice' ? (
                           <select
                             id={id}
                             data-testid={id}
@@ -135,6 +161,14 @@ export function GuestAttributesStep({
                             onChange={(e) => set(i, def.key, e.target.value)}
                           />
                         )}
+                        {deferred ? (
+                          <span
+                            className="text-xs text-muted-foreground"
+                            data-testid={`guest-attr-later-${i}-${def.key}`}
+                          >
+                            {tr('guestAttrsLater', locale)}
+                          </span>
+                        ) : null}
                         {showProblem ? (
                           <span className="text-xs text-destructive" role="alert">
                             {lo !== null && hi !== null && checked.problem === 'range'

@@ -2827,6 +2827,33 @@
         "title": "BookingLineStayWindow",
         "type": "object"
       },
+      "BookingMissingAttributesOut": {
+        "description": "Only participants who still owe something are listed; ``[]`` = nobody.",
+        "properties": {
+          "participants": {
+            "items": {
+              "$ref": "#/components/schemas/ParticipantMissingKeysOut"
+            },
+            "title": "Participants",
+            "type": "array"
+          },
+          "range_options": {
+            "additionalProperties": {
+              "items": {
+                "$ref": "#/components/schemas/RangeOptionOut"
+              },
+              "type": "array"
+            },
+            "title": "Range Options",
+            "type": "object"
+          }
+        },
+        "required": [
+          "participants"
+        ],
+        "title": "BookingMissingAttributesOut",
+        "type": "object"
+      },
       "BookingNoteIn": {
         "description": "POST body \u2014 the note text. Whitespace-only rejected at the model\nlevel (the DB CHECK constraint catches it too, but a 422 from Pydantic\nis the cleaner client surface).",
         "properties": {
@@ -3984,6 +4011,57 @@
           }
         },
         "title": "BriefingDayIn",
+        "type": "object"
+      },
+      "BriefingGuestAttributesIn": {
+        "additionalProperties": false,
+        "properties": {
+          "participants": {
+            "items": {
+              "$ref": "#/components/schemas/ParticipantAttributesIn"
+            },
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "Participants",
+            "type": "array"
+          }
+        },
+        "required": [
+          "participants"
+        ],
+        "title": "BriefingGuestAttributesIn",
+        "type": "object"
+      },
+      "BriefingGuestAttributesOut": {
+        "description": "``attributes`` are the collectable definitions, ``participants`` who still\nowes which keys; both empty when there is nothing left to ask.",
+        "properties": {
+          "answered": {
+            "items": {
+              "$ref": "#/components/schemas/ParticipantAnsweredOut"
+            },
+            "title": "Answered",
+            "type": "array"
+          },
+          "attributes": {
+            "items": {
+              "$ref": "#/components/schemas/FlowAttributeOut"
+            },
+            "title": "Attributes",
+            "type": "array"
+          },
+          "participants": {
+            "items": {
+              "$ref": "#/components/schemas/ParticipantMissingOut"
+            },
+            "title": "Participants",
+            "type": "array"
+          }
+        },
+        "required": [
+          "attributes",
+          "participants"
+        ],
+        "title": "BriefingGuestAttributesOut",
         "type": "object"
       },
       "BriefingJoinIn": {
@@ -9940,6 +10018,55 @@
         "title": "DayUnitSortItem",
         "type": "object"
       },
+      "DerivedCut": {
+        "description": "A cut point a rule or a price adds on top of the operator's ``range_cuts``\n(landr-zcb24.18): read-only, computed like the ranges guests pick from.",
+        "properties": {
+          "source": {
+            "$ref": "#/components/schemas/DerivedCutSource"
+          },
+          "value": {
+            "title": "Value",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "value",
+          "source"
+        ],
+        "title": "DerivedCut",
+        "type": "object"
+      },
+      "DerivedCutSource": {
+        "description": "The rule that adds a derived cut: ``eligibility`` (a product's eligibility\nrules; id/label = the product), ``offer_rule`` (an offer's rules; id = the\noffer, label = the offered product), ``price_rule`` (an ``attribute_bands``\nprice) or ``occupancy`` (``occupancy_pricing`` child bands); id = the pricing\nrule, label = its price list.",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "price_rule",
+              "offer_rule",
+              "eligibility",
+              "occupancy"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "id",
+          "label"
+        ],
+        "title": "DerivedCutSource",
+        "type": "object"
+      },
       "DetailsFormAnswers": {
         "description": "Answers of one form, in the shape PUT takes: booking-scope ``answers``\nplus ``people`` keyed by booking_participant_id.",
         "properties": {
@@ -12191,6 +12318,171 @@
         "title": "FlagTemplateIn",
         "type": "object"
       },
+      "FlowAgeBand": {
+        "description": "One age band of the cart (landr-zcb24.1): Child is 0-17 (exact age), an\nadult band is picked and stored as its floor ``min_age``. landr-zcb24.6 adds the\ngeneric range fields (``min`` / ``max`` exclusive / ``label``, the shape of\n``FlowRange``) and ``exact`` (true on Child: the exact age is asked).",
+        "properties": {
+          "exact": {
+            "default": false,
+            "title": "Exact",
+            "type": "boolean"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "label_localized": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Label Localized",
+            "type": "object"
+          },
+          "max": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max"
+          },
+          "max_age": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Age"
+          },
+          "min": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min"
+          },
+          "min_age": {
+            "title": "Min Age",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "key",
+          "min_age"
+        ],
+        "title": "FlowAgeBand",
+        "type": "object"
+      },
+      "FlowAttributeOut": {
+        "properties": {
+          "choices": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Choices"
+          },
+          "collect_as": {
+            "default": "exact",
+            "title": "Collect As",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "label_localized": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Label Localized",
+            "type": "object"
+          },
+          "max_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Value"
+          },
+          "min_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Value"
+          },
+          "ranges": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Ranges",
+            "type": "array"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          },
+          "value_type": {
+            "title": "Value Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "value_type"
+        ],
+        "title": "FlowAttributeOut",
+        "type": "object"
+      },
       "FlowFieldDef": {
         "additionalProperties": true,
         "description": "One field definition from the form RPC (verbatim wire keys).\nMirrors the widget's ``FlowFieldDef`` TypeScript interface.",
@@ -12495,6 +12787,20 @@
             ],
             "title": "Choices"
           },
+          "collect_as": {
+            "default": "exact",
+            "enum": [
+              "exact",
+              "ranges"
+            ],
+            "title": "Collect As",
+            "type": "string"
+          },
+          "deferred": {
+            "default": false,
+            "title": "Deferred",
+            "type": "boolean"
+          },
           "key": {
             "title": "Key",
             "type": "string"
@@ -12531,6 +12837,18 @@
               }
             ],
             "title": "Min Value"
+          },
+          "ranges": {
+            "items": {
+              "$ref": "#/components/schemas/FlowRange"
+            },
+            "title": "Ranges",
+            "type": "array"
+          },
+          "required_now": {
+            "default": true,
+            "title": "Required Now",
+            "type": "boolean"
           },
           "unit": {
             "anyOf": [
@@ -12590,6 +12908,36 @@
           "position"
         ],
         "title": "FlowModuleDef",
+        "type": "object"
+      },
+      "FlowRange": {
+        "description": "One range of an attribute collected as ``ranges`` (landr-zcb24.6): ``min`` is\nstored when the guest picks it, ``max`` is the EXCLUSIVE upper edge (the next\nrange's ``min``; null = open-ended), ``label`` reads '<45 kg', '45-80 kg', '120+ kg'.",
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "max": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max"
+          },
+          "min": {
+            "title": "Min",
+            "type": "number"
+          }
+        },
+        "required": [
+          "min",
+          "label"
+        ],
+        "title": "FlowRange",
         "type": "object"
       },
       "ForecastItem": {
@@ -13455,10 +13803,40 @@
             ],
             "title": "Choices"
           },
+          "collect_as": {
+            "default": "exact",
+            "enum": [
+              "exact",
+              "ranges"
+            ],
+            "title": "Collect As",
+            "type": "string"
+          },
+          "collect_when": {
+            "default": "booking",
+            "enum": [
+              "booking",
+              "before_arrival"
+            ],
+            "title": "Collect When",
+            "type": "string"
+          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
             "type": "string"
+          },
+          "decisive": {
+            "default": false,
+            "title": "Decisive",
+            "type": "boolean"
+          },
+          "derived_cuts": {
+            "items": {
+              "$ref": "#/components/schemas/DerivedCut"
+            },
+            "title": "Derived Cuts",
+            "type": "array"
           },
           "id": {
             "format": "uuid",
@@ -13506,6 +13884,13 @@
             "format": "uuid",
             "title": "Operator Id",
             "type": "string"
+          },
+          "range_cuts": {
+            "items": {
+              "type": "number"
+            },
+            "title": "Range Cuts",
+            "type": "array"
           },
           "sort_order": {
             "title": "Sort Order",
@@ -13585,6 +13970,24 @@
             ],
             "title": "Choices"
           },
+          "collect_as": {
+            "default": "exact",
+            "enum": [
+              "exact",
+              "ranges"
+            ],
+            "title": "Collect As",
+            "type": "string"
+          },
+          "collect_when": {
+            "default": "booking",
+            "enum": [
+              "booking",
+              "before_arrival"
+            ],
+            "title": "Collect When",
+            "type": "string"
+          },
           "key": {
             "pattern": "^[a-z][a-z0-9_]{0,39}$",
             "title": "Key",
@@ -13624,6 +14027,14 @@
               }
             ],
             "title": "Min Value"
+          },
+          "range_cuts": {
+            "items": {
+              "type": "number"
+            },
+            "maxItems": 12,
+            "title": "Range Cuts",
+            "type": "array"
           },
           "sort_order": {
             "default": 0,
@@ -13690,6 +14101,36 @@
             ],
             "title": "Choices"
           },
+          "collect_as": {
+            "anyOf": [
+              {
+                "enum": [
+                  "exact",
+                  "ranges"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collect As"
+          },
+          "collect_when": {
+            "anyOf": [
+              {
+                "enum": [
+                  "booking",
+                  "before_arrival"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collect When"
+          },
           "label": {
             "anyOf": [
               {
@@ -13738,6 +14179,21 @@
               }
             ],
             "title": "Min Value"
+          },
+          "range_cuts": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "maxItems": 12,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Range Cuts"
           },
           "sort_order": {
             "anyOf": [
@@ -13821,6 +14277,13 @@
           "guest_attributes": {
             "additionalProperties": true,
             "title": "Guest Attributes",
+            "type": "object"
+          },
+          "guest_attributes_display": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Guest Attributes Display",
             "type": "object"
           },
           "occupant_age": {
@@ -17422,6 +17885,24 @@
         "title": "MessageTemplatePatch",
         "type": "object"
       },
+      "MissingGuestKeyOut": {
+        "properties": {
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "label"
+        ],
+        "title": "MissingGuestKeyOut",
+        "type": "object"
+      },
       "MultiDaySavingsOut": {
         "additionalProperties": true,
         "description": "Congrats-card payload (landr-nva1a.1): ``days`` = longest\nconsecutive run (streak pricing) or total priced days (total-days\npricing); ``amount`` = the summed multi-day saving.",
@@ -18318,6 +18799,13 @@
       "OfferEvaluateOut": {
         "description": "Per request line, in request order. ``required_attribute_keys``: every\nguest attribute the cart's products and their candidate offers read -- the\nkeys the widget asks per guest before offers needing them can show.",
         "properties": {
+          "deferred_attribute_keys": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Deferred Attribute Keys",
+            "type": "array"
+          },
           "lines": {
             "items": {
               "$ref": "#/components/schemas/EvaluatedLine"
@@ -22105,6 +22593,75 @@
         "title": "PartialCreditNoteIn",
         "type": "object"
       },
+      "ParticipantAnsweredOut": {
+        "description": "What one participant answered as a RANGE, shown as the range ('80-100 kg')\nand not as the floor that is stored (landr-zcb24.12).",
+        "properties": {
+          "guest_attributes_display": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Guest Attributes Display",
+            "type": "object"
+          },
+          "participant_id": {
+            "format": "uuid",
+            "title": "Participant Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "participant_id",
+          "guest_attributes_display"
+        ],
+        "title": "ParticipantAnsweredOut",
+        "type": "object"
+      },
+      "ParticipantAttributesIn": {
+        "additionalProperties": false,
+        "properties": {
+          "attributes": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "maxProperties": 32,
+            "title": "Attributes",
+            "type": "object"
+          },
+          "participant_id": {
+            "format": "uuid",
+            "title": "Participant Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "participant_id",
+          "attributes"
+        ],
+        "title": "ParticipantAttributesIn",
+        "type": "object"
+      },
       "ParticipantDayStatusIn": {
         "description": "Create payload for a new participant-day status.\n\n`semantic_state` is required here \u2014 and ONLY here, see\n`ParticipantDayStatusPatch` below and the module docstring. `leaves_unit`\nis optional here \u2014 omitting it lets the DB's `BEFORE INSERT` trigger\ndefault it from `semantic_state` (see module docstring) \u2014 but, unlike\n`semantic_state`, remains mutable after create via\n`ParticipantDayStatusPatch`.",
         "properties": {
@@ -22406,6 +22963,61 @@
           "service_role_code"
         ],
         "title": "ParticipantIn",
+        "type": "object"
+      },
+      "ParticipantMissingKeysOut": {
+        "properties": {
+          "missing": {
+            "items": {
+              "$ref": "#/components/schemas/MissingGuestKeyOut"
+            },
+            "title": "Missing",
+            "type": "array"
+          },
+          "participant_id": {
+            "format": "uuid",
+            "title": "Participant Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "participant_id",
+          "missing"
+        ],
+        "title": "ParticipantMissingKeysOut",
+        "type": "object"
+      },
+      "ParticipantMissingOut": {
+        "properties": {
+          "first_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Name"
+          },
+          "missing": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Missing",
+            "type": "array"
+          },
+          "participant_id": {
+            "format": "uuid",
+            "title": "Participant Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "participant_id",
+          "missing"
+        ],
+        "title": "ParticipantMissingOut",
         "type": "object"
       },
       "PartnerOut": {
@@ -26601,6 +27213,33 @@
         "additionalProperties": true,
         "description": "Response of GET \u2026/products/{id}/flow. Mirrors the widget's\n``ProductFlowResponse`` TypeScript interface (src/api/flowTypes.ts).\n``modules`` is null for products with no configured flow (legacy\nshape) or list of modules otherwise.",
         "properties": {
+          "age_bands": {
+            "items": {
+              "$ref": "#/components/schemas/FlowAgeBand"
+            },
+            "title": "Age Bands",
+            "type": "array"
+          },
+          "age_collect_as": {
+            "anyOf": [
+              {
+                "enum": [
+                  "exact",
+                  "ranges"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Age Collect As"
+          },
+          "age_needed": {
+            "default": false,
+            "title": "Age Needed",
+            "type": "boolean"
+          },
           "eligibility_reason_key": {
             "anyOf": [
               {
@@ -30108,6 +30747,47 @@
           "lng"
         ],
         "title": "RaiseSosRequest",
+        "type": "object"
+      },
+      "RangeOptionOut": {
+        "description": "One range staff can pick: ``min`` is the floor that gets stored, ``max`` the\nEXCLUSIVE upper edge (null for the last range).",
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "max": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max"
+          },
+          "min": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Min"
+          }
+        },
+        "required": [
+          "min",
+          "max",
+          "label"
+        ],
+        "title": "RangeOptionOut",
         "type": "object"
       },
       "RecipientSetIn": {
@@ -48635,6 +49315,64 @@
         ]
       }
     },
+    "/api/operators/{operator_id}/bookings/{booking_id}/guest-attributes/missing": {
+      "get": {
+        "description": "Per participant, the before-arrival guest details still missing (landr-zcb24.15).",
+        "operationId": "staff_get_booking_missing_guest_attributes",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Booking Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingMissingAttributesOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Booking Missing Guest Attributes",
+        "tags": [
+          "staff-booking-guest-attributes"
+        ]
+      }
+    },
     "/api/operators/{operator_id}/bookings/{booking_id}/participants/{participant_id}/attributes": {
       "patch": {
         "operationId": "patch_participant_attributes",
@@ -48941,7 +49679,7 @@
     },
     "/api/operators/{operator_id}/guest-attribute-definitions": {
       "get": {
-        "description": "The operator's attribute catalogue: the five well-known keys plus custom ones.",
+        "description": "The operator's attribute catalogue: the five well-known keys plus custom ones, each numeric\none with the rule-derived cut points (``derived_cuts``) and the rule that adds each.",
         "operationId": "list_guest_attribute_definitions",
         "parameters": [
           {
@@ -50766,6 +51504,100 @@
         "summary": "List Checkins",
         "tags": [
           "public-briefings"
+        ]
+      }
+    },
+    "/api/public/briefings/{token}/guest-attributes": {
+      "get": {
+        "description": "The before-arrival guest details still missing, per participant.",
+        "operationId": "public_briefing_get_guest_attributes",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BriefingGuestAttributesOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Briefing Guest Attributes",
+        "tags": [
+          "public-briefings-guest-attributes"
+        ]
+      },
+      "put": {
+        "description": "Store before-arrival values per participant; returns what is still missing.\n\n422 ``attribute_not_collectable`` (``key``) for a key the page may not collect\n(decisive, ``age``, not asked by this booking); 422 ``attribute_invalid`` /\n``attribute_unknown`` as the public submit; 404 for a participant who is not on\nthis booking. Nothing is written unless every participant validates.",
+        "operationId": "public_briefing_put_guest_attributes",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BriefingGuestAttributesIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BriefingGuestAttributesOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Briefing Guest Attributes",
+        "tags": [
+          "public-briefings-guest-attributes"
         ]
       }
     },

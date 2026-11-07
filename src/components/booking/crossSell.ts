@@ -23,7 +23,8 @@ import type {
   Product,
   ProductLine,
 } from '@/api/types'
-import type { FlowFormDef, ProductFlowResponse } from '@/api/flowTypes'
+import type { FlowAgeBand, FlowFormDef, ProductFlowResponse } from '@/api/flowTypes'
+import { adultBandsOf, guestsToReask, isValidExactAge, mergeBands } from './ageBands'
 import { isStayKind } from '@/flowPlan'
 import { hasFixedStartTimes, toHHMM } from './slotKey'
 import { expandWindowDays } from './expandWindowDays'
@@ -104,12 +105,26 @@ export interface CrossSellContext {
    * for Adult/Child + age (no occupancy-priced stay was in the cart then).
    */
   agesNeeded?: boolean
+  /**
+   * landr-zcb24.12: the party step already asked the ages as bands (the main
+   * flow's `bands`) and stored each adult's band floor (`floors`, by roster
+   * index). An added line whose flow brings a finer cut re-asks the guests whose
+   * band it splits.
+   */
+  ageRefine?: {
+    bands: readonly FlowAgeBand[]
+    floors: Readonly<Record<number, number | undefined>>
+  }
 }
 
 /** One guest's Adult/Child band (+ age 0-17 for a child). */
 export interface GuestAgeEntry {
   band: 'adult' | 'child'
   age: number | null
+  /** landr-zcb24.2: an adult band's floor, sent as the age (+ age_exact=false). */
+  floor?: number
+  /** landr-zcb24.2: the booker (entry 0) ticked "I am 18 or older". */
+  confirmed?: boolean
 }
 
 /**
@@ -223,6 +238,41 @@ export interface LineNeeds {
   forms: FlowFormDef[]
   /** landr-hfvyc.2: Adult/Child + age per guest (owned by the first occupancy-priced line). */
   ages?: boolean
+  /**
+   * landr-zcb24.2: the line's flow asks every guest's age (age_needed): the
+   * bands to offer (all added lines merged) — and the booker confirms 18+.
+   */
+  ageBands?: readonly FlowAgeBand[]
+  /**
+   * landr-zcb24.7: the operator collects age as exact: each guest types an age
+   * (the booker 18 or older) instead of picking a band.
+   */
+  ageExact?: boolean
+  /**
+   * landr-zcb24.12: only these roster guests are asked (the party step asked the
+   * ages already; an added line split their band): `ageBands` are the refined
+   * bands and each of them must pick an adult floor again.
+   */
+  ageGuests?: readonly number[]
+}
+
+/**
+ * The bands the whole cart needs and the guests an added line's finer cuts make
+ * ask again; null when the party step did not ask bands or nothing splits.
+ */
+export function refinedAges(
+  ctx: CrossSellContext,
+  lines: readonly ExtraLine[],
+): { bands: readonly FlowAgeBand[]; guests: readonly number[] } | null {
+  const refine = ctx.ageRefine
+  if (!refine) return null
+  const added = lines.filter(
+    (l) => l.flow?.age_needed === true && l.flow.age_collect_as !== 'exact' && (l.flow.age_bands?.length ?? 0) > 0,
+  )
+  if (added.length === 0) return null
+  const bands = mergeBands([refine.bands, ...added.map((l) => l.flow?.age_bands)])
+  const guests = guestsToReask(refine.bands, bands, refine.floors)
+  return guests.length > 0 ? { bands, guests } : null
 }
 
 /**
@@ -246,6 +296,7 @@ export function lineNeeds(
   let languageClaimed = false
   let pickupClaimed = false
   let agesClaimed = false
+  const refine = ctx.agesNeeded ? null : refinedAges(ctx, lines)
   for (const line of lines) {
     const needs: LineNeeds = { language: false, pickup: false, forms: [] }
     if (languageMissing && !languageClaimed && productOfferedLanguages(line.product).length > 0) {
@@ -262,8 +313,22 @@ export function lineNeeds(
       needs.pickup = true
       pickupClaimed = true
     }
-    if (ctx.agesNeeded && !agesClaimed && line.product.occupancy_pricing) {
+    if (
+      ctx.agesNeeded &&
+      !agesClaimed &&
+      (line.product.occupancy_pricing || line.flow?.age_needed === true)
+    ) {
       needs.ages = true
+      agesClaimed = true
+      if (lines.some((l) => l.flow?.age_needed === true)) {
+        needs.ageBands = mergeBands(lines.filter((l) => l.flow?.age_needed).map((l) => l.flow?.age_bands))
+        if (lines.some((l) => l.flow?.age_needed === true && l.flow.age_collect_as === 'exact')) needs.ageExact = true
+      }
+    }
+    if (refine && !agesClaimed && line.flow?.age_needed === true) {
+      needs.ages = true
+      needs.ageBands = refine.bands
+      needs.ageGuests = refine.guests
       agesClaimed = true
     }
     for (const m of line.flow?.modules ?? []) {
@@ -285,6 +350,17 @@ export function hasChildWithoutAgeEntry(
   return Object.values(ages ?? {}).some((e) => e.band === 'child' && e.age === null)
 }
 
+/** True when one of the first `count` guests has no usable exact age yet (the booker: 18+). */
+export function exactAgeEntryMissing(
+  ages: Readonly<Record<number, GuestAgeEntry>> | null | undefined,
+  count: number,
+): boolean {
+  for (let i = 0; i < count; i += 1) {
+    if (!isValidExactAge(ages?.[i]?.age, i === 0)) return true
+  }
+  return false
+}
+
 /** `child_ages` for the estimate from inline entries (first guest is never a child). */
 export function childAgesFromEntries(
   ages: Readonly<Record<number, GuestAgeEntry>> | null | undefined,
@@ -295,6 +371,19 @@ export function childAgesFromEntries(
     if (Number(k) > 0 && e.band === 'child' && e.age !== null) out.push(e.age)
   }
   return out.slice(0, Math.max(0, participantCount - 1))
+}
+
+/** True when a re-asked guest has not (re-)picked one of the refined adult floors. */
+function refinedFloorMissing(
+  guests: readonly number[],
+  bands: readonly FlowAgeBand[] | undefined,
+  ages: Readonly<Record<number, GuestAgeEntry>> | null | undefined,
+): boolean {
+  const floors = new Set(adultBandsOf(bands ?? []).map((b) => b.min_age))
+  return guests.some((i) => {
+    const floor = ages?.[i]?.floor
+    return floor === undefined || !floors.has(floor)
+  })
 }
 
 /** True while an inline module of an added line still waits for the customer. */
@@ -311,7 +400,15 @@ export function inlineModulesPending(
       (n.language &&
         !(offer && languagesCover(inline.languages ?? {}, ctx.participantCount, offer))) ||
       (n.pickup && inline.pickupLocationId === null) ||
-      (n.ages === true && hasChildWithoutAgeEntry(inline.ages)) ||
+      (n.ages === true &&
+        n.ageGuests !== undefined &&
+        refinedFloorMissing(n.ageGuests, n.ageBands, inline.ages)) ||
+      (n.ages === true &&
+        n.ageGuests === undefined &&
+        (n.ageExact === true
+          ? exactAgeEntryMissing(inline.ages, ctx.participantCount)
+          : hasChildWithoutAgeEntry(inline.ages) ||
+            (n.ageBands !== undefined && inline.ages?.[0]?.confirmed !== true))) ||
       n.forms.some((f) => !answered.has(f.key)),
   )
 }

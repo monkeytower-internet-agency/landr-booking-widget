@@ -2961,6 +2961,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/operators/{operator_id}/bookings/{booking_id}/guest-attributes/missing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Booking Missing Guest Attributes
+         * @description Per participant, the before-arrival guest details still missing (landr-zcb24.15).
+         */
+        get: operations["staff_get_booking_missing_guest_attributes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/operators/{operator_id}/bookings/{booking_id}/participants/{participant_id}/attributes": {
         parameters: {
             query?: never;
@@ -3061,7 +3081,8 @@ export interface paths {
         };
         /**
          * List Guest Attribute Definitions
-         * @description The operator's attribute catalogue: the five well-known keys plus custom ones.
+         * @description The operator's attribute catalogue: the five well-known keys plus custom ones, each numeric
+         *     one with the rule-derived cut points (``derived_cuts``) and the rule that adds each.
          */
         get: operations["list_guest_attribute_definitions"];
         put?: never;
@@ -3738,6 +3759,35 @@ export interface paths {
          */
         get: operations["public_list_checkins"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/briefings/{token}/guest-attributes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Briefing Guest Attributes
+         * @description The before-arrival guest details still missing, per participant.
+         */
+        get: operations["public_briefing_get_guest_attributes"];
+        /**
+         * Put Briefing Guest Attributes
+         * @description Store before-arrival values per participant; returns what is still missing.
+         *
+         *     422 ``attribute_not_collectable`` (``key``) for a key the page may not collect
+         *     (decisive, ``age``, not asked by this booking); 422 ``attribute_invalid`` /
+         *     ``attribute_unknown`` as the public submit; 404 for a participant who is not on
+         *     this booking. Nothing is written unless every participant validates.
+         */
+        put: operations["public_briefing_put_guest_attributes"];
         post?: never;
         delete?: never;
         options?: never;
@@ -14720,6 +14770,18 @@ export interface components {
             nights: number;
         };
         /**
+         * BookingMissingAttributesOut
+         * @description Only participants who still owe something are listed; ``[]`` = nobody.
+         */
+        BookingMissingAttributesOut: {
+            /** Participants */
+            participants: components["schemas"]["ParticipantMissingKeysOut"][];
+            /** Range Options */
+            range_options?: {
+                [key: string]: components["schemas"]["RangeOptionOut"][];
+            };
+        };
+        /**
          * BookingNoteIn
          * @description POST body — the note text. Whitespace-only rejected at the model
          *     level (the DB CHECK constraint catches it too, but a 422 from Pydantic
@@ -15157,6 +15219,24 @@ export interface components {
             plan_detail?: string | null;
             /** Plan Headline */
             plan_headline?: string | null;
+        };
+        /** BriefingGuestAttributesIn */
+        BriefingGuestAttributesIn: {
+            /** Participants */
+            participants: components["schemas"]["ParticipantAttributesIn"][];
+        };
+        /**
+         * BriefingGuestAttributesOut
+         * @description ``attributes`` are the collectable definitions, ``participants`` who still
+         *     owes which keys; both empty when there is nothing left to ask.
+         */
+        BriefingGuestAttributesOut: {
+            /** Answered */
+            answered?: components["schemas"]["ParticipantAnsweredOut"][];
+            /** Attributes */
+            attributes: components["schemas"]["FlowAttributeOut"][];
+            /** Participants */
+            participants: components["schemas"]["ParticipantMissingOut"][];
         };
         /**
          * BriefingJoinIn
@@ -17173,6 +17253,38 @@ export interface components {
             unit_id?: string | null;
         };
         /**
+         * DerivedCut
+         * @description A cut point a rule or a price adds on top of the operator's ``range_cuts``
+         *     (landr-zcb24.18): read-only, computed like the ranges guests pick from.
+         */
+        DerivedCut: {
+            source: components["schemas"]["DerivedCutSource"];
+            /** Value */
+            value: number;
+        };
+        /**
+         * DerivedCutSource
+         * @description The rule that adds a derived cut: ``eligibility`` (a product's eligibility
+         *     rules; id/label = the product), ``offer_rule`` (an offer's rules; id = the
+         *     offer, label = the offered product), ``price_rule`` (an ``attribute_bands``
+         *     price) or ``occupancy`` (``occupancy_pricing`` child bands); id = the pricing
+         *     rule, label = its price list.
+         */
+        DerivedCutSource: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "price_rule" | "offer_rule" | "eligibility" | "occupancy";
+            /** Label */
+            label: string;
+        };
+        /**
          * DetailsFormAnswers
          * @description Answers of one form, in the shape PUT takes: booking-scope ``answers``
          *     plus ``people`` keyed by booking_participant_id.
@@ -17995,6 +18107,66 @@ export interface components {
             slug: string;
         };
         /**
+         * FlowAgeBand
+         * @description One age band of the cart (landr-zcb24.1): Child is 0-17 (exact age), an
+         *     adult band is picked and stored as its floor ``min_age``. landr-zcb24.6 adds the
+         *     generic range fields (``min`` / ``max`` exclusive / ``label``, the shape of
+         *     ``FlowRange``) and ``exact`` (true on Child: the exact age is asked).
+         */
+        FlowAgeBand: {
+            /**
+             * Exact
+             * @default false
+             */
+            exact: boolean;
+            /** Key */
+            key: string;
+            /** Label */
+            label?: string | null;
+            /** Label Localized */
+            label_localized?: {
+                [key: string]: string;
+            };
+            /** Max */
+            max?: number | null;
+            /** Max Age */
+            max_age?: number | null;
+            /** Min */
+            min?: number | null;
+            /** Min Age */
+            min_age: number;
+        };
+        /** FlowAttributeOut */
+        FlowAttributeOut: {
+            /** Choices */
+            choices?: string[] | null;
+            /**
+             * Collect As
+             * @default exact
+             */
+            collect_as: string;
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /** Label Localized */
+            label_localized?: {
+                [key: string]: string;
+            };
+            /** Max Value */
+            max_value?: number | null;
+            /** Min Value */
+            min_value?: number | null;
+            /** Ranges */
+            ranges?: {
+                [key: string]: unknown;
+            }[];
+            /** Unit */
+            unit?: string | null;
+            /** Value Type */
+            value_type: string;
+        };
+        /**
          * FlowFieldDef
          * @description One field definition from the form RPC (verbatim wire keys).
          *     Mirrors the widget's ``FlowFieldDef`` TypeScript interface.
@@ -18116,6 +18288,17 @@ export interface components {
         FlowGuestAttribute: {
             /** Choices */
             choices?: string[] | null;
+            /**
+             * Collect As
+             * @default exact
+             * @enum {string}
+             */
+            collect_as: "exact" | "ranges";
+            /**
+             * Deferred
+             * @default false
+             */
+            deferred: boolean;
             /** Key */
             key: string;
             /** Label */
@@ -18128,6 +18311,13 @@ export interface components {
             max_value?: number | null;
             /** Min Value */
             min_value?: number | null;
+            /** Ranges */
+            ranges?: components["schemas"]["FlowRange"][];
+            /**
+             * Required Now
+             * @default true
+             */
+            required_now: boolean;
             /** Unit */
             unit?: string | null;
             /**
@@ -18149,6 +18339,20 @@ export interface components {
             position: number;
         } & {
             [key: string]: unknown;
+        };
+        /**
+         * FlowRange
+         * @description One range of an attribute collected as ``ranges`` (landr-zcb24.6): ``min`` is
+         *     stored when the guest picks it, ``max`` is the EXCLUSIVE upper edge (the next
+         *     range's ``min``; null = open-ended), ``label`` reads '<45 kg', '45-80 kg', '120+ kg'.
+         */
+        FlowRange: {
+            /** Label */
+            label: string;
+            /** Max */
+            max?: number | null;
+            /** Min */
+            min: number;
         };
         /** ForecastItem */
         ForecastItem: {
@@ -18422,10 +18626,29 @@ export interface components {
             /** Choices */
             choices: string[] | null;
             /**
+             * Collect As
+             * @default exact
+             * @enum {string}
+             */
+            collect_as: "exact" | "ranges";
+            /**
+             * Collect When
+             * @default booking
+             * @enum {string}
+             */
+            collect_when: "booking" | "before_arrival";
+            /**
              * Created At
              * Format: date-time
              */
             created_at: string;
+            /**
+             * Decisive
+             * @default false
+             */
+            decisive: boolean;
+            /** Derived Cuts */
+            derived_cuts?: components["schemas"]["DerivedCut"][];
             /**
              * Id
              * Format: uuid
@@ -18448,6 +18671,8 @@ export interface components {
              * Format: uuid
              */
             operator_id: string;
+            /** Range Cuts */
+            range_cuts?: number[];
             /** Sort Order */
             sort_order: number;
             /** Unit */
@@ -18477,6 +18702,18 @@ export interface components {
             active: boolean;
             /** Choices */
             choices?: string[] | null;
+            /**
+             * Collect As
+             * @default exact
+             * @enum {string}
+             */
+            collect_as: "exact" | "ranges";
+            /**
+             * Collect When
+             * @default booking
+             * @enum {string}
+             */
+            collect_when: "booking" | "before_arrival";
             /** Key */
             key: string;
             /** Label */
@@ -18489,6 +18726,8 @@ export interface components {
             max_value?: number | null;
             /** Min Value */
             min_value?: number | null;
+            /** Range Cuts */
+            range_cuts?: number[];
             /**
              * Sort Order
              * @default 0
@@ -18512,6 +18751,10 @@ export interface components {
             active?: boolean | null;
             /** Choices */
             choices?: string[] | null;
+            /** Collect As */
+            collect_as?: ("exact" | "ranges") | null;
+            /** Collect When */
+            collect_when?: ("booking" | "before_arrival") | null;
             /** Label */
             label?: string | null;
             /** Label Localized */
@@ -18522,6 +18765,8 @@ export interface components {
             max_value?: number | null;
             /** Min Value */
             min_value?: number | null;
+            /** Range Cuts */
+            range_cuts?: number[] | null;
             /** Sort Order */
             sort_order?: number | null;
             /** Unit */
@@ -18553,6 +18798,10 @@ export interface components {
             /** Guest Attributes */
             guest_attributes: {
                 [key: string]: unknown;
+            };
+            /** Guest Attributes Display */
+            guest_attributes_display?: {
+                [key: string]: string;
             };
             /** Occupant Age */
             occupant_age: number | null;
@@ -19820,6 +20069,13 @@ export interface components {
             /** Sort Order */
             sort_order?: number | null;
         };
+        /** MissingGuestKeyOut */
+        MissingGuestKeyOut: {
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+        };
         /**
          * MultiDaySavingsOut
          * @description Congrats-card payload (landr-nva1a.1): ``days`` = longest
@@ -20173,6 +20429,8 @@ export interface components {
          *     keys the widget asks per guest before offers needing them can show.
          */
         OfferEvaluateOut: {
+            /** Deferred Attribute Keys */
+            deferred_attribute_keys?: string[];
             /** Lines */
             lines: components["schemas"]["EvaluatedLine"][];
             /** Required Attribute Keys */
@@ -21353,6 +21611,34 @@ export interface components {
             reason: string;
         };
         /**
+         * ParticipantAnsweredOut
+         * @description What one participant answered as a RANGE, shown as the range ('80-100 kg')
+         *     and not as the floor that is stored (landr-zcb24.12).
+         */
+        ParticipantAnsweredOut: {
+            /** Guest Attributes Display */
+            guest_attributes_display: {
+                [key: string]: string;
+            };
+            /**
+             * Participant Id
+             * Format: uuid
+             */
+            participant_id: string;
+        };
+        /** ParticipantAttributesIn */
+        ParticipantAttributesIn: {
+            /** Attributes */
+            attributes: {
+                [key: string]: boolean | number | string | string[] | null;
+            };
+            /**
+             * Participant Id
+             * Format: uuid
+             */
+            participant_id: string;
+        };
+        /**
          * ParticipantDayStatusIn
          * @description Create payload for a new participant-day status.
          *
@@ -21457,6 +21743,28 @@ export interface components {
             room_unit_index?: number | null;
             /** Service Role Code */
             service_role_code: string;
+        };
+        /** ParticipantMissingKeysOut */
+        ParticipantMissingKeysOut: {
+            /** Missing */
+            missing: components["schemas"]["MissingGuestKeyOut"][];
+            /**
+             * Participant Id
+             * Format: uuid
+             */
+            participant_id: string;
+        };
+        /** ParticipantMissingOut */
+        ParticipantMissingOut: {
+            /** First Name */
+            first_name?: string | null;
+            /** Missing */
+            missing: string[];
+            /**
+             * Participant Id
+             * Format: uuid
+             */
+            participant_id: string;
         };
         /** PartnerOut */
         PartnerOut: {
@@ -22904,6 +23212,15 @@ export interface components {
          *     shape) or list of modules otherwise.
          */
         ProductFlowResponse: {
+            /** Age Bands */
+            age_bands?: components["schemas"]["FlowAgeBand"][];
+            /** Age Collect As */
+            age_collect_as?: ("exact" | "ranges") | null;
+            /**
+             * Age Needed
+             * @default false
+             */
+            age_needed: boolean;
             /** Eligibility Reason Key */
             eligibility_reason_key?: string | null;
             /** Eligible */
@@ -23895,6 +24212,19 @@ export interface components {
              * @default 25
              */
             radius_km: number;
+        };
+        /**
+         * RangeOptionOut
+         * @description One range staff can pick: ``min`` is the floor that gets stored, ``max`` the
+         *     EXCLUSIVE upper edge (null for the last range).
+         */
+        RangeOptionOut: {
+            /** Label */
+            label: string;
+            /** Max */
+            max: number | null;
+            /** Min */
+            min: number;
         };
         /**
          * RecipientSetIn
@@ -32550,6 +32880,38 @@ export interface operations {
             };
         };
     };
+    staff_get_booking_missing_guest_attributes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BookingMissingAttributesOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     patch_participant_attributes: {
         parameters: {
             query?: never;
@@ -33849,6 +34211,72 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_briefing_get_guest_attributes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BriefingGuestAttributesOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_briefing_put_guest_attributes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BriefingGuestAttributesIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BriefingGuestAttributesOut"];
                 };
             };
             /** @description Validation Error */

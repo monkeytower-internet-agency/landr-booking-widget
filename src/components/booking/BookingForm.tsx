@@ -57,7 +57,7 @@ import {
   type CompanionDetails,
   type ParticipantDetails,
 } from './detailsTypes'
-import { guestAttributesWire } from './guestAttributes'
+import { ADULT_FROM, DEFAULT_AGE_BANDS, adultAgeWire, adultFloorOf, resolveBands } from './ageBands'
 import { ContinueAction } from './ContinueAction'
 import { isOwnAccommodation, ownAccommodationWire } from './ownAccommodation'
 import { CustomerCommentField } from './CustomerCommentField'
@@ -1171,7 +1171,7 @@ export function BookingForm({
   const agesNeeded =
     participants.length >= 2 && !participants.some((p) => p.occupant_age_band !== undefined)
   const inlineAgesApply =
-    agesNeeded && crossSellLines.some((l) => l.product.occupancy_pricing)
+    agesNeeded && crossSellLines.some((l) => l.product.occupancy_pricing || l.flow?.age_needed === true)
   const inlineChildAges = useMemo(
     () => (inlineAgesApply ? childAgesFromEntries(inlineAges, participants.length) : undefined),
     [inlineAgesApply, inlineAges, participants.length],
@@ -1186,6 +1186,27 @@ export function BookingForm({
     })
   }, [inlineLanguages, inlineForms, inlinePickupId, inlineAges, inlineChildAges, onInlineAnswersChange])
   const mainOfferedLanguages = useMemo(() => productOfferedLanguages(product), [product])
+  // landr-zcb24.12/.27: the party step asked the ages as the main flow's bands and
+  // stored each adult's band floor, or asked Adult/Child only (no bands: an adult
+  // is at least 18). An added line with a finer cut re-asks the guests whose band
+  // it splits (see `refinedAges`): the companions too, indexed after the
+  // participants like the rest of the party.
+  const mainAgeBands =
+    productFlow?.age_needed === true && productFlow.age_collect_as !== 'exact'
+      ? resolveBands(productFlow.age_bands)
+      : null
+  const partyAskedAdultChild =
+    !agesNeeded && mainAgeBands === null && participants.some((p) => p.occupant_age_band != null)
+  const storedAdultFloors: Record<number, number | undefined> = {}
+  if (mainAgeBands || partyAskedAdultChild) {
+    ;[...participantsForSubmit(booker, participants), ...companions].forEach((g, i) => {
+      if (g.occupant_age_band === 'child') return
+      if (mainAgeBands) storedAdultFloors[i] = adultFloorOf(g)
+      // Adult/Child only: an adult without an exact age is known to be 18 or older
+      else if (typeof g.occupant_age !== 'number') storedAdultFloors[i] = ADULT_FROM
+    })
+  }
+  const ageRefineBands = mainAgeBands ?? (partyAskedAdultChild ? DEFAULT_AGE_BANDS : null)
   const crossSellContext: CrossSellContext = {
     participantLanguages: mainParticipantLanguages,
     participantCount: participants.length,
@@ -1193,6 +1214,7 @@ export function BookingForm({
     answeredFormKeys: (mainFormResponses ?? []).map((f) => f.form_key),
     hasPickup: mainPickupLocationId != null || (accommodationRooms ?? []).length > 0,
     agesNeeded,
+    ...(ageRefineBands ? { ageRefine: { bands: ageRefineBands, floors: storedAdultFloors } } : {}),
   }
   const inlineModuleState: InlineModuleState = {
     languages: inlineLanguages,
@@ -1201,6 +1223,10 @@ export function BookingForm({
     ages: inlineAges,
   }
   const addedNeeds = Object.values(lineNeeds(crossSellLines, crossSellContext))
+  // The roster guests re-asked with the refined bands, and the floors they picked.
+  const refinedGuests = addedNeeds.find((n) => n.ageGuests !== undefined)?.ageGuests ?? []
+  const refinedFloor = (idx: number): number | undefined =>
+    refinedGuests.includes(idx) ? inlineAges?.[idx]?.floor : undefined
   const participantLanguages = effectiveLanguages(
     mainParticipantLanguages,
     inlineLanguages,
@@ -1237,6 +1263,11 @@ export function BookingForm({
   const offerMembersKey = (() => {
     const ages: Record<number, GuestAgeEntry> = { ...(inlineAgesApply ? (inlineAges ?? {}) : {}) }
     for (const [k, v] of Object.entries(occupantAgeMap)) ages[Number(k)] = v
+    // a re-asked guest's refined floor judges the offers, not the stale party-step one
+    for (const i of refinedGuests) {
+      const picked = inlineAges?.[i]
+      if (picked?.floor !== undefined) ages[i] = picked
+    }
     return JSON.stringify(
       partyMembers(participantsForSubmit(booker, participants), companions, ages, (n) =>
         tr('guestFallbackTemplate', locale).replace('{n}', String(n)),
@@ -1838,7 +1869,13 @@ export function BookingForm({
                   occupant_age: ageEntry.age ?? null,
                 }
               : {}),
-            ...guestAttributesWire(p),
+            // landr-zcb24.2: an adult band is sent as its floor + age_exact=false.
+            ...adultAgeWire(
+              p,
+              isChild,
+              inlineAgesApply ? inlineAges?.[idx]?.floor : refinedFloor(idx),
+              inlineAgesApply ? (inlineAges?.[idx]?.age ?? undefined) : undefined,
+            ),
             // landr-a4fy wire field (PINNED contract):
             // omit when false to keep the payload compact.
             ...(hasBreakfast ? { has_breakfast: true as const } : {}),
@@ -1873,7 +1910,12 @@ export function BookingForm({
                   ? undefined
                   : roomAssignment?.[memberIdx]
                 // landr-doam.1: per-occupant age band + age for companions.
-                const ageEntry = occupantAgeMap[memberIdx]
+                // landr-zcb24.2: falls back to the child age the party step took.
+                const ageEntry =
+                  occupantAgeMap[memberIdx] ??
+                  (c.occupant_age_band === 'child'
+                    ? { band: 'child' as const, age: c.occupant_age ?? null }
+                    : undefined)
                 const isChild = ageEntry?.band === 'child'
                 // landr-a4fy: per-occupant breakfast flag for companions.
                 const hasBreakfast = breakfastMap[memberIdx] === true
@@ -1893,7 +1935,7 @@ export function BookingForm({
                         occupant_age: ageEntry.age ?? null,
                       }
                     : {}),
-                  ...guestAttributesWire(c),
+                  ...adultAgeWire(c, isChild, refinedFloor(memberIdx)),
                   // landr-a4fy wire field (PINNED contract):
                   // omit when false to keep the payload compact.
                   ...(hasBreakfast ? { has_breakfast: true as const } : {}),
@@ -2633,6 +2675,7 @@ export function BookingForm({
                 Object.entries(inlineForms).map(([k, v]) => [k, v.raw]),
               ),
               participantLabels: partyMemberLabels.slice(0, participants.length),
+              partyLabels: partyMemberLabels,
               participants,
               companions,
               onLanguages: setInlineLanguages,

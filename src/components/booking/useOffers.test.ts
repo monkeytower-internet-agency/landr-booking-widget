@@ -33,6 +33,21 @@ describe('useOffers', () => {
     expect(offersRequestKey('t', [...LINES, { line_id: 'o1', product_id: 'x', parent_line_id: 'main' }], GUESTS)).not.toBe(a)
   })
 
+  it('exposes the keys collected before arrival (landr-zcb24.17)', async () => {
+    vi.mocked(getOffers).mockResolvedValue({
+      ...answer(),
+      required_attribute_keys: ['age'],
+      deferred_attribute_keys: ['weight_kg'],
+    })
+    const { result } = renderHook(() => useOffers({ widgetToken: 't', lines: LINES, guests: GUESTS }))
+    expect(result.current.deferredAttributeKeys).toEqual([])
+    await act(async () => {
+      await vi.runAllTimersAsync()
+    })
+    expect(result.current.requiredAttributeKeys).toEqual(['age'])
+    expect(result.current.deferredAttributeKeys).toEqual(['weight_kg'])
+  })
+
   it('is pending until the answer for the current key lands', async () => {
     vi.mocked(getOffers).mockResolvedValue(answer())
     const { result } = renderHook(() => useOffers({ widgetToken: 't', lines: LINES, guests: GUESTS }))

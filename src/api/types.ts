@@ -1000,6 +1000,11 @@ export interface OfferEvaluateRequest {
 export interface OfferEvaluateResponse {
   lines: EvaluatedLine[]
   required_attribute_keys?: string[]
+  /**
+   * landr-zcb24.17: the keys the cart's offers read that the operator collects
+   * before arrival, not at booking. Never blocks booking; absent = [].
+   */
+  deferred_attribute_keys?: string[]
 }
 
 /**
@@ -1153,7 +1158,7 @@ export interface Participant {
    * server validates them against the operator's attribute catalogue. `age`
    * is the same value as occupant_age.
    */
-  guest_attributes?: Record<string, number | string>
+  guest_attributes?: Record<string, number | string | boolean | string[]>
   /**
    * landr-a4fy: per-occupant breakfast flag. true when this participant
    * has breakfast included (tied to the breakfast add-on selection in
@@ -1229,7 +1234,7 @@ export interface Companion {
    * server validates them against the operator's attribute catalogue. `age`
    * is the same value as occupant_age.
    */
-  guest_attributes?: Record<string, number | string>
+  guest_attributes?: Record<string, number | string | boolean | string[]>
   /**
    * landr-a4fy: per-occupant breakfast flag for companions. Mirrors the
    * Participant field exactly — true when this companion has breakfast.
