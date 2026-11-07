@@ -4,6 +4,11 @@ import { askedAttributes } from './guestAttributes'
 import {
   adultAgeWire,
   ageChoice,
+  type AgeCarrier,
+  exactAgeOf,
+  isValidExactAge,
+  parseExactAge,
+  withExactAge,
   bandLabel,
   DEFAULT_AGE_BANDS,
   mergeBands,
@@ -33,9 +38,9 @@ describe('age bands (landr-zcb24.2)', () => {
     expect(bandLabel({ key: 'age_40_plus', min_age: 40, max_age: null }, SENIOR, 'en')).toBe('Adult 40+')
   })
 
-  it('an adult band is stored as its floor with age_exact=false', () => {
+  it('an adult band is stored as its floor with age in _inexact', () => {
     const g = withAgeChoice({}, SENIOR, 'age_65_plus', null, true)
-    expect(g).toMatchObject({ occupant_age_band: 'adult', occupant_age: 65, guest_attributes: { age_exact: false } })
+    expect(g).toMatchObject({ occupant_age_band: 'adult', occupant_age: 65, guest_attributes: { _inexact: ['age'] } })
     expect(ageChoice(g, SENIOR)).toEqual({ bandKey: 'age_65_plus', age: null })
   })
 
@@ -46,7 +51,7 @@ describe('age bands (landr-zcb24.2)', () => {
 
   it('a child keeps the exact age and drops any floor flag or stale age copy', () => {
     const adult = withAgeChoice({ guest_attributes: { weight_kg: 60, age: 30 } }, SENIOR, 'adult', null, true)
-    expect(adult.guest_attributes).toEqual({ weight_kg: 60, age_exact: false })
+    expect(adult.guest_attributes).toEqual({ weight_kg: 60, _inexact: ['age'] })
     const child = withAgeChoice(adult, SENIOR, 'child', 7, true)
     expect(child).toMatchObject({ occupant_age_band: 'child', occupant_age: 7, guest_attributes: { weight_kg: 60 } })
   })
@@ -74,12 +79,12 @@ describe('age bands (landr-zcb24.2)', () => {
     expect(mergeBands([undefined, []])).toBe(DEFAULT_AGE_BANDS)
   })
 
-  it('wire: a floor rides as occupant_age + age_exact=false, a child never carries the flag', () => {
+  it('wire: a floor rides as occupant_age + age in _inexact, a child never carries the flag', () => {
     const adult = withAgeChoice({}, SENIOR, 'age_65_plus', null, true)
-    expect(adultAgeWire(adult, false)).toEqual({ occupant_age: 65, guest_attributes: { age_exact: false } })
+    expect(adultAgeWire(adult, false)).toEqual({ occupant_age: 65, guest_attributes: { _inexact: ['age'] } })
     expect(adultAgeWire(adult, true)).toEqual({})
     expect(adultAgeWire({ guest_attributes: { weight_kg: 60 } }, false)).toEqual({ guest_attributes: { weight_kg: 60 } })
-    expect(adultAgeWire({}, false, 18)).toEqual({ occupant_age: 18, guest_attributes: { age_exact: false } })
+    expect(adultAgeWire({}, false, 18)).toEqual({ occupant_age: 18, guest_attributes: { _inexact: ['age'] } })
   })
 
   it('About your guests no longer asks age once the party step collected it', () => {
@@ -88,5 +93,40 @@ describe('age bands (landr-zcb24.2)', () => {
     expect(askedAttributes({ guest_attributes: [age, weight], age_needed: true })).toEqual([weight])
     expect(askedAttributes({ guest_attributes: [age, weight] })).toEqual([age, weight])
     expect(askedAttributes(null)).toEqual([])
+  })
+
+  it('exact age (landr-zcb24.7): read as a whole age, never flagged inexact, a child under 18', () => {
+    expect(parseExactAge('34')).toBe(34)
+    expect(parseExactAge('')).toBeNull()
+    expect(parseExactAge('1.5')).toBeNull()
+    expect(parseExactAge('121')).toBeNull()
+    expect(isValidExactAge(17, true)).toBe(false)
+    expect(isValidExactAge(18, true)).toBe(true)
+    expect(isValidExactAge(7)).toBe(true)
+    expect(isValidExactAge(null)).toBe(false)
+
+    const floor = withAgeChoice<AgeCarrier>({}, SENIOR, 'age_65_plus', null, true)
+    const exact = withExactAge(floor, 71)
+    expect(exact).toMatchObject({ occupant_age_band: 'adult', occupant_age: 71 })
+    expect(exact.guest_attributes).toEqual({})
+    expect(exactAgeOf(exact)).toBe(71)
+    expect(withExactAge({ guest_attributes: { weight_kg: 60 } }, 9)).toMatchObject({
+      occupant_age_band: 'child',
+      occupant_age: 9,
+      guest_attributes: { weight_kg: 60 },
+    })
+    // wire: an exact adult sends the age unflagged; a child's age rides the child fields
+    expect(adultAgeWire(exact, false)).toEqual({ occupant_age: 71 })
+    expect(adultAgeWire(withExactAge({}, 9), true)).toEqual({})
+    expect(adultAgeWire({}, false, undefined, 44)).toEqual({ occupant_age: 44 })
+  })
+
+  it('a flag on another range key survives the age wire', () => {
+    const g = { guest_attributes: { weight_kg: 80, _inexact: ['weight_kg'] } }
+    expect(adultAgeWire(g, false)).toEqual({ guest_attributes: { weight_kg: 80, _inexact: ['weight_kg'] } })
+    expect(adultAgeWire(withAgeChoice(g, SENIOR, 'age_65_plus', null, true), false).guest_attributes).toEqual({
+      weight_kg: 80,
+      _inexact: ['age', 'weight_kg'],
+    })
   })
 })

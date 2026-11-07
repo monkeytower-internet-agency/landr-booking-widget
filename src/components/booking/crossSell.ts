@@ -24,7 +24,7 @@ import type {
   ProductLine,
 } from '@/api/types'
 import type { FlowAgeBand, FlowFormDef, ProductFlowResponse } from '@/api/flowTypes'
-import { mergeBands } from './ageBands'
+import { isValidExactAge, mergeBands } from './ageBands'
 import { isStayKind } from '@/flowPlan'
 import { hasFixedStartTimes, toHHMM } from './slotKey'
 import { expandWindowDays } from './expandWindowDays'
@@ -233,6 +233,11 @@ export interface LineNeeds {
    * bands to offer (all added lines merged) — and the booker confirms 18+.
    */
   ageBands?: readonly FlowAgeBand[]
+  /**
+   * landr-zcb24.7: the operator collects age as exact: each guest types an age
+   * (the booker 18 or older) instead of picking a band.
+   */
+  ageExact?: boolean
 }
 
 /**
@@ -281,6 +286,7 @@ export function lineNeeds(
       agesClaimed = true
       if (lines.some((l) => l.flow?.age_needed === true)) {
         needs.ageBands = mergeBands(lines.filter((l) => l.flow?.age_needed).map((l) => l.flow?.age_bands))
+        if (lines.some((l) => l.flow?.age_needed === true && l.flow.age_collect_as === 'exact')) needs.ageExact = true
       }
     }
     for (const m of line.flow?.modules ?? []) {
@@ -300,6 +306,17 @@ export function hasChildWithoutAgeEntry(
   ages: Readonly<Record<number, GuestAgeEntry>> | null | undefined,
 ): boolean {
   return Object.values(ages ?? {}).some((e) => e.band === 'child' && e.age === null)
+}
+
+/** True when one of the first `count` guests has no usable exact age yet (the booker: 18+). */
+export function exactAgeEntryMissing(
+  ages: Readonly<Record<number, GuestAgeEntry>> | null | undefined,
+  count: number,
+): boolean {
+  for (let i = 0; i < count; i += 1) {
+    if (!isValidExactAge(ages?.[i]?.age, i === 0)) return true
+  }
+  return false
 }
 
 /** `child_ages` for the estimate from inline entries (first guest is never a child). */
@@ -329,8 +346,10 @@ export function inlineModulesPending(
         !(offer && languagesCover(inline.languages ?? {}, ctx.participantCount, offer))) ||
       (n.pickup && inline.pickupLocationId === null) ||
       (n.ages === true &&
-        (hasChildWithoutAgeEntry(inline.ages) ||
-          (n.ageBands !== undefined && inline.ages?.[0]?.confirmed !== true))) ||
+        (n.ageExact === true
+          ? exactAgeEntryMissing(inline.ages, ctx.participantCount)
+          : hasChildWithoutAgeEntry(inline.ages) ||
+            (n.ageBands !== undefined && inline.ages?.[0]?.confirmed !== true))) ||
       n.forms.some((f) => !answered.has(f.key)),
   )
 }

@@ -53,3 +53,31 @@ describe('InlineGuestAges bands (landr-zcb24.2)', () => {
     })
   })
 })
+
+describe('InlineGuestAges exact (landr-zcb24.7)', () => {
+  it('asks a number per guest, the booker confirmed at 18+', () => {
+    const onChange = vi.fn()
+    function ExactHarness() {
+      const [value, setValue] = useState<Record<number, GuestAgeEntry>>({})
+      return (
+        <InlineGuestAges
+          labels={['Ada', 'Tim']}
+          value={value}
+          onChange={(v) => {
+            setValue(v)
+            onChange(v)
+          }}
+          locale="en"
+          exact
+        />
+      )
+    }
+    render(<ExactHarness />)
+    fireEvent.change(screen.getByTestId('guest-age-inline-0'), { target: { value: '40' } })
+    fireEvent.change(screen.getByTestId('guest-age-inline-1'), { target: { value: '9' } })
+    expect(onChange).toHaveBeenLastCalledWith({
+      0: { band: 'adult', age: 40, confirmed: true },
+      1: { band: 'child', age: 9 },
+    })
+  })
+})

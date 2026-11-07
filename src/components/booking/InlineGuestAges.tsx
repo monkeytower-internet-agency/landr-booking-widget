@@ -10,7 +10,8 @@
  */
 import type { FlowAgeBand } from '@/api/flowTypes'
 import { tr } from '@/lib/strings'
-import { adultBandsOf, bandLabel, DEFAULT_AGE_BANDS, isAdultBand, orderedBands } from './ageBands'
+import { ADULT_FROM, adultBandsOf, bandLabel, DEFAULT_AGE_BANDS, isAdultBand, orderedBands } from './ageBands'
+import { ExactAgeControl } from './AgeBandControls'
 import type { GuestAgeEntry } from './crossSell'
 
 interface Props {
@@ -21,11 +22,13 @@ interface Props {
   locale: string
   /** The flow asks ages: the bands to offer, floors are stored, the booker confirms 18+. */
   ageBands?: readonly FlowAgeBand[]
+  /** landr-zcb24.7: the operator collects age as exact: a number per guest, the booker 18+. */
+  exact?: boolean
 }
 
 const SELECT = 'border-input bg-surface-page h-9 rounded-md border px-2 text-sm'
 
-export function InlineGuestAges({ labels, value, onChange, locale, ageBands }: Props) {
+export function InlineGuestAges({ labels, value, onChange, locale, ageBands, exact = false }: Props) {
   const storeFloor = ageBands !== undefined
   const bands = ageBands ?? DEFAULT_AGE_BANDS
   const adults = adultBandsOf(bands)
@@ -33,6 +36,26 @@ export function InlineGuestAges({ labels, value, onChange, locale, ageBands }: P
   return (
     <ul className="space-y-2" data-testid="inline-guest-ages">
       {labels.map((label, i) => {
+        if (exact) {
+          return (
+            <li key={i} className="flex flex-wrap items-center gap-2 text-sm">
+              <span className="min-w-24">{label}</span>
+              <ExactAgeControl
+                id={`inline-${i}`}
+                booker={i === 0}
+                age={value[i]?.age ?? null}
+                locale={locale}
+                onChange={(age) =>
+                  set(i, {
+                    band: age !== null && age < ADULT_FROM ? 'child' : 'adult',
+                    age,
+                    ...(i === 0 ? { confirmed: age !== null && age >= ADULT_FROM } : {}),
+                  })
+                }
+              />
+            </li>
+          )
+        }
         if (i === 0 && !storeFloor) return null
         const entry: GuestAgeEntry = value[i] ?? { band: 'adult', age: null }
         const adultKey = (floor: number | undefined) =>

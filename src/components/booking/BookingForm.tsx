@@ -1843,6 +1843,7 @@ export function BookingForm({
               p,
               isChild,
               inlineAgesApply ? inlineAges?.[idx]?.floor : undefined,
+              inlineAgesApply ? (inlineAges?.[idx]?.age ?? undefined) : undefined,
             ),
             // landr-a4fy wire field (PINNED contract):
             // omit when false to keep the payload compact.

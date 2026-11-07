@@ -123,3 +123,61 @@ describe('guestAttributesWire', () => {
     expect(guestAttributesWire({ guest_attributes: { age: 8 } })).toEqual({ guest_attributes: { age: 8 } })
   })
 })
+
+describe('attributes collected as ranges (landr-zcb24.7)', () => {
+  const RANGED: FlowGuestAttribute = {
+    key: 'weight_kg',
+    label: 'Weight',
+    value_type: 'number',
+    unit: 'kg',
+    collect_as: 'ranges',
+    ranges: [
+      { min: 1, max: 45, label: '<45 kg' },
+      { min: 45, max: 80, label: '45-80 kg' },
+      { min: 80, max: null, label: '80+ kg' },
+    ],
+  }
+
+  it('accepts only a range floor', () => {
+    expect(checkAttribute(RANGED, '45')).toEqual({ value: 45 })
+    expect(checkAttribute(RANGED, '50')).toEqual({ problem: 'choice' })
+    expect(checkAttribute(RANGED, '')).toEqual({ problem: 'required' })
+    // collected as ranges but none sent: a plain number input, as before
+    expect(checkAttribute({ ...RANGED, ranges: [] }, '50')).toEqual({ value: 50 })
+  })
+
+  it('stores the floor and flags it in _inexact; an exact key stays unflagged', () => {
+    const guest = { first_name: 'Ada', last_name: '', guest_attributes: { _inexact: ['age'] } }
+    const out = applyAttributes(guest, [RANGED, SIZE], { weight_kg: '80', clothing_size: 'M' })
+    expect(out.guest_attributes).toEqual({ weight_kg: 80, clothing_size: 'M', _inexact: ['age', 'weight_kg'] })
+    // answered exactly again (the operator switched the attribute): the flag goes
+    const exact = applyAttributes(out, [{ ...RANGED, collect_as: 'exact' }], { weight_kg: '77.5' })
+    expect(exact.guest_attributes).toEqual({ weight_kg: 77.5, clothing_size: 'M', _inexact: ['age'] })
+  })
+
+  it('prefills the range a stored value falls in', () => {
+    const guest = { first_name: 'Ada', last_name: '', guest_attributes: { weight_kg: 63 } }
+    expect(initialText(guest, 'weight_kg', RANGED)).toBe('45')
+    expect(initialText(guest, 'weight_kg')).toBe('63')
+  })
+
+  it('merges the ranges of several lines, keeping agreed labels', () => {
+    const other: FlowGuestAttribute = {
+      ...RANGED,
+      ranges: [
+        { min: 1, max: 45, label: '<45 kg' },
+        { min: 45, max: 100, label: '45-100 kg' },
+        { min: 100, max: null, label: '100+ kg' },
+      ],
+    }
+    const [merged] = unionAttributes([RANGED], [other])
+    expect(merged!.ranges!.map((r) => [r.min, r.max, r.label])).toEqual([
+      [1, 45, '<45 kg'],
+      [45, 80, '45-80 kg'],
+      [80, 100, '80-100 kg'],
+      [100, null, '100+ kg'],
+    ])
+    // a single list is untouched
+    expect(unionAttributes([RANGED], [{ ...RANGED, collect_as: 'exact' }])[0]).toBe(RANGED)
+  })
+})
