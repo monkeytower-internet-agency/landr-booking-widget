@@ -12236,11 +12236,27 @@
         "type": "object"
       },
       "FlowAgeBand": {
-        "description": "One age band of the cart (landr-zcb24.1): Child is 0-17 (exact age), an\nadult band is picked and stored as its floor ``min_age``.",
+        "description": "One age band of the cart (landr-zcb24.1): Child is 0-17 (exact age), an\nadult band is picked and stored as its floor ``min_age``. landr-zcb24.6 adds the\ngeneric range fields (``min`` / ``max`` exclusive / ``label``, the shape of\n``FlowRange``) and ``exact`` (true on Child: the exact age is asked).",
         "properties": {
+          "exact": {
+            "default": false,
+            "title": "Exact",
+            "type": "boolean"
+          },
           "key": {
             "title": "Key",
             "type": "string"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
           },
           "label_localized": {
             "additionalProperties": {
@@ -12248,6 +12264,17 @@
             },
             "title": "Label Localized",
             "type": "object"
+          },
+          "max": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max"
           },
           "max_age": {
             "anyOf": [
@@ -12259,6 +12286,17 @@
               }
             ],
             "title": "Max Age"
+          },
+          "min": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min"
           },
           "min_age": {
             "title": "Min Age",
@@ -12287,6 +12325,11 @@
               }
             ],
             "title": "Choices"
+          },
+          "collect_as": {
+            "default": "exact",
+            "title": "Collect As",
+            "type": "string"
           },
           "key": {
             "title": "Key",
@@ -12324,6 +12367,14 @@
               }
             ],
             "title": "Min Value"
+          },
+          "ranges": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Ranges",
+            "type": "array"
           },
           "unit": {
             "anyOf": [
@@ -12653,6 +12704,15 @@
             ],
             "title": "Choices"
           },
+          "collect_as": {
+            "default": "exact",
+            "enum": [
+              "exact",
+              "ranges"
+            ],
+            "title": "Collect As",
+            "type": "string"
+          },
           "deferred": {
             "default": false,
             "title": "Deferred",
@@ -12694,6 +12754,13 @@
               }
             ],
             "title": "Min Value"
+          },
+          "ranges": {
+            "items": {
+              "$ref": "#/components/schemas/FlowRange"
+            },
+            "title": "Ranges",
+            "type": "array"
           },
           "required_now": {
             "default": true,
@@ -12758,6 +12825,36 @@
           "position"
         ],
         "title": "FlowModuleDef",
+        "type": "object"
+      },
+      "FlowRange": {
+        "description": "One range of an attribute collected as ``ranges`` (landr-zcb24.6): ``min`` is\nstored when the guest picks it, ``max`` is the EXCLUSIVE upper edge (the next\nrange's ``min``; null = open-ended), ``label`` reads '<45 kg', '45-80 kg', '120+ kg'.",
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "max": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max"
+          },
+          "min": {
+            "title": "Min",
+            "type": "number"
+          }
+        },
+        "required": [
+          "min",
+          "label"
+        ],
+        "title": "FlowRange",
         "type": "object"
       },
       "ForecastItem": {
@@ -13623,6 +13720,15 @@
             ],
             "title": "Choices"
           },
+          "collect_as": {
+            "default": "exact",
+            "enum": [
+              "exact",
+              "ranges"
+            ],
+            "title": "Collect As",
+            "type": "string"
+          },
           "collect_when": {
             "default": "booking",
             "enum": [
@@ -13688,6 +13794,13 @@
             "format": "uuid",
             "title": "Operator Id",
             "type": "string"
+          },
+          "range_cuts": {
+            "items": {
+              "type": "number"
+            },
+            "title": "Range Cuts",
+            "type": "array"
           },
           "sort_order": {
             "title": "Sort Order",
@@ -13767,6 +13880,15 @@
             ],
             "title": "Choices"
           },
+          "collect_as": {
+            "default": "exact",
+            "enum": [
+              "exact",
+              "ranges"
+            ],
+            "title": "Collect As",
+            "type": "string"
+          },
           "collect_when": {
             "default": "booking",
             "enum": [
@@ -13815,6 +13937,14 @@
               }
             ],
             "title": "Min Value"
+          },
+          "range_cuts": {
+            "items": {
+              "type": "number"
+            },
+            "maxItems": 12,
+            "title": "Range Cuts",
+            "type": "array"
           },
           "sort_order": {
             "default": 0,
@@ -13881,6 +14011,21 @@
             ],
             "title": "Choices"
           },
+          "collect_as": {
+            "anyOf": [
+              {
+                "enum": [
+                  "exact",
+                  "ranges"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collect As"
+          },
           "collect_when": {
             "anyOf": [
               {
@@ -13944,6 +14089,21 @@
               }
             ],
             "title": "Min Value"
+          },
+          "range_cuts": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "maxItems": 12,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Range Cuts"
           },
           "sort_order": {
             "anyOf": [
@@ -14027,6 +14187,13 @@
           "guest_attributes": {
             "additionalProperties": true,
             "title": "Guest Attributes",
+            "type": "object"
+          },
+          "guest_attributes_display": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Guest Attributes Display",
             "type": "object"
           },
           "occupant_age": {
@@ -18524,6 +18691,13 @@
       "OfferEvaluateOut": {
         "description": "Per request line, in request order. ``required_attribute_keys``: every\nguest attribute the cart's products and their candidate offers read -- the\nkeys the widget asks per guest before offers needing them can show.",
         "properties": {
+          "deferred_attribute_keys": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Deferred Attribute Keys",
+            "type": "array"
+          },
           "lines": {
             "items": {
               "$ref": "#/components/schemas/EvaluatedLine"
@@ -22328,6 +22502,12 @@
                 },
                 {
                   "type": "string"
+                },
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
                 },
                 {
                   "type": "null"
@@ -26886,6 +27066,21 @@
             },
             "title": "Age Bands",
             "type": "array"
+          },
+          "age_collect_as": {
+            "anyOf": [
+              {
+                "enum": [
+                  "exact",
+                  "ranges"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Age Collect As"
           },
           "age_needed": {
             "default": false,

@@ -18042,17 +18042,30 @@ export interface components {
         /**
          * FlowAgeBand
          * @description One age band of the cart (landr-zcb24.1): Child is 0-17 (exact age), an
-         *     adult band is picked and stored as its floor ``min_age``.
+         *     adult band is picked and stored as its floor ``min_age``. landr-zcb24.6 adds the
+         *     generic range fields (``min`` / ``max`` exclusive / ``label``, the shape of
+         *     ``FlowRange``) and ``exact`` (true on Child: the exact age is asked).
          */
         FlowAgeBand: {
+            /**
+             * Exact
+             * @default false
+             */
+            exact: boolean;
             /** Key */
             key: string;
+            /** Label */
+            label?: string | null;
             /** Label Localized */
             label_localized?: {
                 [key: string]: string;
             };
+            /** Max */
+            max?: number | null;
             /** Max Age */
             max_age?: number | null;
+            /** Min */
+            min?: number | null;
             /** Min Age */
             min_age: number;
         };
@@ -18060,6 +18073,11 @@ export interface components {
         FlowAttributeOut: {
             /** Choices */
             choices?: string[] | null;
+            /**
+             * Collect As
+             * @default exact
+             */
+            collect_as: string;
             /** Key */
             key: string;
             /** Label */
@@ -18072,6 +18090,10 @@ export interface components {
             max_value?: number | null;
             /** Min Value */
             min_value?: number | null;
+            /** Ranges */
+            ranges?: {
+                [key: string]: unknown;
+            }[];
             /** Unit */
             unit?: string | null;
             /** Value Type */
@@ -18200,6 +18222,12 @@ export interface components {
             /** Choices */
             choices?: string[] | null;
             /**
+             * Collect As
+             * @default exact
+             * @enum {string}
+             */
+            collect_as: "exact" | "ranges";
+            /**
              * Deferred
              * @default false
              */
@@ -18216,6 +18244,8 @@ export interface components {
             max_value?: number | null;
             /** Min Value */
             min_value?: number | null;
+            /** Ranges */
+            ranges?: components["schemas"]["FlowRange"][];
             /**
              * Required Now
              * @default true
@@ -18242,6 +18272,20 @@ export interface components {
             position: number;
         } & {
             [key: string]: unknown;
+        };
+        /**
+         * FlowRange
+         * @description One range of an attribute collected as ``ranges`` (landr-zcb24.6): ``min`` is
+         *     stored when the guest picks it, ``max`` is the EXCLUSIVE upper edge (the next
+         *     range's ``min``; null = open-ended), ``label`` reads '<45 kg', '45-80 kg', '120+ kg'.
+         */
+        FlowRange: {
+            /** Label */
+            label: string;
+            /** Max */
+            max?: number | null;
+            /** Min */
+            min: number;
         };
         /** ForecastItem */
         ForecastItem: {
@@ -18515,6 +18559,12 @@ export interface components {
             /** Choices */
             choices: string[] | null;
             /**
+             * Collect As
+             * @default exact
+             * @enum {string}
+             */
+            collect_as: "exact" | "ranges";
+            /**
              * Collect When
              * @default booking
              * @enum {string}
@@ -18552,6 +18602,8 @@ export interface components {
              * Format: uuid
              */
             operator_id: string;
+            /** Range Cuts */
+            range_cuts?: number[];
             /** Sort Order */
             sort_order: number;
             /** Unit */
@@ -18582,6 +18634,12 @@ export interface components {
             /** Choices */
             choices?: string[] | null;
             /**
+             * Collect As
+             * @default exact
+             * @enum {string}
+             */
+            collect_as: "exact" | "ranges";
+            /**
              * Collect When
              * @default booking
              * @enum {string}
@@ -18599,6 +18657,8 @@ export interface components {
             max_value?: number | null;
             /** Min Value */
             min_value?: number | null;
+            /** Range Cuts */
+            range_cuts?: number[];
             /**
              * Sort Order
              * @default 0
@@ -18622,6 +18682,8 @@ export interface components {
             active?: boolean | null;
             /** Choices */
             choices?: string[] | null;
+            /** Collect As */
+            collect_as?: ("exact" | "ranges") | null;
             /** Collect When */
             collect_when?: ("booking" | "before_arrival") | null;
             /** Label */
@@ -18634,6 +18696,8 @@ export interface components {
             max_value?: number | null;
             /** Min Value */
             min_value?: number | null;
+            /** Range Cuts */
+            range_cuts?: number[] | null;
             /** Sort Order */
             sort_order?: number | null;
             /** Unit */
@@ -18665,6 +18729,10 @@ export interface components {
             /** Guest Attributes */
             guest_attributes: {
                 [key: string]: unknown;
+            };
+            /** Guest Attributes Display */
+            guest_attributes_display?: {
+                [key: string]: string;
             };
             /** Occupant Age */
             occupant_age: number | null;
@@ -20285,6 +20353,8 @@ export interface components {
          *     keys the widget asks per guest before offers needing them can show.
          */
         OfferEvaluateOut: {
+            /** Deferred Attribute Keys */
+            deferred_attribute_keys?: string[];
             /** Lines */
             lines: components["schemas"]["EvaluatedLine"][];
             /** Required Attribute Keys */
@@ -21468,7 +21538,7 @@ export interface components {
         ParticipantAttributesIn: {
             /** Attributes */
             attributes: {
-                [key: string]: boolean | number | string | null;
+                [key: string]: boolean | number | string | string[] | null;
             };
             /**
              * Participant Id
@@ -23042,6 +23112,8 @@ export interface components {
         ProductFlowResponse: {
             /** Age Bands */
             age_bands?: components["schemas"]["FlowAgeBand"][];
+            /** Age Collect As */
+            age_collect_as?: ("exact" | "ranges") | null;
             /**
              * Age Needed
              * @default false
