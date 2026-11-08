@@ -72588,6 +72588,58 @@
         ]
       }
     },
+    "/api/staff/operators/{operator_id}/products/remove-samples": {
+      "post": {
+        "description": "landr-lxrt7.1 \u2014 soft-delete every sample product of the operator: cloned\nfrom a template (``template_origin_slug`` set), still unpublished\n(``is_publicly_listed`` false) and never booked. Same soft-delete as the\nsingle delete. ``skipped`` counts the samples that were kept because they\nare published or have bookings. Scoped to the path operator (the membership\ndependency checks the caller belongs to it).",
+        "operationId": "remove_sample_products",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "integer"
+                  },
+                  "title": "Response Remove Sample Products",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Remove Sample Products",
+        "tags": [
+          "staff-products"
+        ]
+      }
+    },
     "/api/staff/operators/{operator_id}/products/{product_id}": {
       "delete": {
         "operationId": "delete_product",
