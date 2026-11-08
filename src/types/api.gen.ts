@@ -1451,6 +1451,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/landr-staff/platform-settings/onboarding-call": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Onboarding Call Config */
+        get: operations["get_onboarding_call_config"];
+        /** Put Onboarding Call Config */
+        put: operations["put_onboarding_call_config"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/landr-staff/promotions": {
         parameters: {
             query?: never;
@@ -3302,6 +3320,23 @@ export interface paths {
          *     product / season of another operator.
          */
         patch: operations["patch_product_eligibility_rules"];
+        trace?: never;
+    };
+    "/api/platform-settings/onboarding-call": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Onboarding Call */
+        get: operations["get_onboarding_call"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/public/approval-requests/{token}": {
@@ -5852,6 +5887,24 @@ export interface paths {
         patch: operations["staff_patch_my_profile"];
         trace?: never;
     };
+    "/api/staff/me/tour-prefs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Tour Prefs */
+        get: operations["get_tour_prefs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Patch Tour Prefs */
+        patch: operations["patch_tour_prefs"];
+        trace?: never;
+    };
     "/api/staff/operators": {
         parameters: {
             query?: never;
@@ -5995,6 +6048,74 @@ export interface paths {
         get: operations["agent_earnings_summary"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/ai-onboarding/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Health */
+        get: operations["get_health"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/ai-onboarding/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Or Resume Session */
+        post: operations["create_or_resume_session"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/ai-onboarding/sessions/{session_id}/accepted": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Record Accepted */
+        post: operations["record_accepted"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/ai-onboarding/sessions/{session_id}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post Message */
+        post: operations["post_message"];
         delete?: never;
         options?: never;
         head?: never;
@@ -13592,6 +13713,23 @@ export interface components {
             /** Stage Code */
             stage_code?: string | null;
         };
+        /** AcceptedIn */
+        AcceptedIn: {
+            /** Items */
+            items: components["schemas"]["AcceptedItem"][];
+        };
+        /** AcceptedItem */
+        AcceptedItem: {
+            /** Entity Id */
+            entity_id?: string | null;
+            /**
+             * Entity Type
+             * @enum {string}
+             */
+            entity_type: "company_profile" | "location" | "product" | "opening_hours" | "team_invite";
+            /** Proposal Id */
+            proposal_id: string;
+        };
         /** AccountLinkRequest */
         AccountLinkRequest: {
             /** Email */
@@ -20026,6 +20164,11 @@ export interface components {
             /** Otp */
             otp: string;
         };
+        /** MessageIn */
+        MessageIn: {
+            /** Text */
+            text: string;
+        };
         /** MessagePostIn */
         MessagePostIn: {
             /** Body */
@@ -20962,6 +21105,30 @@ export interface components {
             tax_total: number;
         } & {
             [key: string]: unknown;
+        };
+        /** OnboardingCallConfig */
+        OnboardingCallConfig: {
+            /**
+             * Enabled
+             * @default false
+             */
+            enabled: boolean;
+            /**
+             * Operator Slug
+             * @default
+             */
+            operator_slug: string;
+            /** Product Id */
+            product_id?: string | null;
+        };
+        /** OnboardingCallPublic */
+        OnboardingCallPublic: {
+            /** Enabled */
+            enabled: boolean;
+            /** Product Slug */
+            product_slug?: string | null;
+            /** Widget Token */
+            widget_token?: string | null;
         };
         /** OperatorLinkCalendarOut */
         OperatorLinkCalendarOut: {
@@ -26070,13 +26237,6 @@ export interface components {
             /** Sort Order */
             sort_order?: number | null;
         };
-        /** SessionIn */
-        SessionIn: {
-            /** Code */
-            code: string;
-            /** Participant Id */
-            participant_id: string;
-        };
         /** SetSiteWarningPublisherRequest */
         SetSiteWarningPublisherRequest: {
             /** Can Publish */
@@ -27440,6 +27600,20 @@ export interface components {
             kind: "text" | "activity_code";
             recipients: components["schemas"]["RecipientSetIn"];
         };
+        /** TourPrefsPatch */
+        TourPrefsPatch: {
+            /** Tours */
+            tours: {
+                [key: string]: components["schemas"]["TourStatePatch"];
+            };
+        };
+        /** TourStatePatch */
+        TourStatePatch: {
+            /** Completed */
+            completed?: boolean | null;
+            /** Seenat */
+            seenAt?: string | null;
+        };
         /** TrelloBoardLinkCreate */
         TrelloBoardLinkCreate: {
             /** Board Name */
@@ -28389,6 +28563,18 @@ export interface components {
         app__routers__landr_staff_promotions__RejectIn: {
             /** Notes */
             notes: string;
+        };
+        /** SessionIn */
+        app__routers__public_today__SessionIn: {
+            /** Code */
+            code: string;
+            /** Participant Id */
+            participant_id: string;
+        };
+        /** SessionIn */
+        app__routers__staff_ai_onboarding__SessionIn: {
+            /** Locale */
+            locale?: ("de" | "en") | null;
         };
         /** RuleIn */
         app__routers__staff_commission__RuleIn: {
@@ -30995,6 +31181,59 @@ export interface operations {
             };
         };
     };
+    get_onboarding_call_config: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnboardingCallConfig"];
+                };
+            };
+        };
+    };
+    put_onboarding_call_config: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OnboardingCallConfig"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnboardingCallConfig"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_runs: {
         parameters: {
             query?: never;
@@ -33534,6 +33773,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_onboarding_call: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnboardingCallPublic"];
                 };
             };
         };
@@ -36276,7 +36535,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["SessionIn"];
+                "application/json": components["schemas"]["app__routers__public_today__SessionIn"];
             };
         };
         responses: {
@@ -37138,6 +37397,63 @@ export interface operations {
             };
         };
     };
+    get_tour_prefs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    patch_tour_prefs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TourPrefsPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     create_operator: {
         parameters: {
             query?: never;
@@ -37384,6 +37700,150 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     }[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_health: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_or_resume_session: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["app__routers__staff_ai_onboarding__SessionIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    record_accepted: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AcceptedIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_message: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MessageIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */
