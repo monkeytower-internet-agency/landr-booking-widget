@@ -15675,6 +15675,12 @@ export interface components {
             pricing?: components["schemas"]["CataloguePricing"] | null;
             /** Product Kind */
             product_kind: string;
+            /**
+             * Schedule
+             * @default locked
+             * @enum {string}
+             */
+            schedule: "locked" | "subset" | "own" | "first_day" | "last_day";
             /** Short Description */
             short_description?: string | null;
             /** Short Description Localized */
