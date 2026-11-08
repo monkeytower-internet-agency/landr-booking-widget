@@ -180,6 +180,7 @@ import { ProductDetailStep } from '@/components/booking/ProductDetailStep'
 import { VariantProvider } from '@/lib/variant.tsx'
 import { variantFromLocation, hasVariantInLocation, useVariant } from '@/lib/variant'
 import { StaffModeProvider } from '@/lib/staffMode.tsx'
+import { setBookingIdle } from '@/lib/versionCheck'
 import { isBookingInProgress, useStaffDirtySignal } from '@/lib/staffDirty'
 import { loadTileFont } from '@/lib/tileFont'
 import type { TileFontKey } from '@/lib/tileFont'
@@ -531,6 +532,11 @@ function BookingFlowApp() {
   // landr-g98ug: tell the dashboard's Add-booking overlay (staff embed only)
   // whether closing it would throw away a booking in progress.
   useStaffDirtySignal(isBookingInProgress(step, liveSelectionDays.length))
+  // landr-70jcy.3: the build badge may reload only while nothing is in progress.
+  const bookingIdle = !isBookingInProgress(step, liveSelectionDays.length)
+  useEffect(() => {
+    setBookingIdle(bookingIdle)
+  }, [bookingIdle])
   // landr-gb2f.1: live participant count + names from DetailsStep before
   // Continue is pressed. Mirrors the liveSelectionDays pattern. Cleared
   // when leaving the details step so back-nav starts fresh.
