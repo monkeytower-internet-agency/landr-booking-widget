@@ -73,6 +73,63 @@
         "title": "AcceptOfferResponse",
         "type": "object"
       },
+      "AcceptedIn": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AcceptedItem"
+            },
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "AcceptedIn",
+        "type": "object"
+      },
+      "AcceptedItem": {
+        "properties": {
+          "entity_id": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entity Id"
+          },
+          "entity_type": {
+            "enum": [
+              "company_profile",
+              "location",
+              "product",
+              "opening_hours",
+              "team_invite"
+            ],
+            "title": "Entity Type",
+            "type": "string"
+          },
+          "proposal_id": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Proposal Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "proposal_id",
+          "entity_type"
+        ],
+        "title": "AcceptedItem",
+        "type": "object"
+      },
       "AccountLinkRequest": {
         "properties": {
           "email": {
@@ -243,6 +300,191 @@
           "addon_product_id"
         ],
         "title": "AddonDayStock",
+        "type": "object"
+      },
+      "AiSettingsOut": {
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "monthly_hard_usd": {
+            "title": "Monthly Hard Usd",
+            "type": "number"
+          },
+          "monthly_soft_usd": {
+            "title": "Monthly Soft Usd",
+            "type": "number"
+          },
+          "paused": {
+            "title": "Paused",
+            "type": "boolean"
+          },
+          "paused_until": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paused Until"
+          },
+          "per_session_max_tokens": {
+            "title": "Per Session Max Tokens",
+            "type": "integer"
+          },
+          "per_session_max_turns": {
+            "title": "Per Session Max Turns",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "enabled",
+          "paused_until",
+          "paused",
+          "per_session_max_turns",
+          "per_session_max_tokens",
+          "monthly_soft_usd",
+          "monthly_hard_usd"
+        ],
+        "title": "AiSettingsOut",
+        "type": "object"
+      },
+      "AiSettingsPatch": {
+        "properties": {
+          "enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enabled"
+          },
+          "monthly_hard_usd": {
+            "anyOf": [
+              {
+                "maximum": 100000.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Monthly Hard Usd"
+          },
+          "monthly_soft_usd": {
+            "anyOf": [
+              {
+                "maximum": 100000.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Monthly Soft Usd"
+          },
+          "pause_until_next_month": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pause Until Next Month"
+          },
+          "paused_until": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paused Until"
+          },
+          "per_session_max_tokens": {
+            "anyOf": [
+              {
+                "maximum": 10000000.0,
+                "minimum": 1000.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Per Session Max Tokens"
+          },
+          "per_session_max_turns": {
+            "anyOf": [
+              {
+                "maximum": 1000.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Per Session Max Turns"
+          }
+        },
+        "title": "AiSettingsPatch",
+        "type": "object"
+      },
+      "AiUsageOut": {
+        "properties": {
+          "current_month": {
+            "title": "Current Month",
+            "type": "boolean"
+          },
+          "ledger": {
+            "items": {
+              "$ref": "#/components/schemas/LedgerRow"
+            },
+            "title": "Ledger",
+            "type": "array"
+          },
+          "month": {
+            "title": "Month",
+            "type": "string"
+          },
+          "operators": {
+            "items": {
+              "$ref": "#/components/schemas/OperatorUsage"
+            },
+            "title": "Operators",
+            "type": "array"
+          },
+          "settings": {
+            "$ref": "#/components/schemas/AiSettingsOut"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/UsageTotals"
+          }
+        },
+        "required": [
+          "month",
+          "current_month",
+          "settings",
+          "totals",
+          "operators",
+          "ledger"
+        ],
+        "title": "AiUsageOut",
         "type": "object"
       },
       "AlertOut": {
@@ -5226,6 +5468,18 @@
           },
           "product_kind": {
             "title": "Product Kind",
+            "type": "string"
+          },
+          "schedule": {
+            "default": "locked",
+            "enum": [
+              "locked",
+              "subset",
+              "own",
+              "first_day",
+              "last_day"
+            ],
+            "title": "Schedule",
             "type": "string"
           },
           "short_description": {
@@ -11195,7 +11449,9 @@
                 "enum": [
                   "locked",
                   "subset",
-                  "own"
+                  "own",
+                  "first_day",
+                  "last_day"
                 ],
                 "type": "string"
               },
@@ -11775,7 +12031,9 @@
                 "enum": [
                   "locked",
                   "subset",
-                  "own"
+                  "own",
+                  "first_day",
+                  "last_day"
                 ],
                 "type": "string"
               },
@@ -11891,7 +12149,9 @@
             "enum": [
               "locked",
               "subset",
-              "own"
+              "own",
+              "first_day",
+              "last_day"
             ],
             "title": "Schedule",
             "type": "string"
@@ -16316,6 +16576,86 @@
         "title": "LastPaymentLink",
         "type": "object"
       },
+      "LedgerRow": {
+        "properties": {
+          "cost_usd": {
+            "title": "Cost Usd",
+            "type": "number"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "operator_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operator Id"
+          },
+          "operator_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operator Name"
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Id"
+          },
+          "stop_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stop Reason"
+          },
+          "tokens": {
+            "$ref": "#/components/schemas/UsageTokens"
+          }
+        },
+        "required": [
+          "id",
+          "created_at",
+          "operator_id",
+          "operator_name",
+          "session_id",
+          "model",
+          "tokens",
+          "cost_usd",
+          "stop_reason"
+        ],
+        "title": "LedgerRow",
+        "type": "object"
+      },
       "LicenseCreateRequest": {
         "properties": {
           "document_url": {
@@ -17735,6 +18075,21 @@
         "title": "MemberProofIn",
         "type": "object"
       },
+      "MessageIn": {
+        "properties": {
+          "text": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "title": "MessageIn",
+        "type": "object"
+      },
       "MessagePostIn": {
         "additionalProperties": false,
         "properties": {
@@ -18918,7 +19273,9 @@
             "enum": [
               "locked",
               "subset",
-              "own"
+              "own",
+              "first_day",
+              "last_day"
             ],
             "title": "Schedule",
             "type": "string"
@@ -19268,7 +19625,9 @@
                 "enum": [
                   "locked",
                   "subset",
-                  "own"
+                  "own",
+                  "first_day",
+                  "last_day"
                 ],
                 "type": "string"
               },
@@ -20252,6 +20611,69 @@
           "currency"
         ],
         "title": "OfferTotals",
+        "type": "object"
+      },
+      "OnboardingCallConfig": {
+        "properties": {
+          "enabled": {
+            "default": false,
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "operator_slug": {
+            "default": "",
+            "maxLength": 63,
+            "title": "Operator Slug",
+            "type": "string"
+          },
+          "product_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Id"
+          }
+        },
+        "title": "OnboardingCallConfig",
+        "type": "object"
+      },
+      "OnboardingCallPublic": {
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "product_slug": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Slug"
+          },
+          "widget_token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Widget Token"
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "title": "OnboardingCallPublic",
         "type": "object"
       },
       "OperatorLinkCalendarOut": {
@@ -22507,6 +22929,74 @@
           "pitch"
         ],
         "title": "OperatorTemplateOut",
+        "type": "object"
+      },
+      "OperatorUsage": {
+        "properties": {
+          "avg_cost_per_session_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Cost Per Session Usd"
+          },
+          "cost_usd": {
+            "title": "Cost Usd",
+            "type": "number"
+          },
+          "operator_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operator Id"
+          },
+          "operator_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operator Name"
+          },
+          "requests": {
+            "title": "Requests",
+            "type": "integer"
+          },
+          "sessions": {
+            "title": "Sessions",
+            "type": "integer"
+          },
+          "tokens": {
+            "$ref": "#/components/schemas/UsageTokens"
+          },
+          "turns": {
+            "title": "Turns",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "operator_id",
+          "operator_name",
+          "sessions",
+          "turns",
+          "requests",
+          "tokens",
+          "cost_usd",
+          "avg_cost_per_session_usd"
+        ],
+        "title": "OperatorUsage",
         "type": "object"
       },
       "PackagePriceIn": {
@@ -28435,7 +28925,9 @@
             "enum": [
               "locked",
               "subset",
-              "own"
+              "own",
+              "first_day",
+              "last_day"
             ],
             "title": "Schedule",
             "type": "string"
@@ -35884,29 +36376,6 @@
         "title": "ServiceRolePatch",
         "type": "object"
       },
-      "SessionIn": {
-        "additionalProperties": false,
-        "properties": {
-          "code": {
-            "maxLength": 32,
-            "minLength": 1,
-            "title": "Code",
-            "type": "string"
-          },
-          "participant_id": {
-            "maxLength": 64,
-            "minLength": 1,
-            "title": "Participant Id",
-            "type": "string"
-          }
-        },
-        "required": [
-          "code",
-          "participant_id"
-        ],
-        "title": "SessionIn",
-        "type": "object"
-      },
       "SetSiteWarningPublisherRequest": {
         "properties": {
           "can_publish": {
@@ -39573,6 +40042,54 @@
         "title": "TodayMessagePostIn",
         "type": "object"
       },
+      "TourPrefsPatch": {
+        "properties": {
+          "tours": {
+            "maxProperties": 50,
+            "patternProperties": {
+              "^[a-z0-9][a-z0-9_-]{0,63}$": {
+                "$ref": "#/components/schemas/TourStatePatch"
+              }
+            },
+            "title": "Tours",
+            "type": "object"
+          }
+        },
+        "required": [
+          "tours"
+        ],
+        "title": "TourPrefsPatch",
+        "type": "object"
+      },
+      "TourStatePatch": {
+        "properties": {
+          "completed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed"
+          },
+          "seenAt": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seenat"
+          }
+        },
+        "title": "TourStatePatch",
+        "type": "object"
+      },
       "TrelloBoardLinkCreate": {
         "properties": {
           "board_name": {
@@ -40699,6 +41216,98 @@
         "title": "UploadPhotoRequest",
         "type": "object"
       },
+      "UsageTokens": {
+        "properties": {
+          "cache_read": {
+            "title": "Cache Read",
+            "type": "integer"
+          },
+          "cache_write": {
+            "title": "Cache Write",
+            "type": "integer"
+          },
+          "input": {
+            "title": "Input",
+            "type": "integer"
+          },
+          "output": {
+            "title": "Output",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "input",
+          "output",
+          "cache_read",
+          "cache_write"
+        ],
+        "title": "UsageTokens",
+        "type": "object"
+      },
+      "UsageTotals": {
+        "properties": {
+          "avg_cost_per_session_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Cost Per Session Usd"
+          },
+          "cost_usd": {
+            "title": "Cost Usd",
+            "type": "number"
+          },
+          "hard_cap_usd": {
+            "title": "Hard Cap Usd",
+            "type": "number"
+          },
+          "pct_of_hard": {
+            "title": "Pct Of Hard",
+            "type": "number"
+          },
+          "pct_of_soft": {
+            "title": "Pct Of Soft",
+            "type": "number"
+          },
+          "requests": {
+            "title": "Requests",
+            "type": "integer"
+          },
+          "sessions": {
+            "title": "Sessions",
+            "type": "integer"
+          },
+          "soft_cap_usd": {
+            "title": "Soft Cap Usd",
+            "type": "number"
+          },
+          "tokens": {
+            "$ref": "#/components/schemas/UsageTokens"
+          },
+          "turns": {
+            "title": "Turns",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "sessions",
+          "turns",
+          "requests",
+          "tokens",
+          "cost_usd",
+          "avg_cost_per_session_usd",
+          "soft_cap_usd",
+          "hard_cap_usd",
+          "pct_of_soft",
+          "pct_of_hard"
+        ],
+        "title": "UsageTotals",
+        "type": "object"
+      },
       "ValidationError": {
         "properties": {
           "ctx": {
@@ -41623,6 +42232,50 @@
           "notes"
         ],
         "title": "RejectIn",
+        "type": "object"
+      },
+      "app__routers__public_today__SessionIn": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "maxLength": 32,
+            "minLength": 1,
+            "title": "Code",
+            "type": "string"
+          },
+          "participant_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Participant Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "participant_id"
+        ],
+        "title": "SessionIn",
+        "type": "object"
+      },
+      "app__routers__staff_ai_onboarding__SessionIn": {
+        "properties": {
+          "locale": {
+            "anyOf": [
+              {
+                "enum": [
+                  "de",
+                  "en"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Locale"
+          }
+        },
+        "title": "SessionIn",
         "type": "object"
       },
       "app__routers__staff_commission__RuleIn": {
@@ -44572,6 +45225,108 @@
         ]
       }
     },
+    "/api/landr-staff/ai-settings": {
+      "patch": {
+        "operationId": "patch_ai_settings",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiSettingsPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiSettingsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Patch Ai Settings",
+        "tags": [
+          "landr-staff-ai-usage"
+        ]
+      }
+    },
+    "/api/landr-staff/ai-usage": {
+      "get": {
+        "operationId": "get_ai_usage",
+        "parameters": [
+          {
+            "description": "YYYY-MM; default the current month (UTC)",
+            "in": "query",
+            "name": "month",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "YYYY-MM; default the current month (UTC)",
+              "title": "Month"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiUsageOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Ai Usage",
+        "tags": [
+          "landr-staff-ai-usage"
+        ]
+      }
+    },
     "/api/landr-staff/billing/invoices": {
       "get": {
         "operationId": "list_invoices",
@@ -46333,6 +47088,76 @@
         "summary": "Put Package Price",
         "tags": [
           "landr-staff-plan-terms"
+        ]
+      }
+    },
+    "/api/landr-staff/platform-settings/onboarding-call": {
+      "get": {
+        "operationId": "get_onboarding_call_config",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OnboardingCallConfig"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Onboarding Call Config",
+        "tags": [
+          "landr-staff-platform-settings"
+        ]
+      },
+      "put": {
+        "operationId": "put_onboarding_call_config",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OnboardingCallConfig"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OnboardingCallConfig"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Put Onboarding Call Config",
+        "tags": [
+          "landr-staff-platform-settings"
         ]
       }
     },
@@ -50489,6 +51314,32 @@
         "summary": "Patch Product Eligibility Rules",
         "tags": [
           "staff-product-offers"
+        ]
+      }
+    },
+    "/api/platform-settings/onboarding-call": {
+      "get": {
+        "operationId": "get_onboarding_call",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OnboardingCallPublic"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Onboarding Call",
+        "tags": [
+          "platform-settings"
         ]
       }
     },
@@ -54655,7 +55506,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/SessionIn"
+                "$ref": "#/components/schemas/app__routers__public_today__SessionIn"
               }
             }
           },
@@ -56090,6 +56941,80 @@
         ]
       }
     },
+    "/api/staff/me/tour-prefs": {
+      "get": {
+        "operationId": "get_tour_prefs",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Tour Prefs",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Tour Prefs",
+        "tags": [
+          "user-ui-prefs"
+        ]
+      },
+      "patch": {
+        "operationId": "patch_tour_prefs",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TourPrefsPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Patch Tour Prefs",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Patch Tour Prefs",
+        "tags": [
+          "user-ui-prefs"
+        ]
+      }
+    },
     "/api/staff/operators": {
       "post": {
         "description": "Create an additional FREE-tier operator owned by the caller.\n\nResponses: 201 `{operator_id, slug}`; 422 `invalid_slug` /\n`unknown_preset_key` (+ suggestions on the former); 409 `slug_taken` +\nsuggestions; 403 `not_a_member` (no `public.users` row); 403\n`free_tier_limit` (owns live operators, none paid, landr-981dz); 429\n`rate_limited` (5/user/day).",
@@ -56530,6 +57455,246 @@
         "summary": "Agent Earnings Summary",
         "tags": [
           "staff-commission"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/ai-onboarding/health": {
+      "get": {
+        "operationId": "get_health",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Health",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Health",
+        "tags": [
+          "ai-onboarding"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/ai-onboarding/sessions": {
+      "post": {
+        "operationId": "create_or_resume_session",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/app__routers__staff_ai_onboarding__SessionIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Create Or Resume Session",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Or Resume Session",
+        "tags": [
+          "ai-onboarding"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/ai-onboarding/sessions/{session_id}/accepted": {
+      "post": {
+        "operationId": "record_accepted",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AcceptedIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Record Accepted",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Record Accepted",
+        "tags": [
+          "ai-onboarding"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/ai-onboarding/sessions/{session_id}/messages": {
+      "post": {
+        "operationId": "post_message",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MessageIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Post Message",
+        "tags": [
+          "ai-onboarding"
         ]
       }
     },
@@ -71945,6 +73110,58 @@
           }
         ],
         "summary": "Create Product",
+        "tags": [
+          "staff-products"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/products/remove-samples": {
+      "post": {
+        "description": "landr-lxrt7.1 \u2014 soft-delete every sample product of the operator: cloned\nfrom a template (``template_origin_slug`` set), still unpublished\n(``is_publicly_listed`` false) and never booked. Same soft-delete as the\nsingle delete. ``skipped`` counts the samples that were kept because they\nare published or have bookings. Scoped to the path operator (the membership\ndependency checks the caller belongs to it).",
+        "operationId": "remove_sample_products",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "integer"
+                  },
+                  "title": "Response Remove Sample Products",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Remove Sample Products",
         "tags": [
           "staff-products"
         ]
