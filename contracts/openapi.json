@@ -302,6 +302,191 @@
         "title": "AddonDayStock",
         "type": "object"
       },
+      "AiSettingsOut": {
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "monthly_hard_usd": {
+            "title": "Monthly Hard Usd",
+            "type": "number"
+          },
+          "monthly_soft_usd": {
+            "title": "Monthly Soft Usd",
+            "type": "number"
+          },
+          "paused": {
+            "title": "Paused",
+            "type": "boolean"
+          },
+          "paused_until": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paused Until"
+          },
+          "per_session_max_tokens": {
+            "title": "Per Session Max Tokens",
+            "type": "integer"
+          },
+          "per_session_max_turns": {
+            "title": "Per Session Max Turns",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "enabled",
+          "paused_until",
+          "paused",
+          "per_session_max_turns",
+          "per_session_max_tokens",
+          "monthly_soft_usd",
+          "monthly_hard_usd"
+        ],
+        "title": "AiSettingsOut",
+        "type": "object"
+      },
+      "AiSettingsPatch": {
+        "properties": {
+          "enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enabled"
+          },
+          "monthly_hard_usd": {
+            "anyOf": [
+              {
+                "maximum": 100000.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Monthly Hard Usd"
+          },
+          "monthly_soft_usd": {
+            "anyOf": [
+              {
+                "maximum": 100000.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Monthly Soft Usd"
+          },
+          "pause_until_next_month": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pause Until Next Month"
+          },
+          "paused_until": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paused Until"
+          },
+          "per_session_max_tokens": {
+            "anyOf": [
+              {
+                "maximum": 10000000.0,
+                "minimum": 1000.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Per Session Max Tokens"
+          },
+          "per_session_max_turns": {
+            "anyOf": [
+              {
+                "maximum": 1000.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Per Session Max Turns"
+          }
+        },
+        "title": "AiSettingsPatch",
+        "type": "object"
+      },
+      "AiUsageOut": {
+        "properties": {
+          "current_month": {
+            "title": "Current Month",
+            "type": "boolean"
+          },
+          "ledger": {
+            "items": {
+              "$ref": "#/components/schemas/LedgerRow"
+            },
+            "title": "Ledger",
+            "type": "array"
+          },
+          "month": {
+            "title": "Month",
+            "type": "string"
+          },
+          "operators": {
+            "items": {
+              "$ref": "#/components/schemas/OperatorUsage"
+            },
+            "title": "Operators",
+            "type": "array"
+          },
+          "settings": {
+            "$ref": "#/components/schemas/AiSettingsOut"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/UsageTotals"
+          }
+        },
+        "required": [
+          "month",
+          "current_month",
+          "settings",
+          "totals",
+          "operators",
+          "ledger"
+        ],
+        "title": "AiUsageOut",
+        "type": "object"
+      },
       "AlertOut": {
         "properties": {
           "alert_type": {
@@ -16391,6 +16576,86 @@
         "title": "LastPaymentLink",
         "type": "object"
       },
+      "LedgerRow": {
+        "properties": {
+          "cost_usd": {
+            "title": "Cost Usd",
+            "type": "number"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "operator_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operator Id"
+          },
+          "operator_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operator Name"
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Id"
+          },
+          "stop_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stop Reason"
+          },
+          "tokens": {
+            "$ref": "#/components/schemas/UsageTokens"
+          }
+        },
+        "required": [
+          "id",
+          "created_at",
+          "operator_id",
+          "operator_name",
+          "session_id",
+          "model",
+          "tokens",
+          "cost_usd",
+          "stop_reason"
+        ],
+        "title": "LedgerRow",
+        "type": "object"
+      },
       "LicenseCreateRequest": {
         "properties": {
           "document_url": {
@@ -22664,6 +22929,74 @@
           "pitch"
         ],
         "title": "OperatorTemplateOut",
+        "type": "object"
+      },
+      "OperatorUsage": {
+        "properties": {
+          "avg_cost_per_session_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Cost Per Session Usd"
+          },
+          "cost_usd": {
+            "title": "Cost Usd",
+            "type": "number"
+          },
+          "operator_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operator Id"
+          },
+          "operator_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operator Name"
+          },
+          "requests": {
+            "title": "Requests",
+            "type": "integer"
+          },
+          "sessions": {
+            "title": "Sessions",
+            "type": "integer"
+          },
+          "tokens": {
+            "$ref": "#/components/schemas/UsageTokens"
+          },
+          "turns": {
+            "title": "Turns",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "operator_id",
+          "operator_name",
+          "sessions",
+          "turns",
+          "requests",
+          "tokens",
+          "cost_usd",
+          "avg_cost_per_session_usd"
+        ],
+        "title": "OperatorUsage",
         "type": "object"
       },
       "PackagePriceIn": {
@@ -40883,6 +41216,98 @@
         "title": "UploadPhotoRequest",
         "type": "object"
       },
+      "UsageTokens": {
+        "properties": {
+          "cache_read": {
+            "title": "Cache Read",
+            "type": "integer"
+          },
+          "cache_write": {
+            "title": "Cache Write",
+            "type": "integer"
+          },
+          "input": {
+            "title": "Input",
+            "type": "integer"
+          },
+          "output": {
+            "title": "Output",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "input",
+          "output",
+          "cache_read",
+          "cache_write"
+        ],
+        "title": "UsageTokens",
+        "type": "object"
+      },
+      "UsageTotals": {
+        "properties": {
+          "avg_cost_per_session_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Cost Per Session Usd"
+          },
+          "cost_usd": {
+            "title": "Cost Usd",
+            "type": "number"
+          },
+          "hard_cap_usd": {
+            "title": "Hard Cap Usd",
+            "type": "number"
+          },
+          "pct_of_hard": {
+            "title": "Pct Of Hard",
+            "type": "number"
+          },
+          "pct_of_soft": {
+            "title": "Pct Of Soft",
+            "type": "number"
+          },
+          "requests": {
+            "title": "Requests",
+            "type": "integer"
+          },
+          "sessions": {
+            "title": "Sessions",
+            "type": "integer"
+          },
+          "soft_cap_usd": {
+            "title": "Soft Cap Usd",
+            "type": "number"
+          },
+          "tokens": {
+            "$ref": "#/components/schemas/UsageTokens"
+          },
+          "turns": {
+            "title": "Turns",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "sessions",
+          "turns",
+          "requests",
+          "tokens",
+          "cost_usd",
+          "avg_cost_per_session_usd",
+          "soft_cap_usd",
+          "hard_cap_usd",
+          "pct_of_soft",
+          "pct_of_hard"
+        ],
+        "title": "UsageTotals",
+        "type": "object"
+      },
       "ValidationError": {
         "properties": {
           "ctx": {
@@ -44797,6 +45222,108 @@
         "summary": "Relay Website Deploy",
         "tags": [
           "release-internal"
+        ]
+      }
+    },
+    "/api/landr-staff/ai-settings": {
+      "patch": {
+        "operationId": "patch_ai_settings",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiSettingsPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiSettingsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Patch Ai Settings",
+        "tags": [
+          "landr-staff-ai-usage"
+        ]
+      }
+    },
+    "/api/landr-staff/ai-usage": {
+      "get": {
+        "operationId": "get_ai_usage",
+        "parameters": [
+          {
+            "description": "YYYY-MM; default the current month (UTC)",
+            "in": "query",
+            "name": "month",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "YYYY-MM; default the current month (UTC)",
+              "title": "Month"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiUsageOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Ai Usage",
+        "tags": [
+          "landr-staff-ai-usage"
         ]
       }
     },
