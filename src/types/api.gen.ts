@@ -922,6 +922,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/landr-staff/ai-settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Patch Ai Settings */
+        patch: operations["patch_ai_settings"];
+        trace?: never;
+    };
+    "/api/landr-staff/ai-usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Ai Usage */
+        get: operations["get_ai_usage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/landr-staff/billing/invoices": {
         parameters: {
             query?: never;
@@ -13830,6 +13864,53 @@ export interface components {
             /** Unavailable Reason */
             unavailable_reason?: ("sold_out" | "unit_taken") | null;
         };
+        /** AiSettingsOut */
+        AiSettingsOut: {
+            /** Enabled */
+            enabled: boolean;
+            /** Monthly Hard Usd */
+            monthly_hard_usd: number;
+            /** Monthly Soft Usd */
+            monthly_soft_usd: number;
+            /** Paused */
+            paused: boolean;
+            /** Paused Until */
+            paused_until: string | null;
+            /** Per Session Max Tokens */
+            per_session_max_tokens: number;
+            /** Per Session Max Turns */
+            per_session_max_turns: number;
+        };
+        /** AiSettingsPatch */
+        AiSettingsPatch: {
+            /** Enabled */
+            enabled?: boolean | null;
+            /** Monthly Hard Usd */
+            monthly_hard_usd?: number | null;
+            /** Monthly Soft Usd */
+            monthly_soft_usd?: number | null;
+            /** Pause Until Next Month */
+            pause_until_next_month?: boolean | null;
+            /** Paused Until */
+            paused_until?: string | null;
+            /** Per Session Max Tokens */
+            per_session_max_tokens?: number | null;
+            /** Per Session Max Turns */
+            per_session_max_turns?: number | null;
+        };
+        /** AiUsageOut */
+        AiUsageOut: {
+            /** Current Month */
+            current_month: boolean;
+            /** Ledger */
+            ledger: components["schemas"]["LedgerRow"][];
+            /** Month */
+            month: string;
+            /** Operators */
+            operators: components["schemas"]["OperatorUsage"][];
+            settings: components["schemas"]["AiSettingsOut"];
+            totals: components["schemas"]["UsageTotals"];
+        };
         /** AlertOut */
         AlertOut: {
             /** Alert Type */
@@ -19711,6 +19792,26 @@ export interface components {
             /** Status */
             status: string;
         };
+        /** LedgerRow */
+        LedgerRow: {
+            /** Cost Usd */
+            cost_usd: number;
+            /** Created At */
+            created_at: string;
+            /** Id */
+            id: number;
+            /** Model */
+            model: string;
+            /** Operator Id */
+            operator_id: string | null;
+            /** Operator Name */
+            operator_name: string | null;
+            /** Session Id */
+            session_id: string | null;
+            /** Stop Reason */
+            stop_reason: string | null;
+            tokens: components["schemas"]["UsageTokens"];
+        };
         /** LicenseCreateRequest */
         LicenseCreateRequest: {
             /** Document Url */
@@ -21781,6 +21882,24 @@ export interface components {
              * @default false
              */
             website_listed: boolean;
+        };
+        /** OperatorUsage */
+        OperatorUsage: {
+            /** Avg Cost Per Session Usd */
+            avg_cost_per_session_usd: number | null;
+            /** Cost Usd */
+            cost_usd: number;
+            /** Operator Id */
+            operator_id: string | null;
+            /** Operator Name */
+            operator_name: string | null;
+            /** Requests */
+            requests: number;
+            /** Sessions */
+            sessions: number;
+            tokens: components["schemas"]["UsageTokens"];
+            /** Turns */
+            turns: number;
         };
         /** PackagePriceIn */
         PackagePriceIn: {
@@ -28095,6 +28214,39 @@ export interface components {
             /** Width */
             width?: number | null;
         };
+        /** UsageTokens */
+        UsageTokens: {
+            /** Cache Read */
+            cache_read: number;
+            /** Cache Write */
+            cache_write: number;
+            /** Input */
+            input: number;
+            /** Output */
+            output: number;
+        };
+        /** UsageTotals */
+        UsageTotals: {
+            /** Avg Cost Per Session Usd */
+            avg_cost_per_session_usd: number | null;
+            /** Cost Usd */
+            cost_usd: number;
+            /** Hard Cap Usd */
+            hard_cap_usd: number;
+            /** Pct Of Hard */
+            pct_of_hard: number;
+            /** Pct Of Soft */
+            pct_of_soft: number;
+            /** Requests */
+            requests: number;
+            /** Sessions */
+            sessions: number;
+            /** Soft Cap Usd */
+            soft_cap_usd: number;
+            tokens: components["schemas"]["UsageTokens"];
+            /** Turns */
+            turns: number;
+        };
         /** ValidationError */
         ValidationError: {
             /** Context */
@@ -30145,6 +30297,71 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_ai_settings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AiSettingsPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiSettingsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_ai_usage: {
+        parameters: {
+            query?: {
+                /** @description YYYY-MM; default the current month (UTC) */
+                month?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiUsageOut"];
                 };
             };
             /** @description Validation Error */
