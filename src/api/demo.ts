@@ -15,6 +15,7 @@ import { checkStayRange, stayWindowOf } from '@/components/booking/accommodation
 import { DEMO_LANGS, demoLang, demoSlug, type DemoLang } from '@/lib/demo'
 import { formatDayRange } from '@/components/booking/dateLabel'
 import { pickLocalized } from '@/lib/locale'
+import type { ProductFlowResponse } from './flowTypes'
 import type {
   AddonPriceUnit,
   AvailabilitySlot,
@@ -121,6 +122,8 @@ export type DemoCatalogueProduct = Omit<
   pass_tiers?: DemoCatalogueTier[] | null
   /** ISO weekdays (1 = Monday .. 7 = Sunday) the fixed daily start times run on; null = every day. */
   daily_start_weekdays?: number[] | null
+  /** landr-v41i4: guest attributes the product asks (`age` = the party step asks every guest's age). */
+  required_attributes?: string[] | null
   pricing?: DemoCataloguePricing | null
   addons?: DemoCatalogueAddon[] | null
   alternatives?: DemoCatalogueAlternative[] | null
@@ -1115,6 +1118,26 @@ function notFound(path: string): Error {
   return e
 }
 
+/**
+ * GET …/products/{id}/flow. A product whose template asks `age` (every stay)
+ * gets the same age fields the API's flow carries, so the demo's party step asks
+ * each guest's age like a live booking (landr-v41i4): Child (exact age) / Adult.
+ */
+export function demoFlow(template: DemoTemplate, id: string): ProductFlowResponse {
+  const hit = findOffer(template, id)
+  const cat = template.catalogue?.products.find((c) => c.slug === hit?.product.slug)
+  if (!cat?.required_attributes?.includes('age')) return { modules: null }
+  return {
+    modules: null,
+    age_needed: true,
+    age_collect_as: 'ranges',
+    age_bands: [
+      { key: 'child', min_age: 0, max_age: 17 },
+      { key: 'adult', min_age: 18, max_age: null },
+    ],
+  }
+}
+
 const OP = /^\/api\/public\/operators\/[^/]+/
 const PRODUCT = /^\/api\/public\/products\/([^/?]+)/
 
@@ -1157,7 +1180,8 @@ export async function demoRequest<T>(path: string, init?: RequestInit): Promise<
     if (rest === '/settings') return demoSettings(template) as T
     if (rest === '/service-roles') return demoRoles() as T
     if (rest === '/locations') return [] as T
-    if (/^\/products\/[^/]+\/flow$/.test(rest)) return { modules: null } as T
+    const flow = /^\/products\/([^/]+)\/flow$/.exec(rest)
+    if (flow) return demoFlow(template, decodeURIComponent(flow[1])) as T
     const tiers = /^\/products\/([^/]+)\/pass-tiers$/.exec(rest)
     if (tiers) {
       const member = params.get('member_proof') === DEMO_MEMBER_PROOF

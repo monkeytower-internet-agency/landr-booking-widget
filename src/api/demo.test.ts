@@ -19,6 +19,7 @@ import {
   acceptOffer,
   putBookingDetails,
   cancelBooking,
+  getProductFlow,
 } from './client'
 import { DemoWriteBlockedError, demoAdjustments, demoProducts, demoSettings, resetDemoTemplateCache } from './demo'
 import { DEMO_LANGS, demoCompanion, demoCopy, demoCustomer, demoLang, demoSignupUrl, demoSlug } from '@/lib/demo'
@@ -280,6 +281,26 @@ describe('demo mode reads', () => {
     })
     expect(est.grand_total).toBe('260.00')
     expect(est.un_priceable).toBe(false)
+  })
+})
+
+describe('demo mode: a stay asks guest ages (landr-v41i4)', () => {
+  it('answers the flow with age_needed + Child/Adult bands when the product requires age', async () => {
+    catalogue = {
+      ...STAY_CATALOGUE,
+      products: [
+        { ...STAY_CATALOGUE.products[0], required_attributes: ['age'] },
+        { ...STAY_CATALOGUE.products[0], slug: 'plain', name: 'Plain', required_attributes: [] },
+      ],
+    }
+    window.history.replaceState({}, '', '/?demo=apartment')
+    resetDemoTemplateCache()
+    const [asks, plain] = await listProducts('demo-apartment')
+    const flow = await getProductFlow('demo-apartment', asks.product_id)
+    expect(flow?.age_needed).toBe(true)
+    expect(flow?.age_collect_as).toBe('ranges')
+    expect(flow?.age_bands?.map((b) => b.key)).toEqual(['child', 'adult'])
+    expect((await getProductFlow('demo-apartment', plain.product_id))?.age_needed).toBeUndefined()
   })
 })
 
