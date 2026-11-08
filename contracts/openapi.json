@@ -5997,6 +5997,14 @@
             "title": "Product Kind",
             "type": "string"
           },
+          "required_attributes": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Required Attributes",
+            "type": "array"
+          },
           "requires_verification": {
             "default": false,
             "title": "Requires Verification",
