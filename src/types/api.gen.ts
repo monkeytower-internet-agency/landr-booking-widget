@@ -16123,6 +16123,11 @@ export interface components {
             /** Product Kind */
             product_kind: string;
             /**
+             * Required Attributes
+             * @default []
+             */
+            required_attributes: string[];
+            /**
              * Requires Verification
              * @default false
              */
