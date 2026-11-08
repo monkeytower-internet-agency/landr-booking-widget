@@ -10410,6 +10410,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/products/remove-samples": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Remove Sample Products
+         * @description landr-lxrt7.1 — soft-delete every sample product of the operator: cloned
+         *     from a template (``template_origin_slug`` set), still unpublished
+         *     (``is_publicly_listed`` false) and never booked. Same soft-delete as the
+         *     single delete. ``skipped`` counts the samples that were kept because they
+         *     are published or have bookings. Scoped to the path operator (the membership
+         *     dependency checks the caller belongs to it).
+         */
+        post: operations["remove_sample_products"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/products/{product_id}": {
         parameters: {
             query?: never;
@@ -46403,6 +46428,39 @@ export interface operations {
                 content: {
                     "application/json": {
                         [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_sample_products: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: number;
                     };
                 };
             };
