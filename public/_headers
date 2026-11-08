@@ -2,3 +2,7 @@
   Content-Type: application/zip
   Content-Disposition: attachment
   Cache-Control: public, max-age=300
+
+/version.json
+  Cache-Control: no-store
+  Access-Control-Allow-Origin: *

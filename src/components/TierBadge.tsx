@@ -11,6 +11,7 @@
  * survives iframe scrolling, and doesn't displace any booking UI.
  */
 
+import { BuildChip } from '@/components/BuildChip'
 import { getTier } from '@/lib/tier'
 
 export function TierBadge() {
@@ -26,6 +27,7 @@ export function TierBadge() {
       : 'bg-blue-600 text-white'
 
   return (
+    <>
     <div
       aria-label={`Environment: ${label}`}
       role="status"
@@ -40,5 +42,7 @@ export function TierBadge() {
     >
       {label}
     </div>
+    <BuildChip />
+    </>
   )
 }
