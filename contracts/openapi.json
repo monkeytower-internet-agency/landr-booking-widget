@@ -5228,6 +5228,18 @@
             "title": "Product Kind",
             "type": "string"
           },
+          "schedule": {
+            "default": "locked",
+            "enum": [
+              "locked",
+              "subset",
+              "own",
+              "first_day",
+              "last_day"
+            ],
+            "title": "Schedule",
+            "type": "string"
+          },
           "short_description": {
             "anyOf": [
               {
