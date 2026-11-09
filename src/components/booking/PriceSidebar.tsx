@@ -484,7 +484,7 @@ function BookingOverviewBody({
             <div data-testid="price-sidebar-on-site" className="mt-3 space-y-1 text-sm">
               <h4 className="font-semibold">{tr('offerPayOnArrivalTotal', locale)}</h4>
               <ul className="space-y-0.5">
-                {onSite.map((li, i) => (
+                {mergeSameLines(onSite).map((li, i) => (
                   <li key={`${li.line_id ?? li.product_id}-${i}`} className="flex justify-between gap-2">
                     <span>{li.label}</span>
                     <span>{formatMoney(li.collection_amount ?? li.line_total, data.currency, locale)}</span>
