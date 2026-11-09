@@ -3337,20 +3337,15 @@ export interface paths {
         post?: never;
         /**
          * Delete Offer
-         * @description Delete an offer. A migrated add-on is removed by deleting its
-         *     product_addons link; a cross-sell row is deleted directly.
+         * @description Delete an offer (a cross-sell row included).
          */
         delete: operations["delete_product_offer"];
         options?: never;
         head?: never;
         /**
          * Patch Offer
-         * @description Update the fields sent. A migrated add-on writes them through to its
-         *     product_addons link in one transaction (409 ``addon_link_exists`` for a
-         *     duplicate parent/add-on pair, ``binding_not_applicable``,
-         *     ``product_cap_overrides`` for a cleared max_qty under the product's own cap);
-         *     409 ``offer_owned_by_legacy_source`` for parent / product of a cross-sell row
-         *     or a null parent on a migrated add-on.
+         * @description Update the fields sent, on the offer row only; 409
+         *     ``offer_owned_by_legacy_source`` for parent / product of a cross-sell row.
          */
         patch: operations["patch_product_offer"];
         trace?: never;
@@ -4667,8 +4662,8 @@ export interface paths {
          * Get Product Addons
          * @description Add-ons configured for a parent product (landr-cip6 / epic landr-ie8g).
          *
-         *     Thin FastAPI wrapper over the SECURITY DEFINER RPC
-         *     `public_get_product_addons`. Returns one row per linked add-on
+         *     Thin FastAPI wrapper over the service-role RPC
+         *     `offered_addons_for_parent` (landr-tm48v.25). Returns one row per linked add-on
          *     product, including the add-on's display name, per-unit price (when
          *     the scheme exposes a per_day_base rule), and the offer's config
          *     (is_required = mandatory, min_qty, max_qty, sort_order; landr-tm48v.2:
@@ -11900,7 +11895,7 @@ export interface paths {
          *     (``products.is_addon_only``), its price (a ``per_day_base`` rule), its
          *     stock requirement (``block``; per booking when ``max_per_booking`` is 1,
          *     else per participant) and — when ``parent_product_ids`` is sent — the
-         *     service products it is offered under (``product_addons``). Idempotent.
+         *     service products it is offered under (``offers``). Idempotent.
          *     422 ``facet_required`` unless the type is ``rentable``; 422
          *     ``parent_invalid`` for a parent that is not a bookable service product
          *     (rental add-ons are booking-level, never attached to a room). Removing
@@ -21566,8 +21561,6 @@ export interface components {
             widget_category_columns?: number | null;
             /** Widget Cross Sell Enabled */
             widget_cross_sell_enabled?: boolean | null;
-            /** Widget Cross Sell Product Ids */
-            widget_cross_sell_product_ids?: string[] | null;
             /** Widget Description */
             widget_description?: string | null;
             /** Widget Description First Page Only */
@@ -21821,8 +21814,6 @@ export interface components {
              * @default true
              */
             widget_cross_sell_enabled: boolean;
-            /** Widget Cross Sell Product Ids */
-            widget_cross_sell_product_ids?: string[];
             /** Widget Description */
             widget_description?: string | null;
             /**
@@ -23311,8 +23302,8 @@ export interface components {
         };
         /**
          * ProductAddon
-         * @description One row returned by the public_get_product_addons RPC (landr-cip6 /
-         *     epic landr-ie8g). Mirrors the widget's ``ProductAddon`` TypeScript
+         * @description One row returned by the offered_addons_for_parent RPC (landr-cip6 /
+         *     epic landr-ie8g; offers only since landr-tm48v.25). Mirrors the widget's ``ProductAddon`` TypeScript
          *     interface (src/api/types.ts) field-for-field.
          */
         ProductAddon: {
@@ -23668,10 +23659,6 @@ export interface components {
              * @default true
              */
             active: boolean;
-            /** Addon Quantity Max */
-            addon_quantity_max?: number | null;
-            /** Addon Quantity Rule */
-            addon_quantity_rule?: ("one_per_booking" | "one_per_participant" | "any") | null;
             /**
              * Booking Mode
              * @default scheduled
@@ -23897,10 +23884,8 @@ export interface components {
              * Format: uuid
              */
             id: string;
-            /** Legacy Addon Id */
-            legacy_addon_id?: string | null;
             /** Legacy Source */
-            legacy_source?: ("product_addons" | "cross_sell") | null;
+            legacy_source?: "cross_sell" | null;
             /** Max Qty */
             max_qty: number | null;
             /** Min Qty */
@@ -23948,10 +23933,6 @@ export interface components {
             accommodation_lead_time_minutes?: number | null;
             /** Active */
             active?: boolean | null;
-            /** Addon Quantity Max */
-            addon_quantity_max?: number | null;
-            /** Addon Quantity Rule */
-            addon_quantity_rule?: ("one_per_booking" | "one_per_participant" | "any") | null;
             /** Booking Mode */
             booking_mode?: ("scheduled" | "on_request") | null;
             /** Briefing Content */
