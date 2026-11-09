@@ -4,6 +4,9 @@ import {
   addPick,
   cartTree,
   clampOfferQty,
+  clampRoomStepperQty,
+  isRoomStepperOffer,
+  settleRoomStepperPicks,
   depthOf,
   effectiveSchedule,
   evaluateLines,
@@ -536,5 +539,52 @@ describe('one-day schedules (first_day / last_day)', () => {
     const parent = newPick(offer('p', { product_kind: 'stay' }), MAIN_LINE_ID, 'o1', DAYS)
     const child = { ...newPick(offer('c', { schedule: 'last_day' }), 'o1', 'o2', DAYS) }
     expect(lineDays('o2', activityTree, [parent, child])).toEqual(['2027-05-05'])
+  })
+})
+
+describe('room stepper picks (landr-ey8fx)', () => {
+  const bf = offer('bf', { binding: 'person' })
+  const stepper = (quantity: number, memberIds: string[] = []) => ({
+    ...newPick(bf, 'r-r1', 'a1', DAYS),
+    quantity,
+    memberIds,
+  })
+  const members = [
+    { key: 'm1', ref: 'g1', name: 'A', attributes: {} },
+    { key: 'm2', ref: 'g2', name: 'B', attributes: {} },
+  ]
+
+  it('counts the stepper quantity of a fresh pick', () => {
+    expect(roomExtraQty([stepper(2)])).toEqual({ r1: { 'p-bf': 2 } })
+  })
+
+  it('clamps quantity (and named guests) to the room cap', () => {
+    const [p] = clampRoomStepperQty([stepper(2, ['m1', 'm2'])], { r1: 1 })
+    expect(p).toMatchObject({ quantity: 1, memberIds: ['m1'] })
+    const same = [stepper(1)]
+    expect(clampRoomStepperQty(same, { r1: 2 })).toBe(same)
+  })
+
+  it('names the chip holders, else the first guests', () => {
+    expect(settleRoomStepperPicks([stepper(1)], { r1: ['m2'] }, members)[0]).toMatchObject({ memberIds: ['m2'], quantity: 1 })
+    expect(settleRoomStepperPicks([stepper(2)], {}, members)[0]).toMatchObject({ memberIds: ['m1', 'm2'], quantity: 2 })
+    const settled = [stepper(1, ['m2'])]
+    expect(settleRoomStepperPicks(settled, { r1: ['m2'] }, members)).toBe(settled)
+  })
+
+  it('does not treat a person offer with options or under a non-room parent as a stepper', () => {
+    expect(isRoomStepperOffer(bf, 'r-r1')).toBe(true)
+    expect(isRoomStepperOffer(bf, 'main')).toBe(false)
+    expect(isRoomStepperOffer({ ...bf, options: [{ key: 'k', label: 'K', price_delta_cents: 0 }] }, 'r-r1')).toBe(false)
+    expect(isRoomStepperOffer({ ...bf, mode: 'mandatory' }, 'r-r1')).toBe(false)
+  })
+
+  it('priceLabel quotes the unit price when asked', () => {
+    const o = {
+      collection: 'online' as const,
+      price_preview: { quantity: 1, unit_price_cents: 1200, total_cents: 9600, price_unit: 'guest_night' as const, currency: 'EUR' },
+    }
+    expect(priceLabel(o, 'en', undefined, 'EUR', true).text).toMatch(/12[.,]00.*guest/)
+    expect(priceLabel(o, 'en', undefined, 'EUR').text).toMatch(/96[.,]00/)
   })
 })

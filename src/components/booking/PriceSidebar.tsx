@@ -75,6 +75,7 @@ import {
   buildAddonLines,
   buildDiscountExplanation,
   groupPerformerLines,
+  mergeSameLines,
   isSavingsLine,
   formatMoney,
   isDiscountRule,
@@ -483,9 +484,19 @@ function BookingOverviewBody({
             <div data-testid="price-sidebar-on-site" className="mt-3 space-y-1 text-sm">
               <h4 className="font-semibold">{tr('offerPayOnArrivalTotal', locale)}</h4>
               <ul className="space-y-0.5">
-                {onSite.map((li, i) => (
-                  <li key={`${li.line_id ?? li.product_id}-${i}`} className="flex justify-between gap-2">
-                    <span>{li.label}</span>
+                {mergeSameLines(onSite).map((li, i) => (
+                  <li
+                    key={`${li.line_id ?? li.product_id}-${i}`}
+                    className="flex items-baseline justify-between gap-2"
+                  >
+                    <span className="flex-1">
+                      <span className="block">{li.label}</span>
+                      <span className="block text-xs text-muted-foreground">
+                        {hasHotelRoom
+                          ? qtyTimesUnits(li.qty, li.units, 'night', locale)
+                          : qtyOnly(li.qty, locale)}
+                      </span>
+                    </span>
                     <span>{formatMoney(li.collection_amount ?? li.line_total, data.currency, locale)}</span>
                   </li>
                 ))}
@@ -537,9 +548,9 @@ function BookingOverviewBody({
             </p>
           ) : null}
           <ul className="space-y-1 text-sm">
-            {hotel.map((li) => (
+            {mergeSameLines(hotel).map((li, i) => (
               <li
-                key={`hot-${li.product_id}`}
+                key={`hot-${li.product_id}-${i}`}
                 className="flex items-baseline justify-between gap-2"
               >
                 <span className="flex-1">

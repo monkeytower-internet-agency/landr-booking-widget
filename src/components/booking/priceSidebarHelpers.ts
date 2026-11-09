@@ -107,6 +107,49 @@ export function splitLineItems(items: EstimateLineItem[]): {
   return { operator, hotel, performer, onSite }
 }
 
+/** The key lines are folded on (see mergeSameLines); also a stable React key. */
+export function lineMergeKey(li: EstimateLineItem): string {
+  return [li.product_id, li.label, li.unit_price, li.units, li.price_unit ?? '', li.paid_to].join('|')
+}
+
+const addMoney = (a: string, b: string): string =>
+  ((Math.round(Number(a) * 100) + Math.round(Number(b) * 100)) / 100).toFixed(2)
+
+/**
+ * Fold the lines of one product that read the same (label, unit price, units)
+ * into one: a per-guest extra (Breakfast, one estimate line per guest) lists
+ * as "Breakfast 2 × 7 nights €168.00", not once per guest. First-seen order;
+ * qty and line_total add up, so the section's subtotal still matches.
+ */
+export function mergeSameLines(items: readonly EstimateLineItem[]): EstimateLineItem[] {
+  const out: EstimateLineItem[] = []
+  const byKey = new Map<string, number>()
+  for (const li of items) {
+    const key = lineMergeKey(li)
+    const at = byKey.get(key)
+    if (at === undefined) {
+      byKey.set(key, out.length)
+      out.push(li)
+      continue
+    }
+    const prev = out[at]!
+    out[at] = {
+      ...prev,
+      qty: prev.qty + li.qty,
+      line_total: addMoney(prev.line_total, li.line_total),
+      // An on-site (pay on arrival) line lists collection_amount, so it adds up too.
+      ...(prev.collection_amount != null || li.collection_amount != null
+        ? { collection_amount: addMoney(prev.collection_amount ?? '0', li.collection_amount ?? '0') }
+        : {}),
+      participant_ids:
+        prev.participant_ids || li.participant_ids
+          ? [...(prev.participant_ids ?? []), ...(li.participant_ids ?? [])]
+          : prev.participant_ids,
+    }
+  }
+  return out
+}
+
 /** One "paid to your {payee}" block: the performer lines sharing a payee label. */
 export interface PerformerGroup {
   /** Bare noun ("Tandem pilot"); null on an older API (callers fall back). */
