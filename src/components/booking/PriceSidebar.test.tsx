@@ -385,6 +385,43 @@ describe('PriceSidebar — day chips + hotel span + names (landr-2wyi)', () => {
     expect(group.querySelector('li')!.textContent).toMatch(/Breakfast.*168/)
   })
 
+  it('shows the qty x nights sub-line on a merged on-site row (landr-ckguc)', async () => {
+    const bf = (guest: string) => ({
+      product_id: 'bf',
+      label: 'Breakfast',
+      qty: 1,
+      units: 7,
+      unit_price: '12.00',
+      line_total: '84.00',
+      paid_to: 'operator' as const,
+      collection: 'on_site' as const,
+      collection_amount: '84.00',
+      participant_ids: [guest],
+    })
+    vi.spyOn(client, 'estimateBookingPrice').mockResolvedValue({
+      ...SAMPLE,
+      line_items: [SAMPLE.line_items[0], bf('g1'), bf('g2')],
+      operator_total: '180.00',
+      hotel_total: '0.00',
+      grand_total: '348.00',
+      amount_due: '180.00',
+      on_site_total: '168.00',
+    })
+    render(
+      <PriceSidebar
+        operatorToken="para42"
+        product={makeProduct()}
+        selectedDays={['2026-05-23']}
+        participantCount={2}
+        accommodationRooms={[{ productId: 'room', quantity: 1 }]}
+        offerPicks={[]}
+      />,
+    )
+    const group = await screen.findByTestId('price-sidebar-on-site')
+    expect(group.querySelectorAll('li')).toHaveLength(1)
+    expect(group.querySelector('li')!.textContent).toMatch(/2 × 7 nights/)
+  })
+
   it('lists an on-site line in its own group with on_site_total, apart from the amount due', async () => {
     vi.spyOn(client, 'estimateBookingPrice').mockResolvedValue({
       ...SAMPLE,

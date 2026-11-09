@@ -885,9 +885,9 @@ function ConfirmationPriceBreakdown({ summary }: { summary: BookingSummary }) {
       <h3 className="text-sm font-semibold">{tr('priceBreakdownTitle', locale)}</h3>
       {operator.length > 0 ? (
         <ul className="space-y-1 text-sm">
-          {operator.map((li) => (
+          {mergeSameLines(operator).map((li) => (
             <li
-              key={`op-${li.product_id}`}
+              key={`op-${lineMergeKey(li)}`}
               className="flex items-baseline justify-between gap-2"
             >
               <span>{li.label}</span>
