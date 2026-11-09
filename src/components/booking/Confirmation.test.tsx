@@ -845,6 +845,35 @@ describe('Confirmation — landr-nva1a.4 success-screen summary', () => {
     expect(breakdown).toHaveTextContent('168')
   })
 
+  it('lists two guests\' identical operator lines as one row, no duplicate-key warning (landr-ckguc)', () => {
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const breakfast = (guest: string) => ({
+      product_id: 'bf',
+      label: 'Breakfast',
+      qty: 1,
+      units: 7,
+      unit_price: '12.00',
+      line_total: '84.00',
+      paid_to: 'operator' as const,
+      price_unit: 'guest_night' as const,
+      participant_ids: [guest],
+    })
+    const response = baseResponse({
+      summary: baseSummary({
+        line_items: [breakfast('g1'), breakfast('g2')],
+        grand_total: '168.00',
+      }),
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    const breakdown = screen.getByTestId('confirmation-price-breakdown')
+    expect(within(breakdown).getAllByText('Breakfast')).toHaveLength(1)
+    expect(breakdown).toHaveTextContent('168')
+    const keyWarnings = errSpy.mock.calls.filter((c) => String(c[0]).includes('same key'))
+    expect(keyWarnings).toHaveLength(0)
+    errSpy.mockRestore()
+  })
+
   // ------------------------------------------------------------------
   // Post-booking content (landr-nva1a.2). Fixture shape matches the real
   // API verbatim: {product_id, html, link} — NO `label` on the item
