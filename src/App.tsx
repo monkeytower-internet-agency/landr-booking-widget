@@ -1117,7 +1117,6 @@ function BookingFlowApp() {
     // the logo doesn't flash-hide before the settings fetch resolves.
     widget_show_logo: true,
     widget_cross_sell_enabled: true,
-    widget_cross_sell_product_ids: [],
     primary_color: null,
     // landr-ens5 — 3-colour theme null until the fetch resolves (built-in
     // default theme until then).
