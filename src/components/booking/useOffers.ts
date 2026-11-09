@@ -6,7 +6,7 @@
  * Refetches only when the request would change -- the tree (line ids,
  * products, parents, days) or the party (refs, attributes). Ticks, options and
  * quantities never change the verdict, so they never refetch. Debounced
- * 300 ms; a newer request aborts the older one and only the latest answer
+ * 300 ms (the first request goes out at once); a newer request aborts the older one and only the latest answer
  * lands. While a changed request is unanswered `isPending` is true and the
  * previous verdict stays on screen (rows keep their DOM). A failed, timed-out
  * or rate-limited call sets `checkFailed` instead: the booking never waits on
@@ -66,7 +66,9 @@ export function useOffers({
     () => `${refreshKey}|${offersRequestKey(widgetToken, lines, guests)}`,
     [widgetToken, lines, guests, refreshKey],
   )
-  const debouncedKey = useDebouncedValue(key, debounceMs)
+  // Nothing answered yet: ask at once (the debounce only calms later edits).
+  const [firstAnswered, setFirstAnswered] = useState(false)
+  const debouncedKey = useDebouncedValue(key, firstAnswered ? debounceMs : 0)
   const bodyRef = useRef({ lines, guests })
   useEffect(() => {
     bodyRef.current = { lines, guests }
@@ -94,6 +96,7 @@ export function useOffers({
         if (ctrl.signal.aborted) return
         const byLine: Record<string, EvaluatedLine> = {}
         for (const l of res.lines ?? []) byLine[l.line_id] = l
+        setFirstAnswered(true)
         setState({
           byLine,
           requiredAttributeKeys: res.required_attribute_keys ?? [],
