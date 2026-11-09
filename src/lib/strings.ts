@@ -448,6 +448,16 @@ export type Bundle = {
   guestsPayingForThemselves: string
   guestsPayingForThemselvesExplainer: string
   guestFallbackTemplate: string
+  occupancyEmptyRoomOneTemplate: string
+  occupancyEmptyRoomsManyTemplate: string
+  occupancyNeedsOneMoreGuestTemplate: string
+  occupancyNeedsMoreGuestsTemplate: string
+  occupancyAddAnotherGuestTemplate: string
+  occupancyAddMoreGuestsTemplate: string
+  occupancyFillEachRoomTemplate: string
+  occupancySharedDoubleOneTemplate: string
+  occupancySharedDoubleManyTemplate: string
+  occupancyAssignEveryoneTemplate: string
   readyToConfirm: string
   /** landr-xpbt2: review step's confirm box label — the final step, not "Next: continue". */
   reviewStepCueLabel: string
@@ -1535,6 +1545,16 @@ const en: Bundle = {
     "participants who book and pay for their own guiding separately. They're added to the hotel headcount " +
     "and room assignment, but not to this booking's activity or price.",
   guestFallbackTemplate: 'Guest {n}',
+  occupancyEmptyRoomOneTemplate: '{list} has no guests yet — assign someone or remove the room.',
+  occupancyEmptyRoomsManyTemplate: 'These rooms have no guests yet: {list}. Assign someone to each, or remove the empty rooms.',
+  occupancyNeedsOneMoreGuestTemplate: '{room} needs {need} more guest',
+  occupancyNeedsMoreGuestsTemplate: '{room} needs {need} more guests',
+  occupancyAddAnotherGuestTemplate: '{list} — add another guest or book a smaller room.',
+  occupancyAddMoreGuestsTemplate: '{list} — add more guests or book a smaller room.',
+  occupancyFillEachRoomTemplate: '{list}. Fill each room or book smaller rooms.',
+  occupancySharedDoubleOneTemplate: 'Only your own bed is the shared double — {names} still needs a room.',
+  occupancySharedDoubleManyTemplate: 'Only your own bed is the shared double — {names} still need a room.',
+  occupancyAssignEveryoneTemplate: 'Assign everyone to a room — still waiting on: {names}.',
   readyToConfirm: 'Ready to confirm.',
   reviewStepCueLabel: 'Last step: confirm your booking',
   submittingYourBookingEllipsis: 'Submitting your booking…',

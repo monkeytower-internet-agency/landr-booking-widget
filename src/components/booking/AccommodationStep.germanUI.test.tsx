@@ -256,4 +256,37 @@ describe('AccommodationStep — German UI (landr-5aih0.27)', () => {
       /4 people/,
     )
   })
+
+  it('renders the room-assignment occupancy hint in German (landr-o1w79)', async () => {
+    setBrowserLanguage('de-DE')
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([
+      makeRoom('single-room', 'Single Room', 49, 1),
+    ])
+
+    render(
+      <AccommodationStep
+        product={makeService('mandatory')}
+        selectedDays={['2026-06-10']}
+        operatorToken="para42"
+        participantCount={2}
+        onConfirm={vi.fn()}
+        onBack={vi.fn()}
+      />,
+    )
+    await waitFor(() =>
+      expect(screen.getByText('Single Room')).toBeInTheDocument(),
+    )
+    const plusButtons = screen.getAllByRole('button', {
+      name: /(Increase|Menge von).*(quantity|erhöhen)/i,
+    })
+    fireEvent.click(plusButtons[0]!)
+
+    await waitFor(() =>
+      expect(screen.getByTestId('occupancy-hint')).toBeInTheDocument(),
+    )
+    const hint = screen.getByTestId('occupancy-hint')
+    expect(hint.textContent).toMatch(/Zimmer/)
+    expect(hint.textContent).not.toMatch(/Assign everyone|still waiting|Guest \d/)
+  })
 })
