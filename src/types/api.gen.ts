@@ -922,6 +922,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/landr-staff/ai-settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Patch Ai Settings */
+        patch: operations["patch_ai_settings"];
+        trace?: never;
+    };
+    "/api/landr-staff/ai-usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Ai Usage */
+        get: operations["get_ai_usage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/landr-staff/billing/invoices": {
         parameters: {
             query?: never;
@@ -1444,6 +1478,24 @@ export interface paths {
         get?: never;
         /** Put Package Price */
         put: operations["put_package_price"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/landr-staff/platform-settings/onboarding-call": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Onboarding Call Config */
+        get: operations["get_onboarding_call_config"];
+        /** Put Onboarding Call Config */
+        put: operations["put_onboarding_call_config"];
         post?: never;
         delete?: never;
         options?: never;
@@ -2142,6 +2194,28 @@ export interface paths {
         put?: never;
         /** Landr Staff Flag Template */
         post: operations["landr_staff_flag_template"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/landr-staff/templates/order": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Landr Staff Set Template Order
+         * @description Set the gallery order (landr-x6o87): positions 0..n-1 follow ``slugs``;
+         *     templates not named follow. Authored on staging only; every other tier
+         *     mirrors it and answers 403 ``listing_edited_on_staging``.
+         */
+        put: operations["landr_staff_set_template_order"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2961,6 +3035,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/operators/{operator_id}/bookings/{booking_id}/guest-attributes/missing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Booking Missing Guest Attributes
+         * @description Per participant, the before-arrival guest details still missing (landr-zcb24.15).
+         */
+        get: operations["staff_get_booking_missing_guest_attributes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/operators/{operator_id}/bookings/{booking_id}/participants/{participant_id}/attributes": {
         parameters: {
             query?: never;
@@ -3061,7 +3155,8 @@ export interface paths {
         };
         /**
          * List Guest Attribute Definitions
-         * @description The operator's attribute catalogue: the five well-known keys plus custom ones.
+         * @description The operator's attribute catalogue: the five well-known keys plus custom ones, each numeric
+         *     one with the rule-derived cut points (``derived_cuts``) and the rule that adds each.
          */
         get: operations["list_guest_attribute_definitions"];
         put?: never;
@@ -3242,20 +3337,15 @@ export interface paths {
         post?: never;
         /**
          * Delete Offer
-         * @description Delete an offer. A migrated add-on is removed by deleting its
-         *     product_addons link; a cross-sell row is deleted directly.
+         * @description Delete an offer (a cross-sell row included).
          */
         delete: operations["delete_product_offer"];
         options?: never;
         head?: never;
         /**
          * Patch Offer
-         * @description Update the fields sent. A migrated add-on writes them through to its
-         *     product_addons link in one transaction (409 ``addon_link_exists`` for a
-         *     duplicate parent/add-on pair, ``binding_not_applicable``,
-         *     ``product_cap_overrides`` for a cleared max_qty under the product's own cap);
-         *     409 ``offer_owned_by_legacy_source`` for parent / product of a cross-sell row
-         *     or a null parent on a migrated add-on.
+         * @description Update the fields sent, on the offer row only; 409
+         *     ``offer_owned_by_legacy_source`` for parent / product of a cross-sell row.
          */
         patch: operations["patch_product_offer"];
         trace?: never;
@@ -3281,6 +3371,23 @@ export interface paths {
          *     product / season of another operator.
          */
         patch: operations["patch_product_eligibility_rules"];
+        trace?: never;
+    };
+    "/api/platform-settings/onboarding-call": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Onboarding Call */
+        get: operations["get_onboarding_call"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/public/approval-requests/{token}": {
@@ -3738,6 +3845,35 @@ export interface paths {
          */
         get: operations["public_list_checkins"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/briefings/{token}/guest-attributes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Briefing Guest Attributes
+         * @description The before-arrival guest details still missing, per participant.
+         */
+        get: operations["public_briefing_get_guest_attributes"];
+        /**
+         * Put Briefing Guest Attributes
+         * @description Store before-arrival values per participant; returns what is still missing.
+         *
+         *     422 ``attribute_not_collectable`` (``key``) for a key the page may not collect
+         *     (decisive, ``age``, not asked by this booking); 422 ``attribute_invalid`` /
+         *     ``attribute_unknown`` as the public submit; 404 for a participant who is not on
+         *     this booking. Nothing is written unless every participant validates.
+         */
+        put: operations["public_briefing_put_guest_attributes"];
         post?: never;
         delete?: never;
         options?: never;
@@ -4526,8 +4662,8 @@ export interface paths {
          * Get Product Addons
          * @description Add-ons configured for a parent product (landr-cip6 / epic landr-ie8g).
          *
-         *     Thin FastAPI wrapper over the SECURITY DEFINER RPC
-         *     `public_get_product_addons`. Returns one row per linked add-on
+         *     Thin FastAPI wrapper over the service-role RPC
+         *     `offered_addons_for_parent` (landr-tm48v.25). Returns one row per linked add-on
          *     product, including the add-on's display name, per-unit price (when
          *     the scheme exposes a per_day_base rule), and the offer's config
          *     (is_required = mandatory, min_qty, max_qty, sort_order; landr-tm48v.2:
@@ -5802,6 +5938,24 @@ export interface paths {
         patch: operations["staff_patch_my_profile"];
         trace?: never;
     };
+    "/api/staff/me/tour-prefs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Tour Prefs */
+        get: operations["get_tour_prefs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Patch Tour Prefs */
+        patch: operations["patch_tour_prefs"];
+        trace?: never;
+    };
     "/api/staff/operators": {
         parameters: {
             query?: never;
@@ -5945,6 +6099,74 @@ export interface paths {
         get: operations["agent_earnings_summary"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/ai-onboarding/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Health */
+        get: operations["get_health"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/ai-onboarding/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Or Resume Session */
+        post: operations["create_or_resume_session"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/ai-onboarding/sessions/{session_id}/accepted": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Record Accepted */
+        post: operations["record_accepted"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/ai-onboarding/sessions/{session_id}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post Message */
+        post: operations["post_message"];
         delete?: never;
         options?: never;
         head?: never;
@@ -10239,6 +10461,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/products/remove-samples": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Remove Sample Products
+         * @description landr-lxrt7.1 — soft-delete every sample product of the operator: cloned
+         *     from a template (``template_origin_slug`` set), still unpublished
+         *     (``is_publicly_listed`` false) and never booked. Same soft-delete as the
+         *     single delete. ``skipped`` counts the samples that were kept because they
+         *     are published or have bookings. Scoped to the path operator (the membership
+         *     dependency checks the caller belongs to it).
+         */
+        post: operations["remove_sample_products"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/products/{product_id}": {
         parameters: {
             query?: never;
@@ -11648,7 +11895,7 @@ export interface paths {
          *     (``products.is_addon_only``), its price (a ``per_day_base`` rule), its
          *     stock requirement (``block``; per booking when ``max_per_booking`` is 1,
          *     else per participant) and — when ``parent_product_ids`` is sent — the
-         *     service products it is offered under (``product_addons``). Idempotent.
+         *     service products it is offered under (``offers``). Idempotent.
          *     422 ``facet_required`` unless the type is ``rentable``; 422
          *     ``parent_invalid`` for a parent that is not a bookable service product
          *     (rental add-ons are booking-level, never attached to a room). Removing
@@ -13542,6 +13789,23 @@ export interface components {
             /** Stage Code */
             stage_code?: string | null;
         };
+        /** AcceptedIn */
+        AcceptedIn: {
+            /** Items */
+            items: components["schemas"]["AcceptedItem"][];
+        };
+        /** AcceptedItem */
+        AcceptedItem: {
+            /** Entity Id */
+            entity_id?: string | null;
+            /**
+             * Entity Type
+             * @enum {string}
+             */
+            entity_type: "company_profile" | "location" | "product" | "opening_hours" | "team_invite";
+            /** Proposal Id */
+            proposal_id: string;
+        };
         /** AccountLinkRequest */
         AccountLinkRequest: {
             /** Email */
@@ -13616,6 +13880,53 @@ export interface components {
             stock_remaining?: number | null;
             /** Unavailable Reason */
             unavailable_reason?: ("sold_out" | "unit_taken") | null;
+        };
+        /** AiSettingsOut */
+        AiSettingsOut: {
+            /** Enabled */
+            enabled: boolean;
+            /** Monthly Hard Usd */
+            monthly_hard_usd: number;
+            /** Monthly Soft Usd */
+            monthly_soft_usd: number;
+            /** Paused */
+            paused: boolean;
+            /** Paused Until */
+            paused_until: string | null;
+            /** Per Session Max Tokens */
+            per_session_max_tokens: number;
+            /** Per Session Max Turns */
+            per_session_max_turns: number;
+        };
+        /** AiSettingsPatch */
+        AiSettingsPatch: {
+            /** Enabled */
+            enabled?: boolean | null;
+            /** Monthly Hard Usd */
+            monthly_hard_usd?: number | null;
+            /** Monthly Soft Usd */
+            monthly_soft_usd?: number | null;
+            /** Pause Until Next Month */
+            pause_until_next_month?: boolean | null;
+            /** Paused Until */
+            paused_until?: string | null;
+            /** Per Session Max Tokens */
+            per_session_max_tokens?: number | null;
+            /** Per Session Max Turns */
+            per_session_max_turns?: number | null;
+        };
+        /** AiUsageOut */
+        AiUsageOut: {
+            /** Current Month */
+            current_month: boolean;
+            /** Ledger */
+            ledger: components["schemas"]["LedgerRow"][];
+            /** Month */
+            month: string;
+            /** Operators */
+            operators: components["schemas"]["OperatorUsage"][];
+            settings: components["schemas"]["AiSettingsOut"];
+            totals: components["schemas"]["UsageTotals"];
         };
         /** AlertOut */
         AlertOut: {
@@ -14720,6 +15031,18 @@ export interface components {
             nights: number;
         };
         /**
+         * BookingMissingAttributesOut
+         * @description Only participants who still owe something are listed; ``[]`` = nobody.
+         */
+        BookingMissingAttributesOut: {
+            /** Participants */
+            participants: components["schemas"]["ParticipantMissingKeysOut"][];
+            /** Range Options */
+            range_options?: {
+                [key: string]: components["schemas"]["RangeOptionOut"][];
+            };
+        };
+        /**
          * BookingNoteIn
          * @description POST body — the note text. Whitespace-only rejected at the model
          *     level (the DB CHECK constraint catches it too, but a 422 from Pydantic
@@ -15158,6 +15481,24 @@ export interface components {
             /** Plan Headline */
             plan_headline?: string | null;
         };
+        /** BriefingGuestAttributesIn */
+        BriefingGuestAttributesIn: {
+            /** Participants */
+            participants: components["schemas"]["ParticipantAttributesIn"][];
+        };
+        /**
+         * BriefingGuestAttributesOut
+         * @description ``attributes`` are the collectable definitions, ``participants`` who still
+         *     owes which keys; both empty when there is nothing left to ask.
+         */
+        BriefingGuestAttributesOut: {
+            /** Answered */
+            answered?: components["schemas"]["ParticipantAnsweredOut"][];
+            /** Attributes */
+            attributes: components["schemas"]["FlowAttributeOut"][];
+            /** Participants */
+            participants: components["schemas"]["ParticipantMissingOut"][];
+        };
         /**
          * BriefingJoinIn
          * @description The host's booking reference, typed on the customer page (epic D4/D6).
@@ -15595,6 +15936,12 @@ export interface components {
             pricing?: components["schemas"]["CataloguePricing"] | null;
             /** Product Kind */
             product_kind: string;
+            /**
+             * Schedule
+             * @default locked
+             * @enum {string}
+             */
+            schedule: "locked" | "subset" | "own" | "first_day" | "last_day";
             /** Short Description */
             short_description?: string | null;
             /** Short Description Localized */
@@ -15770,6 +16117,11 @@ export interface components {
             pricing?: components["schemas"]["CataloguePricing"] | null;
             /** Product Kind */
             product_kind: string;
+            /**
+             * Required Attributes
+             * @default []
+             */
+            required_attributes: string[];
             /**
              * Requires Verification
              * @default false
@@ -17173,6 +17525,38 @@ export interface components {
             unit_id?: string | null;
         };
         /**
+         * DerivedCut
+         * @description A cut point a rule or a price adds on top of the operator's ``range_cuts``
+         *     (landr-zcb24.18): read-only, computed like the ranges guests pick from.
+         */
+        DerivedCut: {
+            source: components["schemas"]["DerivedCutSource"];
+            /** Value */
+            value: number;
+        };
+        /**
+         * DerivedCutSource
+         * @description The rule that adds a derived cut: ``eligibility`` (a product's eligibility
+         *     rules; id/label = the product), ``offer_rule`` (an offer's rules; id = the
+         *     offer, label = the offered product), ``price_rule`` (an ``attribute_bands``
+         *     price) or ``occupancy`` (``occupancy_pricing`` child bands); id = the pricing
+         *     rule, label = its price list.
+         */
+        DerivedCutSource: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "price_rule" | "offer_rule" | "eligibility" | "occupancy";
+            /** Label */
+            label: string;
+        };
+        /**
          * DetailsFormAnswers
          * @description Answers of one form, in the shape PUT takes: booking-scope ``answers``
          *     plus ``people`` keyed by booking_participant_id.
@@ -17598,7 +17982,7 @@ export interface components {
             /** Qty */
             qty: number;
             /** Schedule */
-            schedule?: ("locked" | "subset" | "own") | null;
+            schedule?: ("locked" | "subset" | "own" | "first_day" | "last_day") | null;
             /** Unit Price */
             unit_price: string;
             /** Units */
@@ -17775,7 +18159,7 @@ export interface components {
              */
             draft: boolean;
             /** Effective Schedule */
-            effective_schedule?: ("locked" | "subset" | "own") | null;
+            effective_schedule?: ("locked" | "subset" | "own" | "first_day" | "last_day") | null;
             /**
              * Id
              * Format: uuid
@@ -17823,7 +18207,7 @@ export interface components {
              * Schedule
              * @enum {string}
              */
-            schedule: "locked" | "subset" | "own";
+            schedule: "locked" | "subset" | "own" | "first_day" | "last_day";
             /**
              * Server Attached
              * @default false
@@ -17995,6 +18379,66 @@ export interface components {
             slug: string;
         };
         /**
+         * FlowAgeBand
+         * @description One age band of the cart (landr-zcb24.1): Child is 0-17 (exact age), an
+         *     adult band is picked and stored as its floor ``min_age``. landr-zcb24.6 adds the
+         *     generic range fields (``min`` / ``max`` exclusive / ``label``, the shape of
+         *     ``FlowRange``) and ``exact`` (true on Child: the exact age is asked).
+         */
+        FlowAgeBand: {
+            /**
+             * Exact
+             * @default false
+             */
+            exact: boolean;
+            /** Key */
+            key: string;
+            /** Label */
+            label?: string | null;
+            /** Label Localized */
+            label_localized?: {
+                [key: string]: string;
+            };
+            /** Max */
+            max?: number | null;
+            /** Max Age */
+            max_age?: number | null;
+            /** Min */
+            min?: number | null;
+            /** Min Age */
+            min_age: number;
+        };
+        /** FlowAttributeOut */
+        FlowAttributeOut: {
+            /** Choices */
+            choices?: string[] | null;
+            /**
+             * Collect As
+             * @default exact
+             */
+            collect_as: string;
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /** Label Localized */
+            label_localized?: {
+                [key: string]: string;
+            };
+            /** Max Value */
+            max_value?: number | null;
+            /** Min Value */
+            min_value?: number | null;
+            /** Ranges */
+            ranges?: {
+                [key: string]: unknown;
+            }[];
+            /** Unit */
+            unit?: string | null;
+            /** Value Type */
+            value_type: string;
+        };
+        /**
          * FlowFieldDef
          * @description One field definition from the form RPC (verbatim wire keys).
          *     Mirrors the widget's ``FlowFieldDef`` TypeScript interface.
@@ -18116,6 +18560,17 @@ export interface components {
         FlowGuestAttribute: {
             /** Choices */
             choices?: string[] | null;
+            /**
+             * Collect As
+             * @default exact
+             * @enum {string}
+             */
+            collect_as: "exact" | "ranges";
+            /**
+             * Deferred
+             * @default false
+             */
+            deferred: boolean;
             /** Key */
             key: string;
             /** Label */
@@ -18128,6 +18583,13 @@ export interface components {
             max_value?: number | null;
             /** Min Value */
             min_value?: number | null;
+            /** Ranges */
+            ranges?: components["schemas"]["FlowRange"][];
+            /**
+             * Required Now
+             * @default true
+             */
+            required_now: boolean;
             /** Unit */
             unit?: string | null;
             /**
@@ -18149,6 +18611,20 @@ export interface components {
             position: number;
         } & {
             [key: string]: unknown;
+        };
+        /**
+         * FlowRange
+         * @description One range of an attribute collected as ``ranges`` (landr-zcb24.6): ``min`` is
+         *     stored when the guest picks it, ``max`` is the EXCLUSIVE upper edge (the next
+         *     range's ``min``; null = open-ended), ``label`` reads '<45 kg', '45-80 kg', '120+ kg'.
+         */
+        FlowRange: {
+            /** Label */
+            label: string;
+            /** Max */
+            max?: number | null;
+            /** Min */
+            min: number;
         };
         /** ForecastItem */
         ForecastItem: {
@@ -18422,10 +18898,29 @@ export interface components {
             /** Choices */
             choices: string[] | null;
             /**
+             * Collect As
+             * @default exact
+             * @enum {string}
+             */
+            collect_as: "exact" | "ranges";
+            /**
+             * Collect When
+             * @default booking
+             * @enum {string}
+             */
+            collect_when: "booking" | "before_arrival";
+            /**
              * Created At
              * Format: date-time
              */
             created_at: string;
+            /**
+             * Decisive
+             * @default false
+             */
+            decisive: boolean;
+            /** Derived Cuts */
+            derived_cuts?: components["schemas"]["DerivedCut"][];
             /**
              * Id
              * Format: uuid
@@ -18448,6 +18943,8 @@ export interface components {
              * Format: uuid
              */
             operator_id: string;
+            /** Range Cuts */
+            range_cuts?: number[];
             /** Sort Order */
             sort_order: number;
             /** Unit */
@@ -18477,6 +18974,18 @@ export interface components {
             active: boolean;
             /** Choices */
             choices?: string[] | null;
+            /**
+             * Collect As
+             * @default exact
+             * @enum {string}
+             */
+            collect_as: "exact" | "ranges";
+            /**
+             * Collect When
+             * @default booking
+             * @enum {string}
+             */
+            collect_when: "booking" | "before_arrival";
             /** Key */
             key: string;
             /** Label */
@@ -18489,6 +18998,8 @@ export interface components {
             max_value?: number | null;
             /** Min Value */
             min_value?: number | null;
+            /** Range Cuts */
+            range_cuts?: number[];
             /**
              * Sort Order
              * @default 0
@@ -18512,6 +19023,10 @@ export interface components {
             active?: boolean | null;
             /** Choices */
             choices?: string[] | null;
+            /** Collect As */
+            collect_as?: ("exact" | "ranges") | null;
+            /** Collect When */
+            collect_when?: ("booking" | "before_arrival") | null;
             /** Label */
             label?: string | null;
             /** Label Localized */
@@ -18522,6 +19037,8 @@ export interface components {
             max_value?: number | null;
             /** Min Value */
             min_value?: number | null;
+            /** Range Cuts */
+            range_cuts?: number[] | null;
             /** Sort Order */
             sort_order?: number | null;
             /** Unit */
@@ -18553,6 +19070,10 @@ export interface components {
             /** Guest Attributes */
             guest_attributes: {
                 [key: string]: unknown;
+            };
+            /** Guest Attributes Display */
+            guest_attributes_display?: {
+                [key: string]: string;
             };
             /** Occupant Age */
             occupant_age: number | null;
@@ -19293,6 +19814,26 @@ export interface components {
             /** Status */
             status: string;
         };
+        /** LedgerRow */
+        LedgerRow: {
+            /** Cost Usd */
+            cost_usd: number;
+            /** Created At */
+            created_at: string;
+            /** Id */
+            id: number;
+            /** Model */
+            model: string;
+            /** Operator Id */
+            operator_id: string | null;
+            /** Operator Name */
+            operator_name: string | null;
+            /** Session Id */
+            session_id: string | null;
+            /** Stop Reason */
+            stop_reason: string | null;
+            tokens: components["schemas"]["UsageTokens"];
+        };
         /** LicenseCreateRequest */
         LicenseCreateRequest: {
             /** Document Url */
@@ -19771,6 +20312,11 @@ export interface components {
             /** Otp */
             otp: string;
         };
+        /** MessageIn */
+        MessageIn: {
+            /** Text */
+            text: string;
+        };
         /** MessagePostIn */
         MessagePostIn: {
             /** Body */
@@ -19819,6 +20365,13 @@ export interface components {
             } | null;
             /** Sort Order */
             sort_order?: number | null;
+        };
+        /** MissingGuestKeyOut */
+        MissingGuestKeyOut: {
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
         };
         /**
          * MultiDaySavingsOut
@@ -20173,6 +20726,8 @@ export interface components {
          *     keys the widget asks per guest before offers needing them can show.
          */
         OfferEvaluateOut: {
+            /** Deferred Attribute Keys */
+            deferred_attribute_keys?: string[];
             /** Lines */
             lines: components["schemas"]["EvaluatedLine"][];
             /** Required Attribute Keys */
@@ -20226,7 +20781,7 @@ export interface components {
              * @default locked
              * @enum {string}
              */
-            schedule: "locked" | "subset" | "own";
+            schedule: "locked" | "subset" | "own" | "first_day" | "last_day";
             /**
              * Sort Order
              * @default 0
@@ -20331,7 +20886,7 @@ export interface components {
             required_attributes?: string[] | null;
             rules?: components["schemas"]["OfferRules"] | null;
             /** Schedule */
-            schedule?: ("locked" | "subset" | "own") | null;
+            schedule?: ("locked" | "subset" | "own" | "first_day" | "last_day") | null;
             /** Sort Order */
             sort_order?: number | null;
         };
@@ -20699,6 +21254,30 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /** OnboardingCallConfig */
+        OnboardingCallConfig: {
+            /**
+             * Enabled
+             * @default false
+             */
+            enabled: boolean;
+            /**
+             * Operator Slug
+             * @default
+             */
+            operator_slug: string;
+            /** Product Id */
+            product_id?: string | null;
+        };
+        /** OnboardingCallPublic */
+        OnboardingCallPublic: {
+            /** Enabled */
+            enabled: boolean;
+            /** Product Slug */
+            product_slug?: string | null;
+            /** Widget Token */
+            widget_token?: string | null;
+        };
         /** OperatorLinkCalendarOut */
         OperatorLinkCalendarOut: {
             /** Details */
@@ -20982,8 +21561,6 @@ export interface components {
             widget_category_columns?: number | null;
             /** Widget Cross Sell Enabled */
             widget_cross_sell_enabled?: boolean | null;
-            /** Widget Cross Sell Product Ids */
-            widget_cross_sell_product_ids?: string[] | null;
             /** Widget Description */
             widget_description?: string | null;
             /** Widget Description First Page Only */
@@ -21237,8 +21814,6 @@ export interface components {
              * @default true
              */
             widget_cross_sell_enabled: boolean;
-            /** Widget Cross Sell Product Ids */
-            widget_cross_sell_product_ids?: string[];
             /** Widget Description */
             widget_description?: string | null;
             /**
@@ -21316,6 +21891,11 @@ export interface components {
             sellable: boolean;
             /** Slug */
             slug: string;
+            /**
+             * Sort Order
+             * @default 0
+             */
+            sort_order: number;
             /** Uses Pools */
             uses_pools: boolean;
             /** Version */
@@ -21325,6 +21905,24 @@ export interface components {
              * @default false
              */
             website_listed: boolean;
+        };
+        /** OperatorUsage */
+        OperatorUsage: {
+            /** Avg Cost Per Session Usd */
+            avg_cost_per_session_usd: number | null;
+            /** Cost Usd */
+            cost_usd: number;
+            /** Operator Id */
+            operator_id: string | null;
+            /** Operator Name */
+            operator_name: string | null;
+            /** Requests */
+            requests: number;
+            /** Sessions */
+            sessions: number;
+            tokens: components["schemas"]["UsageTokens"];
+            /** Turns */
+            turns: number;
         };
         /** PackagePriceIn */
         PackagePriceIn: {
@@ -21351,6 +21949,34 @@ export interface components {
             lines: components["schemas"]["CreditLineIn"][];
             /** Reason */
             reason: string;
+        };
+        /**
+         * ParticipantAnsweredOut
+         * @description What one participant answered as a RANGE, shown as the range ('80-100 kg')
+         *     and not as the floor that is stored (landr-zcb24.12).
+         */
+        ParticipantAnsweredOut: {
+            /** Guest Attributes Display */
+            guest_attributes_display: {
+                [key: string]: string;
+            };
+            /**
+             * Participant Id
+             * Format: uuid
+             */
+            participant_id: string;
+        };
+        /** ParticipantAttributesIn */
+        ParticipantAttributesIn: {
+            /** Attributes */
+            attributes: {
+                [key: string]: boolean | number | string | string[] | null;
+            };
+            /**
+             * Participant Id
+             * Format: uuid
+             */
+            participant_id: string;
         };
         /**
          * ParticipantDayStatusIn
@@ -21457,6 +22083,28 @@ export interface components {
             room_unit_index?: number | null;
             /** Service Role Code */
             service_role_code: string;
+        };
+        /** ParticipantMissingKeysOut */
+        ParticipantMissingKeysOut: {
+            /** Missing */
+            missing: components["schemas"]["MissingGuestKeyOut"][];
+            /**
+             * Participant Id
+             * Format: uuid
+             */
+            participant_id: string;
+        };
+        /** ParticipantMissingOut */
+        ParticipantMissingOut: {
+            /** First Name */
+            first_name?: string | null;
+            /** Missing */
+            missing: string[];
+            /**
+             * Participant Id
+             * Format: uuid
+             */
+            participant_id: string;
         };
         /** PartnerOut */
         PartnerOut: {
@@ -22654,8 +23302,8 @@ export interface components {
         };
         /**
          * ProductAddon
-         * @description One row returned by the public_get_product_addons RPC (landr-cip6 /
-         *     epic landr-ie8g). Mirrors the widget's ``ProductAddon`` TypeScript
+         * @description One row returned by the offered_addons_for_parent RPC (landr-cip6 /
+         *     epic landr-ie8g; offers only since landr-tm48v.25). Mirrors the widget's ``ProductAddon`` TypeScript
          *     interface (src/api/types.ts) field-for-field.
          */
         ProductAddon: {
@@ -22904,6 +23552,15 @@ export interface components {
          *     shape) or list of modules otherwise.
          */
         ProductFlowResponse: {
+            /** Age Bands */
+            age_bands?: components["schemas"]["FlowAgeBand"][];
+            /** Age Collect As */
+            age_collect_as?: ("exact" | "ranges") | null;
+            /**
+             * Age Needed
+             * @default false
+             */
+            age_needed: boolean;
             /** Eligibility Reason Key */
             eligibility_reason_key?: string | null;
             /** Eligible */
@@ -23002,10 +23659,6 @@ export interface components {
              * @default true
              */
             active: boolean;
-            /** Addon Quantity Max */
-            addon_quantity_max?: number | null;
-            /** Addon Quantity Rule */
-            addon_quantity_rule?: ("one_per_booking" | "one_per_participant" | "any") | null;
             /**
              * Booking Mode
              * @default scheduled
@@ -23231,10 +23884,8 @@ export interface components {
              * Format: uuid
              */
             id: string;
-            /** Legacy Addon Id */
-            legacy_addon_id?: string | null;
             /** Legacy Source */
-            legacy_source?: ("product_addons" | "cross_sell") | null;
+            legacy_source?: "cross_sell" | null;
             /** Max Qty */
             max_qty: number | null;
             /** Min Qty */
@@ -23265,7 +23916,7 @@ export interface components {
              * Schedule
              * @enum {string}
              */
-            schedule: "locked" | "subset" | "own";
+            schedule: "locked" | "subset" | "own" | "first_day" | "last_day";
             /** Sort Order */
             sort_order: number;
             /**
@@ -23282,10 +23933,6 @@ export interface components {
             accommodation_lead_time_minutes?: number | null;
             /** Active */
             active?: boolean | null;
-            /** Addon Quantity Max */
-            addon_quantity_max?: number | null;
-            /** Addon Quantity Rule */
-            addon_quantity_rule?: ("one_per_booking" | "one_per_participant" | "any") | null;
             /** Booking Mode */
             booking_mode?: ("scheduled" | "on_request") | null;
             /** Briefing Content */
@@ -23895,6 +24542,19 @@ export interface components {
              * @default 25
              */
             radius_km: number;
+        };
+        /**
+         * RangeOptionOut
+         * @description One range staff can pick: ``min`` is the floor that gets stored, ``max`` the
+         *     EXCLUSIVE upper edge (null for the last range).
+         */
+        RangeOptionOut: {
+            /** Label */
+            label: string;
+            /** Max */
+            max: number | null;
+            /** Min */
+            min: number;
         };
         /**
          * RecipientSetIn
@@ -25734,13 +26394,6 @@ export interface components {
             /** Sort Order */
             sort_order?: number | null;
         };
-        /** SessionIn */
-        SessionIn: {
-            /** Code */
-            code: string;
-            /** Participant Id */
-            participant_id: string;
-        };
         /** SetSiteWarningPublisherRequest */
         SetSiteWarningPublisherRequest: {
             /** Can Publish */
@@ -26239,6 +26892,11 @@ export interface components {
             product_kinds: string[];
             /** Slug */
             slug: string;
+            /**
+             * Sort Order
+             * @default 0
+             */
+            sort_order: number;
             /** @default {} */
             tier_listing: components["schemas"]["TierListingOut"];
             /** Uses Pools */
@@ -26929,6 +27587,11 @@ export interface components {
             /** Pct */
             pct: number;
         };
+        /** TemplateOrderIn */
+        TemplateOrderIn: {
+            /** Slugs */
+            slugs: string[];
+        };
         /** TemplateOut */
         TemplateOut: {
             /**
@@ -26953,6 +27616,11 @@ export interface components {
             product_kinds: string[];
             /** Slug */
             slug: string;
+            /**
+             * Sort Order
+             * @default 0
+             */
+            sort_order: number;
             /** Uses Pools */
             uses_pools: boolean;
             /** Version */
@@ -27103,6 +27771,20 @@ export interface components {
              */
             kind: "text" | "activity_code";
             recipients: components["schemas"]["RecipientSetIn"];
+        };
+        /** TourPrefsPatch */
+        TourPrefsPatch: {
+            /** Tours */
+            tours: {
+                [key: string]: components["schemas"]["TourStatePatch"];
+            };
+        };
+        /** TourStatePatch */
+        TourStatePatch: {
+            /** Completed */
+            completed?: boolean | null;
+            /** Seenat */
+            seenAt?: string | null;
         };
         /** TrelloBoardLinkCreate */
         TrelloBoardLinkCreate: {
@@ -27559,6 +28241,39 @@ export interface components {
             subject_type: "site" | "gear";
             /** Width */
             width?: number | null;
+        };
+        /** UsageTokens */
+        UsageTokens: {
+            /** Cache Read */
+            cache_read: number;
+            /** Cache Write */
+            cache_write: number;
+            /** Input */
+            input: number;
+            /** Output */
+            output: number;
+        };
+        /** UsageTotals */
+        UsageTotals: {
+            /** Avg Cost Per Session Usd */
+            avg_cost_per_session_usd: number | null;
+            /** Cost Usd */
+            cost_usd: number;
+            /** Hard Cap Usd */
+            hard_cap_usd: number;
+            /** Pct Of Hard */
+            pct_of_hard: number;
+            /** Pct Of Soft */
+            pct_of_soft: number;
+            /** Requests */
+            requests: number;
+            /** Sessions */
+            sessions: number;
+            /** Soft Cap Usd */
+            soft_cap_usd: number;
+            tokens: components["schemas"]["UsageTokens"];
+            /** Turns */
+            turns: number;
         };
         /** ValidationError */
         ValidationError: {
@@ -28053,6 +28768,18 @@ export interface components {
         app__routers__landr_staff_promotions__RejectIn: {
             /** Notes */
             notes: string;
+        };
+        /** SessionIn */
+        app__routers__public_today__SessionIn: {
+            /** Code */
+            code: string;
+            /** Participant Id */
+            participant_id: string;
+        };
+        /** SessionIn */
+        app__routers__staff_ai_onboarding__SessionIn: {
+            /** Locale */
+            locale?: ("de" | "en") | null;
         };
         /** RuleIn */
         app__routers__staff_commission__RuleIn: {
@@ -29611,6 +30338,71 @@ export interface operations {
             };
         };
     };
+    patch_ai_settings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AiSettingsPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiSettingsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_ai_usage: {
+        parameters: {
+            query?: {
+                /** @description YYYY-MM; default the current month (UTC) */
+                month?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiUsageOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_invoices: {
         parameters: {
             query?: {
@@ -30659,6 +31451,59 @@ export interface operations {
             };
         };
     };
+    get_onboarding_call_config: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnboardingCallConfig"];
+                };
+            };
+        };
+    };
+    put_onboarding_call_config: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OnboardingCallConfig"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnboardingCallConfig"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_runs: {
         parameters: {
             query?: never;
@@ -31453,6 +32298,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StaffTemplateOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    landr_staff_set_template_order: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TemplateOrderIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffTemplateOut"][];
                 };
             };
             /** @description Validation Error */
@@ -32550,6 +33428,38 @@ export interface operations {
             };
         };
     };
+    staff_get_booking_missing_guest_attributes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BookingMissingAttributesOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     patch_participant_attributes: {
         parameters: {
             query?: never;
@@ -33166,6 +34076,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_onboarding_call: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnboardingCallPublic"];
                 };
             };
         };
@@ -33849,6 +34779,72 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_briefing_get_guest_attributes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BriefingGuestAttributesOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_briefing_put_guest_attributes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BriefingGuestAttributesIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BriefingGuestAttributesOut"];
                 };
             };
             /** @description Validation Error */
@@ -35842,7 +36838,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["SessionIn"];
+                "application/json": components["schemas"]["app__routers__public_today__SessionIn"];
             };
         };
         responses: {
@@ -36704,6 +37700,63 @@ export interface operations {
             };
         };
     };
+    get_tour_prefs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    patch_tour_prefs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TourPrefsPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     create_operator: {
         parameters: {
             query?: never;
@@ -36950,6 +38003,150 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     }[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_health: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_or_resume_session: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["app__routers__staff_ai_onboarding__SessionIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    record_accepted: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AcceptedIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_message: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MessageIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */
@@ -45509,6 +46706,39 @@ export interface operations {
                 content: {
                     "application/json": {
                         [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_sample_products: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: number;
                     };
                 };
             };
