@@ -60,7 +60,9 @@ import {
   partyRef,
   picksBlocking,
   reconcile,
+  clampRoomStepperQty,
   roomExtraQty,
+  settleRoomStepperPicks,
   roomLineId,
   seedMandatory,
   type OfferPick,
@@ -586,7 +588,6 @@ export function AccommodationStep({
   // per-room `{room: {product: qty}}` map the breakfast chips and the review
   // read is derived from it.
   const [roomPicks, setRoomPicks] = useState<OfferPick[]>(() => initialRoomPicks ?? [])
-  const addonSelection = useMemo(() => roomExtraQty(roomPicks), [roomPicks])
 
   // landr-gb2f.2: participant → room assignment. participantIndex →
   // {roomProductId, unitIndex}. Seeded from initialAssignment on back-nav
@@ -1001,6 +1002,40 @@ export function AccommodationStep({
   })()
   const offerMembers = useJsonMemo<PartyMember[]>(offerMembersKey)
   const roomOfferLines = useMemo(() => evaluateLines(offerTree, roomPicks), [offerTree, roomPicks])
+  // How many of a per-person room extra (Breakfast) a room type can take: the
+  // guests assigned to it (none yet: what the booked units sleep), never more
+  // than the booked units sleep.
+  const roomCaps = useMemo(() => {
+    const caps: Record<string, number> = {}
+    for (const room of rooms ?? []) {
+      const qty = selection[room.product_id] ?? 0
+      if (qty <= 0) continue
+      const assigned = occupantsByProduct.get(room.product_id)?.length ?? 0
+      const sleeps = typeof room.capacity_per_unit === 'number' ? room.capacity_per_unit * qty : undefined
+      caps[room.product_id] =
+        assigned > 0 ? (sleeps !== undefined ? Math.min(assigned, sleeps) : assigned) : (room.capacity_per_unit ?? 1) * qty
+    }
+    return caps
+  }, [rooms, selection, occupantsByProduct])
+  // The room extras as the rest of the step reads them. A per-person extra
+  // under a room is a quantity (the stepper) clamped to the room's cap; WHO
+  // holds it is only the Who-stays-where chips, so the picks' guests follow
+  // the chip holders. Derived on every render (never an effect), so a room
+  // quantity decrease or an occupant move cannot leave a stale breakfast.
+  const clampedPicks = useMemo(() => clampRoomStepperQty(roomPicks, roomCaps), [roomPicks, roomCaps])
+  const addonSelection = useMemo(() => roomExtraQty(clampedPicks), [clampedPicks])
+  const holdersByRoom = useMemo(() => {
+    const held = clampBreakfastMap(assignment, addonSelection, breakfastMap)
+    const holders: Record<string, string[]> = {}
+    for (const [room, idxs] of occupantsByProduct.entries()) {
+      holders[room] = idxs.filter((i) => held[i] === true).flatMap((i) => (offerMembers[i] ? [offerMembers[i].key] : []))
+    }
+    return holders
+  }, [assignment, addonSelection, breakfastMap, occupantsByProduct, offerMembers])
+  const settledRoomPicks = useMemo(
+    () => settleRoomStepperPicks(clampedPicks, holdersByRoom, offerMembers),
+    [clampedPicks, holdersByRoom, offerMembers],
+  )
   const roomOfferGuests = useMemo(
     () => offerMembers.map((m) => ({ id: m.ref, attributes: m.attributes })),
     [offerMembers],
@@ -1027,13 +1062,16 @@ export function AccommodationStep({
   }, [roomOffers.answeredKey, roomOffers.isPending, roomOffers.byLine, offerTree, offerMembers])
   // Report picks made in the room offer rows live (the room steppers and
   // mode switches report their own changes).
-  const reportedPicks = useRef(roomPicks)
+  const picksSignature = (picks: readonly OfferPick[]) =>
+    JSON.stringify(picks.map((p) => [p.lineId, p.quantity, p.memberIds, p.options, p.days]))
+  const settledSignature = picksSignature(settledRoomPicks)
+  const reportedSignature = useRef(settledSignature)
   useEffect(() => {
-    if (reportedPicks.current === roomPicks) return
-    reportedPicks.current = roomPicks
-    notifyLiveAccommodation(mode, selection, roomPicks)
+    if (reportedSignature.current === settledSignature) return
+    reportedSignature.current = settledSignature
+    notifyLiveAccommodation(mode, selection, settledRoomPicks)
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only a pick change reports here
-  }, [roomPicks])
+  }, [settledSignature])
   // Room offers wait for their verdict once a room type is in the cart.
   const addonCatalogueReady =
     !bookRooms || rooms !== null && (bookedRooms.length === 0 || roomOffers.answeredKey !== null || roomOffers.checkFailed)
@@ -1138,7 +1176,7 @@ export function AccommodationStep({
   // landr-yybu: addonSelection is now per-room, so look up
   // (addonSelection[roomId] ?? {})[addon_product_id].
   // A room offer still waiting for an option or a day blocks Continue.
-  const unmetRequiredAddon = bookRooms && picksBlocking(picksOfBookedRooms(roomPicks, selection))
+  const unmetRequiredAddon = bookRooms && picksBlocking(picksOfBookedRooms(settledRoomPicks, selection))
 
   // landr-87n9.3: OCCUPANCY GATING (package mode). Continue is blocked until
   // EVERY booked room unit has >= 1 occupant AND every party member
@@ -1314,15 +1352,24 @@ export function AccommodationStep({
     if (next === 0) delete out[productId]
 
     // A room type set to 0 drops the offers taken under it (and theirs).
-    const nextPicks = next === 0 ? roomPicks.filter((p) => p.parentLineId !== roomLineId(productId)) : roomPicks
+    const kept = next === 0 ? roomPicks.filter((p) => p.parentLineId !== roomLineId(productId)) : roomPicks
+    // Fewer units sleep fewer: the room extras taken under it follow (a later
+    // increase does not bring the old quantity back).
+    const sleeps = (rooms ?? []).find((r) => r.product_id === productId)?.capacity_per_unit
+    const nextPicks =
+      delta < 0 && next > 0 && typeof sleeps === 'number'
+        ? clampRoomStepperQty(kept, { [productId]: sleeps * next })
+        : kept
     if (nextPicks !== roomPicks) {
-      reportedPicks.current = nextPicks
       setRoomPicks(nextPicks)
     }
 
     setSelection(out)
-    // landr-87n9.2: report the new room set live (with the picks left).
-    notifyLiveAccommodation(mode, out, nextPicks)
+    // landr-87n9.2: report the new room set live (with the picks left, their
+    // guests named by the chip holders).
+    const settled = settleRoomStepperPicks(nextPicks, holdersByRoom, offerMembers)
+    reportedSignature.current = picksSignature(settled)
+    notifyLiveAccommodation(mode, out, settled)
   }
 
   // landr-gb2f.2: manual (re)assignment from RoomAssignment. target=null
@@ -1437,7 +1484,7 @@ export function AccommodationStep({
     // package mode (or shared-double + additional rooms) — rooms required.
     if (roomSelections.length === 0) return
     // The offers taken under the room types still in the cart.
-    const confirmedPicks = picksOfBookedRooms(roomPicks, selection)
+    const confirmedPicks = picksOfBookedRooms(settledRoomPicks, selection)
     // landr-gb2f.2: prune the assignment to the units actually present at
     // confirm time (guards against a dangling reference if a room was just
     // dropped between the last auto-assign and Continue).
@@ -1998,7 +2045,7 @@ export function AccommodationStep({
                     <OfferTree
                       parentLineId={roomLineId(room.product_id)}
                       verdicts={roomOffers.byLine}
-                      picks={roomPicks}
+                      picks={settledRoomPicks}
                       onPicksChange={setRoomPicks}
                       tree={offerTree}
                       members={offerMembers}
@@ -2007,13 +2054,7 @@ export function AccommodationStep({
                       currency={room.currency ?? product.currency ?? 'EUR'}
                       isPending={roomOffers.isPending}
                       showParentless={false}
-                      maxOccupancy={
-                        // Assigned guests; none assigned to this room type yet
-                        // falls back to what the booked units sleep.
-                        (occupantsByProduct.get(room.product_id)?.length ?? 0) > 0
-                          ? occupantsByProduct.get(room.product_id)!.length
-                          : (room.capacity_per_unit ?? 1) * qty
-                      }
+                      maxOccupancy={roomCaps[room.product_id] ?? (room.capacity_per_unit ?? 1) * qty}
                       occupancyBasis={
                         (occupantsByProduct.get(room.product_id)?.length ?? 0) > 0 ? 'guests' : 'capacity'
                       }
