@@ -323,6 +323,8 @@ export type Bundle = {
   perNightSuffix: string
   roomAssignmentLegend: string
   assignEveryoneToARoomCue: string
+  halfFullRoomCueTemplate: string
+  halfFullRoomsCueTemplate: string
   stayNightsLabel: string
   hotelPaidAtCheckin: string
   completeStepsAboveToContinue: string
@@ -780,6 +782,7 @@ export type Bundle = {
   underbookGuestsManyRoomsTemplate: string
   underbookGuestsOneRoomTemplate: string
   offerOccupancyCap: string
+  offerOccupancyCapMany: string
 
   // ---- FullyBookedNotice / ViewToggle / catalog ----
   fullyBookedLabel: string
@@ -1393,6 +1396,8 @@ const en: Bundle = {
   perNightSuffix: '/ night',
   roomAssignmentLegend: 'Room assignment',
   assignEveryoneToARoomCue: 'assign everyone to a room',
+  halfFullRoomCueTemplate: '{room} has a free bed — add a guest who stays with you, or choose a smaller room',
+  halfFullRoomsCueTemplate: '{rooms} have a free bed — add guests who stay with you, or choose smaller rooms',
   stayNightsLabel: 'Stay',
   hotelPaidAtCheckin:
     'Hotel is paid directly at check-in (cash / card) — not included in your booking total.',
@@ -1835,13 +1840,14 @@ const en: Bundle = {
   eachSuffix: 'each',
   overbookManyRoomsTemplate: 'More {addon} ({qty}) than these {roomQty} rooms sleep ({expected}) — bringing extras?',
   overbookOneRoomTemplate: 'More {addon} ({qty}) than this room sleeps ({expected}) — bringing extras?',
-  underbookManyRoomsTemplate: 'Only {qty} {addon} for {roomQty} rooms ({expected} guests) — one per room?',
-  underbookOneRoomTemplate: 'Only {qty} {addon} for a room that sleeps {expected} — one per guest?',
+  underbookManyRoomsTemplate: '{Addon} for {qty} of {expected} beds in these {roomQty} rooms — one per room?',
+  underbookOneRoomTemplate: '{Addon} for {qty} of {expected} beds in this room — one per guest?',
   overbookGuestsManyRoomsTemplate: 'More {addon} ({qty}) than the {expected} guests in these {roomQty} rooms — bringing extras?',
   overbookGuestsOneRoomTemplate: 'More {addon} ({qty}) than the {expected} guests in this room — bringing extras?',
-  underbookGuestsManyRoomsTemplate: 'Only {qty} {addon} for {roomQty} rooms with {expected} guests — one per guest?',
-  underbookGuestsOneRoomTemplate: 'Only {qty} {addon} for {expected} guests in this room — one per guest?',
-  offerOccupancyCap: "Limited to the room's occupancy ({expected})",
+  underbookGuestsManyRoomsTemplate: '{Addon} for {qty} of {expected} guests in these {roomQty} rooms — one per guest?',
+  underbookGuestsOneRoomTemplate: '{Addon} for {qty} of {expected} guests in this room — one per guest?',
+  offerOccupancyCap: 'Up to {expected} — one per guest in this room',
+  offerOccupancyCapMany: 'Up to {expected} — one per guest in these rooms',
 
   fullyBookedLabel: 'Fully booked',
   fullyBookedBlurb: 'There are no upcoming dates available for this product right now. Please check back later.',
@@ -2562,6 +2568,7 @@ export function addonDeviationMessage(
         ? g ? t.underbookGuestsManyRoomsTemplate : t.underbookManyRoomsTemplate
         : g ? t.underbookGuestsOneRoomTemplate : t.underbookOneRoomTemplate
   return template
+    .replace('{Addon}', addonName)
     .replace('{addon}', addonName.toLowerCase())
     .replace('{qty}', String(qty))
     .replace('{roomQty}', String(roomQty))

@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
+  addonDeviationMessage,
+  fmt,
   inviteBannerMessage,
   ownAccommodationNoRoomLabel,
   describeForceReasons,
@@ -229,5 +231,30 @@ describe('time-confirmed-by-operator copy (EN + DE)', () => {
       'Der Anbieter bestätigt Uhrzeit und Details nach deiner Buchung.',
     )
     expect(tr('timeConfirmedByOperator', 'en')).not.toMatch(/any time/i)
+  })
+})
+
+describe('room add-on cap and under-booking copy', () => {
+  it('reads the cap per guest, for one room and for several', () => {
+    expect(fmt(tr('offerOccupancyCap', 'en'), { expected: 3 })).toBe('Up to 3 — one per guest in this room')
+    expect(fmt(tr('offerOccupancyCapMany', 'en'), { expected: 3 })).toBe('Up to 3 — one per guest in these rooms')
+  })
+
+  it('never pluralises the add-on name when under-booked', () => {
+    expect(addonDeviationMessage('under', 'Breakfast', 2, 3, 2, 'en', 'guests')).toBe(
+      'Breakfast for 2 of 3 guests in these 2 rooms — one per guest?',
+    )
+    expect(addonDeviationMessage('under', 'Breakfast', 1, 2, 1, 'en', 'guests')).toBe(
+      'Breakfast for 1 of 2 guests in this room — one per guest?',
+    )
+    expect(addonDeviationMessage('under', 'Frühstück', 1, 2, 1, 'de', 'guests')).toBe(
+      'Frühstück für 1 von 2 Gästen in diesem Zimmer — eines pro Gast?',
+    )
+  })
+
+  it('names the free bed room in every language', () => {
+    for (const lang of SUPPORTED_UI_LANGUAGES) {
+      expect(fmt(tr('halfFullRoomCueTemplate', lang), { room: 'Double #2' })).toContain('Double #2')
+    }
   })
 })
