@@ -75,6 +75,7 @@ import {
   buildAddonLines,
   buildDiscountExplanation,
   groupPerformerLines,
+  mergeSameLines,
   isSavingsLine,
   formatMoney,
   isDiscountRule,
@@ -537,9 +538,9 @@ function BookingOverviewBody({
             </p>
           ) : null}
           <ul className="space-y-1 text-sm">
-            {hotel.map((li) => (
+            {mergeSameLines(hotel).map((li, i) => (
               <li
-                key={`hot-${li.product_id}`}
+                key={`hot-${li.product_id}-${i}`}
                 className="flex items-baseline justify-between gap-2"
               >
                 <span className="flex-1">

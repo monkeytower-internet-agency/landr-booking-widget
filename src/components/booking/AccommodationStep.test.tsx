@@ -1795,6 +1795,71 @@ describe('AccommodationStep', () => {
   })
 })
 
+describe('AccommodationStep — per-person room breakfast is a stepper (landr-ey8fx)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mocks.getAvailability.mockResolvedValue([])
+  })
+  const personBreakfast = (roomId: string) =>
+    breakfastOffer(roomId, {
+      binding: 'person',
+      price_preview: { quantity: 1, unit_price_cents: 1200, total_cents: 9600, price_unit: 'guest_night', currency: 'EUR' },
+    })
+
+  it('steppers under the room, unit price, clamps to the room cap on 2 -> 1 rooms', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([makeRoom('single-room', 'Single Room', 49, 1)])
+    mockRoomOffers((id) => [personBreakfast(id)])
+    const onLive = vi.fn()
+
+    render(
+      <AccommodationStep
+        product={makeService('mandatory')}
+        selectedDays={['2026-06-10']}
+        operatorToken="para42"
+        participantCount={2}
+        participantNames={['Olaf', 'Matthias']}
+        onConfirm={vi.fn()}
+        onBack={vi.fn()}
+        onLiveAccommodationChange={onLive}
+      />,
+    )
+
+    await waitFor(() => expect(screen.getByText('Single Room')).toBeInTheDocument())
+    const inc = () => screen.getByRole('button', { name: /Increase Single Room quantity/i })
+    fireEvent.click(inc())
+    fireEvent.click(inc())
+    await waitFor(() => expect(bfPlus('single-room')).toBeInTheDocument())
+
+    // No tick list of the party; the unit price, not the €96 total.
+    expect(screen.queryByTestId('offer-who-bf-single-room-g1')).toBeNull()
+    expect(screen.getByTestId('offer-price').textContent).toMatch(/12[.,]00/)
+    expect(screen.getByTestId('offer-price').textContent).not.toMatch(/96/)
+
+    fireEvent.click(bfPlus('single-room'))
+    fireEvent.click(bfPlus('single-room'))
+    expect(bfQty('single-room').textContent).toBe('2')
+    expect(bfPlus('single-room')).toBeDisabled()
+    // Who holds the two breakfasts is the chips, named in the live picks.
+    await waitFor(() => {
+      const picks = onLive.mock.lastCall![1] as OfferPick[]
+      expect(picks).toHaveLength(1)
+      expect(picks[0]!.quantity).toBe(2)
+      expect(picks[0]!.memberIds).toHaveLength(2)
+    })
+
+    // 2 single rooms -> 1: the breakfasts follow the room.
+    fireEvent.click(screen.getByRole('button', { name: /Decrease Single Room quantity/i }))
+    await waitFor(() => expect(bfQty('single-room').textContent).toBe('1'))
+    await waitFor(() => {
+      const picks = onLive.mock.lastCall![1] as OfferPick[]
+      expect(picks[0]!.quantity).toBe(1)
+      expect(picks[0]!.memberIds).toHaveLength(1)
+    })
+    expect(roomExtraQty(onLive.mock.lastCall![1] as OfferPick[])).toEqual({ 'single-room': { 'bf-1': 1 } })
+  })
+})
+
 describe('AccommodationStep — companions + occupancy gating (landr-87n9.3)', () => {
   beforeEach(() => {
     mockRoomOffers()

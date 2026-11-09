@@ -39,7 +39,7 @@ import type {
 } from '@/api/types'
 import { pickLocalized } from '@/lib/locale'
 import { ruleMatches } from '@/lib/offerRules'
-import { fmt, tr } from '@/lib/strings'
+import { addonUnitSuffix, fmt, tr } from '@/lib/strings'
 import { formatMoney } from './priceSidebarHelpers'
 import type { ExtraLine } from './crossSell'
 import type { GuestAttributeValues } from './detailsTypes'
@@ -313,6 +313,94 @@ export function nextLineId(prefix: string, taken: Iterable<string>): string {
 
 // ---- cart operations ---------------------------------------------------------
 
+/**
+ * A per-person offer the guest may leave out, hung off a room type line
+ * (`r-<productId>`), is ordered like the old room add-on: a quantity stepper
+ * capped at who sleeps there. WHO holds the extra is only the room
+ * assignment's chips (see settleRoomStepperPicks), never a tick list. An
+ * offer with options keeps the tick list (each guest picks an option).
+ */
+export function isRoomStepperOffer(
+  o: Pick<EvaluatedOffer, 'binding' | 'mode' | 'options'>,
+  parentLineId: string,
+): boolean {
+  return (
+    o.binding === 'person' &&
+    o.mode !== 'mandatory' &&
+    parentLineId.startsWith('r-') &&
+    (o.options?.length ?? 0) === 0
+  )
+}
+
+/** True for a pick of such an offer. */
+export function isRoomStepperPick(p: OfferPick): boolean {
+  return isRoomStepperOffer({ ...p.seen, binding: p.binding, mode: p.mode }, p.parentLineId)
+}
+
+/** Clamp the stepper picks under each room type to `caps[roomProductId]` (no cap = left alone). */
+export function clampRoomStepperQty(
+  picks: readonly OfferPick[],
+  caps: Readonly<Record<string, number | undefined>>,
+): OfferPick[] {
+  let out: OfferPick[] = picks as OfferPick[]
+  for (const p of picks) {
+    if (!isRoomStepperPick(p)) continue
+    const cap = caps[p.parentLineId.slice(2)]
+    if (cap === undefined || cap <= 0 || p.quantity <= cap) continue
+    out = out.map((q) =>
+      q.lineId === p.lineId ? { ...q, quantity: cap, memberIds: q.memberIds.slice(0, cap) } : q,
+    )
+  }
+  return out
+}
+
+/**
+ * Name the guests of the room stepper picks: the first `quantity` chip holders
+ * of that room type (`holders[roomProductId]`, member keys in party order),
+ * else -- nobody assigned yet -- the first guests not already taken by the
+ * same offer. A pick's quantity follows the guests it can name. Returns the
+ * same array when nothing changed.
+ */
+export function settleRoomStepperPicks(
+  picks: readonly OfferPick[],
+  holders: Readonly<Record<string, readonly string[]>>,
+  members: readonly PartyMember[],
+): OfferPick[] {
+  const cursor = new Map<string, number>()
+  const taken = new Map<string, Set<string>>()
+  let changed = false
+  const out = picks.map((p) => {
+    if (!isRoomStepperPick(p)) return p
+    const room = p.parentLineId.slice(2)
+    const held = holders[room] ?? []
+    let ids: string[]
+    if (held.length > 0) {
+      const n = Math.min(p.quantity, held.length)
+      const start = cursor.get(room) ?? 0
+      ids = Array.from({ length: n }, (_, i) => held[(start + i) % held.length]!)
+      cursor.set(room, start + n)
+    } else {
+      const used = taken.get(p.offerId) ?? new Set<string>()
+      ids = members
+        .map((m) => m.key)
+        .filter((k) => !used.has(k))
+        .slice(0, p.quantity)
+      taken.set(p.offerId, new Set([...used, ...ids]))
+    }
+    const quantity = ids.length > 0 ? ids.length : p.quantity
+    if (
+      quantity === p.quantity &&
+      ids.length === p.memberIds.length &&
+      ids.every((k, i) => k === p.memberIds[i])
+    ) {
+      return p
+    }
+    changed = true
+    return { ...p, memberIds: ids, quantity }
+  })
+  return changed ? out : (picks as OfferPick[])
+}
+
 /** A fresh pick of `offer` under `parentLineId` (the guest's first touch). */
 export function newPick(
   offer: EvaluatedOffer,
@@ -332,7 +420,10 @@ export function newPick(
     memberIds: [],
     // Never a default option: the guest chooses (picksBlocking holds Confirm).
     options: {},
-    quantity: offer.binding === 'free' ? clampOfferQty(offer, Math.max(1, offer.min_qty)) : 1,
+    quantity:
+      offer.binding === 'free' || isRoomStepperOffer(offer, parentLineId)
+        ? clampOfferQty(offer, Math.max(1, offer.min_qty))
+        : 1,
     days: schedule === 'subset' ? [...parentDays] : [],
     seen: offer,
   }
@@ -689,7 +780,7 @@ export function reconcile(
       }
       const options = Object.fromEntries(Object.entries(p.options).filter(([k]) => memberIds.includes(k)))
       next = { ...next, memberIds, options }
-    } else if (p.binding === 'person') {
+    } else if (p.binding === 'person' && !isRoomStepperPick(p)) {
       const memberIds = p.memberIds.filter((k) => memberKeys.has(k))
       if (memberIds.length === 0) {
         drop.add(p.lineId)
@@ -709,7 +800,7 @@ export function reconcile(
         next = { ...next, days: days.length > 0 ? days : [...parentDays] }
       }
     }
-    if (p.binding === 'free') {
+    if (p.binding === 'free' || isRoomStepperPick(p)) {
       const q = clampOfferQty(seen, p.quantity)
       if (q !== p.quantity) next = { ...next, quantity: Math.max(1, q) }
     }
@@ -862,14 +953,23 @@ export function toEstimateLines(
 /**
  * Room-type picks folded to `{roomProductId: {productId: qty}}`, the shape
  * RoomAssignment's breakfast chips and the review's room rows read. A person
- * pick counts its ticked guests.
+ * pick counts its ticked guests; a room stepper pick its quantity.
  */
 export function roomExtraQty(picks: readonly OfferPick[]): Record<string, Record<string, number>> {
   const out: Record<string, Record<string, number>> = {}
   for (const p of picks) {
     if (!p.parentLineId.startsWith('r-')) continue
     const room = p.parentLineId.slice(2)
-    const q = p.binding === 'person' ? p.memberIds.length : p.binding === 'free' ? p.quantity : 1
+    // A settled stepper pick names its guests (quantity follows them); a fresh
+    // one is only its quantity.
+    const q =
+      p.binding === 'person'
+        ? p.memberIds.length > 0 || !isRoomStepperPick(p)
+          ? p.memberIds.length
+          : p.quantity
+        : p.binding === 'free'
+          ? p.quantity
+          : 1
     if (q <= 0) continue
     const slot = (out[room] ??= {})
     slot[p.productId] = (slot[p.productId] ?? 0) + q
@@ -1030,8 +1130,18 @@ export function priceLabel(
   locale: string,
   estimate?: readonly EstimateLineItem[],
   currency?: string,
+  /** Quote the unit price ("€12.00 / guest / night") instead of a total. */
+  unit = false,
 ): { text: string; tone: PriceTone } {
   if (o.collection === 'free') return { text: tr('offerPriceFree', locale), tone: 'free' }
+  const unitCents = o.price_preview?.unit_price_cents
+  const unitCcy = o.price_preview?.currency ?? currency
+  if (unit && typeof unitCents === 'number' && unitCcy) {
+    const rate = `${formatMoney((unitCents / 100).toFixed(2), unitCcy, locale)} ${addonUnitSuffix(o.price_preview?.price_unit, locale)}`
+    return o.collection === 'on_site'
+      ? { text: `${rate} · ${tr('offerPayOnArrival', locale)}`, tone: 'on_site' }
+      : { text: rate, tone: 'online' }
+  }
   let amount: string | null = null
   let ccy = o.price_preview?.currency ?? currency ?? null
   if (estimate && estimate.length > 0) {

@@ -448,3 +448,75 @@ describe('OfferRow room-tied free extras (occupancy cap)', () => {
     expect(screen.getByTestId('offer-underbook-cot').textContent).toContain('3 guests')
   })
 })
+
+describe('OfferRow: optional person offer under a room line (landr-ey8fx)', () => {
+  const breakfast = evalOffer('bf', {
+    binding: 'person',
+    price_preview: { quantity: 1, unit_price_cents: 1200, total_cents: 9600, price_unit: 'guest_night', currency: 'EUR' },
+  })
+  const onChange = vi.fn()
+  beforeEach(() => onChange.mockClear())
+  const renderRoom = (offer: EvaluatedOffer, quantity: number, parentLineId = 'r-room1', maxOccupancy = 2) => {
+    const pick = { ...picked(offer, { quantity }), parentLineId }
+    render(
+      <OfferRow
+        offer={offer}
+        parentLineId={parentLineId}
+        parentDays={STAY_DAYS}
+        pick={quantity > 0 ? pick : undefined}
+        members={PARTY}
+        tree={TREE}
+        idPrefix="a"
+        onPicksChange={onChange}
+        locale="en"
+        currency="EUR"
+        maxOccupancy={maxOccupancy}
+        roomQty={1}
+      />,
+    )
+  }
+
+  it('is a quantity stepper, not a tick list of the whole party', () => {
+    renderRoom(breakfast, 1)
+    expect(screen.getByTestId('offer-qty-bf').textContent).toBe('1')
+    expect(screen.queryByTestId('offer-who-bf-g1')).toBeNull()
+    expect(screen.queryByTestId('offer-who-bf-g2')).toBeNull()
+  })
+
+  it('caps at the room occupancy and hints when fewer breakfasts than guests', () => {
+    renderRoom(breakfast, 1)
+    expect(screen.getByTestId('offer-underbook-bf')).toBeTruthy()
+    expect((screen.getByTestId('offer-qty-plus-bf') as HTMLButtonElement).disabled).toBe(false)
+  })
+
+  it('disables + at the cap', () => {
+    renderRoom(breakfast, 2)
+    expect((screen.getByTestId('offer-qty-plus-bf') as HTMLButtonElement).disabled).toBe(true)
+    expect(screen.queryByTestId('offer-underbook-bf')).toBeNull()
+  })
+
+  it('quotes the unit price, never a total', () => {
+    renderRoom(breakfast, 1)
+    const text = screen.getByTestId('offer-price').textContent ?? ''
+    expect(text).toMatch(/12[.,]00/)
+    expect(text).toContain('guest')
+    expect(text).not.toMatch(/96/)
+  })
+
+  it('keeps the tick list under a non-room parent', () => {
+    renderRoom(breakfast, 1, 'main')
+    expect(screen.getByTestId('offer-who-bf-g1')).toBeTruthy()
+    expect(screen.queryByTestId('offer-qty-bf')).toBeNull()
+  })
+
+  it('keeps the tick list for an offer with options (each guest picks one)', () => {
+    renderRoom({ ...breakfast, options: OPTIONS }, 1)
+    expect(screen.getByTestId('offer-who-bf-g1')).toBeTruthy()
+    expect(screen.queryByTestId('offer-qty-bf')).toBeNull()
+  })
+
+  it('keeps the read-only list for a mandatory per-person offer', () => {
+    renderRoom({ ...breakfast, mode: 'mandatory' }, 1)
+    expect(screen.queryByTestId('offer-qty-bf')).toBeNull()
+  })
+})
