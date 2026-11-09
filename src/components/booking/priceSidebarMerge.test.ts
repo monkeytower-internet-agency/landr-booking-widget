@@ -40,4 +40,13 @@ describe('mergeSameLines (landr-ey8fx)', () => {
     const only = line()
     expect(mergeSameLines([only])[0]).toBe(only)
   })
+
+  it('adds up collection_amount of pay-on-arrival lines (landr-l3uod)', () => {
+    const out = mergeSameLines([
+      line({ paid_to: 'operator', collection: 'on_site', collection_amount: '84.00', participant_ids: ['g1'] }),
+      line({ paid_to: 'operator', collection: 'on_site', collection_amount: '84.00', participant_ids: ['g2'] }),
+    ])
+    expect(out).toHaveLength(1)
+    expect(out[0]).toMatchObject({ qty: 2, line_total: '168.00', collection_amount: '168.00' })
+  })
 })
