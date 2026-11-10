@@ -4658,6 +4658,59 @@
         "title": "BulkReminderOut",
         "type": "object"
       },
+      "BusinessIn": {
+        "properties": {
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "owner_email": {
+            "maxLength": 320,
+            "minLength": 3,
+            "title": "Owner Email",
+            "type": "string"
+          },
+          "owner_locale": {
+            "default": "de",
+            "enum": [
+              "de",
+              "it",
+              "en",
+              "es",
+              "tr"
+            ],
+            "title": "Owner Locale",
+            "type": "string"
+          },
+          "slug": {
+            "anyOf": [
+              {
+                "maxLength": 30,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slug"
+          },
+          "template_slug": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Template Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "template_slug",
+          "owner_email"
+        ],
+        "title": "BusinessIn",
+        "type": "object"
+      },
       "CalendarBlockOut": {
         "properties": {
           "conflict": {
@@ -7569,6 +7622,71 @@
           }
         },
         "title": "ContractTermsIn",
+        "type": "object"
+      },
+      "CreateCustomerIn": {
+        "properties": {
+          "businesses": {
+            "items": {
+              "$ref": "#/components/schemas/BusinessIn"
+            },
+            "maxItems": 10,
+            "minItems": 1,
+            "title": "Businesses",
+            "type": "array"
+          },
+          "contract_terms": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ContractTermsIn"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "extra_memberships": {
+            "items": {
+              "$ref": "#/components/schemas/ExtraMembershipIn"
+            },
+            "maxItems": 50,
+            "title": "Extra Memberships",
+            "type": "array"
+          },
+          "idempotency_key": {
+            "maxLength": 100,
+            "minLength": 8,
+            "pattern": "^[A-Za-z0-9_.:-]+$",
+            "title": "Idempotency Key",
+            "type": "string"
+          },
+          "package_slug": {
+            "default": "business",
+            "maxLength": 64,
+            "title": "Package Slug",
+            "type": "string"
+          },
+          "personal_note": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Personal Note"
+          },
+          "shared_calendar": {
+            "$ref": "#/components/schemas/SharedCalendarIn"
+          }
+        },
+        "required": [
+          "businesses",
+          "idempotency_key"
+        ],
+        "title": "CreateCustomerIn",
         "type": "object"
       },
       "CreateInviteBody": {
@@ -12286,6 +12404,62 @@
           "occurrences"
         ],
         "title": "EventWindow",
+        "type": "object"
+      },
+      "ExtraMembershipIn": {
+        "properties": {
+          "email": {
+            "maxLength": 320,
+            "minLength": 3,
+            "title": "Email",
+            "type": "string"
+          },
+          "locale": {
+            "anyOf": [
+              {
+                "enum": [
+                  "de",
+                  "it",
+                  "en",
+                  "es",
+                  "tr"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Locale"
+          },
+          "operator_index": {
+            "items": {
+              "type": "integer"
+            },
+            "maxItems": 10,
+            "minItems": 1,
+            "title": "Operator Index",
+            "type": "array"
+          },
+          "role": {
+            "enum": [
+              "owner",
+              "admin",
+              "staff",
+              "field",
+              "finance",
+              "readonly"
+            ],
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "operator_index",
+          "role"
+        ],
+        "title": "ExtraMembershipIn",
         "type": "object"
       },
       "FanOutIn": {
@@ -36535,6 +36709,26 @@
         "title": "ShareMessage",
         "type": "object"
       },
+      "SharedCalendarIn": {
+        "properties": {
+          "enabled": {
+            "default": false,
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "level": {
+            "default": "occupancy",
+            "enum": [
+              "occupancy",
+              "details"
+            ],
+            "title": "Level",
+            "type": "string"
+          }
+        },
+        "title": "SharedCalendarIn",
+        "type": "object"
+      },
       "ShortLinkCreateIn": {
         "properties": {
           "query": {
@@ -46468,6 +46662,55 @@
         "summary": "List Email Collisions",
         "tags": [
           "landr-staff-contacts"
+        ]
+      }
+    },
+    "/api/landr-staff/customers": {
+      "post": {
+        "description": "Create the customer's businesses, invites and links. 201 on a first run,\n200-shaped body with ``replayed: true`` on an idempotent replay.",
+        "operationId": "create_customer",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCustomerIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Create Customer",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Customer",
+        "tags": [
+          "landr-staff-customers"
         ]
       }
     },

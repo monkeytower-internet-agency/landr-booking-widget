@@ -1261,6 +1261,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/landr-staff/customers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Customer
+         * @description Create the customer's businesses, invites and links. 201 on a first run,
+         *     200-shaped body with ``replayed: true`` on an idempotent replay.
+         */
+        post: operations["create_customer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/landr-staff/me/capabilities": {
         parameters: {
             query?: never;
@@ -15684,6 +15705,23 @@ export interface components {
             /** Sent */
             sent: number;
         };
+        /** BusinessIn */
+        BusinessIn: {
+            /** Name */
+            name: string;
+            /** Owner Email */
+            owner_email: string;
+            /**
+             * Owner Locale
+             * @default de
+             * @enum {string}
+             */
+            owner_locale: "de" | "it" | "en" | "es" | "tr";
+            /** Slug */
+            slug?: string | null;
+            /** Template Slug */
+            template_slug: string;
+        };
         /** CalendarBlockOut */
         CalendarBlockOut: {
             /** Conflict */
@@ -16677,6 +16715,24 @@ export interface components {
             pre_notification_days?: number | null;
             /** Rates */
             rates?: components["schemas"]["ContractRateIn"][];
+        };
+        /** CreateCustomerIn */
+        CreateCustomerIn: {
+            /** Businesses */
+            businesses: components["schemas"]["BusinessIn"][];
+            contract_terms?: components["schemas"]["ContractTermsIn"] | null;
+            /** Extra Memberships */
+            extra_memberships?: components["schemas"]["ExtraMembershipIn"][];
+            /** Idempotency Key */
+            idempotency_key: string;
+            /**
+             * Package Slug
+             * @default business
+             */
+            package_slug: string;
+            /** Personal Note */
+            personal_note?: string | null;
+            shared_calendar?: components["schemas"]["SharedCalendarIn"];
         };
         /** CreateInviteBody */
         CreateInviteBody: {
@@ -18316,6 +18372,20 @@ export interface components {
             occurrences: components["schemas"]["EventOccurrence"][];
             /** Start Weekday */
             start_weekday: number;
+        };
+        /** ExtraMembershipIn */
+        ExtraMembershipIn: {
+            /** Email */
+            email: string;
+            /** Locale */
+            locale?: ("de" | "it" | "en" | "es" | "tr") | null;
+            /** Operator Index */
+            operator_index: number[];
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "owner" | "admin" | "staff" | "field" | "finance" | "readonly";
         };
         /** FanOutIn */
         FanOutIn: {
@@ -26540,6 +26610,20 @@ export interface components {
             /** Whatsapp Url */
             whatsapp_url: string | null;
         };
+        /** SharedCalendarIn */
+        SharedCalendarIn: {
+            /**
+             * Enabled
+             * @default false
+             */
+            enabled: boolean;
+            /**
+             * Level
+             * @default occupancy
+             * @enum {string}
+             */
+            level: "occupancy" | "details";
+        };
         /** ShortLinkCreateIn */
         ShortLinkCreateIn: {
             /** Query */
@@ -31114,6 +31198,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EmailCollisionOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_customer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateCustomerIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */
