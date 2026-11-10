@@ -38735,6 +38735,29 @@
         "title": "StripeConnectReturnIn",
         "type": "object"
       },
+      "StripeConnectStartIn": {
+        "properties": {
+          "confirm_default": {
+            "default": false,
+            "title": "Confirm Default",
+            "type": "boolean"
+          },
+          "country": {
+            "anyOf": [
+              {
+                "maxLength": 2,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country"
+          }
+        },
+        "title": "StripeConnectStartIn",
+        "type": "object"
+      },
       "StripeConnectStartOut": {
         "properties": {
           "status": {
@@ -38774,6 +38797,17 @@
             "title": "Connected",
             "type": "boolean"
           },
+          "country": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country"
+          },
           "details_submitted": {
             "title": "Details Submitted",
             "type": "boolean"
@@ -38795,6 +38829,32 @@
             ],
             "title": "Status",
             "type": "string"
+          },
+          "suggested_country": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Suggested Country"
+          },
+          "suggested_country_source": {
+            "anyOf": [
+              {
+                "enum": [
+                  "tax_id",
+                  "address"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Suggested Country Source"
           }
         },
         "required": [
@@ -82550,6 +82610,23 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/StripeConnectStartIn"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "content": {
