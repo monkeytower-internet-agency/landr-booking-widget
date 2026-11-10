@@ -32599,6 +32599,36 @@
         "title": "RequestGoliveIn",
         "type": "object"
       },
+      "RequirementIn": {
+        "properties": {
+          "reason": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "requirement": {
+            "enum": [
+              "required",
+              "optional",
+              "not_applicable"
+            ],
+            "title": "Requirement",
+            "type": "string"
+          }
+        },
+        "required": [
+          "requirement"
+        ],
+        "title": "RequirementIn",
+        "type": "object"
+      },
       "RescheduleDecisionIn": {
         "properties": {
           "decision": {
@@ -82217,7 +82247,7 @@
     },
     "/api/staff/operators/{operator_id}/setup-checklist": {
       "get": {
-        "description": "Return every setup-checklist item for the operator, done or not.\n\nResponse shape::\n\n    {\n        \"items\": [\n            {\n                \"id\": \"company\",\n                \"done\": false,\n                \"title\": \"Company details\",\n                \"message\": \"Missing: legal name, country.\",\n                \"target_route\": \"/settings/company\"\n            }\n        ]\n    }\n\nUnlike config-health, this always returns every registered item (never\nan empty list on a healthy operator) \u2014 the checklist needs to show\ncompleted steps too.",
+        "description": "Return every setup-checklist item for the operator, done or not.\n\n``filled_by`` is ``{user_id, display_name, is_landr_staff}`` and\n``filled_at`` a timestamp, both from the audit log, only on done items.\n``setup_complete`` is true when no required item is open (done and\nnot-applicable items do not block). ``setup_is_landing`` is true only for\nan operator staff created, until then: the dashboard lands it on /setup.",
         "operationId": "get_setup_checklist",
         "parameters": [
           {
@@ -82235,13 +82265,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {
-                    "items": {
-                      "additionalProperties": true,
-                      "type": "object"
-                    },
-                    "type": "array"
-                  },
+                  "additionalProperties": true,
                   "title": "Response Get Setup Checklist",
                   "type": "object"
                 }
@@ -82266,6 +82290,75 @@
           }
         ],
         "summary": "Get Setup Checklist",
+        "tags": [
+          "staff-setup-checklist"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/setup-checklist/{item_id}/requirement": {
+      "put": {
+        "description": "Mark one item required, optional or not applicable (reason needed).",
+        "operationId": "put_item_requirement",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "item_id",
+            "required": true,
+            "schema": {
+              "title": "Item Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequirementIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Put Item Requirement",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Put Item Requirement",
         "tags": [
           "staff-setup-checklist"
         ]
