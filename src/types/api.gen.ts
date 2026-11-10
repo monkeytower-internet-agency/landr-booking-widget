@@ -7339,6 +7339,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/participants/{participant_id}/withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Withdraw Booking Participant
+         * @description Withdraw the participant from ``days`` (see the module docstring).
+         */
+        post: operations["staff_withdraw_booking_participant"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/participants/{participant_id}/withdraw/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Preview Participant Withdrawal
+         * @description Which of the participant's days can be withdrawn, and the credit share.
+         *
+         *     ``days`` (repeatable) prices the share for those days; omitted = every
+         *     day that can still be withdrawn.
+         */
+        get: operations["staff_preview_participant_withdrawal"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/participants/{participant_id}/withdraw/undo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Undo Participant Withdrawal
+         * @description Put the participant back on ``days``. 409 ``no_capacity`` (with
+         *     ``conflicts``) when a day would be overbooked; issued vouchers stay.
+         */
+        post: operations["staff_undo_participant_withdrawal"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/bookings/{booking_id}/payment-link": {
         parameters: {
             query?: never;
@@ -9774,7 +9838,9 @@ export interface paths {
          * @description List the operator's participant-day statuses ordered by sort_order.
          *
          *     Includes inactive statuses (so the manager can re-activate them); only
-         *     soft-deleted rows are hidden.
+         *     soft-deleted rows are hidden. The system "Won't attend" row
+         *     (landr-spmfl.1) only with ``include_system=true`` — e.g. for its label
+         *     and colour on a seat badge.
          */
         get: operations["list_participant_day_statuses"];
         put?: never;
@@ -19971,6 +20037,27 @@ export interface components {
             rows: components["schemas"]["InvoiceRow"][];
             summary: components["schemas"]["InvoiceSummary"];
         };
+        /** KeptVoucherOut */
+        KeptVoucherOut: {
+            /**
+             * Active
+             * @default true
+             */
+            active: boolean;
+            /** Amount */
+            amount: string;
+            /** Code */
+            code: string;
+            /** Currency */
+            currency: string;
+            /** Id */
+            id: string;
+            /**
+             * Used Count
+             * @default 0
+             */
+            used_count: number;
+        };
         /**
          * LanguagePatchIn
          * @description PATCH participant-language body — one field, and `null` is meaningful.
@@ -22714,6 +22801,18 @@ export interface components {
             /** Title */
             title: string;
         };
+        /** PreviewDayOut */
+        PreviewDayOut: {
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Withdrawable */
+            withdrawable: boolean;
+            /** Withdrawn */
+            withdrawn: boolean;
+        };
         /**
          * PreviewMigrationsResponse
          * @description Read-only preview shown in the propose/promote dialogs (landr-a99u.14.6).
@@ -22729,6 +22828,17 @@ export interface components {
             pending_count: number;
             /** Ref */
             ref?: string | null;
+        };
+        /** PreviewOut */
+        PreviewOut: {
+            /** Currency */
+            currency: string;
+            /** Days */
+            days: components["schemas"]["PreviewDayOut"][];
+            /** Share Amount */
+            share_amount: string;
+            /** Suggested Voucher Amount */
+            suggested_voucher_amount: string;
         };
         /** PriceAmountChangeOut */
         PriceAmountChangeOut: {
@@ -28335,6 +28445,29 @@ export interface components {
             /** Resource Id */
             resource_id: string;
         };
+        /** UndoIn */
+        UndoIn: {
+            /** Days */
+            days: string[];
+        };
+        /** UndoOut */
+        UndoOut: {
+            /** Booking Id */
+            booking_id: string;
+            /** Changed */
+            changed: boolean;
+            /** Days */
+            days: string[];
+            /** Not Withdrawn */
+            not_withdrawn: string[];
+            /** Participant Id */
+            participant_id: string;
+            voucher?: components["schemas"]["KeptVoucherOut"] | null;
+            /** Vouchers */
+            vouchers?: components["schemas"]["KeptVoucherOut"][];
+            /** Withdrawn Days */
+            withdrawn_days: string[];
+        };
         /**
          * UnitDayStateIn
          * @description ``PUT .../units/{unit_id}/day-state`` — one day, one unit, one answer.
@@ -28744,6 +28877,17 @@ export interface components {
             /** Valid Until */
             valid_until?: string | null;
         };
+        /** VoucherOut */
+        VoucherOut: {
+            /** Amount */
+            amount: string;
+            /** Code */
+            code: string;
+            /** Currency */
+            currency: string;
+            /** Id */
+            id: string;
+        };
         /**
          * VoucherPatch
          * @description Partial update — every field optional. used_count is not editable.
@@ -29009,6 +29153,48 @@ export interface components {
             label?: string | null;
             /** Start Date */
             start_date?: string | null;
+        };
+        /** WithdrawIn */
+        WithdrawIn: {
+            /** Days */
+            days: string[];
+            /**
+             * Notify Payer
+             * @default false
+             */
+            notify_payer: boolean;
+            /** Reason */
+            reason: string;
+            /** Voucher Amount */
+            voucher_amount?: number | string | null;
+        };
+        /** WithdrawOut */
+        WithdrawOut: {
+            /** Already Withdrawn */
+            already_withdrawn: string[];
+            /** Booking Id */
+            booking_id: string;
+            /** Changed */
+            changed: boolean;
+            /** Days */
+            days: string[];
+            /**
+             * Email Sent
+             * @default false
+             */
+            email_sent: boolean;
+            /**
+             * Notify Payer
+             * @default false
+             */
+            notify_payer: boolean;
+            /** Participant Id */
+            participant_id: string;
+            /** Reason */
+            reason: string;
+            voucher?: components["schemas"]["VoucherOut"] | null;
+            /** Withdrawn Days */
+            withdrawn_days: string[];
         };
         /** WorksAsBody */
         WorksAsBody: {
@@ -40548,6 +40734,115 @@ export interface operations {
             };
         };
     };
+    staff_withdraw_booking_participant: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                booking_id: string;
+                participant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WithdrawIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WithdrawOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_preview_participant_withdrawal: {
+        parameters: {
+            query?: {
+                days?: string[] | null;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+                booking_id: string;
+                participant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PreviewOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_undo_participant_withdrawal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                booking_id: string;
+                participant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UndoIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UndoOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     payment_link: {
         parameters: {
             query?: never;
@@ -45349,7 +45644,9 @@ export interface operations {
     };
     list_participant_day_statuses: {
         parameters: {
-            query?: never;
+            query?: {
+                include_system?: boolean;
+            };
             header?: never;
             path: {
                 operator_id: string;
