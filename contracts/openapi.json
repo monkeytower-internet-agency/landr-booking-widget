@@ -16068,6 +16068,32 @@
         "title": "InsurancePatchRequest",
         "type": "object"
       },
+      "IntegrationCredentialsListOut": {
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "stripe_connect": {
+            "$ref": "#/components/schemas/StripeConnectStatus"
+          },
+          "stripe_mode": {
+            "title": "Stripe Mode",
+            "type": "string"
+          }
+        },
+        "required": [
+          "items",
+          "stripe_mode",
+          "stripe_connect"
+        ],
+        "title": "IntegrationCredentialsListOut",
+        "type": "object"
+      },
       "InvitePrefillOut": {
         "additionalProperties": false,
         "description": "What an invite link may reveal \u2014 an ALLOWLIST, not a filter.\n\n``extra=\"forbid\"`` is the point of this model. The service resolves the\ninvite against the host's booking and naturally has its uuid and the\ncompanion row's id in hand; neither may cross to the browser. A raw booking\nuuid is a bearer capability here (``/api/public/bookings/{id}/cancel`` and\nthe ``.ics`` download take the bare id), so leaking the host's would let the\ninvitee cancel the booking that invited them. The widget never needs it\neither: it echoes the ``invite_token`` back on submit, and the server\nre-resolves.\n\nWith ``forbid``, a field added to the service payload later fails loudly\nhere instead of silently widening the anonymous surface.",
@@ -38435,6 +38461,94 @@
           "code"
         ],
         "title": "StayEstimateError",
+        "type": "object"
+      },
+      "StripeConnectReturnIn": {
+        "properties": {
+          "state": {
+            "maxLength": 2048,
+            "minLength": 1,
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "state"
+        ],
+        "title": "StripeConnectReturnIn",
+        "type": "object"
+      },
+      "StripeConnectStartOut": {
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/StripeConnectStatus"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          }
+        },
+        "required": [
+          "url",
+          "status"
+        ],
+        "title": "StripeConnectStartOut",
+        "type": "object"
+      },
+      "StripeConnectStatus": {
+        "description": "Non-secret Connect state. Never carries the account id.",
+        "properties": {
+          "available": {
+            "title": "Available",
+            "type": "boolean"
+          },
+          "charges_enabled": {
+            "title": "Charges Enabled",
+            "type": "boolean"
+          },
+          "connected": {
+            "title": "Connected",
+            "type": "boolean"
+          },
+          "details_submitted": {
+            "title": "Details Submitted",
+            "type": "boolean"
+          },
+          "mode": {
+            "enum": [
+              "test",
+              "live"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "not_started",
+              "onboarding",
+              "active",
+              "deauthorized"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "connected",
+          "mode",
+          "status",
+          "available",
+          "charges_enabled",
+          "details_submitted"
+        ],
+        "title": "StripeConnectStatus",
         "type": "object"
       },
       "SubmitBookingResponse": {
@@ -67064,9 +67178,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response List Integration Credentials",
-                  "type": "object"
+                  "$ref": "#/components/schemas/IntegrationCredentialsListOut"
                 }
               }
             },
@@ -81826,6 +81938,110 @@
         ]
       }
     },
+    "/api/staff/operators/{operator_id}/stripe-connect/return": {
+      "post": {
+        "operationId": "return_stripe_connect",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StripeConnectReturnIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StripeConnectStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Return Stripe Connect",
+        "tags": [
+          "staff-operator-stripe-connect"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/stripe-connect/start": {
+      "post": {
+        "operationId": "start_stripe_connect",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StripeConnectStartOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Start Stripe Connect",
+        "tags": [
+          "staff-operator-stripe-connect"
+        ]
+      }
+    },
     "/api/staff/operators/{operator_id}/subscription-holders/{holder_id}/cancel": {
       "post": {
         "description": "Cancel on Stripe, then flip the holder to 'cancelled' (terminal).\n\nIdempotent: the RPC's terminal-status guard is `status = 'cancelled' AND\nintent <> 'cancel'` \u2014 'cancel' itself is exempt, so re-cancelling an\nalready-cancelled holder re-applies the same UPDATE and still comes back\nhandled=true. A double-click is a safe no-op, not an error.",
@@ -84585,6 +84801,30 @@
         "summary": "Holded Webhook",
         "tags": [
           "holded-webhook"
+        ]
+      }
+    },
+    "/api/webhooks/stripe-connect": {
+      "post": {
+        "description": "Platform Connect webhook (landr-lgd9x.6).\n\n1. Verify with the PLATFORM Connect signing secret (503 when unset).\n2. Resolve the operator ONLY from ``event.account`` + the env mode in\n   ``operator_stripe_connect_accounts``; an unknown account, a missing\n   account or a livemode/tier mismatch is a 200 no-op (Stripe must not\n   retry an event that is not ours).\n3. Dedupe on ``event.id`` (ledger written after success, so a failed\n   attempt is retried by Stripe and not swallowed).\n4. ``account.*`` events update the stored flags; everything else runs\n   through ``_handle_verified_event`` \u2014 the same operator-scoped guards\n   and RPCs as the per-operator endpoint.",
+        "operationId": "stripe_connect_webhook",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Stripe Connect Webhook",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Stripe Connect Webhook",
+        "tags": [
+          "stripe-webhook"
         ]
       }
     },
