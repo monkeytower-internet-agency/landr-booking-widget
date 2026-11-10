@@ -16749,6 +16749,45 @@
         "title": "InvoicesResponse",
         "type": "object"
       },
+      "KeptVoucherOut": {
+        "properties": {
+          "active": {
+            "default": true,
+            "title": "Active",
+            "type": "boolean"
+          },
+          "amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Amount",
+            "type": "string"
+          },
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "used_count": {
+            "default": 0,
+            "title": "Used Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "amount",
+          "currency"
+        ],
+        "title": "KeptVoucherOut",
+        "type": "object"
+      },
       "LanguagePatchIn": {
         "description": "PATCH participant-language body \u2014 one field, and `null` is meaningful.\n\nSame column as `public_today.MyLanguageIn` (`booking_participants.\nlanguage`), and the same clearing semantics: `null` does not mean \"leave\nunchanged\", it means \"no override \u2014 inherit the booking's language again\"\n(20260907010300). So, like `DayUnitPatchIn` above, the key is REQUIRED\n(no default): an empty body `{}` or a typo'd key is a 422 from pydantic's\nown \"field required\" validation, never a silent no-op a caller could\nmistake for a save.\n\nUnlike the public endpoint, this one is NOT restricted to a bare\ntwo-letter code. The column itself has no CHECK \u2014 landr-w9yk8.3's\ndocstring already says \"a BCP-47 tag or free-text language name...\nbecause the staff editor writes whatever an operator types into it\" \u2014\nand an operator correcting a mis-set flag from the board is exactly that\nstaff editor, not the unauthenticated public trust boundary the tighter\npattern on `MyLanguageIn` exists for.",
         "properties": {
@@ -25016,6 +25055,30 @@
         "title": "PresetOut",
         "type": "object"
       },
+      "PreviewDayOut": {
+        "properties": {
+          "date": {
+            "format": "date",
+            "title": "Date",
+            "type": "string"
+          },
+          "withdrawable": {
+            "title": "Withdrawable",
+            "type": "boolean"
+          },
+          "withdrawn": {
+            "title": "Withdrawn",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "date",
+          "withdrawable",
+          "withdrawn"
+        ],
+        "title": "PreviewDayOut",
+        "type": "object"
+      },
       "PreviewMigrationsResponse": {
         "description": "Read-only preview shown in the propose/promote dialogs (landr-a99u.14.6).\n\n``pending_count`` is the number of migrations the target tier would receive\nif a run of ``kind`` were started right now; ``files`` is the ordered list\nof filenames (ascending timestamp), matching what the executor would apply.",
         "properties": {
@@ -25047,6 +25110,39 @@
           "files"
         ],
         "title": "PreviewMigrationsResponse",
+        "type": "object"
+      },
+      "PreviewOut": {
+        "properties": {
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "days": {
+            "items": {
+              "$ref": "#/components/schemas/PreviewDayOut"
+            },
+            "title": "Days",
+            "type": "array"
+          },
+          "share_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Share Amount",
+            "type": "string"
+          },
+          "suggested_voucher_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Suggested Voucher Amount",
+            "type": "string"
+          }
+        },
+        "required": [
+          "days",
+          "share_amount",
+          "suggested_voucher_amount",
+          "currency"
+        ],
+        "title": "PreviewOut",
         "type": "object"
       },
       "PriceAmountChangeOut": {
@@ -41198,6 +41294,92 @@
         "title": "UnavailabilitySetOut",
         "type": "object"
       },
+      "UndoIn": {
+        "properties": {
+          "days": {
+            "items": {
+              "format": "date",
+              "type": "string"
+            },
+            "maxItems": 366,
+            "minItems": 1,
+            "title": "Days",
+            "type": "array"
+          }
+        },
+        "required": [
+          "days"
+        ],
+        "title": "UndoIn",
+        "type": "object"
+      },
+      "UndoOut": {
+        "properties": {
+          "booking_id": {
+            "title": "Booking Id",
+            "type": "string"
+          },
+          "changed": {
+            "title": "Changed",
+            "type": "boolean"
+          },
+          "days": {
+            "items": {
+              "format": "date",
+              "type": "string"
+            },
+            "title": "Days",
+            "type": "array"
+          },
+          "not_withdrawn": {
+            "items": {
+              "format": "date",
+              "type": "string"
+            },
+            "title": "Not Withdrawn",
+            "type": "array"
+          },
+          "participant_id": {
+            "title": "Participant Id",
+            "type": "string"
+          },
+          "voucher": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/KeptVoucherOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "vouchers": {
+            "items": {
+              "$ref": "#/components/schemas/KeptVoucherOut"
+            },
+            "title": "Vouchers",
+            "type": "array"
+          },
+          "withdrawn_days": {
+            "items": {
+              "format": "date",
+              "type": "string"
+            },
+            "title": "Withdrawn Days",
+            "type": "array"
+          }
+        },
+        "required": [
+          "participant_id",
+          "booking_id",
+          "changed",
+          "days",
+          "not_withdrawn",
+          "withdrawn_days"
+        ],
+        "title": "UndoOut",
+        "type": "object"
+      },
       "UnitDayStateIn": {
         "description": "``PUT .../units/{unit_id}/day-state`` \u2014 one day, one unit, one answer.\n\nThe three values are the /calendar popover's three options, in the epic's\nLOCKED wording (``bd show landr-w9yk8``):\n\n``auto``\n    \"Auto-approve\" \u2014 bookings landing on this unit that day confirm\n    themselves. Since landr-uy4jy.2 this writes a ONE-DAY PERIOD carrying\n    the day's resulting release set with this unit added.\n``ask``\n    \"Ask me\" \u2014 the unit runs, but bookings on it wait for the operator.\n    Same one-day period, with this unit removed from the set.\n``not_available``\n    The unit does not run that day at all. Writes a ONE-DAY\n    ``out_of_service`` row onto the unit's service schedule.\n\n``reason`` is the operator's own free text and is stored on whichever row\nthe state produces \u2014 the one-day period's ``note`` for ``auto``/``ask``,\nthe ``out_of_service`` row's ``reason`` for ``not_available``. It is never\ngenerated: a machine description of why belongs in ``hold_source`` / the\nday's resolved ``reason``, not in a field a human is going to read back as\ntheir own words.\n\nWith no ``reason`` the one-day period INHERITS the covering period's note,\nwhich is what lets an unchanged answer merge straight back into its\nneighbour instead of leaving a one-day scar in the periods list.",
         "properties": {
@@ -42079,6 +42261,35 @@
         "title": "VoucherIn",
         "type": "object"
       },
+      "VoucherOut": {
+        "properties": {
+          "amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Amount",
+            "type": "string"
+          },
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "amount",
+          "currency"
+        ],
+        "title": "VoucherOut",
+        "type": "object"
+      },
       "VoucherPatch": {
         "description": "Partial update \u2014 every field optional. used_count is not editable.",
         "properties": {
@@ -42525,6 +42736,127 @@
           }
         },
         "title": "WindowPatch",
+        "type": "object"
+      },
+      "WithdrawIn": {
+        "properties": {
+          "days": {
+            "items": {
+              "format": "date",
+              "type": "string"
+            },
+            "maxItems": 366,
+            "minItems": 1,
+            "title": "Days",
+            "type": "array"
+          },
+          "notify_payer": {
+            "default": false,
+            "title": "Notify Payer",
+            "type": "boolean"
+          },
+          "reason": {
+            "maxLength": 2000,
+            "title": "Reason",
+            "type": "string"
+          },
+          "voucher_amount": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,10}|(?=[\\d.]{1,13}0*$)\\d{0,10}\\.\\d{0,2}0*$)",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Voucher Amount"
+          }
+        },
+        "required": [
+          "days",
+          "reason"
+        ],
+        "title": "WithdrawIn",
+        "type": "object"
+      },
+      "WithdrawOut": {
+        "properties": {
+          "already_withdrawn": {
+            "items": {
+              "format": "date",
+              "type": "string"
+            },
+            "title": "Already Withdrawn",
+            "type": "array"
+          },
+          "booking_id": {
+            "title": "Booking Id",
+            "type": "string"
+          },
+          "changed": {
+            "title": "Changed",
+            "type": "boolean"
+          },
+          "days": {
+            "items": {
+              "format": "date",
+              "type": "string"
+            },
+            "title": "Days",
+            "type": "array"
+          },
+          "email_sent": {
+            "default": false,
+            "title": "Email Sent",
+            "type": "boolean"
+          },
+          "notify_payer": {
+            "default": false,
+            "title": "Notify Payer",
+            "type": "boolean"
+          },
+          "participant_id": {
+            "title": "Participant Id",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "voucher": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VoucherOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "withdrawn_days": {
+            "items": {
+              "format": "date",
+              "type": "string"
+            },
+            "title": "Withdrawn Days",
+            "type": "array"
+          }
+        },
+        "required": [
+          "participant_id",
+          "booking_id",
+          "changed",
+          "days",
+          "already_withdrawn",
+          "withdrawn_days",
+          "reason"
+        ],
+        "title": "WithdrawOut",
         "type": "object"
       },
       "WorksAsBody": {
@@ -61953,6 +62285,244 @@
         ]
       }
     },
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/participants/{participant_id}/withdraw": {
+      "post": {
+        "description": "Withdraw the participant from ``days`` (see the module docstring).",
+        "operationId": "staff_withdraw_booking_participant",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "title": "Booking Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "participant_id",
+            "required": true,
+            "schema": {
+              "title": "Participant Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WithdrawIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WithdrawOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Withdraw Booking Participant",
+        "tags": [
+          "staff-booking-participant-withdraw"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/participants/{participant_id}/withdraw/preview": {
+      "get": {
+        "description": "Which of the participant's days can be withdrawn, and the credit share.\n\n``days`` (repeatable) prices the share for those days; omitted = every\nday that can still be withdrawn.",
+        "operationId": "staff_preview_participant_withdrawal",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "title": "Booking Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "participant_id",
+            "required": true,
+            "schema": {
+              "title": "Participant Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "days",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "format": "date",
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Days"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreviewOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Preview Participant Withdrawal",
+        "tags": [
+          "staff-booking-participant-withdraw"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/participants/{participant_id}/withdraw/undo": {
+      "post": {
+        "description": "Put the participant back on ``days``. 409 ``no_capacity`` (with\n``conflicts``) when a day would be overbooked; issued vouchers stay.",
+        "operationId": "staff_undo_participant_withdrawal",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "title": "Booking Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "participant_id",
+            "required": true,
+            "schema": {
+              "title": "Participant Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UndoIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UndoOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Undo Participant Withdrawal",
+        "tags": [
+          "staff-booking-participant-withdraw"
+        ]
+      }
+    },
     "/api/staff/operators/{operator_id}/bookings/{booking_id}/payment-link": {
       "post": {
         "operationId": "payment_link",
@@ -70709,7 +71279,7 @@
     },
     "/api/staff/operators/{operator_id}/participant-day-statuses": {
       "get": {
-        "description": "List the operator's participant-day statuses ordered by sort_order.\n\nIncludes inactive statuses (so the manager can re-activate them); only\nsoft-deleted rows are hidden.",
+        "description": "List the operator's participant-day statuses ordered by sort_order.\n\nIncludes inactive statuses (so the manager can re-activate them); only\nsoft-deleted rows are hidden. The system \"Won't attend\" row\n(landr-spmfl.1) only with ``include_system=true`` \u2014 e.g. for its label\nand colour on a seat badge.",
         "operationId": "list_participant_day_statuses",
         "parameters": [
           {
@@ -70719,6 +71289,16 @@
             "schema": {
               "title": "Operator Id",
               "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "include_system",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Include System",
+              "type": "boolean"
             }
           }
         ],
