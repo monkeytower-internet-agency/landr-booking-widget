@@ -1261,6 +1261,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/landr-staff/customers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Customer
+         * @description Create the customer's businesses, invites and links. 201 on a first run,
+         *     200-shaped body with ``replayed: true`` on an idempotent replay.
+         */
+        post: operations["create_customer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/landr-staff/me/capabilities": {
         parameters: {
             query?: never;
@@ -1347,6 +1368,41 @@ export interface paths {
         put?: never;
         /** Landr Staff Delete Operator */
         post: operations["landr_staff_delete_operator"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/landr-staff/operators/{operator_id}/go-live": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Go Live */
+        get: operations["get_go_live"];
+        put?: never;
+        /** Post Go Live */
+        post: operations["post_go_live"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/landr-staff/operators/{operator_id}/go-live/revert": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post Go Live Revert */
+        post: operations["post_go_live_revert"];
         delete?: never;
         options?: never;
         head?: never;
@@ -12763,26 +12819,34 @@ export interface paths {
          * Get Setup Checklist
          * @description Return every setup-checklist item for the operator, done or not.
          *
-         *     Response shape::
-         *
-         *         {
-         *             "items": [
-         *                 {
-         *                     "id": "company",
-         *                     "done": false,
-         *                     "title": "Company details",
-         *                     "message": "Missing: legal name, country.",
-         *                     "target_route": "/settings/company"
-         *                 }
-         *             ]
-         *         }
-         *
-         *     Unlike config-health, this always returns every registered item (never
-         *     an empty list on a healthy operator) — the checklist needs to show
-         *     completed steps too.
+         *     ``filled_by`` is ``{user_id, display_name, is_landr_staff}`` and
+         *     ``filled_at`` a timestamp, both from the audit log, only on done items.
+         *     ``setup_complete`` is true when no required item is open (done and
+         *     not-applicable items do not block). ``setup_is_landing`` is true only for
+         *     an operator staff created, until then: the dashboard lands it on /setup.
          */
         get: operations["get_setup_checklist"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/setup-checklist/{item_id}/requirement": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Put Item Requirement
+         * @description Mark one item required, optional or not applicable (reason needed).
+         */
+        put: operations["put_item_requirement"];
         post?: never;
         delete?: never;
         options?: never;
@@ -12821,6 +12885,40 @@ export interface paths {
         get: operations["get_staffing_day"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/stripe-connect/return": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Return Stripe Connect */
+        post: operations["return_stripe_connect"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/stripe-connect/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start Stripe Connect */
+        post: operations["start_stripe_connect"];
         delete?: never;
         options?: never;
         head?: never;
@@ -13650,6 +13748,37 @@ export interface paths {
         put?: never;
         /** Holded Webhook */
         post: operations["holded_webhook"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/webhooks/stripe-connect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Stripe Connect Webhook
+         * @description Platform Connect webhook (landr-lgd9x.6).
+         *
+         *     1. Verify with the PLATFORM Connect signing secret (503 when unset).
+         *     2. Resolve the operator ONLY from ``event.account`` + the env mode in
+         *        ``operator_stripe_connect_accounts``; an unknown account, a missing
+         *        account or a livemode/tier mismatch is a 200 no-op (Stripe must not
+         *        retry an event that is not ours).
+         *     3. Dedupe on ``event.id`` (ledger written after success, so a failed
+         *        attempt is retried by Stripe and not swallowed).
+         *     4. ``account.*`` events update the stored flags; everything else runs
+         *        through ``_handle_verified_event`` — the same operator-scoped guards
+         *        and RPCs as the per-operator endpoint.
+         */
+        post: operations["stripe_connect_webhook"];
         delete?: never;
         options?: never;
         head?: never;
@@ -15619,6 +15748,23 @@ export interface components {
             /** Sent */
             sent: number;
         };
+        /** BusinessIn */
+        BusinessIn: {
+            /** Name */
+            name: string;
+            /** Owner Email */
+            owner_email: string;
+            /**
+             * Owner Locale
+             * @default de
+             * @enum {string}
+             */
+            owner_locale: "de" | "it" | "en" | "es" | "tr";
+            /** Slug */
+            slug?: string | null;
+            /** Template Slug */
+            template_slug: string;
+        };
         /** CalendarBlockOut */
         CalendarBlockOut: {
             /** Conflict */
@@ -16612,6 +16758,24 @@ export interface components {
             pre_notification_days?: number | null;
             /** Rates */
             rates?: components["schemas"]["ContractRateIn"][];
+        };
+        /** CreateCustomerIn */
+        CreateCustomerIn: {
+            /** Businesses */
+            businesses: components["schemas"]["BusinessIn"][];
+            contract_terms?: components["schemas"]["ContractTermsIn"] | null;
+            /** Extra Memberships */
+            extra_memberships?: components["schemas"]["ExtraMembershipIn"][];
+            /** Idempotency Key */
+            idempotency_key: string;
+            /**
+             * Package Slug
+             * @default business
+             */
+            package_slug: string;
+            /** Personal Note */
+            personal_note?: string | null;
+            shared_calendar?: components["schemas"]["SharedCalendarIn"];
         };
         /** CreateInviteBody */
         CreateInviteBody: {
@@ -18252,6 +18416,20 @@ export interface components {
             /** Start Weekday */
             start_weekday: number;
         };
+        /** ExtraMembershipIn */
+        ExtraMembershipIn: {
+            /** Email */
+            email: string;
+            /** Locale */
+            locale?: ("de" | "it" | "en" | "es" | "tr") | null;
+            /** Operator Index */
+            operator_index: number[];
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "owner" | "admin" | "staff" | "field" | "finance" | "readonly";
+        };
         /** FanOutIn */
         FanOutIn: {
             /** Rows */
@@ -18862,6 +19040,11 @@ export interface components {
             slug: string;
             /** Sport Id */
             sport_id: string | null;
+        };
+        /** GoLiveBody */
+        GoLiveBody: {
+            /** Override Reason */
+            override_reason?: string | null;
         };
         /**
          * GroupInquiryRequest
@@ -19601,6 +19784,16 @@ export interface components {
             policy_number?: string | null;
             /** Provider */
             provider?: string | null;
+        };
+        /** IntegrationCredentialsListOut */
+        IntegrationCredentialsListOut: {
+            /** Items */
+            items: {
+                [key: string]: unknown;
+            }[];
+            stripe_connect: components["schemas"]["StripeConnectStatus"];
+            /** Stripe Mode */
+            stripe_mode: string;
         };
         /**
          * InvitePrefillOut
@@ -24914,6 +25107,16 @@ export interface components {
             /** Notes */
             notes?: string | null;
         };
+        /** RequirementIn */
+        RequirementIn: {
+            /** Reason */
+            reason?: string | null;
+            /**
+             * Requirement
+             * @enum {string}
+             */
+            requirement: "required" | "optional" | "not_applicable";
+        };
         /** RescheduleDecisionIn */
         RescheduleDecisionIn: {
             /**
@@ -25810,6 +26013,11 @@ export interface components {
             /** Realized Total */
             realized_total: number;
         };
+        /** RevertBody */
+        RevertBody: {
+            /** Reason */
+            reason: string;
+        };
         /** RoleCapabilityLevel */
         RoleCapabilityLevel: {
             /**
@@ -26464,6 +26672,20 @@ export interface components {
             url?: string | null;
             /** Whatsapp Url */
             whatsapp_url: string | null;
+        };
+        /** SharedCalendarIn */
+        SharedCalendarIn: {
+            /**
+             * Enabled
+             * @default false
+             */
+            enabled: boolean;
+            /**
+             * Level
+             * @default occupancy
+             * @enum {string}
+             */
+            level: "occupancy" | "details";
         };
         /** ShortLinkCreateIn */
         ShortLinkCreateIn: {
@@ -27179,6 +27401,41 @@ export interface components {
             code: string;
             /** Date */
             date?: string | null;
+        };
+        /** StripeConnectReturnIn */
+        StripeConnectReturnIn: {
+            /** State */
+            state: string;
+        };
+        /** StripeConnectStartOut */
+        StripeConnectStartOut: {
+            status: components["schemas"]["StripeConnectStatus"];
+            /** Url */
+            url: string | null;
+        };
+        /**
+         * StripeConnectStatus
+         * @description Non-secret Connect state. Never carries the account id.
+         */
+        StripeConnectStatus: {
+            /** Available */
+            available: boolean;
+            /** Charges Enabled */
+            charges_enabled: boolean;
+            /** Connected */
+            connected: boolean;
+            /** Details Submitted */
+            details_submitted: boolean;
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "test" | "live";
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "not_started" | "onboarding" | "active" | "deauthorized";
         };
         /**
          * SubmitBookingResponse
@@ -31017,6 +31274,41 @@ export interface operations {
             };
         };
     };
+    create_customer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateCustomerIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_my_capabilities: {
         parameters: {
             query?: never;
@@ -31183,6 +31475,113 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["ConfirmBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_go_live: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_go_live: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["GoLiveBody"] | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_go_live_revert: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RevertBody"];
             };
         };
         responses: {
@@ -43245,9 +43644,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["IntegrationCredentialsListOut"];
                 };
             };
             /** @description Validation Error */
@@ -51155,9 +51552,45 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        [key: string]: {
-                            [key: string]: unknown;
-                        }[];
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_item_requirement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                item_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RequirementIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
                     };
                 };
             };
@@ -51227,6 +51660,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StaffingDayOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    return_stripe_connect: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StripeConnectReturnIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StripeConnectStatus"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    start_stripe_connect: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StripeConnectStartOut"];
                 };
             };
             /** @description Validation Error */
@@ -52786,6 +53285,28 @@ export interface operations {
         };
     };
     holded_webhook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    stripe_connect_webhook: {
         parameters: {
             query?: never;
             header?: never;

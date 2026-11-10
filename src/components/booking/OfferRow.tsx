@@ -325,7 +325,7 @@ export function OfferRow({
 
       {occupancyCap !== undefined && !deviation && qty > 0 && qty >= occupancyCap ? (
         <p className="text-xs text-muted-foreground" data-testid={`offer-occupancy-cap-${offer.id}`}>
-          {fmt(tr('offerOccupancyCap', locale), { expected: occupancyCap })}
+          {fmt(tr(roomQty > 1 ? 'offerOccupancyCapMany' : 'offerOccupancyCap', locale), { expected: occupancyCap })}
         </p>
       ) : null}
 

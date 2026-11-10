@@ -75,6 +75,7 @@ import { formatDayLabel } from './dateLabel'
 import {
   accommodationTooLateMessage,
   additionalAccommodationRequiredHint,
+  fmt,
   hostRoomFullMessage,
   inviteRoomBookedNotice,
   inviteRoomHint,
@@ -1046,6 +1047,33 @@ export function AccommodationStep({
     guests: roomOfferGuests,
     enabled: bookRooms && bookedRooms.length > 0,
   })
+  // Display-only prefetch: one line per room type (qty 1), asked as soon as
+  // the room list is in, so a room's offer rows show the moment its quantity
+  // goes above 0 instead of after the exact verdict. The exact verdict
+  // (roomOffers) still gates Continue and wins wherever it has answered.
+  const prefetchLines = useMemo(
+    () =>
+      evaluateLines(
+        cartTree(
+          product,
+          selectedDays,
+          bookRooms ? (rooms ?? []).map((r) => ({ productId: r.product_id, quantity: 1 })) : [],
+        ),
+        [],
+      ),
+    [product, selectedDays, bookRooms, rooms],
+  )
+  const prefetchedOffers = useOffers({
+    widgetToken: operatorToken,
+    lines: prefetchLines,
+    guests: roomOfferGuests,
+    enabled: bookRooms && (rooms?.length ?? 0) > 0,
+    debounceMs: 0,
+  })
+  const roomVerdicts = useMemo(
+    () => ({ ...prefetchedOffers.byLine, ...roomOffers.byLine }),
+    [prefetchedOffers.byLine, roomOffers.byLine],
+  )
   // A fresh verdict: drop what no longer fits, preselect the mandatory ones.
   const handledRoomVerdict = useRef<string | null>(null)
   useEffect(() => {
@@ -1220,16 +1248,22 @@ export function AccommodationStep({
   // Continue. Empty rooms take priority (they need a person); otherwise the
   // unassigned-people message. Member labels use the chip names ("Guest N"
   // fallback) so the hint matches what the customer sees.
-  const occupancyHint = useMemo(() => {
+  const occupancyHint = (() => {
     if (occupancy.complete) return ''
     if (occupancy.emptyUnits.length > 0) {
       const labels = occupancy.emptyUnits.map(
         (u) => `${u.roomName} #${u.unitIndex + 1}`,
       )
       const list = labels.join(', ')
-      return occupancy.emptyUnits.length === 1
-        ? `${list} has no guests yet — assign someone or remove the room.`
-        : `These rooms have no guests yet: ${list}. Assign someone to each, or remove the empty rooms.`
+      return fmt(
+        tr(
+          occupancy.emptyUnits.length === 1
+            ? 'occupancyEmptyRoomOneTemplate'
+            : 'occupancyEmptyRoomsManyTemplate',
+          locale,
+        ),
+        { list },
+      )
     }
     // A booked unit holding fewer guests than its capacity (e.g. a double room
     // with a single person) blocks Continue until it is filled or swapped for a
@@ -1237,39 +1271,74 @@ export function AccommodationStep({
     if (occupancy.partialUnits.length > 0) {
       const labels = occupancy.partialUnits.map((u) => {
         const need = u.capacity - occupantsOfUnit(assignment, u).length
-        return `${u.roomName} #${u.unitIndex + 1} needs ${need} more ${
-          need === 1 ? 'guest' : 'guests'
-        }`
+        return fmt(
+          tr(
+            need === 1
+              ? 'occupancyNeedsOneMoreGuestTemplate'
+              : 'occupancyNeedsMoreGuestsTemplate',
+            locale,
+          ),
+          { room: `${u.roomName} #${u.unitIndex + 1}`, need },
+        )
       })
       const list = labels.join('; ')
-      return occupancy.partialUnits.length === 1
-        ? `${list} — add ${
-            occupancy.partialUnits[0]!.capacity -
-              occupantsOfUnit(assignment, occupancy.partialUnits[0]!).length ===
-            1
-              ? 'another guest'
-              : 'more guests'
-          } or book a smaller room.`
-        : `${list}. Fill each room or book smaller rooms.`
+      if (occupancy.partialUnits.length === 1) {
+        const only = occupancy.partialUnits[0]!
+        const lastNeed = only.capacity - occupantsOfUnit(assignment, only).length
+        return fmt(
+          tr(
+            lastNeed === 1
+              ? 'occupancyAddAnotherGuestTemplate'
+              : 'occupancyAddMoreGuestsTemplate',
+            locale,
+          ),
+          { list },
+        )
+      }
+      return fmt(tr('occupancyFillEachRoomTemplate', locale), { list })
     }
     const names = occupancy.unassignedMembers.map((i) => {
       const n = (partyMemberNames[i] ?? '').trim()
-      return n.length > 0 ? n : `Guest ${i + 1}`
+      return n.length > 0
+        ? n
+        : fmt(tr('guestFallbackTemplate', locale), { n: i + 1 })
     })
     // landr-zeg4u.5: in shared-double only the other guiding participants
     // block — companions may stay unplaced — so don't ask for "everyone".
     if (sharedDoubleRooms) {
-      return `Only your own bed is the shared double — ${names.join(', ')} still ${
-        names.length === 1 ? 'needs' : 'need'
-      } a room.`
+      return fmt(
+        tr(
+          names.length === 1
+            ? 'occupancySharedDoubleOneTemplate'
+            : 'occupancySharedDoubleManyTemplate',
+          locale,
+        ),
+        { names: names.join(', ') },
+      )
     }
-    return `Assign everyone to a room — still waiting on: ${names.join(', ')}.`
-  }, [occupancy, partyMemberNames, assignment, sharedDoubleRooms])
+    return fmt(tr('occupancyAssignEveryoneTemplate', locale), {
+      names: names.join(', '),
+    })
+  })()
 
   // landr-80ubl.3: one-next-action rule — RoomAssignment wraps itself in
   // NextAction when this is non-null; once occupancy is complete the
   // highlight moves down to Continue instead (no cue).
-  const roomAssignmentCue = occupancy.complete ? null : tr('assignEveryoneToARoomCue', locale)
+  // Blocked only by a half-full room (everyone has a room): name the room, not
+  // "assign everyone".
+  const roomAssignmentCue = occupancy.complete
+    ? null
+    : occupancy.partialUnits.length > 0 &&
+        occupancy.emptyUnits.length === 0 &&
+        occupancy.unassignedMembers.length === 0
+      ? fmt(
+          tr(occupancy.partialUnits.length === 1 ? 'halfFullRoomCueTemplate' : 'halfFullRoomsCueTemplate', locale),
+          {
+            room: `${occupancy.partialUnits[0]!.roomName} #${occupancy.partialUnits[0]!.unitIndex + 1}`,
+            rooms: occupancy.partialUnits.map((u) => `${u.roomName} #${u.unitIndex + 1}`).join(', '),
+          },
+        )
+      : tr('assignEveryoneToARoomCue', locale)
 
   // landr-395ks: shared-double allows a partly filled room on purpose (a
   // partner may take a double), but the room is charged whole — surface a
@@ -2044,7 +2113,7 @@ export function AccommodationStep({
                     // two room types is ordered independently per room.
                     <OfferTree
                       parentLineId={roomLineId(room.product_id)}
-                      verdicts={roomOffers.byLine}
+                      verdicts={roomVerdicts}
                       picks={settledRoomPicks}
                       onPicksChange={setRoomPicks}
                       tree={offerTree}

@@ -48,6 +48,15 @@ describe('useOffers', () => {
     expect(result.current.deferredAttributeKeys).toEqual(['weight_kg'])
   })
 
+  it('asks at once for the first request, no debounce', async () => {
+    vi.mocked(getOffers).mockResolvedValue(answer())
+    renderHook(() => useOffers({ widgetToken: 't', lines: LINES, guests: GUESTS }))
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0)
+    })
+    expect(getOffers).toHaveBeenCalledTimes(1)
+  })
+
   it('is pending until the answer for the current key lands', async () => {
     vi.mocked(getOffers).mockResolvedValue(answer())
     const { result } = renderHook(() => useOffers({ widgetToken: 't', lines: LINES, guests: GUESTS }))
