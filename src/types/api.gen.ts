@@ -12819,26 +12819,34 @@ export interface paths {
          * Get Setup Checklist
          * @description Return every setup-checklist item for the operator, done or not.
          *
-         *     Response shape::
-         *
-         *         {
-         *             "items": [
-         *                 {
-         *                     "id": "company",
-         *                     "done": false,
-         *                     "title": "Company details",
-         *                     "message": "Missing: legal name, country.",
-         *                     "target_route": "/settings/company"
-         *                 }
-         *             ]
-         *         }
-         *
-         *     Unlike config-health, this always returns every registered item (never
-         *     an empty list on a healthy operator) — the checklist needs to show
-         *     completed steps too.
+         *     ``filled_by`` is ``{user_id, display_name, is_landr_staff}`` and
+         *     ``filled_at`` a timestamp, both from the audit log, only on done items.
+         *     ``setup_complete`` is true when no required item is open (done and
+         *     not-applicable items do not block). ``setup_is_landing`` is true only for
+         *     an operator staff created, until then: the dashboard lands it on /setup.
          */
         get: operations["get_setup_checklist"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/setup-checklist/{item_id}/requirement": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Put Item Requirement
+         * @description Mark one item required, optional or not applicable (reason needed).
+         */
+        put: operations["put_item_requirement"];
         post?: never;
         delete?: never;
         options?: never;
@@ -25098,6 +25106,16 @@ export interface components {
         RequestGoliveIn: {
             /** Notes */
             notes?: string | null;
+        };
+        /** RequirementIn */
+        RequirementIn: {
+            /** Reason */
+            reason?: string | null;
+            /**
+             * Requirement
+             * @enum {string}
+             */
+            requirement: "required" | "optional" | "not_applicable";
         };
         /** RescheduleDecisionIn */
         RescheduleDecisionIn: {
@@ -51534,9 +51552,45 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        [key: string]: {
-                            [key: string]: unknown;
-                        }[];
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_item_requirement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                item_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RequirementIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
                     };
                 };
             };
