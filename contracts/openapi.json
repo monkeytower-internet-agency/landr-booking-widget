@@ -73,63 +73,6 @@
         "title": "AcceptOfferResponse",
         "type": "object"
       },
-      "AcceptedIn": {
-        "properties": {
-          "items": {
-            "items": {
-              "$ref": "#/components/schemas/AcceptedItem"
-            },
-            "maxItems": 20,
-            "minItems": 1,
-            "title": "Items",
-            "type": "array"
-          }
-        },
-        "required": [
-          "items"
-        ],
-        "title": "AcceptedIn",
-        "type": "object"
-      },
-      "AcceptedItem": {
-        "properties": {
-          "entity_id": {
-            "anyOf": [
-              {
-                "maxLength": 100,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Entity Id"
-          },
-          "entity_type": {
-            "enum": [
-              "company_profile",
-              "location",
-              "product",
-              "opening_hours",
-              "team_invite"
-            ],
-            "title": "Entity Type",
-            "type": "string"
-          },
-          "proposal_id": {
-            "maxLength": 100,
-            "minLength": 1,
-            "title": "Proposal Id",
-            "type": "string"
-          }
-        },
-        "required": [
-          "proposal_id",
-          "entity_type"
-        ],
-        "title": "AcceptedItem",
-        "type": "object"
-      },
       "AccountLinkRequest": {
         "properties": {
           "email": {
@@ -300,191 +243,6 @@
           "addon_product_id"
         ],
         "title": "AddonDayStock",
-        "type": "object"
-      },
-      "AiSettingsOut": {
-        "properties": {
-          "enabled": {
-            "title": "Enabled",
-            "type": "boolean"
-          },
-          "monthly_hard_usd": {
-            "title": "Monthly Hard Usd",
-            "type": "number"
-          },
-          "monthly_soft_usd": {
-            "title": "Monthly Soft Usd",
-            "type": "number"
-          },
-          "paused": {
-            "title": "Paused",
-            "type": "boolean"
-          },
-          "paused_until": {
-            "anyOf": [
-              {
-                "format": "date",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Paused Until"
-          },
-          "per_session_max_tokens": {
-            "title": "Per Session Max Tokens",
-            "type": "integer"
-          },
-          "per_session_max_turns": {
-            "title": "Per Session Max Turns",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "enabled",
-          "paused_until",
-          "paused",
-          "per_session_max_turns",
-          "per_session_max_tokens",
-          "monthly_soft_usd",
-          "monthly_hard_usd"
-        ],
-        "title": "AiSettingsOut",
-        "type": "object"
-      },
-      "AiSettingsPatch": {
-        "properties": {
-          "enabled": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Enabled"
-          },
-          "monthly_hard_usd": {
-            "anyOf": [
-              {
-                "maximum": 100000.0,
-                "minimum": 0.0,
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Monthly Hard Usd"
-          },
-          "monthly_soft_usd": {
-            "anyOf": [
-              {
-                "maximum": 100000.0,
-                "minimum": 0.0,
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Monthly Soft Usd"
-          },
-          "pause_until_next_month": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Pause Until Next Month"
-          },
-          "paused_until": {
-            "anyOf": [
-              {
-                "format": "date",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Paused Until"
-          },
-          "per_session_max_tokens": {
-            "anyOf": [
-              {
-                "maximum": 10000000.0,
-                "minimum": 1000.0,
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Per Session Max Tokens"
-          },
-          "per_session_max_turns": {
-            "anyOf": [
-              {
-                "maximum": 1000.0,
-                "minimum": 1.0,
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Per Session Max Turns"
-          }
-        },
-        "title": "AiSettingsPatch",
-        "type": "object"
-      },
-      "AiUsageOut": {
-        "properties": {
-          "current_month": {
-            "title": "Current Month",
-            "type": "boolean"
-          },
-          "ledger": {
-            "items": {
-              "$ref": "#/components/schemas/LedgerRow"
-            },
-            "title": "Ledger",
-            "type": "array"
-          },
-          "month": {
-            "title": "Month",
-            "type": "string"
-          },
-          "operators": {
-            "items": {
-              "$ref": "#/components/schemas/OperatorUsage"
-            },
-            "title": "Operators",
-            "type": "array"
-          },
-          "settings": {
-            "$ref": "#/components/schemas/AiSettingsOut"
-          },
-          "totals": {
-            "$ref": "#/components/schemas/UsageTotals"
-          }
-        },
-        "required": [
-          "month",
-          "current_month",
-          "settings",
-          "totals",
-          "operators",
-          "ledger"
-        ],
-        "title": "AiUsageOut",
         "type": "object"
       },
       "AlertOut": {
@@ -3069,33 +2827,6 @@
         "title": "BookingLineStayWindow",
         "type": "object"
       },
-      "BookingMissingAttributesOut": {
-        "description": "Only participants who still owe something are listed; ``[]`` = nobody.",
-        "properties": {
-          "participants": {
-            "items": {
-              "$ref": "#/components/schemas/ParticipantMissingKeysOut"
-            },
-            "title": "Participants",
-            "type": "array"
-          },
-          "range_options": {
-            "additionalProperties": {
-              "items": {
-                "$ref": "#/components/schemas/RangeOptionOut"
-              },
-              "type": "array"
-            },
-            "title": "Range Options",
-            "type": "object"
-          }
-        },
-        "required": [
-          "participants"
-        ],
-        "title": "BookingMissingAttributesOut",
-        "type": "object"
-      },
       "BookingNoteIn": {
         "description": "POST body \u2014 the note text. Whitespace-only rejected at the model\nlevel (the DB CHECK constraint catches it too, but a 422 from Pydantic\nis the cleaner client surface).",
         "properties": {
@@ -4255,57 +3986,6 @@
         "title": "BriefingDayIn",
         "type": "object"
       },
-      "BriefingGuestAttributesIn": {
-        "additionalProperties": false,
-        "properties": {
-          "participants": {
-            "items": {
-              "$ref": "#/components/schemas/ParticipantAttributesIn"
-            },
-            "maxItems": 50,
-            "minItems": 1,
-            "title": "Participants",
-            "type": "array"
-          }
-        },
-        "required": [
-          "participants"
-        ],
-        "title": "BriefingGuestAttributesIn",
-        "type": "object"
-      },
-      "BriefingGuestAttributesOut": {
-        "description": "``attributes`` are the collectable definitions, ``participants`` who still\nowes which keys; both empty when there is nothing left to ask.",
-        "properties": {
-          "answered": {
-            "items": {
-              "$ref": "#/components/schemas/ParticipantAnsweredOut"
-            },
-            "title": "Answered",
-            "type": "array"
-          },
-          "attributes": {
-            "items": {
-              "$ref": "#/components/schemas/FlowAttributeOut"
-            },
-            "title": "Attributes",
-            "type": "array"
-          },
-          "participants": {
-            "items": {
-              "$ref": "#/components/schemas/ParticipantMissingOut"
-            },
-            "title": "Participants",
-            "type": "array"
-          }
-        },
-        "required": [
-          "attributes",
-          "participants"
-        ],
-        "title": "BriefingGuestAttributesOut",
-        "type": "object"
-      },
       "BriefingJoinIn": {
         "description": "The host's booking reference, typed on the customer page (epic D4/D6).",
         "properties": {
@@ -4656,59 +4336,6 @@
           "failed"
         ],
         "title": "BulkReminderOut",
-        "type": "object"
-      },
-      "BusinessIn": {
-        "properties": {
-          "name": {
-            "maxLength": 200,
-            "minLength": 1,
-            "title": "Name",
-            "type": "string"
-          },
-          "owner_email": {
-            "maxLength": 320,
-            "minLength": 3,
-            "title": "Owner Email",
-            "type": "string"
-          },
-          "owner_locale": {
-            "default": "de",
-            "enum": [
-              "de",
-              "it",
-              "en",
-              "es",
-              "tr"
-            ],
-            "title": "Owner Locale",
-            "type": "string"
-          },
-          "slug": {
-            "anyOf": [
-              {
-                "maxLength": 30,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Slug"
-          },
-          "template_slug": {
-            "maxLength": 64,
-            "minLength": 1,
-            "title": "Template Slug",
-            "type": "string"
-          }
-        },
-        "required": [
-          "name",
-          "template_slug",
-          "owner_email"
-        ],
-        "title": "BusinessIn",
         "type": "object"
       },
       "CalendarBlockOut": {
@@ -5523,18 +5150,6 @@
             "title": "Product Kind",
             "type": "string"
           },
-          "schedule": {
-            "default": "locked",
-            "enum": [
-              "locked",
-              "subset",
-              "own",
-              "first_day",
-              "last_day"
-            ],
-            "title": "Schedule",
-            "type": "string"
-          },
           "short_description": {
             "anyOf": [
               {
@@ -6049,14 +5664,6 @@
           "product_kind": {
             "title": "Product Kind",
             "type": "string"
-          },
-          "required_attributes": {
-            "default": [],
-            "items": {
-              "type": "string"
-            },
-            "title": "Required Attributes",
-            "type": "array"
           },
           "requires_verification": {
             "default": false,
@@ -7622,71 +7229,6 @@
           }
         },
         "title": "ContractTermsIn",
-        "type": "object"
-      },
-      "CreateCustomerIn": {
-        "properties": {
-          "businesses": {
-            "items": {
-              "$ref": "#/components/schemas/BusinessIn"
-            },
-            "maxItems": 10,
-            "minItems": 1,
-            "title": "Businesses",
-            "type": "array"
-          },
-          "contract_terms": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/ContractTermsIn"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "extra_memberships": {
-            "items": {
-              "$ref": "#/components/schemas/ExtraMembershipIn"
-            },
-            "maxItems": 50,
-            "title": "Extra Memberships",
-            "type": "array"
-          },
-          "idempotency_key": {
-            "maxLength": 100,
-            "minLength": 8,
-            "pattern": "^[A-Za-z0-9_.:-]+$",
-            "title": "Idempotency Key",
-            "type": "string"
-          },
-          "package_slug": {
-            "default": "business",
-            "maxLength": 64,
-            "title": "Package Slug",
-            "type": "string"
-          },
-          "personal_note": {
-            "anyOf": [
-              {
-                "maxLength": 2000,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Personal Note"
-          },
-          "shared_calendar": {
-            "$ref": "#/components/schemas/SharedCalendarIn"
-          }
-        },
-        "required": [
-          "businesses",
-          "idempotency_key"
-        ],
-        "title": "CreateCustomerIn",
         "type": "object"
       },
       "CreateInviteBody": {
@@ -10398,55 +9940,6 @@
         "title": "DayUnitSortItem",
         "type": "object"
       },
-      "DerivedCut": {
-        "description": "A cut point a rule or a price adds on top of the operator's ``range_cuts``\n(landr-zcb24.18): read-only, computed like the ranges guests pick from.",
-        "properties": {
-          "source": {
-            "$ref": "#/components/schemas/DerivedCutSource"
-          },
-          "value": {
-            "title": "Value",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "value",
-          "source"
-        ],
-        "title": "DerivedCut",
-        "type": "object"
-      },
-      "DerivedCutSource": {
-        "description": "The rule that adds a derived cut: ``eligibility`` (a product's eligibility\nrules; id/label = the product), ``offer_rule`` (an offer's rules; id = the\noffer, label = the offered product), ``price_rule`` (an ``attribute_bands``\nprice) or ``occupancy`` (``occupancy_pricing`` child bands); id = the pricing\nrule, label = its price list.",
-        "properties": {
-          "id": {
-            "format": "uuid",
-            "title": "Id",
-            "type": "string"
-          },
-          "kind": {
-            "enum": [
-              "price_rule",
-              "offer_rule",
-              "eligibility",
-              "occupancy"
-            ],
-            "title": "Kind",
-            "type": "string"
-          },
-          "label": {
-            "title": "Label",
-            "type": "string"
-          }
-        },
-        "required": [
-          "kind",
-          "id",
-          "label"
-        ],
-        "title": "DerivedCutSource",
-        "type": "object"
-      },
       "DetailsFormAnswers": {
         "description": "Answers of one form, in the shape PUT takes: booking-scope ``answers``\nplus ``people`` keyed by booking_participant_id.",
         "properties": {
@@ -11575,9 +11068,7 @@
                 "enum": [
                   "locked",
                   "subset",
-                  "own",
-                  "first_day",
-                  "last_day"
+                  "own"
                 ],
                 "type": "string"
               },
@@ -12157,9 +11648,7 @@
                 "enum": [
                   "locked",
                   "subset",
-                  "own",
-                  "first_day",
-                  "last_day"
+                  "own"
                 ],
                 "type": "string"
               },
@@ -12275,9 +11764,7 @@
             "enum": [
               "locked",
               "subset",
-              "own",
-              "first_day",
-              "last_day"
+              "own"
             ],
             "title": "Schedule",
             "type": "string"
@@ -12404,62 +11891,6 @@
           "occurrences"
         ],
         "title": "EventWindow",
-        "type": "object"
-      },
-      "ExtraMembershipIn": {
-        "properties": {
-          "email": {
-            "maxLength": 320,
-            "minLength": 3,
-            "title": "Email",
-            "type": "string"
-          },
-          "locale": {
-            "anyOf": [
-              {
-                "enum": [
-                  "de",
-                  "it",
-                  "en",
-                  "es",
-                  "tr"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Locale"
-          },
-          "operator_index": {
-            "items": {
-              "type": "integer"
-            },
-            "maxItems": 10,
-            "minItems": 1,
-            "title": "Operator Index",
-            "type": "array"
-          },
-          "role": {
-            "enum": [
-              "owner",
-              "admin",
-              "staff",
-              "field",
-              "finance",
-              "readonly"
-            ],
-            "title": "Role",
-            "type": "string"
-          }
-        },
-        "required": [
-          "email",
-          "operator_index",
-          "role"
-        ],
-        "title": "ExtraMembershipIn",
         "type": "object"
       },
       "FanOutIn": {
@@ -12758,171 +12189,6 @@
           "slug"
         ],
         "title": "FlagTemplateIn",
-        "type": "object"
-      },
-      "FlowAgeBand": {
-        "description": "One age band of the cart (landr-zcb24.1): Child is 0-17 (exact age), an\nadult band is picked and stored as its floor ``min_age``. landr-zcb24.6 adds the\ngeneric range fields (``min`` / ``max`` exclusive / ``label``, the shape of\n``FlowRange``) and ``exact`` (true on Child: the exact age is asked).",
-        "properties": {
-          "exact": {
-            "default": false,
-            "title": "Exact",
-            "type": "boolean"
-          },
-          "key": {
-            "title": "Key",
-            "type": "string"
-          },
-          "label": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Label"
-          },
-          "label_localized": {
-            "additionalProperties": {
-              "type": "string"
-            },
-            "title": "Label Localized",
-            "type": "object"
-          },
-          "max": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Max"
-          },
-          "max_age": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Max Age"
-          },
-          "min": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Min"
-          },
-          "min_age": {
-            "title": "Min Age",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "key",
-          "min_age"
-        ],
-        "title": "FlowAgeBand",
-        "type": "object"
-      },
-      "FlowAttributeOut": {
-        "properties": {
-          "choices": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "string"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Choices"
-          },
-          "collect_as": {
-            "default": "exact",
-            "title": "Collect As",
-            "type": "string"
-          },
-          "key": {
-            "title": "Key",
-            "type": "string"
-          },
-          "label": {
-            "title": "Label",
-            "type": "string"
-          },
-          "label_localized": {
-            "additionalProperties": {
-              "type": "string"
-            },
-            "title": "Label Localized",
-            "type": "object"
-          },
-          "max_value": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Max Value"
-          },
-          "min_value": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Min Value"
-          },
-          "ranges": {
-            "items": {
-              "additionalProperties": true,
-              "type": "object"
-            },
-            "title": "Ranges",
-            "type": "array"
-          },
-          "unit": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Unit"
-          },
-          "value_type": {
-            "title": "Value Type",
-            "type": "string"
-          }
-        },
-        "required": [
-          "key",
-          "label",
-          "value_type"
-        ],
-        "title": "FlowAttributeOut",
         "type": "object"
       },
       "FlowFieldDef": {
@@ -13229,20 +12495,6 @@
             ],
             "title": "Choices"
           },
-          "collect_as": {
-            "default": "exact",
-            "enum": [
-              "exact",
-              "ranges"
-            ],
-            "title": "Collect As",
-            "type": "string"
-          },
-          "deferred": {
-            "default": false,
-            "title": "Deferred",
-            "type": "boolean"
-          },
           "key": {
             "title": "Key",
             "type": "string"
@@ -13279,18 +12531,6 @@
               }
             ],
             "title": "Min Value"
-          },
-          "ranges": {
-            "items": {
-              "$ref": "#/components/schemas/FlowRange"
-            },
-            "title": "Ranges",
-            "type": "array"
-          },
-          "required_now": {
-            "default": true,
-            "title": "Required Now",
-            "type": "boolean"
           },
           "unit": {
             "anyOf": [
@@ -13350,36 +12590,6 @@
           "position"
         ],
         "title": "FlowModuleDef",
-        "type": "object"
-      },
-      "FlowRange": {
-        "description": "One range of an attribute collected as ``ranges`` (landr-zcb24.6): ``min`` is\nstored when the guest picks it, ``max`` is the EXCLUSIVE upper edge (the next\nrange's ``min``; null = open-ended), ``label`` reads '<45 kg', '45-80 kg', '120+ kg'.",
-        "properties": {
-          "label": {
-            "title": "Label",
-            "type": "string"
-          },
-          "max": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Max"
-          },
-          "min": {
-            "title": "Min",
-            "type": "number"
-          }
-        },
-        "required": [
-          "min",
-          "label"
-        ],
-        "title": "FlowRange",
         "type": "object"
       },
       "ForecastItem": {
@@ -14245,40 +13455,10 @@
             ],
             "title": "Choices"
           },
-          "collect_as": {
-            "default": "exact",
-            "enum": [
-              "exact",
-              "ranges"
-            ],
-            "title": "Collect As",
-            "type": "string"
-          },
-          "collect_when": {
-            "default": "booking",
-            "enum": [
-              "booking",
-              "before_arrival"
-            ],
-            "title": "Collect When",
-            "type": "string"
-          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
             "type": "string"
-          },
-          "decisive": {
-            "default": false,
-            "title": "Decisive",
-            "type": "boolean"
-          },
-          "derived_cuts": {
-            "items": {
-              "$ref": "#/components/schemas/DerivedCut"
-            },
-            "title": "Derived Cuts",
-            "type": "array"
           },
           "id": {
             "format": "uuid",
@@ -14326,13 +13506,6 @@
             "format": "uuid",
             "title": "Operator Id",
             "type": "string"
-          },
-          "range_cuts": {
-            "items": {
-              "type": "number"
-            },
-            "title": "Range Cuts",
-            "type": "array"
           },
           "sort_order": {
             "title": "Sort Order",
@@ -14412,24 +13585,6 @@
             ],
             "title": "Choices"
           },
-          "collect_as": {
-            "default": "exact",
-            "enum": [
-              "exact",
-              "ranges"
-            ],
-            "title": "Collect As",
-            "type": "string"
-          },
-          "collect_when": {
-            "default": "booking",
-            "enum": [
-              "booking",
-              "before_arrival"
-            ],
-            "title": "Collect When",
-            "type": "string"
-          },
           "key": {
             "pattern": "^[a-z][a-z0-9_]{0,39}$",
             "title": "Key",
@@ -14469,14 +13624,6 @@
               }
             ],
             "title": "Min Value"
-          },
-          "range_cuts": {
-            "items": {
-              "type": "number"
-            },
-            "maxItems": 12,
-            "title": "Range Cuts",
-            "type": "array"
           },
           "sort_order": {
             "default": 0,
@@ -14543,36 +13690,6 @@
             ],
             "title": "Choices"
           },
-          "collect_as": {
-            "anyOf": [
-              {
-                "enum": [
-                  "exact",
-                  "ranges"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Collect As"
-          },
-          "collect_when": {
-            "anyOf": [
-              {
-                "enum": [
-                  "booking",
-                  "before_arrival"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Collect When"
-          },
           "label": {
             "anyOf": [
               {
@@ -14621,21 +13738,6 @@
               }
             ],
             "title": "Min Value"
-          },
-          "range_cuts": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "number"
-                },
-                "maxItems": 12,
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Range Cuts"
           },
           "sort_order": {
             "anyOf": [
@@ -14719,13 +13821,6 @@
           "guest_attributes": {
             "additionalProperties": true,
             "title": "Guest Attributes",
-            "type": "object"
-          },
-          "guest_attributes_display": {
-            "additionalProperties": {
-              "type": "string"
-            },
-            "title": "Guest Attributes Display",
             "type": "object"
           },
           "occupant_age": {
@@ -16242,32 +15337,6 @@
         "title": "InsurancePatchRequest",
         "type": "object"
       },
-      "IntegrationCredentialsListOut": {
-        "properties": {
-          "items": {
-            "items": {
-              "additionalProperties": true,
-              "type": "object"
-            },
-            "title": "Items",
-            "type": "array"
-          },
-          "stripe_connect": {
-            "$ref": "#/components/schemas/StripeConnectStatus"
-          },
-          "stripe_mode": {
-            "title": "Stripe Mode",
-            "type": "string"
-          }
-        },
-        "required": [
-          "items",
-          "stripe_mode",
-          "stripe_connect"
-        ],
-        "title": "IntegrationCredentialsListOut",
-        "type": "object"
-      },
       "InvitePrefillOut": {
         "additionalProperties": false,
         "description": "What an invite link may reveal \u2014 an ALLOWLIST, not a filter.\n\n``extra=\"forbid\"`` is the point of this model. The service resolves the\ninvite against the host's booking and naturally has its uuid and the\ncompanion row's id in hand; neither may cross to the browser. A raw booking\nuuid is a bearer capability here (``/api/public/bookings/{id}/cancel`` and\nthe ``.ics`` download take the bare id), so leaking the host's would let the\ninvitee cancel the booking that invited them. The widget never needs it\neither: it echoes the ``invite_token`` back on submit, and the server\nre-resolves.\n\nWith ``forbid``, a field added to the service payload later fails loudly\nhere instead of silently widening the anonymous surface.",
@@ -16782,86 +15851,6 @@
           "status"
         ],
         "title": "LastPaymentLink",
-        "type": "object"
-      },
-      "LedgerRow": {
-        "properties": {
-          "cost_usd": {
-            "title": "Cost Usd",
-            "type": "number"
-          },
-          "created_at": {
-            "title": "Created At",
-            "type": "string"
-          },
-          "id": {
-            "title": "Id",
-            "type": "integer"
-          },
-          "model": {
-            "title": "Model",
-            "type": "string"
-          },
-          "operator_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Operator Id"
-          },
-          "operator_name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Operator Name"
-          },
-          "session_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Session Id"
-          },
-          "stop_reason": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Stop Reason"
-          },
-          "tokens": {
-            "$ref": "#/components/schemas/UsageTokens"
-          }
-        },
-        "required": [
-          "id",
-          "created_at",
-          "operator_id",
-          "operator_name",
-          "session_id",
-          "model",
-          "tokens",
-          "cost_usd",
-          "stop_reason"
-        ],
-        "title": "LedgerRow",
         "type": "object"
       },
       "LicenseCreateRequest": {
@@ -18283,21 +17272,6 @@
         "title": "MemberProofIn",
         "type": "object"
       },
-      "MessageIn": {
-        "properties": {
-          "text": {
-            "maxLength": 4000,
-            "minLength": 1,
-            "title": "Text",
-            "type": "string"
-          }
-        },
-        "required": [
-          "text"
-        ],
-        "title": "MessageIn",
-        "type": "object"
-      },
       "MessagePostIn": {
         "additionalProperties": false,
         "properties": {
@@ -18446,24 +17420,6 @@
           }
         },
         "title": "MessageTemplatePatch",
-        "type": "object"
-      },
-      "MissingGuestKeyOut": {
-        "properties": {
-          "key": {
-            "title": "Key",
-            "type": "string"
-          },
-          "label": {
-            "title": "Label",
-            "type": "string"
-          }
-        },
-        "required": [
-          "key",
-          "label"
-        ],
-        "title": "MissingGuestKeyOut",
         "type": "object"
       },
       "MultiDaySavingsOut": {
@@ -19362,13 +18318,6 @@
       "OfferEvaluateOut": {
         "description": "Per request line, in request order. ``required_attribute_keys``: every\nguest attribute the cart's products and their candidate offers read -- the\nkeys the widget asks per guest before offers needing them can show.",
         "properties": {
-          "deferred_attribute_keys": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Deferred Attribute Keys",
-            "type": "array"
-          },
           "lines": {
             "items": {
               "$ref": "#/components/schemas/EvaluatedLine"
@@ -19481,9 +18430,7 @@
             "enum": [
               "locked",
               "subset",
-              "own",
-              "first_day",
-              "last_day"
+              "own"
             ],
             "title": "Schedule",
             "type": "string"
@@ -19833,9 +18780,7 @@
                 "enum": [
                   "locked",
                   "subset",
-                  "own",
-                  "first_day",
-                  "last_day"
+                  "own"
                 ],
                 "type": "string"
               },
@@ -20819,69 +19764,6 @@
           "currency"
         ],
         "title": "OfferTotals",
-        "type": "object"
-      },
-      "OnboardingCallConfig": {
-        "properties": {
-          "enabled": {
-            "default": false,
-            "title": "Enabled",
-            "type": "boolean"
-          },
-          "operator_slug": {
-            "default": "",
-            "maxLength": 63,
-            "title": "Operator Slug",
-            "type": "string"
-          },
-          "product_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Product Id"
-          }
-        },
-        "title": "OnboardingCallConfig",
-        "type": "object"
-      },
-      "OnboardingCallPublic": {
-        "properties": {
-          "enabled": {
-            "title": "Enabled",
-            "type": "boolean"
-          },
-          "product_slug": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Product Slug"
-          },
-          "widget_token": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Widget Token"
-          }
-        },
-        "required": [
-          "enabled"
-        ],
-        "title": "OnboardingCallPublic",
         "type": "object"
       },
       "OperatorLinkCalendarOut": {
@@ -22110,6 +20992,22 @@
             ],
             "title": "Widget Cross Sell Enabled"
           },
+          "widget_cross_sell_product_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                "maxItems": 200,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Widget Cross Sell Product Ids"
+          },
           "widget_description": {
             "anyOf": [
               {
@@ -22878,6 +21776,13 @@
             "title": "Widget Cross Sell Enabled",
             "type": "boolean"
           },
+          "widget_cross_sell_product_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Widget Cross Sell Product Ids",
+            "type": "array"
+          },
           "widget_description": {
             "anyOf": [
               {
@@ -23090,11 +21995,6 @@
             "title": "Slug",
             "type": "string"
           },
-          "sort_order": {
-            "default": 0,
-            "title": "Sort Order",
-            "type": "integer"
-          },
           "uses_pools": {
             "title": "Uses Pools",
             "type": "boolean"
@@ -23119,74 +22019,6 @@
           "pitch"
         ],
         "title": "OperatorTemplateOut",
-        "type": "object"
-      },
-      "OperatorUsage": {
-        "properties": {
-          "avg_cost_per_session_usd": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Avg Cost Per Session Usd"
-          },
-          "cost_usd": {
-            "title": "Cost Usd",
-            "type": "number"
-          },
-          "operator_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Operator Id"
-          },
-          "operator_name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Operator Name"
-          },
-          "requests": {
-            "title": "Requests",
-            "type": "integer"
-          },
-          "sessions": {
-            "title": "Sessions",
-            "type": "integer"
-          },
-          "tokens": {
-            "$ref": "#/components/schemas/UsageTokens"
-          },
-          "turns": {
-            "title": "Turns",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "operator_id",
-          "operator_name",
-          "sessions",
-          "turns",
-          "requests",
-          "tokens",
-          "cost_usd",
-          "avg_cost_per_session_usd"
-        ],
-        "title": "OperatorUsage",
         "type": "object"
       },
       "PackagePriceIn": {
@@ -23271,75 +22103,6 @@
           "lines"
         ],
         "title": "PartialCreditNoteIn",
-        "type": "object"
-      },
-      "ParticipantAnsweredOut": {
-        "description": "What one participant answered as a RANGE, shown as the range ('80-100 kg')\nand not as the floor that is stored (landr-zcb24.12).",
-        "properties": {
-          "guest_attributes_display": {
-            "additionalProperties": {
-              "type": "string"
-            },
-            "title": "Guest Attributes Display",
-            "type": "object"
-          },
-          "participant_id": {
-            "format": "uuid",
-            "title": "Participant Id",
-            "type": "string"
-          }
-        },
-        "required": [
-          "participant_id",
-          "guest_attributes_display"
-        ],
-        "title": "ParticipantAnsweredOut",
-        "type": "object"
-      },
-      "ParticipantAttributesIn": {
-        "additionalProperties": false,
-        "properties": {
-          "attributes": {
-            "additionalProperties": {
-              "anyOf": [
-                {
-                  "type": "boolean"
-                },
-                {
-                  "type": "integer"
-                },
-                {
-                  "type": "number"
-                },
-                {
-                  "type": "string"
-                },
-                {
-                  "items": {
-                    "type": "string"
-                  },
-                  "type": "array"
-                },
-                {
-                  "type": "null"
-                }
-              ]
-            },
-            "maxProperties": 32,
-            "title": "Attributes",
-            "type": "object"
-          },
-          "participant_id": {
-            "format": "uuid",
-            "title": "Participant Id",
-            "type": "string"
-          }
-        },
-        "required": [
-          "participant_id",
-          "attributes"
-        ],
-        "title": "ParticipantAttributesIn",
         "type": "object"
       },
       "ParticipantDayStatusIn": {
@@ -23643,61 +22406,6 @@
           "service_role_code"
         ],
         "title": "ParticipantIn",
-        "type": "object"
-      },
-      "ParticipantMissingKeysOut": {
-        "properties": {
-          "missing": {
-            "items": {
-              "$ref": "#/components/schemas/MissingGuestKeyOut"
-            },
-            "title": "Missing",
-            "type": "array"
-          },
-          "participant_id": {
-            "format": "uuid",
-            "title": "Participant Id",
-            "type": "string"
-          }
-        },
-        "required": [
-          "participant_id",
-          "missing"
-        ],
-        "title": "ParticipantMissingKeysOut",
-        "type": "object"
-      },
-      "ParticipantMissingOut": {
-        "properties": {
-          "first_name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "First Name"
-          },
-          "missing": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Missing",
-            "type": "array"
-          },
-          "participant_id": {
-            "format": "uuid",
-            "title": "Participant Id",
-            "type": "string"
-          }
-        },
-        "required": [
-          "participant_id",
-          "missing"
-        ],
-        "title": "ParticipantMissingOut",
         "type": "object"
       },
       "PartnerOut": {
@@ -27154,7 +25862,7 @@
       },
       "ProductAddon": {
         "additionalProperties": true,
-        "description": "One row returned by the offered_addons_for_parent RPC (landr-cip6 /\nepic landr-ie8g; offers only since landr-tm48v.25). Mirrors the widget's ``ProductAddon`` TypeScript\ninterface (src/api/types.ts) field-for-field.",
+        "description": "One row returned by the public_get_product_addons RPC (landr-cip6 /\nepic landr-ie8g). Mirrors the widget's ``ProductAddon`` TypeScript\ninterface (src/api/types.ts) field-for-field.",
         "properties": {
           "addon_product_id": {
             "title": "Addon Product Id",
@@ -27893,33 +26601,6 @@
         "additionalProperties": true,
         "description": "Response of GET \u2026/products/{id}/flow. Mirrors the widget's\n``ProductFlowResponse`` TypeScript interface (src/api/flowTypes.ts).\n``modules`` is null for products with no configured flow (legacy\nshape) or list of modules otherwise.",
         "properties": {
-          "age_bands": {
-            "items": {
-              "$ref": "#/components/schemas/FlowAgeBand"
-            },
-            "title": "Age Bands",
-            "type": "array"
-          },
-          "age_collect_as": {
-            "anyOf": [
-              {
-                "enum": [
-                  "exact",
-                  "ranges"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Age Collect As"
-          },
-          "age_needed": {
-            "default": false,
-            "title": "Age Needed",
-            "type": "boolean"
-          },
           "eligibility_reason_key": {
             "anyOf": [
               {
@@ -28221,6 +26902,34 @@
             "default": true,
             "title": "Active",
             "type": "boolean"
+          },
+          "addon_quantity_max": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Addon Quantity Max"
+          },
+          "addon_quantity_rule": {
+            "anyOf": [
+              {
+                "enum": [
+                  "one_per_booking",
+                  "one_per_participant",
+                  "any"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Addon Quantity Rule"
           },
           "booking_mode": {
             "default": "scheduled",
@@ -28993,10 +27702,25 @@
             "title": "Id",
             "type": "string"
           },
+          "legacy_addon_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Legacy Addon Id"
+          },
           "legacy_source": {
             "anyOf": [
               {
-                "const": "cross_sell",
+                "enum": [
+                  "product_addons",
+                  "cross_sell"
+                ],
                 "type": "string"
               },
               {
@@ -29072,9 +27796,7 @@
             "enum": [
               "locked",
               "subset",
-              "own",
-              "first_day",
-              "last_day"
+              "own"
             ],
             "title": "Schedule",
             "type": "string"
@@ -29148,6 +27870,34 @@
               }
             ],
             "title": "Active"
+          },
+          "addon_quantity_max": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Addon Quantity Max"
+          },
+          "addon_quantity_rule": {
+            "anyOf": [
+              {
+                "enum": [
+                  "one_per_booking",
+                  "one_per_participant",
+                  "any"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Addon Quantity Rule"
           },
           "booking_mode": {
             "anyOf": [
@@ -31358,47 +30108,6 @@
           "lng"
         ],
         "title": "RaiseSosRequest",
-        "type": "object"
-      },
-      "RangeOptionOut": {
-        "description": "One range staff can pick: ``min`` is the floor that gets stored, ``max`` the\nEXCLUSIVE upper edge (null for the last range).",
-        "properties": {
-          "label": {
-            "title": "Label",
-            "type": "string"
-          },
-          "max": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Max"
-          },
-          "min": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "number"
-              }
-            ],
-            "title": "Min"
-          }
-        },
-        "required": [
-          "min",
-          "max",
-          "label"
-        ],
-        "title": "RangeOptionOut",
         "type": "object"
       },
       "RecipientSetIn": {
@@ -36495,6 +35204,29 @@
         "title": "ServiceRolePatch",
         "type": "object"
       },
+      "SessionIn": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "maxLength": 32,
+            "minLength": 1,
+            "title": "Code",
+            "type": "string"
+          },
+          "participant_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Participant Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "participant_id"
+        ],
+        "title": "SessionIn",
+        "type": "object"
+      },
       "SetSiteWarningPublisherRequest": {
         "properties": {
           "can_publish": {
@@ -36707,26 +35439,6 @@
           "whatsapp_url"
         ],
         "title": "ShareMessage",
-        "type": "object"
-      },
-      "SharedCalendarIn": {
-        "properties": {
-          "enabled": {
-            "default": false,
-            "title": "Enabled",
-            "type": "boolean"
-          },
-          "level": {
-            "default": "occupancy",
-            "enum": [
-              "occupancy",
-              "details"
-            ],
-            "title": "Level",
-            "type": "string"
-          }
-        },
-        "title": "SharedCalendarIn",
         "type": "object"
       },
       "ShortLinkCreateIn": {
@@ -37914,11 +36626,6 @@
             "title": "Slug",
             "type": "string"
           },
-          "sort_order": {
-            "default": 0,
-            "title": "Sort Order",
-            "type": "integer"
-          },
           "tier_listing": {
             "$ref": "#/components/schemas/TierListingOut",
             "default": {}
@@ -38655,94 +37362,6 @@
           "code"
         ],
         "title": "StayEstimateError",
-        "type": "object"
-      },
-      "StripeConnectReturnIn": {
-        "properties": {
-          "state": {
-            "maxLength": 2048,
-            "minLength": 1,
-            "title": "State",
-            "type": "string"
-          }
-        },
-        "required": [
-          "state"
-        ],
-        "title": "StripeConnectReturnIn",
-        "type": "object"
-      },
-      "StripeConnectStartOut": {
-        "properties": {
-          "status": {
-            "$ref": "#/components/schemas/StripeConnectStatus"
-          },
-          "url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Url"
-          }
-        },
-        "required": [
-          "url",
-          "status"
-        ],
-        "title": "StripeConnectStartOut",
-        "type": "object"
-      },
-      "StripeConnectStatus": {
-        "description": "Non-secret Connect state. Never carries the account id.",
-        "properties": {
-          "available": {
-            "title": "Available",
-            "type": "boolean"
-          },
-          "charges_enabled": {
-            "title": "Charges Enabled",
-            "type": "boolean"
-          },
-          "connected": {
-            "title": "Connected",
-            "type": "boolean"
-          },
-          "details_submitted": {
-            "title": "Details Submitted",
-            "type": "boolean"
-          },
-          "mode": {
-            "enum": [
-              "test",
-              "live"
-            ],
-            "title": "Mode",
-            "type": "string"
-          },
-          "status": {
-            "enum": [
-              "not_started",
-              "onboarding",
-              "active",
-              "deauthorized"
-            ],
-            "title": "Status",
-            "type": "string"
-          }
-        },
-        "required": [
-          "connected",
-          "mode",
-          "status",
-          "available",
-          "charges_enabled",
-          "details_submitted"
-        ],
-        "title": "StripeConnectStatus",
         "type": "object"
       },
       "SubmitBookingResponse": {
@@ -39825,23 +38444,6 @@
         "title": "TemplateCompare",
         "type": "object"
       },
-      "TemplateOrderIn": {
-        "properties": {
-          "slugs": {
-            "items": {
-              "type": "string"
-            },
-            "maxItems": 500,
-            "title": "Slugs",
-            "type": "array"
-          }
-        },
-        "required": [
-          "slugs"
-        ],
-        "title": "TemplateOrderIn",
-        "type": "object"
-      },
       "TemplateOut": {
         "properties": {
           "flow": {
@@ -39903,11 +38505,6 @@
           "slug": {
             "title": "Slug",
             "type": "string"
-          },
-          "sort_order": {
-            "default": 0,
-            "title": "Sort Order",
-            "type": "integer"
           },
           "uses_pools": {
             "title": "Uses Pools",
@@ -40294,54 +38891,6 @@
           "recipients"
         ],
         "title": "TodayMessagePostIn",
-        "type": "object"
-      },
-      "TourPrefsPatch": {
-        "properties": {
-          "tours": {
-            "maxProperties": 50,
-            "patternProperties": {
-              "^[a-z0-9][a-z0-9_-]{0,63}$": {
-                "$ref": "#/components/schemas/TourStatePatch"
-              }
-            },
-            "title": "Tours",
-            "type": "object"
-          }
-        },
-        "required": [
-          "tours"
-        ],
-        "title": "TourPrefsPatch",
-        "type": "object"
-      },
-      "TourStatePatch": {
-        "properties": {
-          "completed": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Completed"
-          },
-          "seenAt": {
-            "anyOf": [
-              {
-                "maxLength": 40,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Seenat"
-          }
-        },
-        "title": "TourStatePatch",
         "type": "object"
       },
       "TrelloBoardLinkCreate": {
@@ -41470,98 +40019,6 @@
         "title": "UploadPhotoRequest",
         "type": "object"
       },
-      "UsageTokens": {
-        "properties": {
-          "cache_read": {
-            "title": "Cache Read",
-            "type": "integer"
-          },
-          "cache_write": {
-            "title": "Cache Write",
-            "type": "integer"
-          },
-          "input": {
-            "title": "Input",
-            "type": "integer"
-          },
-          "output": {
-            "title": "Output",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "input",
-          "output",
-          "cache_read",
-          "cache_write"
-        ],
-        "title": "UsageTokens",
-        "type": "object"
-      },
-      "UsageTotals": {
-        "properties": {
-          "avg_cost_per_session_usd": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Avg Cost Per Session Usd"
-          },
-          "cost_usd": {
-            "title": "Cost Usd",
-            "type": "number"
-          },
-          "hard_cap_usd": {
-            "title": "Hard Cap Usd",
-            "type": "number"
-          },
-          "pct_of_hard": {
-            "title": "Pct Of Hard",
-            "type": "number"
-          },
-          "pct_of_soft": {
-            "title": "Pct Of Soft",
-            "type": "number"
-          },
-          "requests": {
-            "title": "Requests",
-            "type": "integer"
-          },
-          "sessions": {
-            "title": "Sessions",
-            "type": "integer"
-          },
-          "soft_cap_usd": {
-            "title": "Soft Cap Usd",
-            "type": "number"
-          },
-          "tokens": {
-            "$ref": "#/components/schemas/UsageTokens"
-          },
-          "turns": {
-            "title": "Turns",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "sessions",
-          "turns",
-          "requests",
-          "tokens",
-          "cost_usd",
-          "avg_cost_per_session_usd",
-          "soft_cap_usd",
-          "hard_cap_usd",
-          "pct_of_soft",
-          "pct_of_hard"
-        ],
-        "title": "UsageTotals",
-        "type": "object"
-      },
       "ValidationError": {
         "properties": {
           "ctx": {
@@ -42486,50 +40943,6 @@
           "notes"
         ],
         "title": "RejectIn",
-        "type": "object"
-      },
-      "app__routers__public_today__SessionIn": {
-        "additionalProperties": false,
-        "properties": {
-          "code": {
-            "maxLength": 32,
-            "minLength": 1,
-            "title": "Code",
-            "type": "string"
-          },
-          "participant_id": {
-            "maxLength": 64,
-            "minLength": 1,
-            "title": "Participant Id",
-            "type": "string"
-          }
-        },
-        "required": [
-          "code",
-          "participant_id"
-        ],
-        "title": "SessionIn",
-        "type": "object"
-      },
-      "app__routers__staff_ai_onboarding__SessionIn": {
-        "properties": {
-          "locale": {
-            "anyOf": [
-              {
-                "enum": [
-                  "de",
-                  "en"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Locale"
-          }
-        },
-        "title": "SessionIn",
         "type": "object"
       },
       "app__routers__staff_commission__RuleIn": {
@@ -45479,108 +43892,6 @@
         ]
       }
     },
-    "/api/landr-staff/ai-settings": {
-      "patch": {
-        "operationId": "patch_ai_settings",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/AiSettingsPatch"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AiSettingsOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Patch Ai Settings",
-        "tags": [
-          "landr-staff-ai-usage"
-        ]
-      }
-    },
-    "/api/landr-staff/ai-usage": {
-      "get": {
-        "operationId": "get_ai_usage",
-        "parameters": [
-          {
-            "description": "YYYY-MM; default the current month (UTC)",
-            "in": "query",
-            "name": "month",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "YYYY-MM; default the current month (UTC)",
-              "title": "Month"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AiUsageOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Get Ai Usage",
-        "tags": [
-          "landr-staff-ai-usage"
-        ]
-      }
-    },
     "/api/landr-staff/billing/invoices": {
       "get": {
         "operationId": "list_invoices",
@@ -46665,55 +44976,6 @@
         ]
       }
     },
-    "/api/landr-staff/customers": {
-      "post": {
-        "description": "Create the customer's businesses, invites and links. 201 on a first run,\n200-shaped body with ``replayed: true`` on an idempotent replay.",
-        "operationId": "create_customer",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateCustomerIn"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Create Customer",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Create Customer",
-        "tags": [
-          "landr-staff-customers"
-        ]
-      }
-    },
     "/api/landr-staff/me/capabilities": {
       "get": {
         "description": "Return the caller's resolved staff capability block (staff-only).\n\n403 (landr_staff_required) if the caller maps to no public.users row or\nresolves to a non-staff account (no umbrella flag and no role facet).",
@@ -47391,76 +45653,6 @@
         "summary": "Put Package Price",
         "tags": [
           "landr-staff-plan-terms"
-        ]
-      }
-    },
-    "/api/landr-staff/platform-settings/onboarding-call": {
-      "get": {
-        "operationId": "get_onboarding_call_config",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/OnboardingCallConfig"
-                }
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Get Onboarding Call Config",
-        "tags": [
-          "landr-staff-platform-settings"
-        ]
-      },
-      "put": {
-        "operationId": "put_onboarding_call_config",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/OnboardingCallConfig"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/OnboardingCallConfig"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Put Onboarding Call Config",
-        "tags": [
-          "landr-staff-platform-settings"
         ]
       }
     },
@@ -48668,57 +46860,6 @@
           }
         ],
         "summary": "Landr Staff Flag Template",
-        "tags": [
-          "landr-staff-templates"
-        ]
-      }
-    },
-    "/api/landr-staff/templates/order": {
-      "put": {
-        "description": "Set the gallery order (landr-x6o87): positions 0..n-1 follow ``slugs``;\ntemplates not named follow. Authored on staging only; every other tier\nmirrors it and answers 403 ``listing_edited_on_staging``.",
-        "operationId": "landr_staff_set_template_order",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/TemplateOrderIn"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/StaffTemplateOut"
-                  },
-                  "title": "Response Landr Staff Set Template Order",
-                  "type": "array"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Landr Staff Set Template Order",
         "tags": [
           "landr-staff-templates"
         ]
@@ -50494,64 +48635,6 @@
         ]
       }
     },
-    "/api/operators/{operator_id}/bookings/{booking_id}/guest-attributes/missing": {
-      "get": {
-        "description": "Per participant, the before-arrival guest details still missing (landr-zcb24.15).",
-        "operationId": "staff_get_booking_missing_guest_attributes",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "operator_id",
-            "required": true,
-            "schema": {
-              "title": "Operator Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "booking_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Booking Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BookingMissingAttributesOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Get Booking Missing Guest Attributes",
-        "tags": [
-          "staff-booking-guest-attributes"
-        ]
-      }
-    },
     "/api/operators/{operator_id}/bookings/{booking_id}/participants/{participant_id}/attributes": {
       "patch": {
         "operationId": "patch_participant_attributes",
@@ -50858,7 +48941,7 @@
     },
     "/api/operators/{operator_id}/guest-attribute-definitions": {
       "get": {
-        "description": "The operator's attribute catalogue: the five well-known keys plus custom ones, each numeric\none with the rule-derived cut points (``derived_cuts``) and the rule that adds each.",
+        "description": "The operator's attribute catalogue: the five well-known keys plus custom ones.",
         "operationId": "list_guest_attribute_definitions",
         "parameters": [
           {
@@ -51488,7 +49571,7 @@
     },
     "/api/operators/{operator_id}/offers/{offer_id}": {
       "delete": {
-        "description": "Delete an offer (a cross-sell row included).",
+        "description": "Delete an offer. A migrated add-on is removed by deleting its\nproduct_addons link; a cross-sell row is deleted directly.",
         "operationId": "delete_product_offer",
         "parameters": [
           {
@@ -51537,7 +49620,7 @@
         ]
       },
       "patch": {
-        "description": "Update the fields sent, on the offer row only; 409\n``offer_owned_by_legacy_source`` for parent / product of a cross-sell row.",
+        "description": "Update the fields sent. A migrated add-on writes them through to its\nproduct_addons link in one transaction (409 ``addon_link_exists`` for a\nduplicate parent/add-on pair, ``binding_not_applicable``,\n``product_cap_overrides`` for a cleared max_qty under the product's own cap);\n409 ``offer_owned_by_legacy_source`` for parent / product of a cross-sell row\nor a null parent on a migrated add-on.",
         "operationId": "patch_product_offer",
         "parameters": [
           {
@@ -51668,32 +49751,6 @@
         "summary": "Patch Product Eligibility Rules",
         "tags": [
           "staff-product-offers"
-        ]
-      }
-    },
-    "/api/platform-settings/onboarding-call": {
-      "get": {
-        "operationId": "get_onboarding_call",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/OnboardingCallPublic"
-                }
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Get Onboarding Call",
-        "tags": [
-          "platform-settings"
         ]
       }
     },
@@ -52709,100 +50766,6 @@
         "summary": "List Checkins",
         "tags": [
           "public-briefings"
-        ]
-      }
-    },
-    "/api/public/briefings/{token}/guest-attributes": {
-      "get": {
-        "description": "The before-arrival guest details still missing, per participant.",
-        "operationId": "public_briefing_get_guest_attributes",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "token",
-            "required": true,
-            "schema": {
-              "title": "Token",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BriefingGuestAttributesOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Get Briefing Guest Attributes",
-        "tags": [
-          "public-briefings-guest-attributes"
-        ]
-      },
-      "put": {
-        "description": "Store before-arrival values per participant; returns what is still missing.\n\n422 ``attribute_not_collectable`` (``key``) for a key the page may not collect\n(decisive, ``age``, not asked by this booking); 422 ``attribute_invalid`` /\n``attribute_unknown`` as the public submit; 404 for a participant who is not on\nthis booking. Nothing is written unless every participant validates.",
-        "operationId": "public_briefing_put_guest_attributes",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "token",
-            "required": true,
-            "schema": {
-              "title": "Token",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/BriefingGuestAttributesIn"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BriefingGuestAttributesOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Put Briefing Guest Attributes",
-        "tags": [
-          "public-briefings-guest-attributes"
         ]
       }
     },
@@ -54443,7 +52406,7 @@
     },
     "/api/public/products/{product_id}/addons": {
       "get": {
-        "description": "Add-ons configured for a parent product (landr-cip6 / epic landr-ie8g).\n\nThin FastAPI wrapper over the service-role RPC\n`offered_addons_for_parent` (landr-tm48v.25). Returns one row per linked add-on\nproduct, including the add-on's display name, per-unit price (when\nthe scheme exposes a per_day_base rule), and the offer's config\n(is_required = mandatory, min_qty, max_qty, sort_order; landr-tm48v.2:\nthe RPC reads ``offers`` -- rows needing guests or dates are left out,\nPOST /offers/evaluate judges those). The widget\ncalls this after the customer picks a parent product to render\nqty steppers + the orange overbook warning + required-min gating.\n\nReturns an empty list when the parent has no add-ons (including\nwhen the parent itself is hidden \u2014 see RPC docstring); the widget\ntreats an empty list as \"no add-ons\" and skips the add-on UI.",
+        "description": "Add-ons configured for a parent product (landr-cip6 / epic landr-ie8g).\n\nThin FastAPI wrapper over the SECURITY DEFINER RPC\n`public_get_product_addons`. Returns one row per linked add-on\nproduct, including the add-on's display name, per-unit price (when\nthe scheme exposes a per_day_base rule), and the offer's config\n(is_required = mandatory, min_qty, max_qty, sort_order; landr-tm48v.2:\nthe RPC reads ``offers`` -- rows needing guests or dates are left out,\nPOST /offers/evaluate judges those). The widget\ncalls this after the customer picks a parent product to render\nqty steppers + the orange overbook warning + required-min gating.\n\nReturns an empty list when the parent has no add-ons (including\nwhen the parent itself is hidden \u2014 see RPC docstring); the widget\ntreats an empty list as \"no add-ons\" and skips the add-on UI.",
         "operationId": "get_product_addons",
         "parameters": [
           {
@@ -55860,7 +53823,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/app__routers__public_today__SessionIn"
+                "$ref": "#/components/schemas/SessionIn"
               }
             }
           },
@@ -57295,80 +55258,6 @@
         ]
       }
     },
-    "/api/staff/me/tour-prefs": {
-      "get": {
-        "operationId": "get_tour_prefs",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Get Tour Prefs",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Get Tour Prefs",
-        "tags": [
-          "user-ui-prefs"
-        ]
-      },
-      "patch": {
-        "operationId": "patch_tour_prefs",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/TourPrefsPatch"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Patch Tour Prefs",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Patch Tour Prefs",
-        "tags": [
-          "user-ui-prefs"
-        ]
-      }
-    },
     "/api/staff/operators": {
       "post": {
         "description": "Create an additional FREE-tier operator owned by the caller.\n\nResponses: 201 `{operator_id, slug}`; 422 `invalid_slug` /\n`unknown_preset_key` (+ suggestions on the former); 409 `slug_taken` +\nsuggestions; 403 `not_a_member` (no `public.users` row); 403\n`free_tier_limit` (owns live operators, none paid, landr-981dz); 429\n`rate_limited` (5/user/day).",
@@ -57809,246 +55698,6 @@
         "summary": "Agent Earnings Summary",
         "tags": [
           "staff-commission"
-        ]
-      }
-    },
-    "/api/staff/operators/{operator_id}/ai-onboarding/health": {
-      "get": {
-        "operationId": "get_health",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "operator_id",
-            "required": true,
-            "schema": {
-              "title": "Operator Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Get Health",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Get Health",
-        "tags": [
-          "ai-onboarding"
-        ]
-      }
-    },
-    "/api/staff/operators/{operator_id}/ai-onboarding/sessions": {
-      "post": {
-        "operationId": "create_or_resume_session",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "operator_id",
-            "required": true,
-            "schema": {
-              "title": "Operator Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/app__routers__staff_ai_onboarding__SessionIn"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Create Or Resume Session",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Create Or Resume Session",
-        "tags": [
-          "ai-onboarding"
-        ]
-      }
-    },
-    "/api/staff/operators/{operator_id}/ai-onboarding/sessions/{session_id}/accepted": {
-      "post": {
-        "operationId": "record_accepted",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "operator_id",
-            "required": true,
-            "schema": {
-              "title": "Operator Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "session_id",
-            "required": true,
-            "schema": {
-              "title": "Session Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/AcceptedIn"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Record Accepted",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Record Accepted",
-        "tags": [
-          "ai-onboarding"
-        ]
-      }
-    },
-    "/api/staff/operators/{operator_id}/ai-onboarding/sessions/{session_id}/messages": {
-      "post": {
-        "operationId": "post_message",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "operator_id",
-            "required": true,
-            "schema": {
-              "title": "Operator Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "session_id",
-            "required": true,
-            "schema": {
-              "title": "Session Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/MessageIn"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Post Message",
-        "tags": [
-          "ai-onboarding"
         ]
       }
     },
@@ -67421,7 +65070,9 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/IntegrationCredentialsListOut"
+                  "additionalProperties": true,
+                  "title": "Response List Integration Credentials",
+                  "type": "object"
                 }
               }
             },
@@ -73467,58 +71118,6 @@
         ]
       }
     },
-    "/api/staff/operators/{operator_id}/products/remove-samples": {
-      "post": {
-        "description": "landr-lxrt7.1 \u2014 soft-delete every sample product of the operator: cloned\nfrom a template (``template_origin_slug`` set), still unpublished\n(``is_publicly_listed`` false) and never booked. Same soft-delete as the\nsingle delete. ``skipped`` counts the samples that were kept because they\nare published or have bookings. Scoped to the path operator (the membership\ndependency checks the caller belongs to it).",
-        "operationId": "remove_sample_products",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "operator_id",
-            "required": true,
-            "schema": {
-              "title": "Operator Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": {
-                    "type": "integer"
-                  },
-                  "title": "Response Remove Sample Products",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Remove Sample Products",
-        "tags": [
-          "staff-products"
-        ]
-      }
-    },
     "/api/staff/operators/{operator_id}/products/{product_id}": {
       "delete": {
         "operationId": "delete_product",
@@ -78220,7 +75819,7 @@
         ]
       },
       "put": {
-        "description": "Create or update the ONE add-on product selling this rentable type\n(``products.is_addon_only``), its price (a ``per_day_base`` rule), its\nstock requirement (``block``; per booking when ``max_per_booking`` is 1,\nelse per participant) and \u2014 when ``parent_product_ids`` is sent \u2014 the\nservice products it is offered under (``offers``). Idempotent.\n422 ``facet_required`` unless the type is ``rentable``; 422\n``parent_invalid`` for a parent that is not a bookable service product\n(rental add-ons are booking-level, never attached to a room). Removing\nthe facet (PATCH) retires the product \u2014 409 ``rental_has_future_bookings``\nwhile upcoming bookings use it.",
+        "description": "Create or update the ONE add-on product selling this rentable type\n(``products.is_addon_only``), its price (a ``per_day_base`` rule), its\nstock requirement (``block``; per booking when ``max_per_booking`` is 1,\nelse per participant) and \u2014 when ``parent_product_ids`` is sent \u2014 the\nservice products it is offered under (``product_addons``). Idempotent.\n422 ``facet_required`` unless the type is ``rentable``; 422\n``parent_invalid`` for a parent that is not a bookable service product\n(rental add-ons are booking-level, never attached to a room). Removing\nthe facet (PATCH) retires the product \u2014 409 ``rental_has_future_bookings``\nwhile upcoming bookings use it.",
         "operationId": "put_resource_type_rental",
         "parameters": [
           {
@@ -82181,110 +79780,6 @@
         ]
       }
     },
-    "/api/staff/operators/{operator_id}/stripe-connect/return": {
-      "post": {
-        "operationId": "return_stripe_connect",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "operator_id",
-            "required": true,
-            "schema": {
-              "title": "Operator Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/StripeConnectReturnIn"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StripeConnectStatus"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Return Stripe Connect",
-        "tags": [
-          "staff-operator-stripe-connect"
-        ]
-      }
-    },
-    "/api/staff/operators/{operator_id}/stripe-connect/start": {
-      "post": {
-        "operationId": "start_stripe_connect",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "operator_id",
-            "required": true,
-            "schema": {
-              "title": "Operator Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StripeConnectStartOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Start Stripe Connect",
-        "tags": [
-          "staff-operator-stripe-connect"
-        ]
-      }
-    },
     "/api/staff/operators/{operator_id}/subscription-holders/{holder_id}/cancel": {
       "post": {
         "description": "Cancel on Stripe, then flip the holder to 'cancelled' (terminal).\n\nIdempotent: the RPC's terminal-status guard is `status = 'cancelled' AND\nintent <> 'cancel'` \u2014 'cancel' itself is exempt, so re-cancelling an\nalready-cancelled holder re-applies the same UPDATE and still comes back\nhandled=true. A double-click is a safe no-op, not an error.",
@@ -85044,30 +82539,6 @@
         "summary": "Holded Webhook",
         "tags": [
           "holded-webhook"
-        ]
-      }
-    },
-    "/api/webhooks/stripe-connect": {
-      "post": {
-        "description": "Platform Connect webhook (landr-lgd9x.6).\n\n1. Verify with the PLATFORM Connect signing secret (503 when unset).\n2. Resolve the operator ONLY from ``event.account`` + the env mode in\n   ``operator_stripe_connect_accounts``; an unknown account, a missing\n   account or a livemode/tier mismatch is a 200 no-op (Stripe must not\n   retry an event that is not ours).\n3. Dedupe on ``event.id`` (ledger written after success, so a failed\n   attempt is retried by Stripe and not swallowed).\n4. ``account.*`` events update the stored flags; everything else runs\n   through ``_handle_verified_event`` \u2014 the same operator-scoped guards\n   and RPCs as the per-operator endpoint.",
-        "operationId": "stripe_connect_webhook",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Stripe Connect Webhook",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "summary": "Stripe Connect Webhook",
-        "tags": [
-          "stripe-webhook"
         ]
       }
     },
