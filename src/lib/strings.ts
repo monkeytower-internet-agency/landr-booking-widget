@@ -323,6 +323,8 @@ export type Bundle = {
   perNightSuffix: string
   roomAssignmentLegend: string
   assignEveryoneToARoomCue: string
+  halfFullRoomCueTemplate: string
+  halfFullRoomsCueTemplate: string
   stayNightsLabel: string
   hotelPaidAtCheckin: string
   completeStepsAboveToContinue: string
@@ -359,6 +361,13 @@ export type Bundle = {
   occupancyChildBandFree: string
   guestAgeRequired: string
   agePlaceholder: string
+  bookerAdultConfirm: string
+  ageRefineIntro: string
+  ageRefineChoose: string
+  bookerAdultRequired: string
+  exactAgeAria: string
+  exactAgeRequired: string
+  bookerExactAgeRequired: string
   guestAttrsTitle: string
   guestAttrsIntro: string
   guestAttrsFallback: string
@@ -368,6 +377,7 @@ export type Bundle = {
   guestAttrsOk: string
   guestAttrsInvalid: string
   guestAttrsRange: string
+  guestAttrsLater: string
   breakfastLabel: string
   emptyLabel: string
   swapInHereLabel: string
@@ -438,6 +448,16 @@ export type Bundle = {
   guestsPayingForThemselves: string
   guestsPayingForThemselvesExplainer: string
   guestFallbackTemplate: string
+  occupancyEmptyRoomOneTemplate: string
+  occupancyEmptyRoomsManyTemplate: string
+  occupancyNeedsOneMoreGuestTemplate: string
+  occupancyNeedsMoreGuestsTemplate: string
+  occupancyAddAnotherGuestTemplate: string
+  occupancyAddMoreGuestsTemplate: string
+  occupancyFillEachRoomTemplate: string
+  occupancySharedDoubleOneTemplate: string
+  occupancySharedDoubleManyTemplate: string
+  occupancyAssignEveryoneTemplate: string
   readyToConfirm: string
   /** landr-xpbt2: review step's confirm box label — the final step, not "Next: continue". */
   reviewStepCueLabel: string
@@ -772,6 +792,7 @@ export type Bundle = {
   underbookGuestsManyRoomsTemplate: string
   underbookGuestsOneRoomTemplate: string
   offerOccupancyCap: string
+  offerOccupancyCapMany: string
 
   // ---- FullyBookedNotice / ViewToggle / catalog ----
   fullyBookedLabel: string
@@ -1032,6 +1053,11 @@ export type Bundle = {
   offerOptionRequired: string
   offerOptionForTemplate: string
   offerPeriodLocked: string
+  offerOnArrivalDay: string
+  offerOnDepartureDay: string
+  offerOnFirstDay: string
+  offerOnLastDay: string
+  cleaningFeeOnDay: string
   offerPickDays: string
   offerAutoFor: string
   offerQuantity: string
@@ -1380,6 +1406,8 @@ const en: Bundle = {
   perNightSuffix: '/ night',
   roomAssignmentLegend: 'Room assignment',
   assignEveryoneToARoomCue: 'assign everyone to a room',
+  halfFullRoomCueTemplate: '{room} has a free bed — add a guest who stays with you, or choose a smaller room',
+  halfFullRoomsCueTemplate: '{rooms} have a free bed — add guests who stay with you, or choose smaller rooms',
   stayNightsLabel: 'Stay',
   hotelPaidAtCheckin:
     'Hotel is paid directly at check-in (cash / card) — not included in your booking total.',
@@ -1425,6 +1453,13 @@ const en: Bundle = {
   occupancyChildBandFree: 'children {from}-{to} free',
   guestAgeRequired: 'Please select the age of each child.',
   agePlaceholder: 'Age',
+  bookerAdultConfirm: 'I am 18 or older',
+  ageRefineIntro: 'The extras you added use a finer age grouping. Please choose the age group again for:',
+  ageRefineChoose: 'Choose age group',
+  bookerAdultRequired: 'Please confirm that you are 18 or older to book.',
+  exactAgeAria: 'Age',
+  exactAgeRequired: 'Please enter the age of each guest.',
+  bookerExactAgeRequired: 'Please enter your age (18 or older) to book.',
   guestAttrsTitle: 'About your guests',
   guestAttrsIntro: 'A few details per guest, so we can prepare the right gear and price.',
   guestAttrsFallback: 'Guest {n}',
@@ -1434,6 +1469,7 @@ const en: Bundle = {
   guestAttrsOk: 'All guest details are in.',
   guestAttrsInvalid: 'Please check this value.',
   guestAttrsRange: '{min}-{max}',
+  guestAttrsLater: "You can add this later — we'll ask before your arrival",
   breakfastLabel: 'Breakfast',
   emptyLabel: 'Empty',
   swapInHereLabel: 'Swap in here',
@@ -1509,6 +1545,16 @@ const en: Bundle = {
     "participants who book and pay for their own guiding separately. They're added to the hotel headcount " +
     "and room assignment, but not to this booking's activity or price.",
   guestFallbackTemplate: 'Guest {n}',
+  occupancyEmptyRoomOneTemplate: '{list} has no guests yet — assign someone or remove the room.',
+  occupancyEmptyRoomsManyTemplate: 'These rooms have no guests yet: {list}. Assign someone to each, or remove the empty rooms.',
+  occupancyNeedsOneMoreGuestTemplate: '{room} needs {need} more guest',
+  occupancyNeedsMoreGuestsTemplate: '{room} needs {need} more guests',
+  occupancyAddAnotherGuestTemplate: '{list} — add another guest or book a smaller room.',
+  occupancyAddMoreGuestsTemplate: '{list} — add more guests or book a smaller room.',
+  occupancyFillEachRoomTemplate: '{list}. Fill each room or book smaller rooms.',
+  occupancySharedDoubleOneTemplate: 'Only your own bed is the shared double — {names} still needs a room.',
+  occupancySharedDoubleManyTemplate: 'Only your own bed is the shared double — {names} still need a room.',
+  occupancyAssignEveryoneTemplate: 'Assign everyone to a room — still waiting on: {names}.',
   readyToConfirm: 'Ready to confirm.',
   reviewStepCueLabel: 'Last step: confirm your booking',
   submittingYourBookingEllipsis: 'Submitting your booking…',
@@ -1814,13 +1860,14 @@ const en: Bundle = {
   eachSuffix: 'each',
   overbookManyRoomsTemplate: 'More {addon} ({qty}) than these {roomQty} rooms sleep ({expected}) — bringing extras?',
   overbookOneRoomTemplate: 'More {addon} ({qty}) than this room sleeps ({expected}) — bringing extras?',
-  underbookManyRoomsTemplate: 'Only {qty} {addon} for {roomQty} rooms ({expected} guests) — one per room?',
-  underbookOneRoomTemplate: 'Only {qty} {addon} for a room that sleeps {expected} — one per guest?',
+  underbookManyRoomsTemplate: '{Addon} for {qty} of {expected} beds in these {roomQty} rooms — one per room?',
+  underbookOneRoomTemplate: '{Addon} for {qty} of {expected} beds in this room — one per guest?',
   overbookGuestsManyRoomsTemplate: 'More {addon} ({qty}) than the {expected} guests in these {roomQty} rooms — bringing extras?',
   overbookGuestsOneRoomTemplate: 'More {addon} ({qty}) than the {expected} guests in this room — bringing extras?',
-  underbookGuestsManyRoomsTemplate: 'Only {qty} {addon} for {roomQty} rooms with {expected} guests — one per guest?',
-  underbookGuestsOneRoomTemplate: 'Only {qty} {addon} for {expected} guests in this room — one per guest?',
-  offerOccupancyCap: "Limited to the room's occupancy ({expected})",
+  underbookGuestsManyRoomsTemplate: '{Addon} for {qty} of {expected} guests in these {roomQty} rooms — one per guest?',
+  underbookGuestsOneRoomTemplate: '{Addon} for {qty} of {expected} guests in this room — one per guest?',
+  offerOccupancyCap: 'Up to {expected} — one per guest in this room',
+  offerOccupancyCapMany: 'Up to {expected} — one per guest in these rooms',
 
   fullyBookedLabel: 'Fully booked',
   fullyBookedBlurb: 'There are no upcoming dates available for this product right now. Please check back later.',
@@ -2072,6 +2119,11 @@ const en: Bundle = {
   offerOptionRequired: 'Please choose an option.',
   offerOptionForTemplate: 'Option for {name}',
   offerPeriodLocked: 'For your whole stay: {period}',
+  offerOnArrivalDay: 'On your arrival day: {day}',
+  offerOnDepartureDay: 'On your check-out day: {day}',
+  offerOnFirstDay: 'On the first day: {day}',
+  offerOnLastDay: 'On the last day: {day}',
+  cleaningFeeOnDay: 'Cleaning fee · {day}',
   offerPickDays: 'Pick the days',
   offerAutoFor: 'Added for {names}',
   offerQuantity: 'Quantity',
@@ -2536,6 +2588,7 @@ export function addonDeviationMessage(
         ? g ? t.underbookGuestsManyRoomsTemplate : t.underbookManyRoomsTemplate
         : g ? t.underbookGuestsOneRoomTemplate : t.underbookOneRoomTemplate
   return template
+    .replace('{Addon}', addonName)
     .replace('{addon}', addonName.toLowerCase())
     .replace('{qty}', String(qty))
     .replace('{roomQty}', String(roomQty))

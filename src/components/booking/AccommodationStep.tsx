@@ -60,7 +60,9 @@ import {
   partyRef,
   picksBlocking,
   reconcile,
+  clampRoomStepperQty,
   roomExtraQty,
+  settleRoomStepperPicks,
   roomLineId,
   seedMandatory,
   type OfferPick,
@@ -73,6 +75,7 @@ import { formatDayLabel } from './dateLabel'
 import {
   accommodationTooLateMessage,
   additionalAccommodationRequiredHint,
+  fmt,
   hostRoomFullMessage,
   inviteRoomBookedNotice,
   inviteRoomHint,
@@ -586,7 +589,6 @@ export function AccommodationStep({
   // per-room `{room: {product: qty}}` map the breakfast chips and the review
   // read is derived from it.
   const [roomPicks, setRoomPicks] = useState<OfferPick[]>(() => initialRoomPicks ?? [])
-  const addonSelection = useMemo(() => roomExtraQty(roomPicks), [roomPicks])
 
   // landr-gb2f.2: participant → room assignment. participantIndex →
   // {roomProductId, unitIndex}. Seeded from initialAssignment on back-nav
@@ -1001,6 +1003,40 @@ export function AccommodationStep({
   })()
   const offerMembers = useJsonMemo<PartyMember[]>(offerMembersKey)
   const roomOfferLines = useMemo(() => evaluateLines(offerTree, roomPicks), [offerTree, roomPicks])
+  // How many of a per-person room extra (Breakfast) a room type can take: the
+  // guests assigned to it (none yet: what the booked units sleep), never more
+  // than the booked units sleep.
+  const roomCaps = useMemo(() => {
+    const caps: Record<string, number> = {}
+    for (const room of rooms ?? []) {
+      const qty = selection[room.product_id] ?? 0
+      if (qty <= 0) continue
+      const assigned = occupantsByProduct.get(room.product_id)?.length ?? 0
+      const sleeps = typeof room.capacity_per_unit === 'number' ? room.capacity_per_unit * qty : undefined
+      caps[room.product_id] =
+        assigned > 0 ? (sleeps !== undefined ? Math.min(assigned, sleeps) : assigned) : (room.capacity_per_unit ?? 1) * qty
+    }
+    return caps
+  }, [rooms, selection, occupantsByProduct])
+  // The room extras as the rest of the step reads them. A per-person extra
+  // under a room is a quantity (the stepper) clamped to the room's cap; WHO
+  // holds it is only the Who-stays-where chips, so the picks' guests follow
+  // the chip holders. Derived on every render (never an effect), so a room
+  // quantity decrease or an occupant move cannot leave a stale breakfast.
+  const clampedPicks = useMemo(() => clampRoomStepperQty(roomPicks, roomCaps), [roomPicks, roomCaps])
+  const addonSelection = useMemo(() => roomExtraQty(clampedPicks), [clampedPicks])
+  const holdersByRoom = useMemo(() => {
+    const held = clampBreakfastMap(assignment, addonSelection, breakfastMap)
+    const holders: Record<string, string[]> = {}
+    for (const [room, idxs] of occupantsByProduct.entries()) {
+      holders[room] = idxs.filter((i) => held[i] === true).flatMap((i) => (offerMembers[i] ? [offerMembers[i].key] : []))
+    }
+    return holders
+  }, [assignment, addonSelection, breakfastMap, occupantsByProduct, offerMembers])
+  const settledRoomPicks = useMemo(
+    () => settleRoomStepperPicks(clampedPicks, holdersByRoom, offerMembers),
+    [clampedPicks, holdersByRoom, offerMembers],
+  )
   const roomOfferGuests = useMemo(
     () => offerMembers.map((m) => ({ id: m.ref, attributes: m.attributes })),
     [offerMembers],
@@ -1011,6 +1047,33 @@ export function AccommodationStep({
     guests: roomOfferGuests,
     enabled: bookRooms && bookedRooms.length > 0,
   })
+  // Display-only prefetch: one line per room type (qty 1), asked as soon as
+  // the room list is in, so a room's offer rows show the moment its quantity
+  // goes above 0 instead of after the exact verdict. The exact verdict
+  // (roomOffers) still gates Continue and wins wherever it has answered.
+  const prefetchLines = useMemo(
+    () =>
+      evaluateLines(
+        cartTree(
+          product,
+          selectedDays,
+          bookRooms ? (rooms ?? []).map((r) => ({ productId: r.product_id, quantity: 1 })) : [],
+        ),
+        [],
+      ),
+    [product, selectedDays, bookRooms, rooms],
+  )
+  const prefetchedOffers = useOffers({
+    widgetToken: operatorToken,
+    lines: prefetchLines,
+    guests: roomOfferGuests,
+    enabled: bookRooms && (rooms?.length ?? 0) > 0,
+    debounceMs: 0,
+  })
+  const roomVerdicts = useMemo(
+    () => ({ ...prefetchedOffers.byLine, ...roomOffers.byLine }),
+    [prefetchedOffers.byLine, roomOffers.byLine],
+  )
   // A fresh verdict: drop what no longer fits, preselect the mandatory ones.
   const handledRoomVerdict = useRef<string | null>(null)
   useEffect(() => {
@@ -1027,13 +1090,16 @@ export function AccommodationStep({
   }, [roomOffers.answeredKey, roomOffers.isPending, roomOffers.byLine, offerTree, offerMembers])
   // Report picks made in the room offer rows live (the room steppers and
   // mode switches report their own changes).
-  const reportedPicks = useRef(roomPicks)
+  const picksSignature = (picks: readonly OfferPick[]) =>
+    JSON.stringify(picks.map((p) => [p.lineId, p.quantity, p.memberIds, p.options, p.days]))
+  const settledSignature = picksSignature(settledRoomPicks)
+  const reportedSignature = useRef(settledSignature)
   useEffect(() => {
-    if (reportedPicks.current === roomPicks) return
-    reportedPicks.current = roomPicks
-    notifyLiveAccommodation(mode, selection, roomPicks)
+    if (reportedSignature.current === settledSignature) return
+    reportedSignature.current = settledSignature
+    notifyLiveAccommodation(mode, selection, settledRoomPicks)
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only a pick change reports here
-  }, [roomPicks])
+  }, [settledSignature])
   // Room offers wait for their verdict once a room type is in the cart.
   const addonCatalogueReady =
     !bookRooms || rooms !== null && (bookedRooms.length === 0 || roomOffers.answeredKey !== null || roomOffers.checkFailed)
@@ -1138,7 +1204,7 @@ export function AccommodationStep({
   // landr-yybu: addonSelection is now per-room, so look up
   // (addonSelection[roomId] ?? {})[addon_product_id].
   // A room offer still waiting for an option or a day blocks Continue.
-  const unmetRequiredAddon = bookRooms && picksBlocking(picksOfBookedRooms(roomPicks, selection))
+  const unmetRequiredAddon = bookRooms && picksBlocking(picksOfBookedRooms(settledRoomPicks, selection))
 
   // landr-87n9.3: OCCUPANCY GATING (package mode). Continue is blocked until
   // EVERY booked room unit has >= 1 occupant AND every party member
@@ -1182,16 +1248,22 @@ export function AccommodationStep({
   // Continue. Empty rooms take priority (they need a person); otherwise the
   // unassigned-people message. Member labels use the chip names ("Guest N"
   // fallback) so the hint matches what the customer sees.
-  const occupancyHint = useMemo(() => {
+  const occupancyHint = (() => {
     if (occupancy.complete) return ''
     if (occupancy.emptyUnits.length > 0) {
       const labels = occupancy.emptyUnits.map(
         (u) => `${u.roomName} #${u.unitIndex + 1}`,
       )
       const list = labels.join(', ')
-      return occupancy.emptyUnits.length === 1
-        ? `${list} has no guests yet — assign someone or remove the room.`
-        : `These rooms have no guests yet: ${list}. Assign someone to each, or remove the empty rooms.`
+      return fmt(
+        tr(
+          occupancy.emptyUnits.length === 1
+            ? 'occupancyEmptyRoomOneTemplate'
+            : 'occupancyEmptyRoomsManyTemplate',
+          locale,
+        ),
+        { list },
+      )
     }
     // A booked unit holding fewer guests than its capacity (e.g. a double room
     // with a single person) blocks Continue until it is filled or swapped for a
@@ -1199,39 +1271,74 @@ export function AccommodationStep({
     if (occupancy.partialUnits.length > 0) {
       const labels = occupancy.partialUnits.map((u) => {
         const need = u.capacity - occupantsOfUnit(assignment, u).length
-        return `${u.roomName} #${u.unitIndex + 1} needs ${need} more ${
-          need === 1 ? 'guest' : 'guests'
-        }`
+        return fmt(
+          tr(
+            need === 1
+              ? 'occupancyNeedsOneMoreGuestTemplate'
+              : 'occupancyNeedsMoreGuestsTemplate',
+            locale,
+          ),
+          { room: `${u.roomName} #${u.unitIndex + 1}`, need },
+        )
       })
       const list = labels.join('; ')
-      return occupancy.partialUnits.length === 1
-        ? `${list} — add ${
-            occupancy.partialUnits[0]!.capacity -
-              occupantsOfUnit(assignment, occupancy.partialUnits[0]!).length ===
-            1
-              ? 'another guest'
-              : 'more guests'
-          } or book a smaller room.`
-        : `${list}. Fill each room or book smaller rooms.`
+      if (occupancy.partialUnits.length === 1) {
+        const only = occupancy.partialUnits[0]!
+        const lastNeed = only.capacity - occupantsOfUnit(assignment, only).length
+        return fmt(
+          tr(
+            lastNeed === 1
+              ? 'occupancyAddAnotherGuestTemplate'
+              : 'occupancyAddMoreGuestsTemplate',
+            locale,
+          ),
+          { list },
+        )
+      }
+      return fmt(tr('occupancyFillEachRoomTemplate', locale), { list })
     }
     const names = occupancy.unassignedMembers.map((i) => {
       const n = (partyMemberNames[i] ?? '').trim()
-      return n.length > 0 ? n : `Guest ${i + 1}`
+      return n.length > 0
+        ? n
+        : fmt(tr('guestFallbackTemplate', locale), { n: i + 1 })
     })
     // landr-zeg4u.5: in shared-double only the other guiding participants
     // block — companions may stay unplaced — so don't ask for "everyone".
     if (sharedDoubleRooms) {
-      return `Only your own bed is the shared double — ${names.join(', ')} still ${
-        names.length === 1 ? 'needs' : 'need'
-      } a room.`
+      return fmt(
+        tr(
+          names.length === 1
+            ? 'occupancySharedDoubleOneTemplate'
+            : 'occupancySharedDoubleManyTemplate',
+          locale,
+        ),
+        { names: names.join(', ') },
+      )
     }
-    return `Assign everyone to a room — still waiting on: ${names.join(', ')}.`
-  }, [occupancy, partyMemberNames, assignment, sharedDoubleRooms])
+    return fmt(tr('occupancyAssignEveryoneTemplate', locale), {
+      names: names.join(', '),
+    })
+  })()
 
   // landr-80ubl.3: one-next-action rule — RoomAssignment wraps itself in
   // NextAction when this is non-null; once occupancy is complete the
   // highlight moves down to Continue instead (no cue).
-  const roomAssignmentCue = occupancy.complete ? null : tr('assignEveryoneToARoomCue', locale)
+  // Blocked only by a half-full room (everyone has a room): name the room, not
+  // "assign everyone".
+  const roomAssignmentCue = occupancy.complete
+    ? null
+    : occupancy.partialUnits.length > 0 &&
+        occupancy.emptyUnits.length === 0 &&
+        occupancy.unassignedMembers.length === 0
+      ? fmt(
+          tr(occupancy.partialUnits.length === 1 ? 'halfFullRoomCueTemplate' : 'halfFullRoomsCueTemplate', locale),
+          {
+            room: `${occupancy.partialUnits[0]!.roomName} #${occupancy.partialUnits[0]!.unitIndex + 1}`,
+            rooms: occupancy.partialUnits.map((u) => `${u.roomName} #${u.unitIndex + 1}`).join(', '),
+          },
+        )
+      : tr('assignEveryoneToARoomCue', locale)
 
   // landr-395ks: shared-double allows a partly filled room on purpose (a
   // partner may take a double), but the room is charged whole — surface a
@@ -1314,15 +1421,24 @@ export function AccommodationStep({
     if (next === 0) delete out[productId]
 
     // A room type set to 0 drops the offers taken under it (and theirs).
-    const nextPicks = next === 0 ? roomPicks.filter((p) => p.parentLineId !== roomLineId(productId)) : roomPicks
+    const kept = next === 0 ? roomPicks.filter((p) => p.parentLineId !== roomLineId(productId)) : roomPicks
+    // Fewer units sleep fewer: the room extras taken under it follow (a later
+    // increase does not bring the old quantity back).
+    const sleeps = (rooms ?? []).find((r) => r.product_id === productId)?.capacity_per_unit
+    const nextPicks =
+      delta < 0 && next > 0 && typeof sleeps === 'number'
+        ? clampRoomStepperQty(kept, { [productId]: sleeps * next })
+        : kept
     if (nextPicks !== roomPicks) {
-      reportedPicks.current = nextPicks
       setRoomPicks(nextPicks)
     }
 
     setSelection(out)
-    // landr-87n9.2: report the new room set live (with the picks left).
-    notifyLiveAccommodation(mode, out, nextPicks)
+    // landr-87n9.2: report the new room set live (with the picks left, their
+    // guests named by the chip holders).
+    const settled = settleRoomStepperPicks(nextPicks, holdersByRoom, offerMembers)
+    reportedSignature.current = picksSignature(settled)
+    notifyLiveAccommodation(mode, out, settled)
   }
 
   // landr-gb2f.2: manual (re)assignment from RoomAssignment. target=null
@@ -1437,7 +1553,7 @@ export function AccommodationStep({
     // package mode (or shared-double + additional rooms) — rooms required.
     if (roomSelections.length === 0) return
     // The offers taken under the room types still in the cart.
-    const confirmedPicks = picksOfBookedRooms(roomPicks, selection)
+    const confirmedPicks = picksOfBookedRooms(settledRoomPicks, selection)
     // landr-gb2f.2: prune the assignment to the units actually present at
     // confirm time (guards against a dangling reference if a room was just
     // dropped between the last auto-assign and Continue).
@@ -1997,8 +2113,8 @@ export function AccommodationStep({
                     // two room types is ordered independently per room.
                     <OfferTree
                       parentLineId={roomLineId(room.product_id)}
-                      verdicts={roomOffers.byLine}
-                      picks={roomPicks}
+                      verdicts={roomVerdicts}
+                      picks={settledRoomPicks}
                       onPicksChange={setRoomPicks}
                       tree={offerTree}
                       members={offerMembers}
@@ -2007,13 +2123,7 @@ export function AccommodationStep({
                       currency={room.currency ?? product.currency ?? 'EUR'}
                       isPending={roomOffers.isPending}
                       showParentless={false}
-                      maxOccupancy={
-                        // Assigned guests; none assigned to this room type yet
-                        // falls back to what the booked units sleep.
-                        (occupantsByProduct.get(room.product_id)?.length ?? 0) > 0
-                          ? occupantsByProduct.get(room.product_id)!.length
-                          : (room.capacity_per_unit ?? 1) * qty
-                      }
+                      maxOccupancy={roomCaps[room.product_id] ?? (room.capacity_per_unit ?? 1) * qty}
                       occupancyBasis={
                         (occupantsByProduct.get(room.product_id)?.length ?? 0) > 0 ? 'guests' : 'capacity'
                       }

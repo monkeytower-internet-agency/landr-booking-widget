@@ -4,12 +4,17 @@ import {
   addPick,
   cartTree,
   clampOfferQty,
+  clampRoomStepperQty,
+  isRoomStepperOffer,
+  settleRoomStepperPicks,
   depthOf,
   effectiveSchedule,
   evaluateLines,
   extraOfferEstimateLines,
   guestsWire,
   instantGate,
+  lineDays,
+  lineIsStay,
   MAIN_LINE_ID,
   mainEstimateLines,
   MAX_EVALUATE_LINES,
@@ -472,5 +477,114 @@ describe('review fixes', () => {
     const withPick = [newPick(offer('pass'), MAIN_LINE_ID, 'o1', DAYS)]
     expect([...orphanExtraKeys(extras, tree, withPick)]).toEqual([])
     expect([...orphanExtraKeys(extras, tree, [])].sort()).toEqual(['shoes', 'tour'])
+  })
+})
+
+describe('one-day schedules (first_day / last_day)', () => {
+  const stayTree: OfferTreeInput = {
+    main: { lineId: MAIN_LINE_ID, productId: STAY, parentLineId: null, days: DAYS, isStay: true },
+  }
+  const activityTree: OfferTreeInput = {
+    main: { lineId: MAIN_LINE_ID, productId: STAY, parentLineId: null, days: DAYS },
+  }
+  const pickOf = (schedule: 'first_day' | 'last_day', tree: OfferTreeInput) => {
+    const o = offer(schedule, { schedule })
+    return newPick(o, tree.main.lineId, 'o1', DAYS)
+  }
+
+  it('carries no days of its own', () => {
+    expect(pickOf('first_day', stayTree).days).toEqual([])
+    expect(pickOf('last_day', stayTree).schedule).toBe('last_day')
+  })
+
+  it('stay parent: arrival is the first night, departure the last night plus one', () => {
+    expect(lineDays('o1', stayTree, [pickOf('first_day', stayTree)])).toEqual(['2027-05-01'])
+    expect(lineDays('o1', stayTree, [pickOf('last_day', stayTree)])).toEqual(['2027-05-05'])
+  })
+
+  it('departure rolls over a month end', () => {
+    const tree: OfferTreeInput = {
+      main: { ...stayTree.main, days: ['2027-05-30', '2027-05-31'] },
+    }
+    expect(lineDays('o1', tree, [pickOf('last_day', tree)])).toEqual(['2027-06-01'])
+  })
+
+  it('non-stay parent: its first / last day', () => {
+    expect(lineDays('o1', activityTree, [pickOf('first_day', activityTree)])).toEqual(['2027-05-01'])
+    expect(lineDays('o1', activityTree, [pickOf('last_day', activityTree)])).toEqual(['2027-05-04'])
+  })
+
+  it('ignores the order of the parent days', () => {
+    const tree: OfferTreeInput = { main: { ...activityTree.main, days: [...DAYS].reverse() } }
+    expect(lineDays('o1', tree, [pickOf('last_day', tree)])).toEqual(['2027-05-04'])
+  })
+
+  it('sends the single day on the wire', () => {
+    const lines = evaluateLines(stayTree, [pickOf('last_day', stayTree)])
+    expect(lines.find((l) => l.line_id === 'o1')?.selected_days).toEqual(['2027-05-05'])
+  })
+
+  it('cartTree marks rooms and a stay main as stays', () => {
+    const t = cartTree({ product_id: 'p', product_kind: 'stay' }, DAYS, [
+      { productId: 'r1', quantity: 1 } as never,
+    ])
+    expect(t.main.isStay).toBe(true)
+    expect(t.rooms?.[0]?.isStay).toBe(true)
+    expect(cartTree({ product_id: 'p' }, DAYS).main.isStay).toBe(false)
+    expect(lineIsStay('main', stayTree, [])).toBe(true)
+    expect(lineIsStay('main', activityTree, [])).toBe(false)
+  })
+
+  it('resolves a stay-kind parent pick from its offer', () => {
+    const parent = newPick(offer('p', { product_kind: 'stay' }), MAIN_LINE_ID, 'o1', DAYS)
+    const child = { ...newPick(offer('c', { schedule: 'last_day' }), 'o1', 'o2', DAYS) }
+    expect(lineDays('o2', activityTree, [parent, child])).toEqual(['2027-05-05'])
+  })
+})
+
+describe('room stepper picks (landr-ey8fx)', () => {
+  const bf = offer('bf', { binding: 'person' })
+  const stepper = (quantity: number, memberIds: string[] = []) => ({
+    ...newPick(bf, 'r-r1', 'a1', DAYS),
+    quantity,
+    memberIds,
+  })
+  const members = [
+    { key: 'm1', ref: 'g1', name: 'A', attributes: {} },
+    { key: 'm2', ref: 'g2', name: 'B', attributes: {} },
+  ]
+
+  it('counts the stepper quantity of a fresh pick', () => {
+    expect(roomExtraQty([stepper(2)])).toEqual({ r1: { 'p-bf': 2 } })
+  })
+
+  it('clamps quantity (and named guests) to the room cap', () => {
+    const [p] = clampRoomStepperQty([stepper(2, ['m1', 'm2'])], { r1: 1 })
+    expect(p).toMatchObject({ quantity: 1, memberIds: ['m1'] })
+    const same = [stepper(1)]
+    expect(clampRoomStepperQty(same, { r1: 2 })).toBe(same)
+  })
+
+  it('names the chip holders, else the first guests', () => {
+    expect(settleRoomStepperPicks([stepper(1)], { r1: ['m2'] }, members)[0]).toMatchObject({ memberIds: ['m2'], quantity: 1 })
+    expect(settleRoomStepperPicks([stepper(2)], {}, members)[0]).toMatchObject({ memberIds: ['m1', 'm2'], quantity: 2 })
+    const settled = [stepper(1, ['m2'])]
+    expect(settleRoomStepperPicks(settled, { r1: ['m2'] }, members)).toBe(settled)
+  })
+
+  it('does not treat a person offer with options or under a non-room parent as a stepper', () => {
+    expect(isRoomStepperOffer(bf, 'r-r1')).toBe(true)
+    expect(isRoomStepperOffer(bf, 'main')).toBe(false)
+    expect(isRoomStepperOffer({ ...bf, options: [{ key: 'k', label: 'K', price_delta_cents: 0 }] }, 'r-r1')).toBe(false)
+    expect(isRoomStepperOffer({ ...bf, mode: 'mandatory' }, 'r-r1')).toBe(false)
+  })
+
+  it('priceLabel quotes the unit price when asked', () => {
+    const o = {
+      collection: 'online' as const,
+      price_preview: { quantity: 1, unit_price_cents: 1200, total_cents: 9600, price_unit: 'guest_night' as const, currency: 'EUR' },
+    }
+    expect(priceLabel(o, 'en', undefined, 'EUR', true).text).toMatch(/12[.,]00.*guest/)
+    expect(priceLabel(o, 'en', undefined, 'EUR').text).toMatch(/96[.,]00/)
   })
 })

@@ -17,6 +17,7 @@ import {
   estimateLinesFor,
   instantGate,
   lineDays,
+  lineIsStay,
   MAX_OFFER_DEPTH,
   type OfferPick,
   type OfferTreeInput,
@@ -126,6 +127,7 @@ export function OfferTree(props: OfferTreeProps) {
         })
       : []
   const parentDays = lineDays(parentLineId, tree, picks)
+  const parentIsStay = lineIsStay(parentLineId, tree, picks)
 
   return (
     <div
@@ -154,6 +156,7 @@ export function OfferTree(props: OfferTreeProps) {
               offer={offer}
               parentLineId={parentLineId}
               parentDays={parentDays}
+              parentIsStay={parentIsStay}
               pick={pick}
               members={members}
               tree={tree}

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type {
@@ -1795,6 +1795,71 @@ describe('AccommodationStep', () => {
   })
 })
 
+describe('AccommodationStep — per-person room breakfast is a stepper (landr-ey8fx)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mocks.getAvailability.mockResolvedValue([])
+  })
+  const personBreakfast = (roomId: string) =>
+    breakfastOffer(roomId, {
+      binding: 'person',
+      price_preview: { quantity: 1, unit_price_cents: 1200, total_cents: 9600, price_unit: 'guest_night', currency: 'EUR' },
+    })
+
+  it('steppers under the room, unit price, clamps to the room cap on 2 -> 1 rooms', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([makeRoom('single-room', 'Single Room', 49, 1)])
+    mockRoomOffers((id) => [personBreakfast(id)])
+    const onLive = vi.fn()
+
+    render(
+      <AccommodationStep
+        product={makeService('mandatory')}
+        selectedDays={['2026-06-10']}
+        operatorToken="para42"
+        participantCount={2}
+        participantNames={['Olaf', 'Matthias']}
+        onConfirm={vi.fn()}
+        onBack={vi.fn()}
+        onLiveAccommodationChange={onLive}
+      />,
+    )
+
+    await waitFor(() => expect(screen.getByText('Single Room')).toBeInTheDocument())
+    const inc = () => screen.getByRole('button', { name: /Increase Single Room quantity/i })
+    fireEvent.click(inc())
+    fireEvent.click(inc())
+    await waitFor(() => expect(bfPlus('single-room')).toBeInTheDocument())
+
+    // No tick list of the party; the unit price, not the €96 total.
+    expect(screen.queryByTestId('offer-who-bf-single-room-g1')).toBeNull()
+    expect(screen.getByTestId('offer-price').textContent).toMatch(/12[.,]00/)
+    expect(screen.getByTestId('offer-price').textContent).not.toMatch(/96/)
+
+    fireEvent.click(bfPlus('single-room'))
+    fireEvent.click(bfPlus('single-room'))
+    expect(bfQty('single-room').textContent).toBe('2')
+    expect(bfPlus('single-room')).toBeDisabled()
+    // Who holds the two breakfasts is the chips, named in the live picks.
+    await waitFor(() => {
+      const picks = onLive.mock.lastCall![1] as OfferPick[]
+      expect(picks).toHaveLength(1)
+      expect(picks[0]!.quantity).toBe(2)
+      expect(picks[0]!.memberIds).toHaveLength(2)
+    })
+
+    // 2 single rooms -> 1: the breakfasts follow the room.
+    fireEvent.click(screen.getByRole('button', { name: /Decrease Single Room quantity/i }))
+    await waitFor(() => expect(bfQty('single-room').textContent).toBe('1'))
+    await waitFor(() => {
+      const picks = onLive.mock.lastCall![1] as OfferPick[]
+      expect(picks[0]!.quantity).toBe(1)
+      expect(picks[0]!.memberIds).toHaveLength(1)
+    })
+    expect(roomExtraQty(onLive.mock.lastCall![1] as OfferPick[])).toEqual({ 'single-room': { 'bf-1': 1 } })
+  })
+})
+
 describe('AccommodationStep — companions + occupancy gating (landr-87n9.3)', () => {
   beforeEach(() => {
     mockRoomOffers()
@@ -3290,5 +3355,81 @@ describe('AccommodationStep offer stock (landr-h8n0k)', () => {
     fireEvent.click(bfPlus('room-a'))
     fireEvent.click(bfPlus('room-a'))
     await waitFor(() => expect(bfPlus('room-a')).toBeDisabled())
+  })
+})
+
+describe('AccommodationStep — breakfast cap wording, half-full reason, instant offer rows', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mocks.getAvailability.mockResolvedValue([])
+  })
+
+  const personBreakfast = (roomId: string) => breakfastOffer(roomId, { binding: 'person' })
+  const renderStep = (participantCount: number, names: string[], companionNames: string[] = []) =>
+    render(
+      <AccommodationStep
+        product={makeService('mandatory')}
+        selectedDays={['2026-06-10']}
+        operatorToken="para42"
+        participantCount={participantCount}
+        participantNames={names}
+        companionNames={companionNames}
+        onConfirm={vi.fn()}
+        onBack={vi.fn()}
+      />,
+    )
+
+  it('names the half-full room as the reason, not "assign everyone"', async () => {
+    mockRoomOffers()
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([makeRoom('double-room', 'Standard Double Room', 73, 2)])
+    renderStep(1, ['Ada'])
+    await waitFor(() => expect(screen.getByText('Standard Double Room')).toBeInTheDocument())
+    fireEvent.click(screen.getByRole('button', { name: /Increase Standard Double Room quantity/i }))
+    await waitFor(() => expect(screen.getByTestId('room-assignment-next-action')).toHaveTextContent(/free bed/))
+    const cue = screen.getByTestId('room-assignment-next-action')
+    expect(cue).toHaveTextContent('Standard Double Room #1 has a free bed')
+    expect(cue).not.toHaveTextContent(/assign everyone/i)
+    expect(screen.getByRole('button', { name: /Continue/i })).toBeDisabled()
+  })
+
+  it('shows the breakfast row the moment a room is added, before the exact verdict, and keeps Continue off', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([
+      makeRoom('single-room', 'Single Room', 49, 1),
+      makeRoom('double-room', 'Double Room', 73, 2),
+    ])
+    mocks.getOffers.mockImplementation((body) => {
+      // The prefetch names every room type; the exact verdict (only the
+      // booked ones) never lands in this test.
+      if (!body.lines.some((l) => l.line_id === 'r-single-room')) return new Promise<OfferEvaluateResponse>(() => {})
+      return Promise.resolve({
+        lines: body.lines.map((l) => ({
+          line_id: l.line_id,
+          eligible: true,
+          draft: false,
+          offers: l.line_id.startsWith('r-') ? [personBreakfast(l.line_id.slice(2))] : [],
+        })),
+        required_attribute_keys: [],
+      })
+    })
+    renderStep(2, ['Ada', 'Bob'])
+    await waitFor(() => expect(screen.getByText('Double Room')).toBeInTheDocument())
+    // The prefetch asks for every room type in one request.
+    await waitFor(() => expect(mocks.getOffers).toHaveBeenCalled())
+    expect(mocks.getOffers.mock.calls[0]![0].lines.map((l) => l.line_id)).toEqual(
+      expect.arrayContaining(['r-single-room', 'r-double-room']),
+    )
+    await act(async () => {})
+
+    fireEvent.click(screen.getByRole('button', { name: /Increase Double Room quantity/i }))
+    // The exact request is out and unanswered, yet the row is already there.
+    await waitFor(() =>
+      expect(mocks.getOffers.mock.calls.some((c) => !c[0].lines.some((l) => l.line_id === 'r-single-room'))).toBe(true),
+    )
+    expect(bfPlus('double-room')).toBeInTheDocument()
+    // Everyone has a bed, but the exact verdict is pending.
+    await waitFor(() => expect(screen.getByText(/Everyone has a room/i)).toBeInTheDocument())
+    expect(screen.getByRole('button', { name: /Continue/i })).toBeDisabled()
   })
 })

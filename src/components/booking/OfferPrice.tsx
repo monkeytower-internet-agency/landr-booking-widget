@@ -8,10 +8,12 @@ interface Props {
   /** The estimate lines this pick produced, once it is priced. */
   estimate?: readonly EstimateLineItem[]
   currency?: string
+  /** Quote the unit price ("€12.00 / guest / night"), never a total. */
+  unit?: boolean
 }
 
-export function OfferPrice({ offer, locale, estimate, currency }: Props) {
-  const { text, tone } = priceLabel(offer, locale, estimate, currency)
+export function OfferPrice({ offer, locale, estimate, currency, unit }: Props) {
+  const { text, tone } = priceLabel(offer, locale, estimate, currency, unit)
   return (
     <span
       data-testid="offer-price"

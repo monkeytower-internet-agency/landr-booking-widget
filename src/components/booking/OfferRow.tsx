@@ -2,7 +2,9 @@
  * One offer of a cart line: who it is for (binding), whose days (schedule),
  * whether it may be left out (mode) and how it is paid (collection).
  *
- *  - person   a tick per guest (+ an option per ticked guest);
+ *  - person   a tick per guest (+ an option per ticked guest); under a room
+ *             type, an optional one without options is a quantity stepper
+ *             (who holds it is the room assignment's chips);
  *  - booking  one toggle for the booking (+ an option);
  *  - free     a quantity stepper;
  *  - locked   the parent's period, read-only; subset: day chips inside it.
@@ -21,8 +23,10 @@ import {
   addPick,
   admittedMembers,
   clampOfferQty,
+  anchoredDay,
   effectiveSchedule,
   isOfferSoldOut,
+  isRoomStepperOffer,
   missingOption,
   newPick,
   nextLineId,
@@ -52,6 +56,8 @@ interface Props {
   parentLineId: string
   parentDays: readonly string[]
   pick: OfferPick | undefined
+  /** The parent line is a stay: its days are nights (anchors the one-day schedules). */
+  parentIsStay?: boolean
   members: readonly PartyMember[]
   tree: OfferTreeInput
   /** Pick ids this surface mints: `o` (review) / `a` (accommodation). */
@@ -80,6 +86,7 @@ export function OfferRow({
   offer,
   parentLineId,
   parentDays,
+  parentIsStay = false,
   pick,
   members,
   tree,
@@ -146,8 +153,9 @@ export function OfferRow({
     onPicksChange((prev) => (pick ? toggleSubsetDay(prev, pick.lineId, day, parentDays) : prev))
 
   const qty = pick?.quantity ?? 0
+  const roomStepper = isRoomStepperOffer(offer, parentLineId)
   const occupancyCap =
-    offer.binding === 'free' && parentLineId.startsWith('r-') && maxOccupancy !== undefined
+    (offer.binding === 'free' || roomStepper) && parentLineId.startsWith('r-') && maxOccupancy !== undefined
       ? maxOccupancy
       : undefined
   const maxQty = Math.min(
@@ -184,6 +192,35 @@ export function OfferRow({
       ? members.filter((m) => pick.memberIds.includes(m.key)).map((m) => m.name)
       : []
 
+  const stepper = (
+    <div className="flex items-center gap-2 text-sm">
+      <span>{tr('offerQuantity', locale)}</span>
+      <Button
+        type="button"
+        size="icon-sm"
+        variant="outline"
+        aria-label={qtyAdjustAriaLabel('decrease', name, locale)}
+        data-testid={`offer-qty-minus-${offer.id}`}
+        disabled={off || qty <= (mandatory ? Math.max(1, offer.min_qty) : 0)}
+        onClick={() => onQuantity(qty - 1 < offer.min_qty ? 0 : qty - 1)}
+      >
+        −
+      </Button>
+      <span data-testid={`offer-qty-${offer.id}`}>{qty}</span>
+      <Button
+        type="button"
+        size="icon-sm"
+        variant="outline"
+        aria-label={qtyAdjustAriaLabel('increase', name, locale)}
+        data-testid={`offer-qty-plus-${offer.id}`}
+        disabled={off || qty >= maxQty}
+        onClick={() => onQuantity(Math.max(qty + 1, offer.min_qty))}
+      >
+        +
+      </Button>
+    </div>
+  )
+
   return (
     <div
       data-testid={`offer-row-${offer.id}`}
@@ -205,7 +242,7 @@ export function OfferRow({
           ) : null}
           {blurb ? <p className="text-xs text-muted-foreground">{blurb}</p> : null}
         </div>
-        <OfferPrice offer={offer} locale={locale} estimate={estimate} currency={currency} />
+        <OfferPrice offer={offer} locale={locale} estimate={estimate} currency={currency} unit={roomStepper} />
       </div>
 
       {readOnlyPerson && pick && options.length > 0 ? (
@@ -234,6 +271,8 @@ export function OfferRow({
             {fmt(tr('offerAutoFor', locale), { names: autoNames.join(', ') })}
           </p>
         ) : null
+      ) : roomStepper ? (
+        stepper
       ) : offer.binding === 'person' ? (
         <PersonTickList
           offerId={offer.id}
@@ -281,37 +320,12 @@ export function OfferRow({
           ) : null}
         </div>
       ) : (
-        <div className="flex items-center gap-2 text-sm">
-          <span>{tr('offerQuantity', locale)}</span>
-          <Button
-            type="button"
-            size="icon-sm"
-            variant="outline"
-            aria-label={qtyAdjustAriaLabel('decrease', name, locale)}
-            data-testid={`offer-qty-minus-${offer.id}`}
-            disabled={off || qty <= (mandatory ? Math.max(1, offer.min_qty) : 0)}
-            onClick={() => onQuantity(qty - 1 < offer.min_qty ? 0 : qty - 1)}
-          >
-            −
-          </Button>
-          <span data-testid={`offer-qty-${offer.id}`}>{qty}</span>
-          <Button
-            type="button"
-            size="icon-sm"
-            variant="outline"
-            aria-label={qtyAdjustAriaLabel('increase', name, locale)}
-            data-testid={`offer-qty-plus-${offer.id}`}
-            disabled={off || qty >= maxQty}
-            onClick={() => onQuantity(Math.max(qty + 1, offer.min_qty))}
-          >
-            +
-          </Button>
-        </div>
+        stepper
       )}
 
       {occupancyCap !== undefined && !deviation && qty > 0 && qty >= occupancyCap ? (
         <p className="text-xs text-muted-foreground" data-testid={`offer-occupancy-cap-${offer.id}`}>
-          {fmt(tr('offerOccupancyCap', locale), { expected: occupancyCap })}
+          {fmt(tr(roomQty > 1 ? 'offerOccupancyCapMany' : 'offerOccupancyCap', locale), { expected: occupancyCap })}
         </p>
       ) : null}
 
@@ -335,6 +349,18 @@ export function OfferRow({
           disabled={disabled}
           onToggle={onDay}
         />
+      ) : (pick || serverAttached) && parentDays.length > 0 && (schedule === 'first_day' || schedule === 'last_day') ? (
+        <p className="text-xs text-muted-foreground" data-testid={`offer-period-${offer.id}`}>
+          {fmt(
+            tr(
+              schedule === 'first_day'
+                ? parentIsStay ? 'offerOnArrivalDay' : 'offerOnFirstDay'
+                : parentIsStay ? 'offerOnDepartureDay' : 'offerOnLastDay',
+              locale,
+            ),
+            { day: formatDayLabel(anchoredDay(schedule, parentDays, parentIsStay)[0]!, locale) },
+          )}
+        </p>
       ) : (pick || serverAttached) && parentDays.length > 0 && schedule === 'locked' ? (
         <p className="text-xs text-muted-foreground" data-testid={`offer-period-${offer.id}`}>
           {fmt(tr('offerPeriodLocked', locale), {

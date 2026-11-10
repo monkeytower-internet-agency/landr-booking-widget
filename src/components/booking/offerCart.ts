@@ -39,10 +39,13 @@ import type {
 } from '@/api/types'
 import { pickLocalized } from '@/lib/locale'
 import { ruleMatches } from '@/lib/offerRules'
-import { fmt, tr } from '@/lib/strings'
+import { addonUnitSuffix, fmt, tr } from '@/lib/strings'
 import { formatMoney } from './priceSidebarHelpers'
 import type { ExtraLine } from './crossSell'
+import type { GuestAttributeValues } from './detailsTypes'
+import { INEXACT_KEY } from './inexact'
 import { stayNightIsos, type RoomSelection } from './accommodationCalc'
+import { addDays } from './offerDates'
 
 export const MAIN_LINE_ID = 'main'
 /** Depth of a pick counted from the stay line (depth 0); a chain stops here. */
@@ -96,13 +99,15 @@ interface GuestRow {
   id?: string
   first_name?: string
   last_name?: string
-  guest_attributes?: Record<string, string | number>
+  guest_attributes?: GuestAttributeValues
   occupant_age_band?: 'adult' | 'child' | null
   occupant_age?: number | null
 }
 
 /** Per-member age entry (party index -> band + age), as RoomAssignment keeps it. */
-export type MemberAgeMap = Readonly<Record<number, { band: 'adult' | 'child'; age: number | null }>>
+export type MemberAgeMap = Readonly<
+  Record<number, { band: 'adult' | 'child'; age: number | null; floor?: number }>
+>
 
 /** Party order: participants first, then companions. */
 export function partyRef(index: number): string {
@@ -122,14 +127,25 @@ export function partyMembers(
   fallbackName: (n: number) => string = (n) => `#${n}`,
 ): PartyMember[] {
   return [...participants, ...companions].map((p, i) => {
-    const attributes: Record<string, GuestAttributeWireValue> = { ...(p.guest_attributes ?? {}) }
+    // The offer rules judge the values; which of them are range floors is not
+    // an attribute (`_inexact` and the legacy `age_exact` flag stay out).
+    const attributes: Record<string, GuestAttributeWireValue> = {}
+    for (const [k, v] of Object.entries(p.guest_attributes ?? {})) {
+      if (k !== INEXACT_KEY && k !== 'age_exact' && !Array.isArray(v)) attributes[k] = v
+    }
     const entry = ageMap[i]
+    // landr-zcb24.2/.7: an adult's age is the band floor or the exact age they gave.
+    const stored = typeof p.occupant_age === 'number' ? p.occupant_age : null
     const age =
       entry?.band === 'child'
         ? entry.age
-        : p.occupant_age_band === 'child'
-          ? (p.occupant_age ?? null)
-          : null
+        : entry?.floor !== undefined
+          ? entry.floor
+          : entry?.age != null
+            ? entry.age
+            : p.occupant_age_band === 'child'
+              ? (p.occupant_age ?? null)
+              : stored
     if (attributes.age === undefined && typeof age === 'number') attributes.age = age
     const name = `${p.first_name ?? ''} ${p.last_name ?? ''}`.trim()
     return {
@@ -170,6 +186,8 @@ export interface TreeLine {
   parentLineId: string | null
   /** Booked days (nights for a room / stay). */
   days: string[]
+  /** A stay: its days are nights, so its last day is the departure date. */
+  isStay?: boolean
 }
 
 /** The cart tree the picks hang in. */
@@ -184,6 +202,52 @@ function treeLines(tree: OfferTreeInput): TreeLine[] {
   return [tree.main, ...(tree.rooms ?? []), ...(tree.extras ?? [])]
 }
 
+/** Whether a product kind is a stay (as the API's offer resolver reads it). */
+const isStayKind = (kind: string | null | undefined): boolean => kind === 'stay' || kind === 'hotel_room'
+
+/**
+ * The one day a `first_day` / `last_day` line is priced on. Mirrors the API's
+ * schedule_days: a stay parent's days are nights, so first = arrival (first
+ * night) and last = departure (last night + 1); any other parent: its first /
+ * last day. Empty while the parent has no days.
+ */
+export function anchoredDay(
+  schedule: 'first_day' | 'last_day',
+  parentDays: readonly string[],
+  parentIsStay: boolean,
+): string[] {
+  if (parentDays.length === 0) return []
+  const sorted = [...parentDays].sort()
+  if (schedule === 'first_day') return [sorted[0]!]
+  const last = sorted[sorted.length - 1]!
+  return [parentIsStay ? addDays(last, 1) : last]
+}
+
+function lineInfo(
+  lineId: string,
+  tree: OfferTreeInput,
+  picks: readonly OfferPick[],
+  seen: ReadonlySet<string>,
+): { days: string[]; isStay: boolean } {
+  const line = treeLines(tree).find((l) => l.lineId === lineId)
+  if (line) return { days: line.days, isStay: line.isStay === true }
+  const pick = picks.find((p) => p.lineId === lineId)
+  if (!pick || seen.has(lineId)) return { days: [], isStay: false }
+  return {
+    days: lineDays(lineId, tree, picks, seen),
+    isStay: isStayKind(pick.seen.product_kind),
+  }
+}
+
+/** Whether line `lineId` is a stay (its days are nights, its last day the departure). */
+export function lineIsStay(
+  lineId: string,
+  tree: OfferTreeInput,
+  picks: readonly OfferPick[],
+): boolean {
+  return lineInfo(lineId, tree, picks, new Set()).isStay
+}
+
 /** The booked days of line `lineId` (a pick's days follow its schedule). */
 export function lineDays(
   lineId: string,
@@ -196,7 +260,12 @@ export function lineDays(
   const pick = picks.find((p) => p.lineId === lineId)
   if (!pick || seen.has(lineId)) return []
   if (pick.schedule === 'subset') return pick.days
-  return lineDays(pick.parentLineId, tree, picks, new Set([...seen, lineId]))
+  const next = new Set([...seen, lineId])
+  if (pick.schedule === 'first_day' || pick.schedule === 'last_day') {
+    const parent = lineInfo(pick.parentLineId, tree, picks, next)
+    return anchoredDay(pick.schedule, parent.days, parent.isStay)
+  }
+  return lineDays(pick.parentLineId, tree, picks, next)
 }
 
 /** Depth of a line: main / rooms 0, an added product or pick one more than its parent. */
@@ -244,6 +313,94 @@ export function nextLineId(prefix: string, taken: Iterable<string>): string {
 
 // ---- cart operations ---------------------------------------------------------
 
+/**
+ * A per-person offer the guest may leave out, hung off a room type line
+ * (`r-<productId>`), is ordered like the old room add-on: a quantity stepper
+ * capped at who sleeps there. WHO holds the extra is only the room
+ * assignment's chips (see settleRoomStepperPicks), never a tick list. An
+ * offer with options keeps the tick list (each guest picks an option).
+ */
+export function isRoomStepperOffer(
+  o: Pick<EvaluatedOffer, 'binding' | 'mode' | 'options'>,
+  parentLineId: string,
+): boolean {
+  return (
+    o.binding === 'person' &&
+    o.mode !== 'mandatory' &&
+    parentLineId.startsWith('r-') &&
+    (o.options?.length ?? 0) === 0
+  )
+}
+
+/** True for a pick of such an offer. */
+export function isRoomStepperPick(p: OfferPick): boolean {
+  return isRoomStepperOffer({ ...p.seen, binding: p.binding, mode: p.mode }, p.parentLineId)
+}
+
+/** Clamp the stepper picks under each room type to `caps[roomProductId]` (no cap = left alone). */
+export function clampRoomStepperQty(
+  picks: readonly OfferPick[],
+  caps: Readonly<Record<string, number | undefined>>,
+): OfferPick[] {
+  let out: OfferPick[] = picks as OfferPick[]
+  for (const p of picks) {
+    if (!isRoomStepperPick(p)) continue
+    const cap = caps[p.parentLineId.slice(2)]
+    if (cap === undefined || cap <= 0 || p.quantity <= cap) continue
+    out = out.map((q) =>
+      q.lineId === p.lineId ? { ...q, quantity: cap, memberIds: q.memberIds.slice(0, cap) } : q,
+    )
+  }
+  return out
+}
+
+/**
+ * Name the guests of the room stepper picks: the first `quantity` chip holders
+ * of that room type (`holders[roomProductId]`, member keys in party order),
+ * else -- nobody assigned yet -- the first guests not already taken by the
+ * same offer. A pick's quantity follows the guests it can name. Returns the
+ * same array when nothing changed.
+ */
+export function settleRoomStepperPicks(
+  picks: readonly OfferPick[],
+  holders: Readonly<Record<string, readonly string[]>>,
+  members: readonly PartyMember[],
+): OfferPick[] {
+  const cursor = new Map<string, number>()
+  const taken = new Map<string, Set<string>>()
+  let changed = false
+  const out = picks.map((p) => {
+    if (!isRoomStepperPick(p)) return p
+    const room = p.parentLineId.slice(2)
+    const held = holders[room] ?? []
+    let ids: string[]
+    if (held.length > 0) {
+      const n = Math.min(p.quantity, held.length)
+      const start = cursor.get(room) ?? 0
+      ids = Array.from({ length: n }, (_, i) => held[(start + i) % held.length]!)
+      cursor.set(room, start + n)
+    } else {
+      const used = taken.get(p.offerId) ?? new Set<string>()
+      ids = members
+        .map((m) => m.key)
+        .filter((k) => !used.has(k))
+        .slice(0, p.quantity)
+      taken.set(p.offerId, new Set([...used, ...ids]))
+    }
+    const quantity = ids.length > 0 ? ids.length : p.quantity
+    if (
+      quantity === p.quantity &&
+      ids.length === p.memberIds.length &&
+      ids.every((k, i) => k === p.memberIds[i])
+    ) {
+      return p
+    }
+    changed = true
+    return { ...p, memberIds: ids, quantity }
+  })
+  return changed ? out : (picks as OfferPick[])
+}
+
 /** A fresh pick of `offer` under `parentLineId` (the guest's first touch). */
 export function newPick(
   offer: EvaluatedOffer,
@@ -263,7 +420,10 @@ export function newPick(
     memberIds: [],
     // Never a default option: the guest chooses (picksBlocking holds Confirm).
     options: {},
-    quantity: offer.binding === 'free' ? clampOfferQty(offer, Math.max(1, offer.min_qty)) : 1,
+    quantity:
+      offer.binding === 'free' || isRoomStepperOffer(offer, parentLineId)
+        ? clampOfferQty(offer, Math.max(1, offer.min_qty))
+        : 1,
     days: schedule === 'subset' ? [...parentDays] : [],
     seen: offer,
   }
@@ -620,7 +780,7 @@ export function reconcile(
       }
       const options = Object.fromEntries(Object.entries(p.options).filter(([k]) => memberIds.includes(k)))
       next = { ...next, memberIds, options }
-    } else if (p.binding === 'person') {
+    } else if (p.binding === 'person' && !isRoomStepperPick(p)) {
       const memberIds = p.memberIds.filter((k) => memberKeys.has(k))
       if (memberIds.length === 0) {
         drop.add(p.lineId)
@@ -640,7 +800,7 @@ export function reconcile(
         next = { ...next, days: days.length > 0 ? days : [...parentDays] }
       }
     }
-    if (p.binding === 'free') {
+    if (p.binding === 'free' || isRoomStepperPick(p)) {
       const q = clampOfferQty(seen, p.quantity)
       if (q !== p.quantity) next = { ...next, quantity: Math.max(1, q) }
     }
@@ -793,14 +953,23 @@ export function toEstimateLines(
 /**
  * Room-type picks folded to `{roomProductId: {productId: qty}}`, the shape
  * RoomAssignment's breakfast chips and the review's room rows read. A person
- * pick counts its ticked guests.
+ * pick counts its ticked guests; a room stepper pick its quantity.
  */
 export function roomExtraQty(picks: readonly OfferPick[]): Record<string, Record<string, number>> {
   const out: Record<string, Record<string, number>> = {}
   for (const p of picks) {
     if (!p.parentLineId.startsWith('r-')) continue
     const room = p.parentLineId.slice(2)
-    const q = p.binding === 'person' ? p.memberIds.length : p.binding === 'free' ? p.quantity : 1
+    // A settled stepper pick names its guests (quantity follows them); a fresh
+    // one is only its quantity.
+    const q =
+      p.binding === 'person'
+        ? p.memberIds.length > 0 || !isRoomStepperPick(p)
+          ? p.memberIds.length
+          : p.quantity
+        : p.binding === 'free'
+          ? p.quantity
+          : 1
     if (q <= 0) continue
     const slot = (out[room] ??= {})
     slot[p.productId] = (slot[p.productId] ?? 0) + q
@@ -816,6 +985,7 @@ export function extraTreeLine(l: ExtraLine): TreeLine | null {
     productId: l.product.product_id,
     parentLineId: l.parentLineId ?? MAIN_LINE_ID,
     days: [...l.days].sort(),
+    isStay: isStayKind(l.product.product_kind),
   }
 }
 
@@ -824,7 +994,11 @@ export function extraTreeLine(l: ExtraLine): TreeLine | null {
  * room type on the stay's nights, the products added from own-dated offers.
  */
 export function cartTree(
-  product: { product_id: string; accommodation_checkin_offset_days?: number | null },
+  product: {
+    product_id: string
+    product_kind?: string | null
+    accommodation_checkin_offset_days?: number | null
+  },
   mainDays: readonly string[],
   rooms: readonly RoomSelection[] = [],
   extras: readonly ExtraLine[] = [],
@@ -840,12 +1014,14 @@ export function cartTree(
       productId: product.product_id,
       parentLineId: null,
       days: [...mainDays].sort(),
+      isStay: isStayKind(product.product_kind),
     },
     rooms: booked.map((r) => ({
       lineId: roomLineId(r.productId),
       productId: r.productId,
       parentLineId: null,
       days: nights,
+      isStay: true,
     })),
     extras: extras.flatMap((l) => {
       const t = extraTreeLine(l)
@@ -954,8 +1130,18 @@ export function priceLabel(
   locale: string,
   estimate?: readonly EstimateLineItem[],
   currency?: string,
+  /** Quote the unit price ("€12.00 / guest / night") instead of a total. */
+  unit = false,
 ): { text: string; tone: PriceTone } {
   if (o.collection === 'free') return { text: tr('offerPriceFree', locale), tone: 'free' }
+  const unitCents = o.price_preview?.unit_price_cents
+  const unitCcy = o.price_preview?.currency ?? currency
+  if (unit && typeof unitCents === 'number' && unitCcy) {
+    const rate = `${formatMoney((unitCents / 100).toFixed(2), unitCcy, locale)} ${addonUnitSuffix(o.price_preview?.price_unit, locale)}`
+    return o.collection === 'on_site'
+      ? { text: `${rate} · ${tr('offerPayOnArrival', locale)}`, tone: 'on_site' }
+      : { text: rate, tone: 'online' }
+  }
   let amount: string | null = null
   let ccy = o.price_preview?.currency ?? currency ?? null
   if (estimate && estimate.length > 0) {

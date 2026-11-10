@@ -21,12 +21,14 @@ function Row({
   members = PARTY,
   locale = 'en',
   estimate,
+  parentIsStay,
 }: {
   offer: EvaluatedOffer
   initial?: OfferPick[]
   members?: PartyMember[]
   locale?: string
   estimate?: readonly EstimateLineItem[]
+  parentIsStay?: boolean
 }) {
   const [picks, setPicks] = useState<OfferPick[]>(initial)
   const pick = picks.find((p) => p.offerId === offer.id)
@@ -36,6 +38,7 @@ function Row({
         offer={offer}
         parentLineId="main"
         parentDays={STAY_DAYS}
+        parentIsStay={parentIsStay}
         pick={pick}
         members={members}
         tree={TREE}
@@ -120,6 +123,34 @@ describe('OfferRow: binding booking', () => {
     render(<Row offer={offer} initial={[picked(offer)]} />)
     expect(screen.getByTestId('offer-period-towels').textContent).toMatch(/whole stay/i)
     expect(screen.queryByTestId('offer-days-towels')).toBeNull()
+  })
+})
+
+describe('OfferRow: one-day schedules', () => {
+  const lateOut = evalOffer('late', { schedule: 'last_day' })
+  const earlyIn = evalOffer('early', { schedule: 'first_day' })
+
+  it('stay parent: names the arrival and the check-out day', () => {
+    const { unmount } = render(<Row offer={earlyIn} parentIsStay initial={[picked(earlyIn)]} />)
+    expect(screen.getByTestId('offer-period-early').textContent).toMatch(/On your arrival day: .*Nov.*2/)
+    unmount()
+    render(<Row offer={lateOut} parentIsStay initial={[picked(lateOut)]} />)
+    // The last night is Nov 4, so check-out is Nov 5.
+    expect(screen.getByTestId('offer-period-late').textContent).toMatch(/On your check-out day: .*Nov.*5/)
+    expect(screen.queryByTestId('offer-days-late')).toBeNull()
+  })
+
+  it('non-stay parent: the first and the last day', () => {
+    const { unmount } = render(<Row offer={earlyIn} initial={[picked(earlyIn)]} />)
+    expect(screen.getByTestId('offer-period-early').textContent).toMatch(/On the first day: .*Nov.*2/)
+    unmount()
+    render(<Row offer={lateOut} initial={[picked(lateOut)]} />)
+    expect(screen.getByTestId('offer-period-late').textContent).toMatch(/On the last day: .*Nov.*4/)
+  })
+
+  it('does not say whole stay', () => {
+    render(<Row offer={lateOut} parentIsStay initial={[picked(lateOut)]} />)
+    expect(screen.getByTestId('offer-period-late').textContent).not.toMatch(/whole stay/i)
   })
 })
 
@@ -415,5 +446,77 @@ describe('OfferRow room-tied free extras (occupancy cap)', () => {
   it('uses guest wording for the assigned-guest cap', () => {
     renderRoom(3, 1)
     expect(screen.getByTestId('offer-underbook-cot').textContent).toContain('3 guests')
+  })
+})
+
+describe('OfferRow: optional person offer under a room line (landr-ey8fx)', () => {
+  const breakfast = evalOffer('bf', {
+    binding: 'person',
+    price_preview: { quantity: 1, unit_price_cents: 1200, total_cents: 9600, price_unit: 'guest_night', currency: 'EUR' },
+  })
+  const onChange = vi.fn()
+  beforeEach(() => onChange.mockClear())
+  const renderRoom = (offer: EvaluatedOffer, quantity: number, parentLineId = 'r-room1', maxOccupancy = 2) => {
+    const pick = { ...picked(offer, { quantity }), parentLineId }
+    render(
+      <OfferRow
+        offer={offer}
+        parentLineId={parentLineId}
+        parentDays={STAY_DAYS}
+        pick={quantity > 0 ? pick : undefined}
+        members={PARTY}
+        tree={TREE}
+        idPrefix="a"
+        onPicksChange={onChange}
+        locale="en"
+        currency="EUR"
+        maxOccupancy={maxOccupancy}
+        roomQty={1}
+      />,
+    )
+  }
+
+  it('is a quantity stepper, not a tick list of the whole party', () => {
+    renderRoom(breakfast, 1)
+    expect(screen.getByTestId('offer-qty-bf').textContent).toBe('1')
+    expect(screen.queryByTestId('offer-who-bf-g1')).toBeNull()
+    expect(screen.queryByTestId('offer-who-bf-g2')).toBeNull()
+  })
+
+  it('caps at the room occupancy and hints when fewer breakfasts than guests', () => {
+    renderRoom(breakfast, 1)
+    expect(screen.getByTestId('offer-underbook-bf')).toBeTruthy()
+    expect((screen.getByTestId('offer-qty-plus-bf') as HTMLButtonElement).disabled).toBe(false)
+  })
+
+  it('disables + at the cap', () => {
+    renderRoom(breakfast, 2)
+    expect((screen.getByTestId('offer-qty-plus-bf') as HTMLButtonElement).disabled).toBe(true)
+    expect(screen.queryByTestId('offer-underbook-bf')).toBeNull()
+  })
+
+  it('quotes the unit price, never a total', () => {
+    renderRoom(breakfast, 1)
+    const text = screen.getByTestId('offer-price').textContent ?? ''
+    expect(text).toMatch(/12[.,]00/)
+    expect(text).toContain('guest')
+    expect(text).not.toMatch(/96/)
+  })
+
+  it('keeps the tick list under a non-room parent', () => {
+    renderRoom(breakfast, 1, 'main')
+    expect(screen.getByTestId('offer-who-bf-g1')).toBeTruthy()
+    expect(screen.queryByTestId('offer-qty-bf')).toBeNull()
+  })
+
+  it('keeps the tick list for an offer with options (each guest picks one)', () => {
+    renderRoom({ ...breakfast, options: OPTIONS }, 1)
+    expect(screen.getByTestId('offer-who-bf-g1')).toBeTruthy()
+    expect(screen.queryByTestId('offer-qty-bf')).toBeNull()
+  })
+
+  it('keeps the read-only list for a mandatory per-person offer', () => {
+    renderRoom({ ...breakfast, mode: 'mandatory' }, 1)
+    expect(screen.queryByTestId('offer-qty-bf')).toBeNull()
   })
 })

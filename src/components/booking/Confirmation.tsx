@@ -33,7 +33,13 @@ import { sanitizePostBookingHtml } from './postBookingSanitize'
 import { PriceBreakdown } from './PriceBreakdown'
 import { savingRows } from './savingRows'
 import { PerformerPaySections } from './PerformerPaySections'
-import { formatMoney, groupPerformerLines, splitLineItems } from './priceSidebarHelpers'
+import {
+  formatMoney,
+  groupPerformerLines,
+  lineMergeKey,
+  mergeSameLines,
+  splitLineItems,
+} from './priceSidebarHelpers'
 import {
   bookedRefLabel,
   bookedTogetherMemberLabel,
@@ -879,9 +885,9 @@ function ConfirmationPriceBreakdown({ summary }: { summary: BookingSummary }) {
       <h3 className="text-sm font-semibold">{tr('priceBreakdownTitle', locale)}</h3>
       {operator.length > 0 ? (
         <ul className="space-y-1 text-sm">
-          {operator.map((li) => (
+          {mergeSameLines(operator).map((li) => (
             <li
-              key={`op-${li.product_id}`}
+              key={`op-${lineMergeKey(li)}`}
               className="flex items-baseline justify-between gap-2"
             >
               <span>{li.label}</span>
@@ -906,9 +912,9 @@ function ConfirmationPriceBreakdown({ summary }: { summary: BookingSummary }) {
       {hotel.length > 0 ? (
         <div className="rounded-md border border-amber-200 bg-amber-50/60 p-3 text-sm dark:border-amber-900 dark:bg-amber-950/40">
           <ul className="space-y-1">
-            {hotel.map((li) => (
+            {mergeSameLines(hotel).map((li) => (
               <li
-                key={`hot-${li.product_id}`}
+                key={`hot-${lineMergeKey(li)}`}
                 className="flex items-baseline justify-between gap-2"
               >
                 <span>{li.label}</span>

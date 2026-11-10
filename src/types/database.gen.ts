@@ -990,6 +990,13 @@ export type Database = {
             foreignKeyName: "agent_contracts_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "agent_contracts_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -1105,6 +1112,13 @@ export type Database = {
             foreignKeyName: "agent_earnings_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "agent_earnings_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -1113,6 +1127,187 @@ export type Database = {
             columns: ["operator_id"]
             isOneToOne: false
             referencedRelation: "staff_operator_overview"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_onboarding_sessions: {
+        Row: {
+          accepted_proposals: Json
+          cache_read_tokens: number
+          cache_write_tokens: number
+          closed_reason: string | null
+          cost_usd: number
+          created_at: string
+          id: string
+          input_tokens: number
+          locale: string
+          operator_id: string
+          output_tokens: number
+          proposals: Json
+          status: string
+          transcript: Json
+          turns: number
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          accepted_proposals?: Json
+          cache_read_tokens?: number
+          cache_write_tokens?: number
+          closed_reason?: string | null
+          cost_usd?: number
+          created_at?: string
+          id?: string
+          input_tokens?: number
+          locale?: string
+          operator_id: string
+          output_tokens?: number
+          proposals?: Json
+          status?: string
+          transcript?: Json
+          turns?: number
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          accepted_proposals?: Json
+          cache_read_tokens?: number
+          cache_write_tokens?: number
+          closed_reason?: string | null
+          cost_usd?: number
+          created_at?: string
+          id?: string
+          input_tokens?: number
+          locale?: string
+          operator_id?: string
+          output_tokens?: number
+          proposals?: Json
+          status?: string
+          transcript?: Json
+          turns?: number
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_onboarding_sessions_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "ai_onboarding_sessions_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "ai_onboarding_sessions_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_onboarding_sessions_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "staff_operator_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_onboarding_sessions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "assignable_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_onboarding_sessions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_usage_ledger: {
+        Row: {
+          cache_read_tokens: number
+          cache_write_tokens: number
+          cost_usd: number
+          created_at: string
+          id: number
+          input_tokens: number
+          model: string
+          operator_id: string | null
+          output_tokens: number
+          session_id: string | null
+          stop_reason: string | null
+        }
+        Insert: {
+          cache_read_tokens?: number
+          cache_write_tokens?: number
+          cost_usd?: number
+          created_at?: string
+          id?: never
+          input_tokens?: number
+          model: string
+          operator_id?: string | null
+          output_tokens?: number
+          session_id?: string | null
+          stop_reason?: string | null
+        }
+        Update: {
+          cache_read_tokens?: number
+          cache_write_tokens?: number
+          cost_usd?: number
+          created_at?: string
+          id?: never
+          input_tokens?: number
+          model?: string
+          operator_id?: string | null
+          output_tokens?: number
+          session_id?: string | null
+          stop_reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_usage_ledger_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "ai_usage_ledger_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "ai_usage_ledger_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_usage_ledger_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "staff_operator_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_usage_ledger_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "ai_onboarding_sessions"
             referencedColumns: ["id"]
           },
         ]
@@ -1236,6 +1431,13 @@ export type Database = {
             foreignKeyName: "approval_rules_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "approval_rules_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -1325,6 +1527,13 @@ export type Database = {
             foreignKeyName: "approval_state_transitions_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "approval_state_transitions_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -1366,51 +1575,6 @@ export type Database = {
         ]
       }
       audit_log: {
-        Row: {
-          actor_kind: Database["public"]["Enums"]["actor_kind"]
-          actor_subkind: string | null
-          external_correlation_id: string | null
-          id: string
-          new_row: Json | null
-          occurred_at: string
-          old_row: Json | null
-          operation: string
-          operator_id: string | null
-          row_id: string | null
-          table_name: string
-          user_id: string | null
-        }
-        Insert: {
-          actor_kind: Database["public"]["Enums"]["actor_kind"]
-          actor_subkind?: string | null
-          external_correlation_id?: string | null
-          id?: string
-          new_row?: Json | null
-          occurred_at?: string
-          old_row?: Json | null
-          operation: string
-          operator_id?: string | null
-          row_id?: string | null
-          table_name: string
-          user_id?: string | null
-        }
-        Update: {
-          actor_kind?: Database["public"]["Enums"]["actor_kind"]
-          actor_subkind?: string | null
-          external_correlation_id?: string | null
-          id?: string
-          new_row?: Json | null
-          occurred_at?: string
-          old_row?: Json | null
-          operation?: string
-          operator_id?: string | null
-          row_id?: string | null
-          table_name?: string
-          user_id?: string | null
-        }
-        Relationships: []
-      }
-      audit_log_2026_09: {
         Row: {
           actor_kind: Database["public"]["Enums"]["actor_kind"]
           actor_subkind: string | null
@@ -1635,6 +1799,51 @@ export type Database = {
         }
         Relationships: []
       }
+      audit_log_2027_02: {
+        Row: {
+          actor_kind: Database["public"]["Enums"]["actor_kind"]
+          actor_subkind: string | null
+          external_correlation_id: string | null
+          id: string
+          new_row: Json | null
+          occurred_at: string
+          old_row: Json | null
+          operation: string
+          operator_id: string | null
+          row_id: string | null
+          table_name: string
+          user_id: string | null
+        }
+        Insert: {
+          actor_kind: Database["public"]["Enums"]["actor_kind"]
+          actor_subkind?: string | null
+          external_correlation_id?: string | null
+          id?: string
+          new_row?: Json | null
+          occurred_at?: string
+          old_row?: Json | null
+          operation: string
+          operator_id?: string | null
+          row_id?: string | null
+          table_name: string
+          user_id?: string | null
+        }
+        Update: {
+          actor_kind?: Database["public"]["Enums"]["actor_kind"]
+          actor_subkind?: string | null
+          external_correlation_id?: string | null
+          id?: string
+          new_row?: Json | null
+          occurred_at?: string
+          old_row?: Json | null
+          operation?: string
+          operator_id?: string | null
+          row_id?: string | null
+          table_name?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       audit_redacted_keys: {
         Row: {
           key_name: string
@@ -1789,6 +1998,13 @@ export type Database = {
             columns: ["operator_id"]
             isOneToOne: false
             referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "billing_address_requests_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operator_activation"
             referencedColumns: ["operator_id"]
           },
           {
@@ -1982,6 +2198,13 @@ export type Database = {
             foreignKeyName: "billing_invoice_payments_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "billing_invoice_payments_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -2123,6 +2346,13 @@ export type Database = {
             columns: ["operator_id"]
             isOneToOne: false
             referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "billing_invoices_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operator_activation"
             referencedColumns: ["operator_id"]
           },
           {
@@ -2277,6 +2507,13 @@ export type Database = {
             foreignKeyName: "billing_statement_lines_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "billing_statement_lines_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -2384,6 +2621,13 @@ export type Database = {
             foreignKeyName: "billing_statements_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "billing_statements_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -2484,6 +2728,13 @@ export type Database = {
             columns: ["operator_id"]
             isOneToOne: false
             referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "booking_approval_requests_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operator_activation"
             referencedColumns: ["operator_id"]
           },
           {
@@ -2639,6 +2890,13 @@ export type Database = {
             foreignKeyName: "booking_approval_responses_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "booking_approval_responses_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -2760,6 +3018,13 @@ export type Database = {
             columns: ["operator_id"]
             isOneToOne: false
             referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "booking_briefing_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operator_activation"
             referencedColumns: ["operator_id"]
           },
           {
@@ -2931,6 +3196,13 @@ export type Database = {
             foreignKeyName: "booking_briefing_day_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "booking_briefing_day_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -3052,6 +3324,13 @@ export type Database = {
             foreignKeyName: "booking_checkin_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "booking_checkin_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -3127,6 +3406,13 @@ export type Database = {
             columns: ["operator_id"]
             isOneToOne: false
             referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "booking_day_change_events_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operator_activation"
             referencedColumns: ["operator_id"]
           },
           {
@@ -3222,6 +3508,13 @@ export type Database = {
             columns: ["operator_id"]
             isOneToOne: false
             referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "booking_day_provider_assignments_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operator_activation"
             referencedColumns: ["operator_id"]
           },
           {
@@ -3400,6 +3693,13 @@ export type Database = {
             foreignKeyName: "booking_form_responses_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "booking_form_responses_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -3454,6 +3754,13 @@ export type Database = {
             columns: ["operator_id"]
             isOneToOne: false
             referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "booking_groups_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operator_activation"
             referencedColumns: ["operator_id"]
           },
           {
@@ -3559,6 +3866,13 @@ export type Database = {
             foreignKeyName: "booking_lifecycle_stages_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "booking_lifecycle_stages_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -3636,6 +3950,13 @@ export type Database = {
             foreignKeyName: "booking_notes_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "booking_notes_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -3702,6 +4023,13 @@ export type Database = {
             columns: ["operator_id"]
             isOneToOne: false
             referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "booking_offer_sends_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operator_activation"
             referencedColumns: ["operator_id"]
           },
           {
@@ -3946,6 +4274,13 @@ export type Database = {
             foreignKeyName: "booking_participant_day_state_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "booking_participant_day_state_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -4029,6 +4364,7 @@ export type Database = {
           companion_kind: string | null
           contact_id: string
           created_at: string
+          guest_attributes: Json
           has_breakfast: boolean
           id: string
           insert_seq: number
@@ -4055,6 +4391,7 @@ export type Database = {
           companion_kind?: string | null
           contact_id: string
           created_at?: string
+          guest_attributes?: Json
           has_breakfast?: boolean
           id?: string
           insert_seq?: number
@@ -4081,6 +4418,7 @@ export type Database = {
           companion_kind?: string | null
           contact_id?: string
           created_at?: string
+          guest_attributes?: Json
           has_breakfast?: boolean
           id?: string
           insert_seq?: number
@@ -4141,6 +4479,13 @@ export type Database = {
             columns: ["operator_id"]
             isOneToOne: false
             referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "booking_participants_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operator_activation"
             referencedColumns: ["operator_id"]
           },
           {
@@ -4304,6 +4649,13 @@ export type Database = {
             foreignKeyName: "booking_product_change_events_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "booking_product_change_events_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -4319,16 +4671,22 @@ export type Database = {
       booking_products: {
         Row: {
           booking_id: string
+          collection: string | null
           computed_price_breakdown: Json
           created_at: string
           date_range_end: string | null
           date_range_start: string | null
           fixed_date_window_id: string | null
+          guest_options: Json
           id: string
           is_member: boolean
           line_position: number | null
+          offer_id: string | null
+          offer_mode: string | null
           operator_id: string
+          option_key: string | null
           parent_booking_product_id: string | null
+          participant_ids: string[]
           pass_tier_id: string | null
           product_availability_id: string | null
           product_id: string
@@ -4341,16 +4699,22 @@ export type Database = {
         }
         Insert: {
           booking_id: string
+          collection?: string | null
           computed_price_breakdown?: Json
           created_at?: string
           date_range_end?: string | null
           date_range_start?: string | null
           fixed_date_window_id?: string | null
+          guest_options?: Json
           id?: string
           is_member?: boolean
           line_position?: number | null
+          offer_id?: string | null
+          offer_mode?: string | null
           operator_id: string
+          option_key?: string | null
           parent_booking_product_id?: string | null
+          participant_ids?: string[]
           pass_tier_id?: string | null
           product_availability_id?: string | null
           product_id: string
@@ -4363,16 +4727,22 @@ export type Database = {
         }
         Update: {
           booking_id?: string
+          collection?: string | null
           computed_price_breakdown?: Json
           created_at?: string
           date_range_end?: string | null
           date_range_start?: string | null
           fixed_date_window_id?: string | null
+          guest_options?: Json
           id?: string
           is_member?: boolean
           line_position?: number | null
+          offer_id?: string | null
+          offer_mode?: string | null
           operator_id?: string
+          option_key?: string | null
           parent_booking_product_id?: string | null
+          participant_ids?: string[]
           pass_tier_id?: string | null
           product_availability_id?: string | null
           product_id?: string
@@ -4410,6 +4780,13 @@ export type Database = {
             columns: ["operator_id"]
             isOneToOne: false
             referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "booking_products_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operator_activation"
             referencedColumns: ["operator_id"]
           },
           {
@@ -4554,6 +4931,13 @@ export type Database = {
             columns: ["operator_id"]
             isOneToOne: false
             referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "booking_reschedule_requests_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operator_activation"
             referencedColumns: ["operator_id"]
           },
           {
@@ -4705,6 +5089,13 @@ export type Database = {
             foreignKeyName: "booking_verifications_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "booking_verifications_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -4798,6 +5189,11 @@ export type Database = {
           override_applied_by_user_id: string | null
           override_gross_total: number | null
           override_reason: string | null
+          personal_cap_expired_at: string | null
+          personal_cap_expiry_mailed_at: string | null
+          personal_cap_held_at: string | null
+          personal_cap_release_mailed_at: string | null
+          personal_cap_released_at: string | null
           search_text: string
           share_secret_hash: string | null
           tax_total: number
@@ -4871,6 +5267,11 @@ export type Database = {
           override_applied_by_user_id?: string | null
           override_gross_total?: number | null
           override_reason?: string | null
+          personal_cap_expired_at?: string | null
+          personal_cap_expiry_mailed_at?: string | null
+          personal_cap_held_at?: string | null
+          personal_cap_release_mailed_at?: string | null
+          personal_cap_released_at?: string | null
           search_text?: string
           share_secret_hash?: string | null
           tax_total?: number
@@ -4944,6 +5345,11 @@ export type Database = {
           override_applied_by_user_id?: string | null
           override_gross_total?: number | null
           override_reason?: string | null
+          personal_cap_expired_at?: string | null
+          personal_cap_expiry_mailed_at?: string | null
+          personal_cap_held_at?: string | null
+          personal_cap_release_mailed_at?: string | null
+          personal_cap_released_at?: string | null
           search_text?: string
           share_secret_hash?: string | null
           tax_total?: number
@@ -5076,6 +5482,13 @@ export type Database = {
             columns: ["operator_id"]
             isOneToOne: false
             referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "bookings_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operator_activation"
             referencedColumns: ["operator_id"]
           },
           {
@@ -5223,6 +5636,13 @@ export type Database = {
             foreignKeyName: "campaigns_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "campaigns_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -5288,6 +5708,13 @@ export type Database = {
             columns: ["operator_id"]
             isOneToOne: false
             referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "commission_adjustments_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operator_activation"
             referencedColumns: ["operator_id"]
           },
           {
@@ -5395,6 +5822,13 @@ export type Database = {
             foreignKeyName: "commission_batches_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "commission_batches_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -5468,6 +5902,13 @@ export type Database = {
             columns: ["operator_id"]
             isOneToOne: false
             referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "commission_rule_tiers_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operator_activation"
             referencedColumns: ["operator_id"]
           },
           {
@@ -5561,6 +6002,13 @@ export type Database = {
             foreignKeyName: "commission_rules_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "commission_rules_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -5646,6 +6094,13 @@ export type Database = {
             columns: ["operator_id"]
             isOneToOne: false
             referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "commission_schemes_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operator_activation"
             referencedColumns: ["operator_id"]
           },
           {
@@ -5749,6 +6204,13 @@ export type Database = {
             foreignKeyName: "commissions_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "commissions_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -5830,6 +6292,13 @@ export type Database = {
             foreignKeyName: "company_inquiries_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "company_inquiries_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -5887,6 +6356,13 @@ export type Database = {
             columns: ["operator_id"]
             isOneToOne: false
             referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "contact_page_tokens_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operator_activation"
             referencedColumns: ["operator_id"]
           },
           {
@@ -6095,6 +6571,13 @@ export type Database = {
             foreignKeyName: "contacts_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "contacts_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -6158,6 +6641,13 @@ export type Database = {
             columns: ["operator_id"]
             isOneToOne: false
             referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "contacts_email_norm_collisions_operator_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operator_activation"
             referencedColumns: ["operator_id"]
           },
           {
@@ -6335,6 +6825,13 @@ export type Database = {
             foreignKeyName: "custom_offer_lines_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "custom_offer_lines_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -6403,6 +6900,13 @@ export type Database = {
             columns: ["operator_id"]
             isOneToOne: false
             referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "customer_details_requests_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operator_activation"
             referencedColumns: ["operator_id"]
           },
           {
@@ -6481,6 +6985,13 @@ export type Database = {
             columns: ["operator_id"]
             isOneToOne: false
             referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "day_message_recipients_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operator_activation"
             referencedColumns: ["operator_id"]
           },
           {
@@ -6610,6 +7121,13 @@ export type Database = {
             columns: ["operator_id"]
             isOneToOne: false
             referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "day_messages_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operator_activation"
             referencedColumns: ["operator_id"]
           },
           {
@@ -6778,6 +7296,13 @@ export type Database = {
             foreignKeyName: "dns_provisioning_jobs_op_fk"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "dns_provisioning_jobs_op_fk"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -6856,6 +7381,13 @@ export type Database = {
             columns: ["operator_id"]
             isOneToOne: false
             referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "email_templates_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operator_activation"
             referencedColumns: ["operator_id"]
           },
           {
@@ -6963,6 +7495,13 @@ export type Database = {
             columns: ["operator_id"]
             isOneToOne: false
             referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "external_sync_log_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operator_activation"
             referencedColumns: ["operator_id"]
           },
           {
@@ -7120,6 +7659,13 @@ export type Database = {
             foreignKeyName: "form_fields_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "form_fields_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -7178,6 +7724,13 @@ export type Database = {
             columns: ["operator_id"]
             isOneToOne: false
             referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "forms_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operator_activation"
             referencedColumns: ["operator_id"]
           },
           {
@@ -7346,11 +7899,110 @@ export type Database = {
             foreignKeyName: "groups_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "groups_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "groups_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "staff_operator_overview"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      guest_attribute_definitions: {
+        Row: {
+          active: boolean
+          choices: string[] | null
+          collect_as: string
+          collect_when: string
+          created_at: string
+          id: string
+          key: string
+          label: string
+          label_localized: Json
+          max_value: number | null
+          min_value: number | null
+          operator_id: string
+          range_cuts: number[]
+          sort_order: number
+          unit: string | null
+          updated_at: string
+          value_type: string
+          well_known: boolean
+        }
+        Insert: {
+          active?: boolean
+          choices?: string[] | null
+          collect_as?: string
+          collect_when?: string
+          created_at?: string
+          id?: string
+          key: string
+          label: string
+          label_localized?: Json
+          max_value?: number | null
+          min_value?: number | null
+          operator_id: string
+          range_cuts?: number[]
+          sort_order?: number
+          unit?: string | null
+          updated_at?: string
+          value_type: string
+          well_known?: boolean
+        }
+        Update: {
+          active?: boolean
+          choices?: string[] | null
+          collect_as?: string
+          collect_when?: string
+          created_at?: string
+          id?: string
+          key?: string
+          label?: string
+          label_localized?: Json
+          max_value?: number | null
+          min_value?: number | null
+          operator_id?: string
+          range_cuts?: number[]
+          sort_order?: number
+          unit?: string | null
+          updated_at?: string
+          value_type?: string
+          well_known?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "guest_attribute_definitions_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "guest_attribute_definitions_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "guest_attribute_definitions_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "guest_attribute_definitions_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
             referencedRelation: "staff_operator_overview"
@@ -7395,6 +8047,13 @@ export type Database = {
             columns: ["operator_id"]
             isOneToOne: false
             referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "inbound_webhook_events_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operator_activation"
             referencedColumns: ["operator_id"]
           },
           {
@@ -7602,6 +8261,13 @@ export type Database = {
             foreignKeyName: "location_request_channels_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "location_request_channels_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -7735,6 +8401,13 @@ export type Database = {
             columns: ["operator_id"]
             isOneToOne: false
             referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "location_request_outbox_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operator_activation"
             referencedColumns: ["operator_id"]
           },
           {
@@ -7887,6 +8560,13 @@ export type Database = {
             foreignKeyName: "member_ical_tokens_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "member_ical_tokens_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -8033,6 +8713,13 @@ export type Database = {
             columns: ["operator_id"]
             isOneToOne: false
             referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "message_templates_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operator_activation"
             referencedColumns: ["operator_id"]
           },
           {
@@ -8325,6 +9012,119 @@ export type Database = {
           },
         ]
       }
+      offers: {
+        Row: {
+          binding: string
+          collection: string
+          created_at: string
+          id: string
+          legacy_addon_id: string | null
+          legacy_source: string | null
+          max_qty: number | null
+          min_qty: number
+          mode: string
+          operator_id: string
+          options: Json
+          parent_product_id: string | null
+          product_id: string
+          required_attributes: string[]
+          rules: Json
+          schedule: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          binding?: string
+          collection?: string
+          created_at?: string
+          id?: string
+          legacy_addon_id?: string | null
+          legacy_source?: string | null
+          max_qty?: number | null
+          min_qty?: number
+          mode?: string
+          operator_id: string
+          options?: Json
+          parent_product_id?: string | null
+          product_id: string
+          required_attributes?: string[]
+          rules?: Json
+          schedule?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          binding?: string
+          collection?: string
+          created_at?: string
+          id?: string
+          legacy_addon_id?: string | null
+          legacy_source?: string | null
+          max_qty?: number | null
+          min_qty?: number
+          mode?: string
+          operator_id?: string
+          options?: Json
+          parent_product_id?: string | null
+          product_id?: string
+          required_attributes?: string[]
+          rules?: Json
+          schedule?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "offers_legacy_addon_id_fkey"
+            columns: ["legacy_addon_id", "operator_id"]
+            isOneToOne: false
+            referencedRelation: "product_addons"
+            referencedColumns: ["id", "operator_id"]
+          },
+          {
+            foreignKeyName: "offers_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "offers_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "offers_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "offers_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "staff_operator_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "offers_parent_product_id_fkey"
+            columns: ["parent_product_id", "operator_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id", "operator_id"]
+          },
+          {
+            foreignKeyName: "offers_product_id_fkey"
+            columns: ["product_id", "operator_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id", "operator_id"]
+          },
+        ]
+      }
       operator_activity: {
         Row: {
           last_seen_at: string
@@ -8357,6 +9157,13 @@ export type Database = {
             columns: ["operator_id"]
             isOneToOne: false
             referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "operator_activity_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operator_activation"
             referencedColumns: ["operator_id"]
           },
           {
@@ -8409,6 +9216,13 @@ export type Database = {
             columns: ["operator_id"]
             isOneToOne: true
             referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "operator_billing_plans_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: true
+            referencedRelation: "operator_activation"
             referencedColumns: ["operator_id"]
           },
           {
@@ -8501,6 +9315,13 @@ export type Database = {
             foreignKeyName: "operator_billing_profiles_operator_fkey"
             columns: ["operator_id"]
             isOneToOne: true
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "operator_billing_profiles_operator_fkey"
+            columns: ["operator_id"]
+            isOneToOne: true
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -8538,6 +9359,13 @@ export type Database = {
             columns: ["operator_id"]
             isOneToOne: true
             referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "operator_checklist_templates_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: true
+            referencedRelation: "operator_activation"
             referencedColumns: ["operator_id"]
           },
           {
@@ -8643,6 +9471,13 @@ export type Database = {
             foreignKeyName: "operator_contract_terms_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: true
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "operator_contract_terms_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: true
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -8686,6 +9521,13 @@ export type Database = {
             columns: ["operator_id"]
             isOneToOne: false
             referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "operator_dns_zones_op_fk"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operator_activation"
             referencedColumns: ["operator_id"]
           },
           {
@@ -8753,6 +9595,13 @@ export type Database = {
             columns: ["operator_id"]
             isOneToOne: true
             referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "operator_email_sender_op_fk"
+            columns: ["operator_id"]
+            isOneToOne: true
+            referencedRelation: "operator_activation"
             referencedColumns: ["operator_id"]
           },
           {
@@ -8832,6 +9681,13 @@ export type Database = {
             columns: ["operator_id"]
             isOneToOne: false
             referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "operator_features_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operator_activation"
             referencedColumns: ["operator_id"]
           },
           {
@@ -8929,6 +9785,13 @@ export type Database = {
             foreignKeyName: "operator_hostnames_op_fk"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "operator_hostnames_op_fk"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -8963,6 +9826,13 @@ export type Database = {
             columns: ["operator_id"]
             isOneToOne: true
             referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "operator_ical_tokens_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: true
+            referencedRelation: "operator_activation"
             referencedColumns: ["operator_id"]
           },
           {
@@ -9042,6 +9912,13 @@ export type Database = {
             foreignKeyName: "operator_integration_credentials_op_fk"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "operator_integration_credentials_op_fk"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -9111,6 +9988,13 @@ export type Database = {
             columns: ["operator_id"]
             isOneToOne: false
             referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "operator_integration_usage_op_fk"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operator_activation"
             referencedColumns: ["operator_id"]
           },
           {
@@ -9244,6 +10128,13 @@ export type Database = {
             foreignKeyName: "operator_invites_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "operator_invites_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -9294,6 +10185,208 @@ export type Database = {
             columns: ["provider_id"]
             isOneToOne: false
             referencedRelation: "resources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      operator_links: {
+        Row: {
+          accepted_at: string | null
+          accepted_by_user_id: string | null
+          created_at: string
+          high_clause_accepted_at: string | null
+          high_clause_accepted_by_user_id: string | null
+          high_clause_version: string | null
+          high_share_level: string
+          id: string
+          invited_at: string
+          invited_by_operator_id: string
+          invited_by_user_id: string | null
+          low_clause_accepted_at: string | null
+          low_clause_accepted_by_user_id: string | null
+          low_clause_version: string | null
+          low_share_level: string
+          operator_high_id: string
+          operator_low_id: string
+          revoked_at: string | null
+          revoked_by_operator_id: string | null
+          revoked_by_user_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          accepted_by_user_id?: string | null
+          created_at?: string
+          high_clause_accepted_at?: string | null
+          high_clause_accepted_by_user_id?: string | null
+          high_clause_version?: string | null
+          high_share_level?: string
+          id?: string
+          invited_at?: string
+          invited_by_operator_id: string
+          invited_by_user_id?: string | null
+          low_clause_accepted_at?: string | null
+          low_clause_accepted_by_user_id?: string | null
+          low_clause_version?: string | null
+          low_share_level?: string
+          operator_high_id: string
+          operator_low_id: string
+          revoked_at?: string | null
+          revoked_by_operator_id?: string | null
+          revoked_by_user_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          accepted_by_user_id?: string | null
+          created_at?: string
+          high_clause_accepted_at?: string | null
+          high_clause_accepted_by_user_id?: string | null
+          high_clause_version?: string | null
+          high_share_level?: string
+          id?: string
+          invited_at?: string
+          invited_by_operator_id?: string
+          invited_by_user_id?: string | null
+          low_clause_accepted_at?: string | null
+          low_clause_accepted_by_user_id?: string | null
+          low_clause_version?: string | null
+          low_share_level?: string
+          operator_high_id?: string
+          operator_low_id?: string
+          revoked_at?: string | null
+          revoked_by_operator_id?: string | null
+          revoked_by_user_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "operator_links_accepted_by_user_id_fkey"
+            columns: ["accepted_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "assignable_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "operator_links_accepted_by_user_id_fkey"
+            columns: ["accepted_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "operator_links_high_clause_accepted_by_user_id_fkey"
+            columns: ["high_clause_accepted_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "assignable_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "operator_links_high_clause_accepted_by_user_id_fkey"
+            columns: ["high_clause_accepted_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "operator_links_invited_by_user_id_fkey"
+            columns: ["invited_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "assignable_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "operator_links_invited_by_user_id_fkey"
+            columns: ["invited_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "operator_links_low_clause_accepted_by_user_id_fkey"
+            columns: ["low_clause_accepted_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "assignable_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "operator_links_low_clause_accepted_by_user_id_fkey"
+            columns: ["low_clause_accepted_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "operator_links_operator_high_id_fkey"
+            columns: ["operator_high_id"]
+            isOneToOne: false
+            referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "operator_links_operator_high_id_fkey"
+            columns: ["operator_high_id"]
+            isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "operator_links_operator_high_id_fkey"
+            columns: ["operator_high_id"]
+            isOneToOne: false
+            referencedRelation: "operators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "operator_links_operator_high_id_fkey"
+            columns: ["operator_high_id"]
+            isOneToOne: false
+            referencedRelation: "staff_operator_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "operator_links_operator_low_id_fkey"
+            columns: ["operator_low_id"]
+            isOneToOne: false
+            referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "operator_links_operator_low_id_fkey"
+            columns: ["operator_low_id"]
+            isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "operator_links_operator_low_id_fkey"
+            columns: ["operator_low_id"]
+            isOneToOne: false
+            referencedRelation: "operators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "operator_links_operator_low_id_fkey"
+            columns: ["operator_low_id"]
+            isOneToOne: false
+            referencedRelation: "staff_operator_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "operator_links_revoked_by_user_id_fkey"
+            columns: ["revoked_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "assignable_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "operator_links_revoked_by_user_id_fkey"
+            columns: ["revoked_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -9377,6 +10470,13 @@ export type Database = {
             columns: ["operator_id"]
             isOneToOne: false
             referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "operator_memberships_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operator_activation"
             referencedColumns: ["operator_id"]
           },
           {
@@ -9484,6 +10584,13 @@ export type Database = {
             foreignKeyName: "operator_offers_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "operator_offers_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -9547,6 +10654,13 @@ export type Database = {
             foreignKeyName: "operator_payment_downgrades_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "operator_payment_downgrades_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -9597,6 +10711,13 @@ export type Database = {
             columns: ["operator_id"]
             isOneToOne: true
             referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "operator_payment_gate_notices_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: true
+            referencedRelation: "operator_activation"
             referencedColumns: ["operator_id"]
           },
           {
@@ -9685,6 +10806,13 @@ export type Database = {
             columns: ["operator_id"]
             isOneToOne: false
             referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "operator_payment_methods_operator_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operator_activation"
             referencedColumns: ["operator_id"]
           },
           {
@@ -9788,6 +10916,13 @@ export type Database = {
             foreignKeyName: "operator_plan_changes_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "operator_plan_changes_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -9878,6 +11013,13 @@ export type Database = {
             foreignKeyName: "operator_plan_charges_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "operator_plan_charges_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -9918,6 +11060,13 @@ export type Database = {
             foreignKeyName: "operator_plan_pauses_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "operator_plan_pauses_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -9952,6 +11101,13 @@ export type Database = {
             columns: ["operator_id"]
             isOneToOne: false
             referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "operator_ses_identities_op_fk"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operator_activation"
             referencedColumns: ["operator_id"]
           },
           {
@@ -10058,6 +11214,13 @@ export type Database = {
             foreignKeyName: "operator_tags_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "operator_tags_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -10123,6 +11286,13 @@ export type Database = {
             foreignKeyName: "operator_upgrade_requests_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "operator_upgrade_requests_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -10151,6 +11321,7 @@ export type Database = {
       }
       operators: {
         Row: {
+          ai_onboarding_enabled: boolean
           audit_log_retention_days: number | null
           cancellation_notice_hours: number
           cancellation_policy_text: Json | null
@@ -10161,6 +11332,7 @@ export type Database = {
           dashboard_theme: Json
           date_format: string
           date_format_short: string | null
+          day_update_emails_enabled: boolean
           default_locale: string
           default_tax_rate: number
           default_ui_locale: string | null
@@ -10171,6 +11343,7 @@ export type Database = {
           field_staffing_window_days: number
           first_day_of_week: number
           group_discount_threshold: number
+          hidden_roles: string[]
           holded_api_key_encrypted: string | null
           holded_approve_mode: Database["public"]["Enums"]["holded_approve_mode"]
           holded_transfer_mode: Database["public"]["Enums"]["holded_transfer_mode"]
@@ -10214,9 +11387,11 @@ export type Database = {
           tax_id: string | null
           tax_id_kind: Database["public"]["Enums"]["tax_id_kind"] | null
           template_exported_at: string | null
+          template_exported_doc_hash: string | null
           template_exported_version: number | null
           template_pitch: Json | null
           template_slug: string | null
+          template_sort_order: number
           template_version: number
           terminology: Json
           theme: Json | null
@@ -10228,6 +11403,7 @@ export type Database = {
           weather_lat: number | null
           weather_lon: number | null
           weather_provider: string | null
+          website_listed: boolean
           widget_catalog_layout: string | null
           widget_category_columns: number | null
           widget_cross_sell_enabled: boolean
@@ -10252,6 +11428,7 @@ export type Database = {
           work_hours_start: string
         }
         Insert: {
+          ai_onboarding_enabled?: boolean
           audit_log_retention_days?: number | null
           cancellation_notice_hours?: number
           cancellation_policy_text?: Json | null
@@ -10262,6 +11439,7 @@ export type Database = {
           dashboard_theme?: Json
           date_format?: string
           date_format_short?: string | null
+          day_update_emails_enabled?: boolean
           default_locale?: string
           default_tax_rate?: number
           default_ui_locale?: string | null
@@ -10272,6 +11450,7 @@ export type Database = {
           field_staffing_window_days?: number
           first_day_of_week?: number
           group_discount_threshold?: number
+          hidden_roles?: string[]
           holded_api_key_encrypted?: string | null
           holded_approve_mode?: Database["public"]["Enums"]["holded_approve_mode"]
           holded_transfer_mode?: Database["public"]["Enums"]["holded_transfer_mode"]
@@ -10315,9 +11494,11 @@ export type Database = {
           tax_id?: string | null
           tax_id_kind?: Database["public"]["Enums"]["tax_id_kind"] | null
           template_exported_at?: string | null
+          template_exported_doc_hash?: string | null
           template_exported_version?: number | null
           template_pitch?: Json | null
           template_slug?: string | null
+          template_sort_order?: number
           template_version?: number
           terminology?: Json
           theme?: Json | null
@@ -10329,6 +11510,7 @@ export type Database = {
           weather_lat?: number | null
           weather_lon?: number | null
           weather_provider?: string | null
+          website_listed?: boolean
           widget_catalog_layout?: string | null
           widget_category_columns?: number | null
           widget_cross_sell_enabled?: boolean
@@ -10353,6 +11535,7 @@ export type Database = {
           work_hours_start?: string
         }
         Update: {
+          ai_onboarding_enabled?: boolean
           audit_log_retention_days?: number | null
           cancellation_notice_hours?: number
           cancellation_policy_text?: Json | null
@@ -10363,6 +11546,7 @@ export type Database = {
           dashboard_theme?: Json
           date_format?: string
           date_format_short?: string | null
+          day_update_emails_enabled?: boolean
           default_locale?: string
           default_tax_rate?: number
           default_ui_locale?: string | null
@@ -10373,6 +11557,7 @@ export type Database = {
           field_staffing_window_days?: number
           first_day_of_week?: number
           group_discount_threshold?: number
+          hidden_roles?: string[]
           holded_api_key_encrypted?: string | null
           holded_approve_mode?: Database["public"]["Enums"]["holded_approve_mode"]
           holded_transfer_mode?: Database["public"]["Enums"]["holded_transfer_mode"]
@@ -10416,9 +11601,11 @@ export type Database = {
           tax_id?: string | null
           tax_id_kind?: Database["public"]["Enums"]["tax_id_kind"] | null
           template_exported_at?: string | null
+          template_exported_doc_hash?: string | null
           template_exported_version?: number | null
           template_pitch?: Json | null
           template_slug?: string | null
+          template_sort_order?: number
           template_version?: number
           terminology?: Json
           theme?: Json | null
@@ -10430,6 +11617,7 @@ export type Database = {
           weather_lat?: number | null
           weather_lon?: number | null
           weather_provider?: string | null
+          website_listed?: boolean
           widget_catalog_layout?: string | null
           widget_category_columns?: number | null
           widget_cross_sell_enabled?: boolean
@@ -10580,6 +11768,13 @@ export type Database = {
             columns: ["operator_id"]
             isOneToOne: false
             referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "outbound_emails_op_fk"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operator_activation"
             referencedColumns: ["operator_id"]
           },
           {
@@ -10779,6 +11974,13 @@ export type Database = {
             foreignKeyName: "participant_day_statuses_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "participant_day_statuses_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -10956,6 +12158,13 @@ export type Database = {
             foreignKeyName: "participant_unit_requests_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "participant_unit_requests_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -11065,6 +12274,13 @@ export type Database = {
             columns: ["operator_id"]
             isOneToOne: false
             referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "pass_tiers_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operator_activation"
             referencedColumns: ["operator_id"]
           },
           {
@@ -11194,6 +12410,13 @@ export type Database = {
             foreignKeyName: "payment_refunds_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "payment_refunds_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -11256,6 +12479,13 @@ export type Database = {
             foreignKeyName: "payment_state_transitions_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "payment_state_transitions_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -11267,11 +12497,11 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "payment_state_transitions_payment_id_fkey"
-            columns: ["payment_id"]
+            foreignKeyName: "payment_state_transitions_payment_id_operator_id_fkey"
+            columns: ["payment_id", "operator_id"]
             isOneToOne: false
             referencedRelation: "payments"
-            referencedColumns: ["id"]
+            referencedColumns: ["id", "operator_id"]
           },
           {
             foreignKeyName: "payment_state_transitions_triggered_by_user_id_fkey"
@@ -11373,6 +12603,13 @@ export type Database = {
             foreignKeyName: "payments_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "payments_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -11451,6 +12688,13 @@ export type Database = {
             columns: ["operator_id"]
             isOneToOne: false
             referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "pending_external_contact_decisions_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operator_activation"
             referencedColumns: ["operator_id"]
           },
           {
@@ -11561,6 +12805,233 @@ export type Database = {
           },
         ]
       }
+      platform_calendar_blocks: {
+        Row: {
+          created_at: string
+          end_date: string
+          event_uid: string
+          feed_id: string
+          id: string
+          operator_id: string
+          resource_id: string
+          start_date: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          end_date: string
+          event_uid: string
+          feed_id: string
+          id?: string
+          operator_id: string
+          resource_id: string
+          start_date: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          end_date?: string
+          event_uid?: string
+          feed_id?: string
+          id?: string
+          operator_id?: string
+          resource_id?: string
+          start_date?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "platform_calendar_blocks_feed_id_fkey"
+            columns: ["feed_id"]
+            isOneToOne: false
+            referencedRelation: "platform_calendar_feeds"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "platform_calendar_blocks_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "platform_calendar_blocks_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "platform_calendar_blocks_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "platform_calendar_blocks_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "staff_operator_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "platform_calendar_blocks_resource_id_fkey"
+            columns: ["resource_id"]
+            isOneToOne: false
+            referencedRelation: "hotel_details"
+            referencedColumns: ["location_id"]
+          },
+          {
+            foreignKeyName: "platform_calendar_blocks_resource_id_fkey"
+            columns: ["resource_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "platform_calendar_blocks_resource_id_fkey"
+            columns: ["resource_id"]
+            isOneToOne: false
+            referencedRelation: "providers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "platform_calendar_blocks_resource_id_fkey"
+            columns: ["resource_id"]
+            isOneToOne: false
+            referencedRelation: "resource_effective_capacity"
+            referencedColumns: ["resource_id"]
+          },
+          {
+            foreignKeyName: "platform_calendar_blocks_resource_id_fkey"
+            columns: ["resource_id"]
+            isOneToOne: false
+            referencedRelation: "resource_pool_units"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "platform_calendar_blocks_resource_id_fkey"
+            columns: ["resource_id"]
+            isOneToOne: false
+            referencedRelation: "resources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      platform_calendar_feeds: {
+        Row: {
+          created_at: string
+          id: string
+          last_error: string | null
+          last_synced_at: string | null
+          operator_id: string
+          platform: string
+          resource_id: string
+          status: string
+          updated_at: string
+          url: string
+          url_host: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          last_synced_at?: string | null
+          operator_id: string
+          platform?: string
+          resource_id: string
+          status?: string
+          updated_at?: string
+          url: string
+          url_host?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          last_synced_at?: string | null
+          operator_id?: string
+          platform?: string
+          resource_id?: string
+          status?: string
+          updated_at?: string
+          url?: string
+          url_host?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "platform_calendar_feeds_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "platform_calendar_feeds_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "platform_calendar_feeds_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "platform_calendar_feeds_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "staff_operator_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "platform_calendar_feeds_resource_id_fkey"
+            columns: ["resource_id"]
+            isOneToOne: false
+            referencedRelation: "hotel_details"
+            referencedColumns: ["location_id"]
+          },
+          {
+            foreignKeyName: "platform_calendar_feeds_resource_id_fkey"
+            columns: ["resource_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "platform_calendar_feeds_resource_id_fkey"
+            columns: ["resource_id"]
+            isOneToOne: false
+            referencedRelation: "providers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "platform_calendar_feeds_resource_id_fkey"
+            columns: ["resource_id"]
+            isOneToOne: false
+            referencedRelation: "resource_effective_capacity"
+            referencedColumns: ["resource_id"]
+          },
+          {
+            foreignKeyName: "platform_calendar_feeds_resource_id_fkey"
+            columns: ["resource_id"]
+            isOneToOne: false
+            referencedRelation: "resource_pool_units"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "platform_calendar_feeds_resource_id_fkey"
+            columns: ["resource_id"]
+            isOneToOne: false
+            referencedRelation: "resources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       platform_outbound_emails: {
         Row: {
           attachments: Json | null
@@ -11635,6 +13106,45 @@ export type Database = {
           },
         ]
       }
+      platform_settings: {
+        Row: {
+          created_at: string
+          key: string
+          updated_at: string
+          updated_by_user_id: string | null
+          value: Json
+        }
+        Insert: {
+          created_at?: string
+          key: string
+          updated_at?: string
+          updated_by_user_id?: string | null
+          value?: Json
+        }
+        Update: {
+          created_at?: string
+          key?: string
+          updated_at?: string
+          updated_by_user_id?: string | null
+          value?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "platform_settings_updated_by_user_id_fkey"
+            columns: ["updated_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "assignable_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "platform_settings_updated_by_user_id_fkey"
+            columns: ["updated_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pricing_rules: {
         Row: {
           active: boolean
@@ -11701,6 +13211,13 @@ export type Database = {
             columns: ["operator_id"]
             isOneToOne: false
             referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "pricing_rules_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operator_activation"
             referencedColumns: ["operator_id"]
           },
           {
@@ -11801,6 +13318,13 @@ export type Database = {
             foreignKeyName: "pricing_schemes_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "pricing_schemes_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -11882,6 +13406,13 @@ export type Database = {
             foreignKeyName: "pricing_seasons_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "pricing_seasons_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -11944,6 +13475,13 @@ export type Database = {
             columns: ["operator_id"]
             isOneToOne: false
             referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "pricing_tiers_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operator_activation"
             referencedColumns: ["operator_id"]
           },
           {
@@ -12025,6 +13563,13 @@ export type Database = {
             foreignKeyName: "product_addons_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "product_addons_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -12085,6 +13630,13 @@ export type Database = {
             columns: ["operator_id"]
             isOneToOne: false
             referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "product_alternatives_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operator_activation"
             referencedColumns: ["operator_id"]
           },
           {
@@ -12171,6 +13723,13 @@ export type Database = {
             foreignKeyName: "product_availability_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "product_availability_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -12224,6 +13783,13 @@ export type Database = {
             columns: ["operator_id"]
             isOneToOne: false
             referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "product_blocked_dates_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operator_activation"
             referencedColumns: ["operator_id"]
           },
           {
@@ -12336,6 +13902,13 @@ export type Database = {
             foreignKeyName: "product_categories_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "product_categories_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -12397,6 +13970,13 @@ export type Database = {
             columns: ["operator_id"]
             isOneToOne: false
             referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "product_fixed_date_windows_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operator_activation"
             referencedColumns: ["operator_id"]
           },
           {
@@ -12466,6 +14046,13 @@ export type Database = {
             columns: ["operator_id"]
             isOneToOne: false
             referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "product_flow_modules_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operator_activation"
             referencedColumns: ["operator_id"]
           },
           {
@@ -12572,6 +14159,13 @@ export type Database = {
             foreignKeyName: "product_groups_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "product_groups_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -12628,6 +14222,13 @@ export type Database = {
             columns: ["operator_id"]
             isOneToOne: false
             referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "product_images_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operator_activation"
             referencedColumns: ["operator_id"]
           },
           {
@@ -12735,6 +14336,13 @@ export type Database = {
             foreignKeyName: "product_locations_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "product_locations_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -12794,6 +14402,13 @@ export type Database = {
             foreignKeyName: "product_pattern_seasons_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "product_pattern_seasons_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -12847,6 +14462,13 @@ export type Database = {
             columns: ["operator_id"]
             isOneToOne: false
             referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "product_season_prices_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operator_activation"
             referencedColumns: ["operator_id"]
           },
           {
@@ -12952,6 +14574,13 @@ export type Database = {
             foreignKeyName: "product_service_roles_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "product_service_roles_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -13012,6 +14641,13 @@ export type Database = {
             foreignKeyName: "product_sports_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "product_sports_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -13060,6 +14696,7 @@ export type Database = {
           daily_start_times: string[] | null
           daily_start_weekdays: number[] | null
           day_capacity_source: string
+          day_selection: string
           default_pricing_scheme_id: string | null
           deleted_at: string | null
           deleted_by_user_id: string | null
@@ -13067,6 +14704,7 @@ export type Database = {
           description: string | null
           description_localized: Json | null
           duration_minutes: number | null
+          eligibility_rules: Json | null
           event_cutoff_hours: number | null
           event_end_weekday: number | null
           event_horizon_n: number
@@ -13101,6 +14739,7 @@ export type Database = {
           price_unit: string
           product_group_id: string | null
           product_kind: Database["public"]["Enums"]["product_kind"]
+          required_attributes: string[]
           requires_verification: boolean
           revenue_flows_through_operator: boolean
           service_time_shape:
@@ -13112,6 +14751,8 @@ export type Database = {
           slot_capacity: number
           slug: string
           sort_order: number
+          template_origin_slug: string | null
+          template_origin_version: number | null
           updated_at: string
           waiver_text_localized: Json | null
         }
@@ -13136,6 +14777,7 @@ export type Database = {
           daily_start_times?: string[] | null
           daily_start_weekdays?: number[] | null
           day_capacity_source?: string
+          day_selection?: string
           default_pricing_scheme_id?: string | null
           deleted_at?: string | null
           deleted_by_user_id?: string | null
@@ -13143,6 +14785,7 @@ export type Database = {
           description?: string | null
           description_localized?: Json | null
           duration_minutes?: number | null
+          eligibility_rules?: Json | null
           event_cutoff_hours?: number | null
           event_end_weekday?: number | null
           event_horizon_n?: number
@@ -13177,6 +14820,7 @@ export type Database = {
           price_unit?: string
           product_group_id?: string | null
           product_kind: Database["public"]["Enums"]["product_kind"]
+          required_attributes?: string[]
           requires_verification?: boolean
           revenue_flows_through_operator?: boolean
           service_time_shape?:
@@ -13188,6 +14832,8 @@ export type Database = {
           slot_capacity?: number
           slug: string
           sort_order?: number
+          template_origin_slug?: string | null
+          template_origin_version?: number | null
           updated_at?: string
           waiver_text_localized?: Json | null
         }
@@ -13212,6 +14858,7 @@ export type Database = {
           daily_start_times?: string[] | null
           daily_start_weekdays?: number[] | null
           day_capacity_source?: string
+          day_selection?: string
           default_pricing_scheme_id?: string | null
           deleted_at?: string | null
           deleted_by_user_id?: string | null
@@ -13219,6 +14866,7 @@ export type Database = {
           description?: string | null
           description_localized?: Json | null
           duration_minutes?: number | null
+          eligibility_rules?: Json | null
           event_cutoff_hours?: number | null
           event_end_weekday?: number | null
           event_horizon_n?: number
@@ -13253,6 +14901,7 @@ export type Database = {
           price_unit?: string
           product_group_id?: string | null
           product_kind?: Database["public"]["Enums"]["product_kind"]
+          required_attributes?: string[]
           requires_verification?: boolean
           revenue_flows_through_operator?: boolean
           service_time_shape?:
@@ -13264,6 +14913,8 @@ export type Database = {
           slot_capacity?: number
           slug?: string
           sort_order?: number
+          template_origin_slug?: string | null
+          template_origin_version?: number | null
           updated_at?: string
           waiver_text_localized?: Json | null
         }
@@ -13336,6 +14987,13 @@ export type Database = {
             columns: ["operator_id"]
             isOneToOne: false
             referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "products_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operator_activation"
             referencedColumns: ["operator_id"]
           },
           {
@@ -13466,6 +15124,13 @@ export type Database = {
             foreignKeyName: "promotion_run_signoffs_operator_fk"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "promotion_run_signoffs_operator_fk"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -13511,6 +15176,8 @@ export type Database = {
           decided_at: string | null
           decided_by: string | null
           decision_notes: string | null
+          deploy_phase: string | null
+          deploy_phase_at: string | null
           execute_after: string | null
           express_source_run_id: string | null
           id: string
@@ -13552,6 +15219,8 @@ export type Database = {
           decided_at?: string | null
           decided_by?: string | null
           decision_notes?: string | null
+          deploy_phase?: string | null
+          deploy_phase_at?: string | null
           execute_after?: string | null
           express_source_run_id?: string | null
           id?: string
@@ -13593,6 +15262,8 @@ export type Database = {
           decided_at?: string | null
           decided_by?: string | null
           decision_notes?: string | null
+          deploy_phase?: string | null
+          deploy_phase_at?: string | null
           execute_after?: string | null
           express_source_run_id?: string | null
           id?: string
@@ -13775,6 +15446,13 @@ export type Database = {
             foreignKeyName: "provider_contracts_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "provider_contracts_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -13905,6 +15583,13 @@ export type Database = {
             foreignKeyName: "push_subscriptions_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "push_subscriptions_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -13988,6 +15673,98 @@ export type Database = {
         }
         Relationships: []
       }
+      resource_calendar_export_tokens: {
+        Row: {
+          created_at: string
+          operator_id: string
+          resource_id: string
+          token: string
+        }
+        Insert: {
+          created_at?: string
+          operator_id: string
+          resource_id: string
+          token: string
+        }
+        Update: {
+          created_at?: string
+          operator_id?: string
+          resource_id?: string
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "resource_calendar_export_tokens_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "resource_calendar_export_tokens_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "resource_calendar_export_tokens_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "resource_calendar_export_tokens_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "staff_operator_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "resource_calendar_export_tokens_resource_id_fkey"
+            columns: ["resource_id"]
+            isOneToOne: true
+            referencedRelation: "hotel_details"
+            referencedColumns: ["location_id"]
+          },
+          {
+            foreignKeyName: "resource_calendar_export_tokens_resource_id_fkey"
+            columns: ["resource_id"]
+            isOneToOne: true
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "resource_calendar_export_tokens_resource_id_fkey"
+            columns: ["resource_id"]
+            isOneToOne: true
+            referencedRelation: "providers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "resource_calendar_export_tokens_resource_id_fkey"
+            columns: ["resource_id"]
+            isOneToOne: true
+            referencedRelation: "resource_effective_capacity"
+            referencedColumns: ["resource_id"]
+          },
+          {
+            foreignKeyName: "resource_calendar_export_tokens_resource_id_fkey"
+            columns: ["resource_id"]
+            isOneToOne: true
+            referencedRelation: "resource_pool_units"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "resource_calendar_export_tokens_resource_id_fkey"
+            columns: ["resource_id"]
+            isOneToOne: true
+            referencedRelation: "resources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       resource_day_assignments: {
         Row: {
           assigned_resource_id: string
@@ -14067,6 +15844,13 @@ export type Database = {
             columns: ["operator_id"]
             isOneToOne: false
             referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "resource_day_assignments_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operator_activation"
             referencedColumns: ["operator_id"]
           },
           {
@@ -14209,6 +15993,13 @@ export type Database = {
             foreignKeyName: "resource_links_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "resource_links_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -14265,6 +16056,7 @@ export type Database = {
       }
       resource_pool_unit_day_releases: {
         Row: {
+          booking_id: string | null
           created_at: string
           created_by_user_id: string | null
           date: string
@@ -14279,6 +16071,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          booking_id?: string | null
           created_at?: string
           created_by_user_id?: string | null
           date: string
@@ -14293,6 +16086,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          booking_id?: string | null
           created_at?: string
           created_by_user_id?: string | null
           date?: string
@@ -14307,6 +16101,20 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "resource_pool_unit_day_releases_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "booking_money"
+            referencedColumns: ["booking_id"]
+          },
+          {
+            foreignKeyName: "resource_pool_unit_day_releases_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "resource_pool_unit_day_releases_created_by_user_id_fkey"
             columns: ["created_by_user_id"]
@@ -14326,6 +16134,13 @@ export type Database = {
             columns: ["operator_id"]
             isOneToOne: false
             referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "resource_pool_unit_day_releases_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operator_activation"
             referencedColumns: ["operator_id"]
           },
           {
@@ -14478,6 +16293,13 @@ export type Database = {
             columns: ["operator_id"]
             isOneToOne: false
             referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "resource_requirements_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operator_activation"
             referencedColumns: ["operator_id"]
           },
           {
@@ -14638,6 +16460,13 @@ export type Database = {
             foreignKeyName: "resource_type_approval_period_resources_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "resource_type_approval_period_resources_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -14781,6 +16610,13 @@ export type Database = {
             foreignKeyName: "resource_type_approval_periods_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "resource_type_approval_periods_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -14849,6 +16685,13 @@ export type Database = {
             columns: ["operator_id"]
             isOneToOne: false
             referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "resource_type_labels_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operator_activation"
             referencedColumns: ["operator_id"]
           },
           {
@@ -15042,6 +16885,13 @@ export type Database = {
             foreignKeyName: "resource_types_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "resource_types_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -15148,6 +16998,13 @@ export type Database = {
             columns: ["operator_id"]
             isOneToOne: false
             referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "resource_unavailability_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operator_activation"
             referencedColumns: ["operator_id"]
           },
           {
@@ -15330,6 +17187,13 @@ export type Database = {
             foreignKeyName: "resources_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "resources_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -15495,6 +17359,13 @@ export type Database = {
             foreignKeyName: "saved_views_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "saved_views_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -15588,6 +17459,13 @@ export type Database = {
             columns: ["operator_id"]
             isOneToOne: false
             referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "service_roles_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operator_activation"
             referencedColumns: ["operator_id"]
           },
           {
@@ -15777,6 +17655,13 @@ export type Database = {
             columns: ["published_by_operator_id"]
             isOneToOne: false
             referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "site_warnings_published_by_operator_id_fkey"
+            columns: ["published_by_operator_id"]
+            isOneToOne: false
+            referencedRelation: "operator_activation"
             referencedColumns: ["operator_id"]
           },
           {
@@ -16016,6 +17901,13 @@ export type Database = {
             foreignKeyName: "stripe_webhook_events_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "stripe_webhook_events_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -16112,6 +18004,13 @@ export type Database = {
             columns: ["operator_id"]
             isOneToOne: false
             referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "subscription_holders_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operator_activation"
             referencedColumns: ["operator_id"]
           },
           {
@@ -16219,6 +18118,13 @@ export type Database = {
             foreignKeyName: "subscription_perk_verifications_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "subscription_perk_verifications_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -16274,6 +18180,13 @@ export type Database = {
             columns: ["operator_id"]
             isOneToOne: false
             referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "subscription_perks_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operator_activation"
             referencedColumns: ["operator_id"]
           },
           {
@@ -16352,6 +18265,13 @@ export type Database = {
             columns: ["operator_id"]
             isOneToOne: false
             referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "subscriptions_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operator_activation"
             referencedColumns: ["operator_id"]
           },
           {
@@ -16488,6 +18408,13 @@ export type Database = {
             columns: ["operator_id"]
             isOneToOne: false
             referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "terms_change_recipients_operator_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operator_activation"
             referencedColumns: ["operator_id"]
           },
           {
@@ -16715,6 +18642,13 @@ export type Database = {
             columns: ["operator_id"]
             isOneToOne: false
             referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "ticket_comments_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operator_activation"
             referencedColumns: ["operator_id"]
           },
           {
@@ -17090,6 +19024,13 @@ export type Database = {
             foreignKeyName: "tickets_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "tickets_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -17112,6 +19053,71 @@ export type Database = {
             columns: ["reporter_id"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trello_board_links: {
+        Row: {
+          board_name: string | null
+          created_at: string
+          id: string
+          is_default: boolean
+          operator_id: string
+          trello_board_id: string
+          trello_member_id: string | null
+          trello_member_username: string | null
+          updated_at: string
+        }
+        Insert: {
+          board_name?: string | null
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          operator_id: string
+          trello_board_id: string
+          trello_member_id?: string | null
+          trello_member_username?: string | null
+          updated_at?: string
+        }
+        Update: {
+          board_name?: string | null
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          operator_id?: string
+          trello_board_id?: string
+          trello_member_id?: string | null
+          trello_member_username?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trello_board_links_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "trello_board_links_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "trello_board_links_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trello_board_links_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "staff_operator_overview"
             referencedColumns: ["id"]
           },
         ]
@@ -17361,6 +19367,39 @@ export type Database = {
           },
         ]
       }
+      user_ui_prefs: {
+        Row: {
+          tours: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          tours?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          tours?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_ui_prefs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "assignable_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_ui_prefs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       users: {
         Row: {
           created_at: string | null
@@ -17547,6 +19586,13 @@ export type Database = {
             foreignKeyName: "voucher_redemptions_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "voucher_redemptions_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -17676,6 +19722,13 @@ export type Database = {
             foreignKeyName: "vouchers_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "vouchers_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -17713,6 +19766,13 @@ export type Database = {
             columns: ["operator_id"]
             isOneToOne: false
             referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "widget_short_links_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operator_activation"
             referencedColumns: ["operator_id"]
           },
           {
@@ -17895,6 +19955,13 @@ export type Database = {
             foreignKeyName: "booking_lifecycle_stages_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "booking_lifecycle_stages_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -17977,6 +20044,13 @@ export type Database = {
             foreignKeyName: "bookings_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "bookings_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -18030,6 +20104,13 @@ export type Database = {
             columns: ["operator_id"]
             isOneToOne: false
             referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "booking_products_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operator_activation"
             referencedColumns: ["operator_id"]
           },
           {
@@ -18195,6 +20276,13 @@ export type Database = {
             columns: ["operator_id"]
             isOneToOne: false
             referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "contacts_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operator_activation"
             referencedColumns: ["operator_id"]
           },
           {
@@ -18384,6 +20472,13 @@ export type Database = {
             foreignKeyName: "resource_types_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "resource_types_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -18484,6 +20579,13 @@ export type Database = {
             columns: ["operator_id"]
             isOneToOne: false
             referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "resources_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operator_activation"
             referencedColumns: ["operator_id"]
           },
           {
@@ -18615,6 +20717,19 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      operator_activation: {
+        Row: {
+          ai_used: boolean | null
+          days_to_activate: number | null
+          first_bookable_at: string | null
+          onboarded_at: string | null
+          onboarding_path: string | null
+          operator_id: string | null
+          signup_at: string | null
+          template_slug: string | null
+        }
+        Relationships: []
       }
       participant_days: {
         Row: {
@@ -18835,6 +20950,13 @@ export type Database = {
             foreignKeyName: "booking_products_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "booking_products_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -18986,6 +21108,13 @@ export type Database = {
             foreignKeyName: "resource_requirements_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "resource_requirements_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -19067,6 +21196,13 @@ export type Database = {
             columns: ["operator_id"]
             isOneToOne: false
             referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "resource_unavailability_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operator_activation"
             referencedColumns: ["operator_id"]
           },
           {
@@ -19196,6 +21332,13 @@ export type Database = {
             foreignKeyName: "resource_types_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "resource_types_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -19294,6 +21437,13 @@ export type Database = {
             foreignKeyName: "resources_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "resources_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -19377,6 +21527,13 @@ export type Database = {
             foreignKeyName: "resources_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "resources_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -19431,13 +21588,6 @@ export type Database = {
           },
           {
             foreignKeyName: "resources_resource_type_id_fkey"
-            columns: ["resource_type_id"]
-            isOneToOne: false
-            referencedRelation: "location_role_types"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "resources_resource_type_id_fkey"
             columns: ["parent_resource_type_id"]
             isOneToOne: false
             referencedRelation: "location_role_types"
@@ -19447,7 +21597,7 @@ export type Database = {
             foreignKeyName: "resources_resource_type_id_fkey"
             columns: ["resource_type_id"]
             isOneToOne: false
-            referencedRelation: "provider_role_types"
+            referencedRelation: "location_role_types"
             referencedColumns: ["id"]
           },
           {
@@ -19461,7 +21611,7 @@ export type Database = {
             foreignKeyName: "resources_resource_type_id_fkey"
             columns: ["resource_type_id"]
             isOneToOne: false
-            referencedRelation: "resource_pools"
+            referencedRelation: "provider_role_types"
             referencedColumns: ["id"]
           },
           {
@@ -19474,13 +21624,20 @@ export type Database = {
           {
             foreignKeyName: "resources_resource_type_id_fkey"
             columns: ["resource_type_id"]
+            isOneToOne: false
+            referencedRelation: "resource_pools"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "resources_resource_type_id_fkey"
+            columns: ["parent_resource_type_id"]
             isOneToOne: false
             referencedRelation: "resource_types"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "resources_resource_type_id_fkey"
-            columns: ["parent_resource_type_id"]
+            columns: ["resource_type_id"]
             isOneToOne: false
             referencedRelation: "resource_types"
             referencedColumns: ["id"]
@@ -19518,6 +21675,13 @@ export type Database = {
             columns: ["operator_id"]
             isOneToOne: false
             referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "resource_type_approval_period_resources_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operator_activation"
             referencedColumns: ["operator_id"]
           },
           {
@@ -19673,6 +21837,13 @@ export type Database = {
             foreignKeyName: "resource_type_approval_periods_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "resource_type_approval_periods_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -19792,6 +21963,13 @@ export type Database = {
             foreignKeyName: "resource_links_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "resource_links_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -19885,6 +22063,13 @@ export type Database = {
             columns: ["operator_id"]
             isOneToOne: false
             referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "resource_unavailability_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operator_activation"
             referencedColumns: ["operator_id"]
           },
           {
@@ -20045,6 +22230,13 @@ export type Database = {
             foreignKeyName: "resources_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "resources_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -20181,6 +22373,13 @@ export type Database = {
             foreignKeyName: "resource_types_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "resource_types_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -20304,6 +22503,13 @@ export type Database = {
             columns: ["operator_id"]
             isOneToOne: false
             referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "ticket_comments_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operator_activation"
             referencedColumns: ["operator_id"]
           },
           {
@@ -20471,6 +22677,13 @@ export type Database = {
             foreignKeyName: "tickets_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
+            referencedRelation: "operator_activation"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "tickets_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
@@ -20524,6 +22737,11 @@ export type Database = {
         }
         Returns: string
       }
+      _bp_offer_collection: { Args: { p_bd: Json }; Returns: string }
+      _bp_offer_guest_options: { Args: { p_bd: Json }; Returns: Json }
+      _bp_offer_participant_ids: { Args: { p_bd: Json }; Returns: string[] }
+      _bp_offer_text: { Args: { p_bd: Json; p_key: string }; Returns: string }
+      _bp_offer_uuid: { Args: { p_bd: Json }; Returns: string }
       _copy_resource_phone_to_contact: {
         Args: { p_operator_id?: string }
         Returns: {
@@ -20549,10 +22767,55 @@ export type Database = {
         Args: { p_existing: Json; p_incoming: Json; p_touched: string[] }
         Returns: Json
       }
+      _offer_ctx_date: { Args: { p: Json }; Returns: string }
+      _offer_date_window_hit: {
+        Args: { p_ctx: Json; p_value: Json }
+        Returns: boolean
+      }
+      _offer_is_month_day_json: { Args: { p: Json }; Returns: boolean }
+      _offer_is_pair_json: {
+        Args: { p: Json; p_kind: string }
+        Returns: boolean
+      }
+      _offer_is_string_map_json: { Args: { p: Json }; Returns: boolean }
+      _offer_is_uuid_json: { Args: { p: Json }; Returns: boolean }
+      _offer_uuid_list_hit: {
+        Args: { p_haystack: Json; p_needle: Json }
+        Returns: boolean
+      }
+      _offer_value_cmp: {
+        Args: { p_actual: Json; p_op: string; p_value: Json }
+        Returns: boolean
+      }
+      _offers_cross_sell_at_defaults: {
+        Args: { o: Database["public"]["Tables"]["offers"]["Row"] }
+        Returns: boolean
+      }
+      _offers_legacy_same_operator: {
+        Args: { p_addon_id: string; p_have: string; p_want: string }
+        Returns: string
+      }
+      _operator_link_allows: {
+        Args: {
+          p_level: string
+          p_owner_operator_id: string
+          p_viewer_operator_id: string
+        }
+        Returns: boolean
+      }
       _participant_shared_email: {
         Args: { p_contact_id: string; p_person: Json }
         Returns: string
       }
+      _payload_guest_attributes: {
+        Args: { p_participant: Json }
+        Returns: Json
+      }
+      _personal_cap_transition: {
+        Args: { p_booking_id: string; p_decision: string; p_reason: string }
+        Returns: undefined
+      }
+      _personal_cap_tz: { Args: { p_operator_id: string }; Returns: string }
       _postgis_deprecate: {
         Args: { newname: string; oldname: string; version: string }
         Returns: undefined
@@ -20604,6 +22867,10 @@ export type Database = {
       _resolve_participant_contact: {
         Args: { p_operator_id: string; p_person: Json }
         Returns: string
+      }
+      _rules_name_guest_attr: {
+        Args: { p_key: string; p_rules: Json }
+        Returns: boolean
       }
       _safe_tz: { Args: { p_tz: string }; Returns: string }
       _st_3dintersects: {
@@ -20720,6 +22987,10 @@ export type Database = {
         }
         Returns: string
       }
+      _tpl_prune_rules: {
+        Args: { p_products: string[]; p_rules: Json }
+        Returns: Json
+      }
       _tpl_remap: { Args: { p_json: Json }; Returns: Json }
       _tpl_row_operator: {
         Args: { p_id: string; p_table: string }
@@ -20821,6 +23092,22 @@ export type Database = {
         }
         Returns: string[]
       }
+      ai_usage_by_operator: {
+        Args: { p_since: string; p_until: string }
+        Returns: {
+          cache_read_tokens: number
+          cache_write_tokens: number
+          cost_usd: number
+          input_tokens: number
+          operator_id: string
+          operator_name: string
+          output_tokens: number
+          requests: number
+          sessions: number
+          turns: number
+        }[]
+      }
+      ai_usage_cost_since: { Args: { p_since: string }; Returns: number }
       anniversary_due_briefings: {
         Args: { p_window_end_days?: number; p_window_start_days?: number }
         Returns: {
@@ -21092,10 +23379,6 @@ export type Database = {
         Returns: boolean
       }
       audit_row_redact_money: { Args: { p_row: Json }; Returns: Json }
-      audit_row_strip_secrets: {
-        Args: { p_row: Json; p_table: string }
-        Returns: Json
-      }
       backfill_membership_contacts: {
         Args: { p_operator_id?: string }
         Returns: number
@@ -21119,6 +23402,7 @@ export type Database = {
         Args: { b: Database["public"]["Tables"]["bookings"]["Row"] }
         Returns: Json
       }
+      booking_products_offer_cols_backfill: { Args: never; Returns: number }
       booking_reference: { Args: { p_booking_id: string }; Returns: string }
       bookings_rebuild_search_text: {
         Args: { p_booking_id: string }
@@ -21454,6 +23738,10 @@ export type Database = {
         }
         Returns: string
       }
+      expire_personal_cap_holds: {
+        Args: { p_now?: string; p_operator_id?: string }
+        Returns: number
+      }
       feature_config_is_restrictive: {
         Args: { p_config: Json; p_value_schema: Json }
         Returns: boolean
@@ -21578,6 +23866,46 @@ export type Database = {
       }
       geomfromewkt: { Args: { "": string }; Returns: unknown }
       gettransactionid: { Args: never; Returns: unknown }
+      guest_attribute_keys_valid: {
+        Args: { p_keys: string[] }
+        Returns: boolean
+      }
+      guest_attribute_ranges_valid: {
+        Args: {
+          p_collect_as: string
+          p_cuts: number[]
+          p_max: number
+          p_min: number
+          p_value_type: string
+        }
+        Returns: boolean
+      }
+      guest_attribute_row_valid: {
+        Args: {
+          p_choices: string[]
+          p_key: string
+          p_max: number
+          p_min: number
+          p_unit: string
+          p_value_type: string
+          p_well_known: boolean
+        }
+        Returns: boolean
+      }
+      guest_attribute_well_known: {
+        Args: never
+        Returns: {
+          choices: string[]
+          key: string
+          label: string
+          label_localized: Json
+          max_value: number
+          min_value: number
+          sort_order: number
+          unit: string
+          value_type: string
+        }[]
+      }
       holded_eom_auto_resolve: {
         Args: { p_force?: boolean }
         Returns: {
@@ -21733,6 +24061,49 @@ export type Database = {
         }
         Returns: string
       }
+      linked_calendar_details: {
+        Args: {
+          p_from: string
+          p_owner_operator_id: string
+          p_to: string
+          p_viewer_operator_id: string
+        }
+        Returns: {
+          booking_id: string
+          booking_status: string
+          date_range_end: string
+          date_range_start: string
+          guest_email: string
+          guest_first_name: string
+          guest_last_name: string
+          guest_phone: string
+          headcount: number
+          is_addon_only: boolean
+          product_id: string
+          product_name: string
+          selected_days: string[]
+          slot_start_time: string
+        }[]
+      }
+      linked_calendar_occupancy: {
+        Args: {
+          p_from: string
+          p_owner_operator_id: string
+          p_to: string
+          p_viewer_operator_id: string
+        }
+        Returns: {
+          booking_status: string
+          date_range_end: string
+          date_range_start: string
+          headcount: number
+          is_addon_only: boolean
+          product_id: string
+          product_name: string
+          selected_days: string[]
+          slot_start_time: string
+        }[]
+      }
       longtransactionsenabled: { Args: never; Returns: boolean }
       mask_person_name: { Args: { p_name: string }; Returns: string }
       next_billing_invoice_number: { Args: { p_year: number }; Returns: string }
@@ -21746,6 +24117,85 @@ export type Database = {
           p_user_id: string
         }
         Returns: boolean
+      }
+      offer_options_valid: { Args: { p_options: Json }; Returns: boolean }
+      offer_rule_item_matches: {
+        Args: { p_ctx: Json; p_item: Json }
+        Returns: boolean
+      }
+      offer_rule_item_valid: { Args: { p_item: Json }; Returns: boolean }
+      offer_rule_matches: {
+        Args: { p_ctx: Json; p_rules: Json }
+        Returns: boolean
+      }
+      offer_rules_valid: { Args: { p_rules: Json }; Returns: boolean }
+      offered_addons_for_parent: {
+        Args: { p_parent_product_id: string }
+        Returns: {
+          addon_product_id: string
+          addon_quantity_max: number
+          addon_quantity_rule: string
+          currency: string
+          day_selection: string
+          images: Json
+          is_required: boolean
+          max_qty: number
+          min_qty: number
+          name: string
+          name_localized: Json
+          price_per_unit: number
+          price_unit: string
+          product_addon_id: string
+          product_kind: string
+          short_description: string
+          short_description_localized: Json
+          sort_order: number
+          thumb_path: string
+        }[]
+      }
+      offers_api_delete_legacy: {
+        Args: { p_offer_id: string; p_operator_id: string }
+        Returns: number
+      }
+      offers_api_patch_legacy_addon: {
+        Args: { p_offer_id: string; p_operator_id: string; p_patch: Json }
+        Returns: number
+      }
+      offers_legacy_addon_mapping: {
+        Args: { p_addon_id?: string; p_addon_product_id?: string }
+        Returns: {
+          binding: string
+          legacy_addon_id: string
+          max_qty: number
+          min_qty: number
+          mode: string
+          operator_id: string
+          parent_product_id: string
+          product_id: string
+          sort_order: number
+        }[]
+      }
+      offers_legacy_cross_sell_source: {
+        Args: { p_operator_id: string }
+        Returns: {
+          product_id: string
+        }[]
+      }
+      offers_legacy_parity_violations: {
+        Args: never
+        Returns: {
+          detail: string
+          kind: string
+          ref: string
+        }[]
+      }
+      offers_sync_from_product_addon: {
+        Args: { p_addon_id?: string; p_addon_product_id?: string }
+        Returns: number
+      }
+      offers_sync_legacy_cross_sell: {
+        Args: { p_operator_id: string }
+        Returns: number
       }
       operator_effective_entitlements: {
         Args: { p_operator_id: string }
@@ -21837,6 +24287,10 @@ export type Database = {
       operator_on_tier_ladder: {
         Args: { p_operator_id: string }
         Returns: boolean
+      }
+      operator_open_paid_booking_count: {
+        Args: { p_operator_id: string }
+        Returns: number
       }
       operator_partner_count: {
         Args: {
@@ -21967,6 +24421,23 @@ export type Database = {
       payment_mode_from_methods: {
         Args: { methods: string[] }
         Returns: string
+      }
+      personal_cap_count: {
+        Args: { p_at?: string; p_operator_id: string }
+        Returns: {
+          held: number
+          month: string
+          used: number
+        }[]
+      }
+      personal_cap_hold_deadline: {
+        Args: { p_booking_id: string }
+        Returns: string
+      }
+      personal_cap_limit: { Args: { p_operator_id: string }; Returns: number }
+      personal_cap_state: {
+        Args: { p_at?: string; p_operator_id: string }
+        Returns: Json
       }
       place_roles_pickup_only: {
         Args: { p_place_roles: string[] }
@@ -22204,6 +24675,7 @@ export type Database = {
           name: string
           offer_account_link: boolean
           offered_languages: string[]
+          payment_methods: string[]
           primary_color: string
           slug: string
           theme: Json
@@ -22234,27 +24706,36 @@ export type Database = {
           addon_quantity_max: number
           addon_quantity_rule: string
           currency: string
+          day_selection: string
+          images: Json
           is_required: boolean
           max_qty: number
           min_qty: number
           name: string
           name_localized: Json
           price_per_unit: number
+          price_unit: string
           product_addon_id: string
           product_kind: string
+          short_description: string
+          short_description_localized: Json
           sort_order: number
+          thumb_path: string
         }[]
       }
       public_get_product_alternatives: {
         Args: { p_from: string; p_product_id: string; p_to: string }
         Returns: {
           availability: Json
+          capacity_per_unit: number
           currency: string
           hotel_offering: string
+          max_party_size: number
           name: string
           name_localized: Json
           price_from: number
           product_id: string
+          product_kind: string
           service_time_shape: string
           slug: string
           sort_order: number
@@ -22449,6 +24930,10 @@ export type Database = {
           user_id: string
         }[]
       }
+      release_personal_cap_holds: {
+        Args: { p_operator_id: string }
+        Returns: string[]
+      }
       remove_product_alternative: {
         Args: {
           p_alternative_id: string
@@ -22456,6 +24941,18 @@ export type Database = {
           p_product_id: string
         }
         Returns: number
+      }
+      replace_booking_participant: {
+        Args: {
+          p_actor_role: string
+          p_booking_id: string
+          p_contact_id: string
+          p_new_contact: Json
+          p_operator_id: string
+          p_participant_id: string
+          p_user_id: string
+        }
+        Returns: Json
       }
       resolve_contact_by_email: {
         Args: { p_email: string; p_operator_id: string }
@@ -22578,6 +25075,20 @@ export type Database = {
               total_load: number
             }[]
           }
+        | {
+            Args: {
+              p_days: string[]
+              p_exclude_booking_id: string
+              p_exclude_participant_id: string
+              p_resource_pool_id: string
+              p_scope: string[]
+            }
+            Returns: {
+              day: string
+              gate_load: number
+              total_load: number
+            }[]
+          }
       resource_pool_delete_blocking_booking_ids: {
         Args: {
           p_operator_id: string
@@ -22615,6 +25126,7 @@ export type Database = {
         Args: { p_type_id: string }
         Returns: boolean
       }
+      resource_type_is_stay_unit: { Args: { p_type: string }; Returns: boolean }
       resource_type_partner_role: {
         Args: { p_ignore_type_id?: string; p_type_id: string }
         Returns: string
@@ -22634,6 +25146,10 @@ export type Database = {
       seed_default_location_role_types: {
         Args: { p_operator_id: string }
         Returns: undefined
+      }
+      seed_guest_attribute_definitions: {
+        Args: { p_operator_id: string }
+        Returns: number
       }
       seed_system_saved_view: {
         Args: {
@@ -22700,6 +25216,7 @@ export type Database = {
         Args: {
           p_email: string
           p_name: string
+          p_plan_slug?: string
           p_preset_key?: string
           p_slug: string
           p_user_id: string
@@ -23528,6 +26045,7 @@ export type Database = {
         Returns: Json
       }
       template_doc_tables: { Args: never; Returns: string[] }
+      template_export_changed: { Args: { p_slug: string }; Returns: boolean }
       template_export_doc: { Args: { p_operator_id: string }; Returns: Json }
       template_fk_columns: {
         Args: never
@@ -23735,6 +26253,8 @@ export type Database = {
         | "manual_override"
         | "slot_time_adjustment"
         | "weekday_adjustment"
+        | "occupancy_pricing"
+        | "attribute_bands"
       product_availability_source: "template" | "manual"
       product_availability_status: "open" | "closed" | "fully_booked"
       product_kind:
@@ -24033,6 +26553,8 @@ export const Constants = {
         "manual_override",
         "slot_time_adjustment",
         "weekday_adjustment",
+        "occupancy_pricing",
+        "attribute_bands",
       ],
       product_availability_source: ["template", "manual"],
       product_availability_status: ["open", "closed", "fully_booked"],

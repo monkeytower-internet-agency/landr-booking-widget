@@ -63,6 +63,11 @@ export interface BookerDetails {
    * Always read it through `bookerJoins`, never as a bare truthiness check.
    */
   joins?: boolean
+  /**
+   * landr-zcb24.2: "I am 18 or older", ticked in the party step whenever the
+   * cart asks ages. Never sent: the API checks the booker's age itself.
+   */
+  adult_confirmed?: boolean
 }
 
 /** landr-jiagg.2: true unless the booker explicitly opted out of taking part. */
@@ -70,8 +75,12 @@ export function bookerJoins(b: Pick<BookerDetails, 'joins'> | undefined): boolea
   return b?.joins !== false
 }
 
-/** {attribute key: number | text} — what the step collects per guest. */
-export type GuestAttributeValues = Record<string, number | string>
+/**
+ * {attribute key: number | text} — what the step collects per guest, plus
+ * `_inexact`: the keys whose value is a range's floor (an adult age band, a
+ * weight range), the way the API stores and validates them (landr-zcb24.6).
+ */
+export type GuestAttributeValues = Record<string, number | string | boolean | string[]>
 
 export interface ParticipantDetails {
   /**
@@ -163,6 +172,10 @@ export interface CompanionDetails {
   own_accommodation?: boolean
   /** See ParticipantDetails.guest_attributes. */
   guest_attributes?: GuestAttributeValues
+  /** landr-zcb24.2: see ParticipantDetails.occupant_age_band. */
+  occupant_age_band?: 'adult' | 'child'
+  /** landr-zcb24.2: see ParticipantDetails.occupant_age. */
+  occupant_age?: number | null
 }
 
 /**

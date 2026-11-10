@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { Confirmation } from './Confirmation'
@@ -816,6 +816,62 @@ describe('Confirmation — landr-nva1a.4 success-screen summary', () => {
     // Amount due is the operator-only figure (180), not grand_total (376).
     expect(amountDue).toHaveTextContent('180')
     expect(amountDue).not.toHaveTextContent('376')
+  })
+
+  it('lists two guests\' breakfast as one at-hotel row (landr-l3uod)', () => {
+    const breakfast = (guest: string) => ({
+      product_id: 'bf',
+      label: 'Breakfast',
+      qty: 1,
+      units: 7,
+      unit_price: '12.00',
+      line_total: '84.00',
+      paid_to: 'hotel' as const,
+      price_unit: 'guest_night' as const,
+      participant_ids: [guest],
+    })
+    const response = baseResponse({
+      summary: baseSummary({
+        hotel: { stay_window: null, rooms: [], total: '168.00' },
+        line_items: [breakfast('g1'), breakfast('g2')],
+        hotel_total: '168.00',
+        grand_total: '168.00',
+      }),
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    const breakdown = screen.getByTestId('confirmation-price-breakdown')
+    expect(within(breakdown).getAllByText('Breakfast')).toHaveLength(1)
+    expect(breakdown).toHaveTextContent('168')
+  })
+
+  it('lists two guests\' identical operator lines as one row, no duplicate-key warning (landr-ckguc)', () => {
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const breakfast = (guest: string) => ({
+      product_id: 'bf',
+      label: 'Breakfast',
+      qty: 1,
+      units: 7,
+      unit_price: '12.00',
+      line_total: '84.00',
+      paid_to: 'operator' as const,
+      price_unit: 'guest_night' as const,
+      participant_ids: [guest],
+    })
+    const response = baseResponse({
+      summary: baseSummary({
+        line_items: [breakfast('g1'), breakfast('g2')],
+        grand_total: '168.00',
+      }),
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    const breakdown = screen.getByTestId('confirmation-price-breakdown')
+    expect(within(breakdown).getAllByText('Breakfast')).toHaveLength(1)
+    expect(breakdown).toHaveTextContent('168')
+    const keyWarnings = errSpy.mock.calls.filter((c) => String(c[0]).includes('same key'))
+    expect(keyWarnings).toHaveLength(0)
+    errSpy.mockRestore()
   })
 
   // ------------------------------------------------------------------

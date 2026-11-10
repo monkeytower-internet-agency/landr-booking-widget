@@ -888,7 +888,12 @@ export type Hotel = Location
 // price, collection or mode itself: submit re-resolves every offer line.
 
 export type OfferBinding = 'booking' | 'person' | 'free'
-export type OfferSchedule = 'locked' | 'subset' | 'own'
+/**
+ * Whose days an offer line is priced on: `first_day` / `last_day` anchor it to
+ * ONE day of the parent (a stay's arrival / departure date, else the parent's
+ * first / last day); `locked` follows all the parent's days.
+ */
+export type OfferSchedule = 'locked' | 'subset' | 'own' | 'first_day' | 'last_day'
 export type OfferCollection = 'online' | 'on_site' | 'free'
 export type OfferMode = 'optional' | 'mandatory' | 'info'
 
@@ -1000,6 +1005,11 @@ export interface OfferEvaluateRequest {
 export interface OfferEvaluateResponse {
   lines: EvaluatedLine[]
   required_attribute_keys?: string[]
+  /**
+   * landr-zcb24.17: the keys the cart's offers read that the operator collects
+   * before arrival, not at booking. Never blocks booking; absent = [].
+   */
+  deferred_attribute_keys?: string[]
 }
 
 /**
@@ -1153,7 +1163,7 @@ export interface Participant {
    * server validates them against the operator's attribute catalogue. `age`
    * is the same value as occupant_age.
    */
-  guest_attributes?: Record<string, number | string>
+  guest_attributes?: Record<string, number | string | boolean | string[]>
   /**
    * landr-a4fy: per-occupant breakfast flag. true when this participant
    * has breakfast included (tied to the breakfast add-on selection in
@@ -1229,7 +1239,7 @@ export interface Companion {
    * server validates them against the operator's attribute catalogue. `age`
    * is the same value as occupant_age.
    */
-  guest_attributes?: Record<string, number | string>
+  guest_attributes?: Record<string, number | string | boolean | string[]>
   /**
    * landr-a4fy: per-occupant breakfast flag for companions. Mirrors the
    * Participant field exactly — true when this companion has breakfast.
