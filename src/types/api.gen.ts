@@ -12827,6 +12827,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/stripe-connect/return": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Return Stripe Connect */
+        post: operations["return_stripe_connect"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/stripe-connect/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start Stripe Connect */
+        post: operations["start_stripe_connect"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/subscription-holders/{holder_id}/cancel": {
         parameters: {
             query?: never;
@@ -13650,6 +13684,37 @@ export interface paths {
         put?: never;
         /** Holded Webhook */
         post: operations["holded_webhook"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/webhooks/stripe-connect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Stripe Connect Webhook
+         * @description Platform Connect webhook (landr-lgd9x.6).
+         *
+         *     1. Verify with the PLATFORM Connect signing secret (503 when unset).
+         *     2. Resolve the operator ONLY from ``event.account`` + the env mode in
+         *        ``operator_stripe_connect_accounts``; an unknown account, a missing
+         *        account or a livemode/tier mismatch is a 200 no-op (Stripe must not
+         *        retry an event that is not ours).
+         *     3. Dedupe on ``event.id`` (ledger written after success, so a failed
+         *        attempt is retried by Stripe and not swallowed).
+         *     4. ``account.*`` events update the stored flags; everything else runs
+         *        through ``_handle_verified_event`` — the same operator-scoped guards
+         *        and RPCs as the per-operator endpoint.
+         */
+        post: operations["stripe_connect_webhook"];
         delete?: never;
         options?: never;
         head?: never;
@@ -19601,6 +19666,16 @@ export interface components {
             policy_number?: string | null;
             /** Provider */
             provider?: string | null;
+        };
+        /** IntegrationCredentialsListOut */
+        IntegrationCredentialsListOut: {
+            /** Items */
+            items: {
+                [key: string]: unknown;
+            }[];
+            stripe_connect: components["schemas"]["StripeConnectStatus"];
+            /** Stripe Mode */
+            stripe_mode: string;
         };
         /**
          * InvitePrefillOut
@@ -27179,6 +27254,41 @@ export interface components {
             code: string;
             /** Date */
             date?: string | null;
+        };
+        /** StripeConnectReturnIn */
+        StripeConnectReturnIn: {
+            /** State */
+            state: string;
+        };
+        /** StripeConnectStartOut */
+        StripeConnectStartOut: {
+            status: components["schemas"]["StripeConnectStatus"];
+            /** Url */
+            url: string | null;
+        };
+        /**
+         * StripeConnectStatus
+         * @description Non-secret Connect state. Never carries the account id.
+         */
+        StripeConnectStatus: {
+            /** Available */
+            available: boolean;
+            /** Charges Enabled */
+            charges_enabled: boolean;
+            /** Connected */
+            connected: boolean;
+            /** Details Submitted */
+            details_submitted: boolean;
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "test" | "live";
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "not_started" | "onboarding" | "active" | "deauthorized";
         };
         /**
          * SubmitBookingResponse
@@ -43245,9 +43355,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["IntegrationCredentialsListOut"];
                 };
             };
             /** @description Validation Error */
@@ -51240,6 +51348,72 @@ export interface operations {
             };
         };
     };
+    return_stripe_connect: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StripeConnectReturnIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StripeConnectStatus"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    start_stripe_connect: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StripeConnectStartOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     cancel_holder: {
         parameters: {
             query?: never;
@@ -52786,6 +52960,28 @@ export interface operations {
         };
     };
     holded_webhook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    stripe_connect_webhook: {
         parameters: {
             query?: never;
             header?: never;
