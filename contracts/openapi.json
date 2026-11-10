@@ -14152,6 +14152,24 @@
         "title": "GearTypeOut",
         "type": "object"
       },
+      "GoLiveBody": {
+        "properties": {
+          "override_reason": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Override Reason"
+          }
+        },
+        "title": "GoLiveBody",
+        "type": "object"
+      },
       "GroupInquiryRequest": {
         "description": "Body for the public larger-group inquiry form.\n\nMinimal-but-safe anti-abuse for an anon surface: bounded string lengths,\na freeform email-format check, and party_size clamped to 1..99.\n\nOnly name and email are required (landr-vlxm: message is now optional so\nwidget submissions without a message don't 422; phone is a new optional\nfield threaded through to the email template).",
         "properties": {
@@ -35131,6 +35149,21 @@
         "title": "RevenueOverview",
         "type": "object"
       },
+      "RevertBody": {
+        "properties": {
+          "reason": {
+            "maxLength": 500,
+            "minLength": 3,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "RevertBody",
+        "type": "object"
+      },
       "RoleCapabilityLevel": {
         "properties": {
           "level": {
@@ -47009,6 +47042,178 @@
         "summary": "Landr Staff Delete Operator",
         "tags": [
           "landr-staff-operators"
+        ]
+      }
+    },
+    "/api/landr-staff/operators/{operator_id}/go-live": {
+      "get": {
+        "operationId": "get_go_live",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Go Live",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Go Live",
+        "tags": [
+          "landr-staff-go-live"
+        ]
+      },
+      "post": {
+        "operationId": "post_go_live",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/GoLiveBody"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Post Go Live",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Post Go Live",
+        "tags": [
+          "landr-staff-go-live"
+        ]
+      }
+    },
+    "/api/landr-staff/operators/{operator_id}/go-live/revert": {
+      "post": {
+        "operationId": "post_go_live_revert",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RevertBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Post Go Live Revert",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Post Go Live Revert",
+        "tags": [
+          "landr-staff-go-live"
         ]
       }
     },
