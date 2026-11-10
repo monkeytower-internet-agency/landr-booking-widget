@@ -27407,6 +27407,16 @@ export interface components {
             /** State */
             state: string;
         };
+        /** StripeConnectStartIn */
+        StripeConnectStartIn: {
+            /**
+             * Confirm Default
+             * @default false
+             */
+            confirm_default: boolean;
+            /** Country */
+            country?: string | null;
+        };
         /** StripeConnectStartOut */
         StripeConnectStartOut: {
             status: components["schemas"]["StripeConnectStatus"];
@@ -27424,6 +27434,8 @@ export interface components {
             charges_enabled: boolean;
             /** Connected */
             connected: boolean;
+            /** Country */
+            country?: string | null;
             /** Details Submitted */
             details_submitted: boolean;
             /**
@@ -27436,6 +27448,10 @@ export interface components {
              * @enum {string}
              */
             status: "not_started" | "onboarding" | "active" | "deauthorized";
+            /** Suggested Country */
+            suggested_country?: string | null;
+            /** Suggested Country Source */
+            suggested_country_source?: ("tax_id" | "address") | null;
         };
         /**
          * SubmitBookingResponse
@@ -51717,7 +51733,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["StripeConnectStartIn"] | null;
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
