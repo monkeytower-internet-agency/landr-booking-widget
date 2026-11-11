@@ -10916,6 +10916,97 @@
         "title": "EmailPreview",
         "type": "object"
       },
+      "EmailPreviewIn": {
+        "properties": {
+          "days": {
+            "items": {
+              "format": "date",
+              "type": "string"
+            },
+            "maxItems": 366,
+            "minItems": 1,
+            "title": "Days",
+            "type": "array"
+          },
+          "voucher_amount": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,10}|(?=[\\d.]{1,13}0*$)\\d{0,10}\\.\\d{0,2}0*$)",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Voucher Amount"
+          }
+        },
+        "required": [
+          "days"
+        ],
+        "title": "EmailPreviewIn",
+        "type": "object"
+      },
+      "EmailPreviewOut": {
+        "description": "SendEmailDialog's EmailDraft (+ ``html``/``to``, the other staff\npreviews' shape). ``to_address`` is \"\" when the payer has no email.",
+        "properties": {
+          "body_html": {
+            "default": "",
+            "title": "Body Html",
+            "type": "string"
+          },
+          "body_text": {
+            "default": "",
+            "title": "Body Text",
+            "type": "string"
+          },
+          "html": {
+            "title": "Html",
+            "type": "string"
+          },
+          "subject": {
+            "title": "Subject",
+            "type": "string"
+          },
+          "to": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To"
+          },
+          "to_address": {
+            "default": "",
+            "title": "To Address",
+            "type": "string"
+          },
+          "voucher_code_placeholder": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Voucher Code Placeholder"
+          }
+        },
+        "required": [
+          "subject",
+          "html"
+        ],
+        "title": "EmailPreviewOut",
+        "type": "object"
+      },
       "EmailSenderStatus": {
         "properties": {
           "configured": {
@@ -42826,6 +42917,16 @@
             "title": "Days",
             "type": "array"
           },
+          "email_override": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EmailOverrideIn"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "notify_payer": {
             "default": false,
             "title": "Notify Payer",
@@ -62432,6 +62533,82 @@
           }
         ],
         "summary": "Withdraw Booking Participant",
+        "tags": [
+          "staff-booking-participant-withdraw"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/participants/{participant_id}/withdraw/email-preview": {
+      "post": {
+        "description": "The payer mail the withdraw would send for these days and voucher\namount (landr-spmfl.10). Writes nothing; the voucher code is\n``voucher_code_placeholder`` until the withdraw mints it.",
+        "operationId": "staff_preview_participant_withdrawal_email",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "title": "Booking Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "participant_id",
+            "required": true,
+            "schema": {
+              "title": "Participant Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmailPreviewIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmailPreviewOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Preview Participant Withdrawal Email",
         "tags": [
           "staff-booking-participant-withdraw"
         ]

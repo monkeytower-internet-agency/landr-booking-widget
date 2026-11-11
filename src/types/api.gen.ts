@@ -7359,6 +7359,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/participants/{participant_id}/withdraw/email-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview Participant Withdrawal Email
+         * @description The payer mail the withdraw would send for these days and voucher
+         *     amount (landr-spmfl.10). Writes nothing; the voucher code is
+         *     ``voucher_code_placeholder`` until the withdraw mints it.
+         */
+        post: operations["staff_preview_participant_withdrawal_email"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/bookings/{booking_id}/participants/{participant_id}/withdraw/preview": {
         parameters: {
             query?: never;
@@ -17998,6 +18020,43 @@ export interface components {
             subject: string;
             /** To */
             to: string[];
+        };
+        /** EmailPreviewIn */
+        EmailPreviewIn: {
+            /** Days */
+            days: string[];
+            /** Voucher Amount */
+            voucher_amount?: number | string | null;
+        };
+        /**
+         * EmailPreviewOut
+         * @description SendEmailDialog's EmailDraft (+ ``html``/``to``, the other staff
+         *     previews' shape). ``to_address`` is "" when the payer has no email.
+         */
+        EmailPreviewOut: {
+            /**
+             * Body Html
+             * @default
+             */
+            body_html: string;
+            /**
+             * Body Text
+             * @default
+             */
+            body_text: string;
+            /** Html */
+            html: string;
+            /** Subject */
+            subject: string;
+            /** To */
+            to?: string | null;
+            /**
+             * To Address
+             * @default
+             */
+            to_address: string;
+            /** Voucher Code Placeholder */
+            voucher_code_placeholder?: string | null;
         };
         /** EmailSenderStatus */
         EmailSenderStatus: {
@@ -29180,6 +29239,7 @@ export interface components {
         WithdrawIn: {
             /** Days */
             days: string[];
+            email_override?: components["schemas"]["EmailOverrideIn"] | null;
             /**
              * Notify Payer
              * @default false
@@ -40780,6 +40840,43 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["WithdrawOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_preview_participant_withdrawal_email: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                booking_id: string;
+                participant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmailPreviewIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmailPreviewOut"];
                 };
             };
             /** @description Validation Error */
