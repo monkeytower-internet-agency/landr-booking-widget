@@ -22805,6 +22805,21 @@
             ],
             "title": "Base Fee Monthly"
           },
+          "booking_count": {
+            "default": 0,
+            "title": "Booking Count",
+            "type": "integer"
+          },
+          "booking_volume_gross": {
+            "default": 0.0,
+            "title": "Booking Volume Gross",
+            "type": "number"
+          },
+          "booking_volume_net": {
+            "default": 0.0,
+            "title": "Booking Volume Net",
+            "type": "number"
+          },
           "bookings_30d": {
             "default": 0,
             "title": "Bookings 30D",
@@ -22900,6 +22915,17 @@
               }
             ],
             "title": "Tier Name"
+          },
+          "tier_rank": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tier Rank"
           },
           "tier_slug": {
             "anyOf": [
@@ -23474,6 +23500,59 @@
           "commission_rate"
         ],
         "title": "PackagePriceIn",
+        "type": "object"
+      },
+      "PackageTier": {
+        "description": "An active subscription package, listed even when no operator is on it.",
+        "properties": {
+          "base_fee_monthly": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Fee Monthly"
+          },
+          "commission_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Commission Rate"
+          },
+          "is_contract": {
+            "title": "Is Contract",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "rank": {
+            "title": "Rank",
+            "type": "integer"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "name",
+          "rank",
+          "base_fee_monthly",
+          "commission_rate",
+          "is_contract"
+        ],
+        "title": "PackageTier",
         "type": "object"
       },
       "PartialCreditNoteIn": {
@@ -35429,6 +35508,14 @@
           "realized_total": {
             "title": "Realized Total",
             "type": "number"
+          },
+          "tiers": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/PackageTier"
+            },
+            "title": "Tiers",
+            "type": "array"
           }
         },
         "required": [
