@@ -22064,6 +22064,21 @@ export interface components {
             /** Base Fee Monthly */
             base_fee_monthly?: number | null;
             /**
+             * Booking Count
+             * @default 0
+             */
+            booking_count: number;
+            /**
+             * Booking Volume Gross
+             * @default 0
+             */
+            booking_volume_gross: number;
+            /**
+             * Booking Volume Net
+             * @default 0
+             */
+            booking_volume_net: number;
+            /**
              * Bookings 30D
              * @default 0
              */
@@ -22095,6 +22110,8 @@ export interface components {
             realized_total: number;
             /** Tier Name */
             tier_name?: string | null;
+            /** Tier Rank */
+            tier_rank?: number | null;
             /** Tier Slug */
             tier_slug?: string | null;
             /** Total */
@@ -22303,6 +22320,24 @@ export interface components {
              * @default true
              */
             prices_net_of_vat: boolean;
+        };
+        /**
+         * PackageTier
+         * @description An active subscription package, listed even when no operator is on it.
+         */
+        PackageTier: {
+            /** Base Fee Monthly */
+            base_fee_monthly: number | null;
+            /** Commission Rate */
+            commission_rate: number | null;
+            /** Is Contract */
+            is_contract: boolean;
+            /** Name */
+            name: string;
+            /** Rank */
+            rank: number;
+            /** Slug */
+            slug: string;
         };
         /** PartialCreditNoteIn */
         PartialCreditNoteIn: {
@@ -26203,6 +26238,11 @@ export interface components {
             projected_total: number;
             /** Realized Total */
             realized_total: number;
+            /**
+             * Tiers
+             * @default []
+             */
+            tiers: components["schemas"]["PackageTier"][];
         };
         /** RevertBody */
         RevertBody: {
