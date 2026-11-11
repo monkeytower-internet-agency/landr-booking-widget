@@ -22002,10 +22002,28 @@ export interface components {
         };
         /** OperatorRevenue */
         OperatorRevenue: {
+            /** Base Fee Monthly */
+            base_fee_monthly?: number | null;
+            /**
+             * Bookings 30D
+             * @default 0
+             */
+            bookings_30d: number;
+            /** Created At */
+            created_at?: string | null;
             /** Currency */
             currency: string;
             /** Has Platform Scheme */
             has_platform_scheme: boolean;
+            /**
+             * Is Contract
+             * @default false
+             */
+            is_contract: boolean;
+            /** Last Booking At */
+            last_booking_at?: string | null;
+            /** Onboarded At */
+            onboarded_at?: string | null;
             /** Operator Id */
             operator_id: string;
             /** Operator Name */
@@ -22016,6 +22034,10 @@ export interface components {
             projected_total: number;
             /** Realized Total */
             realized_total: number;
+            /** Tier Name */
+            tier_name?: string | null;
+            /** Tier Slug */
+            tier_slug?: string | null;
             /** Total */
             total: number;
             /** Years */

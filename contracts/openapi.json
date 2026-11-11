@@ -22703,6 +22703,33 @@
       },
       "OperatorRevenue": {
         "properties": {
+          "base_fee_monthly": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Fee Monthly"
+          },
+          "bookings_30d": {
+            "default": 0,
+            "title": "Bookings 30D",
+            "type": "integer"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
           "currency": {
             "title": "Currency",
             "type": "string"
@@ -22710,6 +22737,33 @@
           "has_platform_scheme": {
             "title": "Has Platform Scheme",
             "type": "boolean"
+          },
+          "is_contract": {
+            "default": false,
+            "title": "Is Contract",
+            "type": "boolean"
+          },
+          "last_booking_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Booking At"
+          },
+          "onboarded_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Onboarded At"
           },
           "operator_id": {
             "title": "Operator Id",
@@ -22744,6 +22798,28 @@
           "realized_total": {
             "title": "Realized Total",
             "type": "number"
+          },
+          "tier_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tier Name"
+          },
+          "tier_slug": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tier Slug"
           },
           "total": {
             "title": "Total",
