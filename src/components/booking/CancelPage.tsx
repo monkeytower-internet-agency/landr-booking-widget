@@ -100,12 +100,20 @@ function formatMoney(amount: string, currency: string, locale: CancelLocale): st
   }
 }
 
+/** The kept non-refundable deposit as a decimal string, or null. */
+function keptDeposit(preview: CancelPreview): string | null {
+  const raw = preview.refund.retained_amount
+  return raw && Number(raw) > 0 ? raw : null
+}
+
 function refundLine(t: CancelBundle, preview: CancelPreview, locale: CancelLocale): string {
   const amount = formatMoney(preview.refund.amount, preview.refund.currency, locale)
   if (preview.refund.method === 'stripe_auto') return fmtCancel(t.refundStripe, { amount })
   if (preview.refund.method === 'manual') {
     return fmtCancel(t.refundManual, { amount, operator: preview.operator.name })
   }
+  // Everything paid is the kept deposit: the deposit line says it all.
+  if (keptDeposit(preview)) return ''
   return t.refundNone
 }
 
@@ -318,9 +326,18 @@ export function CancelPage({ token }: Props) {
             {fmtCancel(t.freeUntil, { deadline: deadlineText })}
           </p>
         ) : null}
-        <p className="text-sm" data-testid="cancel-refund">
-          {refundLine(t, preview, locale)}
-        </p>
+        {refundLine(t, preview, locale) ? (
+          <p className="text-sm" data-testid="cancel-refund">
+            {refundLine(t, preview, locale)}
+          </p>
+        ) : null}
+        {keptDeposit(preview) ? (
+          <p className="text-sm font-medium" data-testid="cancel-deposit-kept">
+            {fmtCancel(t.depositKept, {
+              amount: formatMoney(keptDeposit(preview) ?? '0', preview.refund.currency, locale),
+            })}
+          </p>
+        ) : null}
         {preview.policy_text ? (
           <p className="text-muted-foreground whitespace-pre-line text-xs">
             {preview.policy_text}

@@ -476,6 +476,8 @@ export const es: Bundle = {
   payOnSiteNote: 'Paga el mismo día, en el punto de encuentro.',
   bankTransferNote: 'Los datos bancarios están en tu correo de confirmación.',
   paymentLinkForDepositOnItsWay: 'Te llegará un enlace de pago para tu depósito.',
+  depositTodayRestBy: 'Hoy un depósito del {percent} %, el resto antes del {date}.',
+  depositNonRefundable: 'El depósito no se reembolsa si cancelas.',
   payModeNotOnlineTitle: 'Esta reserva ya no se paga en línea',
   payModeNotOnlinePayOnSite: 'Paga el mismo día, en el punto de encuentro.',
   payModeNotOnlineBankTransfer: 'Paga por transferencia bancaria: los datos están en tu correo de confirmación.',

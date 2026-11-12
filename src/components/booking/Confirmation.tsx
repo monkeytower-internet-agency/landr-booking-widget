@@ -825,6 +825,33 @@ function paymentModeNote(response: SubmitBookingResponse, locale?: string): stri
 }
 
 /**
+ * Payment terms under the status line: "30 % deposit today, the rest by
+ * <date>." and "The deposit is not refunded if you cancel." Only for an
+ * operator that collects up front (card or transfer) with a deposit; both
+ * fields are optional on the wire (older API → nothing shown).
+ */
+function paymentTermsNote(
+  response: SubmitBookingResponse,
+  locale?: string,
+): string | null {
+  const t = pickBundle(locale)
+  const methods = response.payment_methods ?? (response.payment_mode ? [response.payment_mode] : [])
+  const upfront = methods.includes('online') || methods.includes('bank_transfer')
+  if (!upfront || response.deposit_percent == null) return null
+  const parts: string[] = []
+  if (response.balance_due_date) {
+    parts.push(
+      fmt(t.depositTodayRestBy, {
+        percent: response.deposit_percent,
+        date: formatDayLabel(response.balance_due_date, locale),
+      }),
+    )
+  }
+  if (response.deposit_refundable === false) parts.push(t.depositNonRefundable)
+  return parts.length ? parts.join(' ') : null
+}
+
+/**
  * Savings congrats card (landr-nva1a.4, step 4) — shown only when the API
  * returned a multi_day_savings block. Copy per the epic decision:
  * consecutive runs get "N days in a row"; non-consecutive total-days
@@ -1286,6 +1313,11 @@ export function Confirmation({
             {tr('awaitingOperatorConfirmation', locale)}
           </p>
         )}
+        {!isFreeBooking && paymentTermsNote(response, locale) ? (
+          <p className="text-sm" data-testid="confirmation-payment-terms">
+            {paymentTermsNote(response, locale)}
+          </p>
+        ) : null}
 
         {/* landr-otml0.4 (D5, D11): one "send their booking link" card per
             separate_guiding companion the API minted an invite for.

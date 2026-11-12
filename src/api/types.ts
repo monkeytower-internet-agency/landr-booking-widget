@@ -1759,6 +1759,16 @@ export interface SubmitBookingResponse {
    * tolerates an older API deploy that predates the field.
    */
   deposit_percent?: number | null
+  /**
+   * Payment terms: false = a cancellation keeps the deposit. Absent on an
+   * older API deploy (read as refundable).
+   */
+  deposit_refundable?: boolean | null
+  /**
+   * ISO date by which the rest is due (N days before arrival), or null when
+   * the operator set no due date or the whole amount is due now.
+   */
+  balance_due_date?: string | null
   token?: string
   /**
    * Absolute URL to the per-booking iCal/.ics download (landr-3vr5).

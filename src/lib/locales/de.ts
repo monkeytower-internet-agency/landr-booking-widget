@@ -483,6 +483,8 @@ export const de: Bundle = {
   payOnSiteNote: 'Bitte zahlen Sie am Tag der Aktivität direkt am Treffpunkt.',
   bankTransferNote: 'Die Bankverbindung finden Sie in Ihrer Bestätigungs-E-Mail.',
   paymentLinkForDepositOnItsWay: 'Ein Zahlungslink für Ihre Anzahlung ist unterwegs.',
+  depositTodayRestBy: 'Heute {percent} % Anzahlung, Rest bis {date}.',
+  depositNonRefundable: 'Die Anzahlung wird bei Stornierung nicht erstattet.',
   payModeNotOnlineTitle: 'Diese Buchung wird nicht mehr online bezahlt',
   payModeNotOnlinePayOnSite: 'Bitte zahlen Sie am Tag der Aktivität direkt am Treffpunkt.',
   payModeNotOnlineBankTransfer: 'Bitte zahlen Sie per Überweisung — die Bankverbindung finden Sie in Ihrer Bestätigungs-E-Mail.',

@@ -476,6 +476,8 @@ export const it: Bundle = {
   payOnSiteNote: 'Paga lo stesso giorno, al punto d’incontro.',
   bankTransferNote: 'I dati bancari sono nella tua e-mail di conferma.',
   paymentLinkForDepositOnItsWay: 'Ti arriverà un link di pagamento per la caparra.',
+  depositTodayRestBy: 'Oggi una caparra del {percent} %, il resto entro il {date}.',
+  depositNonRefundable: 'La caparra non viene rimborsata in caso di cancellazione.',
   payModeNotOnlineTitle: 'Questa prenotazione non si paga più online',
   payModeNotOnlinePayOnSite: 'Paga lo stesso giorno, al punto d’incontro.',
   payModeNotOnlineBankTransfer: 'Paga con bonifico bancario: i dati sono nella tua e-mail di conferma.',

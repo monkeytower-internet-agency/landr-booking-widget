@@ -480,6 +480,8 @@ export const tr: Bundle = {
   payOnSiteNote: 'Lütfen etkinlik günü, buluşma noktasında ödeyin.',
   bankTransferNote: 'Banka bilgileri onay e-postanızdadır.',
   paymentLinkForDepositOnItsWay: 'Ön ödemeniz için ödeme bağlantısı yolda.',
+  depositTodayRestBy: 'Bugün %{percent} ön ödeme, kalanı en geç {date} tarihine kadar.',
+  depositNonRefundable: 'Ön ödeme iptal durumunda iade edilmez.',
   payModeNotOnlineTitle: 'Bu rezervasyon artık çevrimiçi ödenmiyor',
   payModeNotOnlinePayOnSite: 'Lütfen etkinlik günü, buluşma noktasında ödeyin.',
   payModeNotOnlineBankTransfer: 'Lütfen banka havalesiyle ödeyin — ayrıntılar onay e-postanızdadır.',
