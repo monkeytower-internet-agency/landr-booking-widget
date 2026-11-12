@@ -6702,6 +6702,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/communication-language": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Communication Language */
+        get: operations["staff_get_booking_communication_language"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Patch Communication Language */
+        patch: operations["staff_patch_booking_communication_language"];
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/bookings/{booking_id}/confirmation-status": {
         parameters: {
             query?: never;
@@ -6911,6 +6929,33 @@ export interface paths {
          *     rest.
          */
         post: operations["staff_unlink_booking_group"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/guide-languages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Booking Guide Languages
+         * @description The guide-language answer the Participants tab offers (landr-irova.25).
+         *
+         *     `{"mode": "restricted"|"any"|"none", "offered": [codes]}` -- computed by
+         *     the same function the booking form uses so the dashboard carries no rule
+         *     of its own. `restricted` lists the allowed codes (sorted; may be empty =
+         *     nothing is allowed), `any` means every language is accepted, `none` means
+         *     the booking has no guided activity line. `offered` is empty unless
+         *     restricted.
+         */
+        get: operations["staff_get_booking_guide_languages"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -12612,7 +12657,11 @@ export interface paths {
          * @description List Views visible to the caller: every Shared View on this
          *     operator plus every Personal View the caller created. Soft-deleted
          *     rows are excluded. Each row is decorated with the caller's
-         *     per-user state (star / hidden).
+         *     per-user state (star / hidden / layout).
+         *
+         *     Widget versions and the Booking / Calendar widget screens are not views
+         *     a user opens from the sidebar and are left out (landr-bj2o3.1); read
+         *     them with GET .../widget-screens/{ref}.
          */
         get: operations["list_saved_views"];
         put?: never;
@@ -12621,6 +12670,17 @@ export interface paths {
          * @description Create a View. creator_user_id is stamped from the caller's
          *     membership (never accepted from the body) — defense in depth on
          *     top of the RLS WITH CHECK.
+         *
+         *     entity_type 'widget' saves a version of a widget (landr-bj2o3.1): config
+         *     must name its `template` (1 to 64 characters of a-z, 0-9 and '-') and be
+         *     at most 64 KB; a shared one is the account's version and is for owners
+         *     and Landr staff only (422 shared_widget_requires_owner). The config of a
+         *     'dashboard' is its layout: at most 60 entries in `blocks` and 64 KB
+         *     (422 layout_too_large). The config of a view of any other type is at
+         *     most 64 KB (422 view_config_too_large). Text the database cannot store,
+         *     a NUL character or a lone surrogate, is refused for every type: 422
+         *     layout_invalid, widget_config_invalid or view_config_invalid in a config,
+         *     422 view_name_invalid in the name (landr-g9o0o).
          */
         post: operations["create_saved_view"];
         delete?: never;
@@ -12657,7 +12717,8 @@ export interface paths {
          *         pinned=false, hidden=false, sort_order=<supplied>.
          *       * Each view_id is validated against the operator before write —
          *         a view that is not on this operator (or is soft-deleted, or is a
-         *         Personal View the caller does not own) is silently skipped.
+         *         Personal View the caller does not own, or is a widget version or
+         *         a Booking / Calendar widget screen) is silently skipped.
          *         (Skipping rather than 4xx keeps the DnD UX forgiving: a stale
          *         client cache shouldn't poison the rest of the batch.)
          *       * Returns {"updated": <count>} — the number of rows actually written.
@@ -12690,6 +12751,14 @@ export interface paths {
          * @description Update name / visibility / config / sort_order. Enforces the
          *     View-editor rule in code (creator OR operator owner) — RLS does
          *     the same, but the explicit 403 gives the dashboard a clean signal.
+         *
+         *     landr-bj2o3.1: the config of a system widget screen (Home, Booking,
+         *     Calendar) is the account's layout, so changing it is for owners and
+         *     Landr staff only (403 not_view_editor). The config of any dashboard is
+         *     limited to 60 placements / 64 KB (422 layout_too_large). A widget version
+         *     follows the rules of create; the account's version (shared) is changed by
+         *     owners and Landr staff only. The size and text checks of create apply to
+         *     the config and the name of every type (landr-g9o0o).
          */
         patch: operations["patch_saved_view"];
         trace?: never;
@@ -12730,11 +12799,20 @@ export interface paths {
         get?: never;
         /**
          * Set View User State
-         * @description Upsert the caller's view_user_state row (pinned / hidden / sort_order).
+         * @description Upsert the caller's view_user_state row (pinned / hidden / sort_order
+         *     / layout).
          *
          *     Body is partial — omitted fields retain their current value (or
          *     sensible defaults on first write: pinned=false, hidden=false,
-         *     sort_order=0). Returns the resulting row.
+         *     sort_order=0, layout=null). Returns the resulting row.
+         *
+         *     `layout` (landr-bj2o3.1) is the caller's own layout of a widget screen
+         *     and is stored for the caller only. An object stores it; an explicit null
+         *     clears it ("follow the account"). Only for a View with entity_type
+         *     'dashboard' (422 layout_not_supported otherwise). More than 60 entries
+         *     in layout.blocks, or more than 64 KB, is 422 layout_too_large and stores
+         *     nothing; so does text jsonb cannot hold (422 layout_invalid). Otherwise
+         *     the content is opaque.
          */
         put: operations["set_view_user_state"];
         post?: never;
@@ -13660,6 +13738,39 @@ export interface paths {
          *     Returns a full forecast dict when everything succeeds.
          */
         get: operations["get_weather_forecast"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/widget-screens/{ref}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Widget Screen
+         * @description One read for a widget screen: the screen and every widget version the
+         *     caller may see.
+         *
+         *     `ref` is a screen key ('home', 'booking', 'calendar') or the id of a
+         *     saved View with entity_type 'dashboard' that the caller may read. A
+         *     screen key creates the account's row for that screen on first read.
+         *
+         *     Returns {"screen": <the saved-view row with user_state, whose `layout` is
+         *     the caller's own layout or null>, "widgets": [<every saved-view row with
+         *     entity_type 'widget' on this operator that is shared, or personal and
+         *     created by the caller>]}.
+         *
+         *     404 view_not_found for an unknown key, an id on another operator, a View
+         *     that is not a dashboard, or someone else's personal dashboard.
+         */
+        get: operations["get_widget_screen"];
         put?: never;
         post?: never;
         delete?: never;
@@ -15344,6 +15455,12 @@ export interface components {
         };
         /** BookingProductPatch */
         BookingProductPatch: {
+            /**
+             * Custom Price
+             * @default keep
+             * @enum {string}
+             */
+            custom_price: "keep" | "clear";
             /** Date Range End */
             date_range_end?: string | null;
             /** Date Range Start */
@@ -16075,6 +16192,11 @@ export interface components {
              * @enum {string}
              */
             method: "stripe_auto" | "manual" | "none";
+            /**
+             * Retained Amount
+             * @default 0.00
+             */
+            retained_amount: string;
         };
         /**
          * CancellationNoticesIn
@@ -16606,6 +16728,16 @@ export interface components {
              */
             color: string | null;
         };
+        /** CommunicationLanguagePatch */
+        CommunicationLanguagePatch: {
+            /**
+             * Guide
+             * @enum {string}
+             */
+            guide: "keep" | "all";
+            /** Language */
+            language: string;
+        };
         /** CompanionIn */
         CompanionIn: {
             /** Companion Kind */
@@ -16744,12 +16876,15 @@ export interface components {
             last_sent_at?: string | null;
             /** Next Action */
             next_action?: string | null;
+            next_step: components["schemas"]["NextStep"];
             /** Payment Link Amount */
             payment_link_amount?: string | null;
             /** Payment Link Currency */
             payment_link_currency?: string | null;
             /** Payment Link Pending */
             payment_link_pending: boolean;
+            /** Stage Since */
+            stage_since?: string | null;
         };
         /** ContractOut */
         ContractOut: {
@@ -20805,6 +20940,21 @@ export interface components {
             /** Phone */
             phone?: string | null;
         };
+        /**
+         * NextStep
+         * @description The booking screen's ONE next step (landr-bj2o3.16).
+         *
+         *     ``kind`` is null when nothing is left to do; ``waiting_for`` is set for the
+         *     two waiting kinds; ``since`` is when the wait began (null when unknown).
+         */
+        NextStep: {
+            /** Kind */
+            kind?: ("decide_reschedule" | "send_offer" | "await_customer" | "approve" | "await_hotel" | "send_confirmation" | "resend_confirmation" | "send_payment_link" | "await_payment" | "record_payment") | null;
+            /** Since */
+            since?: string | null;
+            /** Waiting For */
+            waiting_for?: ("customer" | "hotel") | null;
+        };
         /** NoShowIn */
         NoShowIn: {
             /**
@@ -21803,6 +21953,10 @@ export interface components {
          * @description Partial update payload — every field is optional.
          */
         OperatorPatch: {
+            /** Balance Due Days Before Arrival */
+            balance_due_days_before_arrival?: number | null;
+            /** Booking Window Months */
+            booking_window_months?: number | null;
             /** Cancellation Notice Hours */
             cancellation_notice_hours?: number | null;
             /** Cancellation Policy Text */
@@ -21829,6 +21983,8 @@ export interface components {
             default_ui_locale?: string | null;
             /** Deposit Percent */
             deposit_percent?: number | null;
+            /** Deposit Refundable */
+            deposit_refundable?: boolean | null;
             /** Field Staffing Window Days */
             field_staffing_window_days?: number | null;
             /** First Day Of Week */
@@ -22138,6 +22294,10 @@ export interface components {
          *     landr-jb1k: widget_variant and widget_category_columns added.
          */
         OperatorSettings: {
+            /** Balance Due Days Before Arrival */
+            balance_due_days_before_arrival?: number | null;
+            /** Booking Window Months */
+            booking_window_months?: number | null;
             /** Contact Email */
             contact_email?: string | null;
             /** Country */
@@ -22149,6 +22309,13 @@ export interface components {
              * @default en
              */
             default_locale: string;
+            /** Deposit Percent */
+            deposit_percent?: number | null;
+            /**
+             * Deposit Refundable
+             * @default true
+             */
+            deposit_refundable: boolean;
             /**
              * Expose Seats To Customer
              * @default false
@@ -26500,7 +26667,7 @@ export interface components {
              * Entity Type
              * @enum {string}
              */
-            entity_type: "booking" | "ticket" | "contact" | "product" | "approval" | "resource" | "participant_day" | "provider" | "unit_day" | "dashboard" | "location";
+            entity_type: "booking" | "ticket" | "contact" | "product" | "approval" | "resource" | "participant_day" | "provider" | "unit_day" | "dashboard" | "location" | "widget";
             /** Name */
             name: string;
             /**
@@ -27714,6 +27881,8 @@ export interface components {
             approval_outcome?: string | null;
             /** Attribution */
             attribution?: "agent" | null;
+            /** Balance Due Date */
+            balance_due_date?: string | null;
             /** Booking Id */
             booking_id: string;
             calendar_event?: components["schemas"]["BookingCalendarEvent"] | null;
@@ -27723,6 +27892,8 @@ export interface components {
             customer_page_url?: string | null;
             /** Deposit Percent */
             deposit_percent?: number | null;
+            /** Deposit Refundable */
+            deposit_refundable?: boolean | null;
             /** Group */
             group?: {
                 [key: string]: unknown;
@@ -28936,10 +29107,18 @@ export interface components {
          *     (landr-45pb). `sort_order` is the per-user DnD-persisted index within
          *     the Primary (pinned) bucket; it has no meaning when pinned=false but
          *     is preserved across pin toggles so a re-pin restores the prior slot.
+         *
+         *     `layout` (landr-bj2o3.1) is the caller's own layout of a widget screen.
+         *     Leaving it out keeps the stored layout; an explicit null clears it
+         *     ("follow the account").
          */
         ViewUserStateIn: {
             /** Hidden */
             hidden?: boolean | null;
+            /** Layout */
+            layout?: {
+                [key: string]: unknown;
+            } | null;
             /** Pinned */
             pinned?: boolean | null;
             /** Sort Order */
@@ -39806,6 +39985,78 @@ export interface operations {
             };
         };
     };
+    staff_get_booking_communication_language: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_patch_booking_communication_language: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommunicationLanguagePatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     confirmation_status: {
         parameters: {
             query?: never;
@@ -40181,6 +40432,40 @@ export interface operations {
         };
     };
     staff_unlink_booking_group: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_get_booking_guide_languages: {
         parameters: {
             query?: never;
             header?: never;
@@ -53443,6 +53728,40 @@ export interface operations {
             header?: never;
             path: {
                 operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_widget_screen: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                ref: string;
             };
             cookie?: never;
         };
