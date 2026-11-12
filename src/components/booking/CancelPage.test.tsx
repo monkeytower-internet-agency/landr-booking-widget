@@ -122,6 +122,41 @@ describe('CancelPage', () => {
     expect(screen.getByTestId('cancel-refund')).toHaveTextContent(/nothing to refund/i)
   })
 
+  it('a non-refundable deposit: refunds the rest and says the deposit is kept', async () => {
+    await renderLoaded(
+      preview({
+        refund: { amount: '52.50', currency: 'EUR', method: 'stripe_auto', retained_amount: '22.50' },
+      }),
+    )
+    expect(textOf('cancel-refund')).toBe(
+      norm(`You will get ${money('en', 52.5)} back to your original payment method.`),
+    )
+    expect(textOf('cancel-deposit-kept')).toBe(
+      norm(`The deposit of ${money('en', 22.5)} is not refunded.`),
+    )
+  })
+
+  it('only the deposit was paid: no "nothing charged" line, just the kept deposit', async () => {
+    await renderLoaded(
+      preview({
+        refund: { amount: '0.00', currency: 'EUR', method: 'none', retained_amount: '22.50' },
+      }),
+    )
+    expect(screen.queryByTestId('cancel-refund')).toBeNull()
+    expect(textOf('cancel-deposit-kept')).toBe(
+      norm(`The deposit of ${money('en', 22.5)} is not refunded.`),
+    )
+  })
+
+  it('a refundable deposit (retained 0.00) shows no deposit line', async () => {
+    await renderLoaded(
+      preview({
+        refund: { amount: '75.00', currency: 'EUR', method: 'stripe_auto', retained_amount: '0.00' },
+      }),
+    )
+    expect(screen.queryByTestId('cancel-deposit-kept')).toBeNull()
+  })
+
   it('shows the operator policy text', async () => {
     await renderLoaded(preview({ policy_text: 'Free until the day before.' }))
     expect(screen.getByText('Free until the day before.')).toBeInTheDocument()

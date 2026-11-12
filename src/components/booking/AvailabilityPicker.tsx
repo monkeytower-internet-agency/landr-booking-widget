@@ -115,6 +115,8 @@ interface Props {
    * (older API) -> the browser clock.
    */
   operatorTimezone?: string | null
+  /** How many months ahead guests may book (null / absent = unlimited). */
+  bookingWindowMonths?: number | null
   contactEmail?: string | null
   /**
    * landr-mfgx4: the picked date + time before Continue (null when cleared),
@@ -147,6 +149,7 @@ export function AvailabilityPicker({
   onPartySizeChange,
   operatorToken,
   operatorTimezone,
+  bookingWindowMonths,
   contactEmail,
   onLiveSlotChange,
   onSelectAlternative,
@@ -180,8 +183,8 @@ export function AvailabilityPicker({
   const locale = browserLocale()
 
   const { fromIso, toIso } = useMemo(
-    () => availabilityWindow(startOfToday(operatorTimezone)),
-    [operatorTimezone],
+    () => availabilityWindow(startOfToday(operatorTimezone), bookingWindowMonths),
+    [operatorTimezone, bookingWindowMonths],
   )
 
   useEffect(() => {

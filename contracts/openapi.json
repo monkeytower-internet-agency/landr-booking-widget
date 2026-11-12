@@ -3387,6 +3387,11 @@
             ],
             "title": "Forced Days"
           },
+          "notify_customer": {
+            "default": true,
+            "title": "Notify Customer",
+            "type": "boolean"
+          },
           "product_id": {
             "anyOf": [
               {
@@ -6410,6 +6415,17 @@
           "description": {
             "title": "Description",
             "type": "string"
+          },
+          "description_de": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description De"
           }
         },
         "required": [

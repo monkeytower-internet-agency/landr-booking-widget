@@ -1474,6 +1474,47 @@ describe('Confirmation', () => {
     expect(screen.queryByText(/for your deposit/i)).not.toBeInTheDocument()
   })
 
+  it('payment terms: deposit today, the rest by the due date, deposit not refunded', () => {
+    const response = baseResponse({
+      approval_outcome: 'auto_approved',
+      payment_mode: 'bank_transfer',
+      payment_methods: ['bank_transfer'],
+      deposit_percent: 30,
+      deposit_refundable: false,
+      balance_due_date: '2027-05-31',
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+    const note = screen.getByTestId('confirmation-payment-terms')
+    expect(note).toHaveTextContent(/30% deposit today, the rest by .*(May 31|31 May)/i)
+    expect(note).toHaveTextContent(/the deposit is not refunded if you cancel/i)
+  })
+
+  it('payment terms: nothing shown by default (refundable, no due date)', () => {
+    const response = baseResponse({
+      approval_outcome: 'auto_approved',
+      payment_mode: 'online',
+      payment_link_sent: true,
+      deposit_percent: 30,
+      deposit_refundable: true,
+      balance_due_date: null,
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+    expect(screen.queryByTestId('confirmation-payment-terms')).not.toBeInTheDocument()
+  })
+
+  it('payment terms: pay-on-site only shows no deposit terms', () => {
+    const response = baseResponse({
+      approval_outcome: 'auto_approved',
+      payment_mode: 'on_site',
+      payment_methods: ['on_site'],
+      deposit_percent: 30,
+      deposit_refundable: false,
+      balance_due_date: '2027-05-31',
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+    expect(screen.queryByTestId('confirmation-payment-terms')).not.toBeInTheDocument()
+  })
+
   it('payment_mode=online without payment_link_sent: no payment line at all', () => {
     const response = baseResponse({
       approval_outcome: 'auto_approved',

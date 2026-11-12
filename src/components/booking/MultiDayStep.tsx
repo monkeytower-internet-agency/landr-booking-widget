@@ -111,6 +111,8 @@ interface Props {
    * Absent -> browser clock.
    */
   operatorTimezone?: string | null
+  /** How many months ahead guests may book (null / absent = unlimited). */
+  bookingWindowMonths?: number | null
   contactEmail?: string | null
   /**
    * Tapping a row of the "Also available" panel. A wiring point: the product
@@ -144,6 +146,7 @@ export function MultiDayStep({
   onPartySizeChange,
   operatorToken,
   operatorTimezone,
+  bookingWindowMonths,
   onSelectAlternative,
   contactEmail,
 }: Props) {
@@ -171,8 +174,8 @@ export function MultiDayStep({
   const [droppedOnEdit, setDroppedOnEdit] = useState<number | undefined>(undefined)
 
   const { fromIso, toIso } = useMemo(
-    () => availabilityWindow(startOfToday(operatorTimezone)),
-    [operatorTimezone],
+    () => availabilityWindow(startOfToday(operatorTimezone), bookingWindowMonths),
+    [operatorTimezone, bookingWindowMonths],
   )
 
   // landr-rmcsu.5: group size. With the stepper shown it is local state
@@ -465,6 +468,7 @@ export function MultiDayStep({
             initialDroppedCount={droppedOnEdit}
             seatsNeeded={need}
             operatorTimezone={operatorTimezone}
+            bookingWindowMonths={bookingWindowMonths}
             alternativesProductId={product.product_id}
             onSelectAlternative={onSelectAlternative}
           />

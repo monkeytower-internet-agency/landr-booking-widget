@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { checkoutPaymentTermsNote, type CheckoutPaymentTerms } from '@/lib/paymentTerms'
 import {
   HttpError,
   getAvailability,
@@ -189,6 +190,11 @@ import {
 
 interface Props {
   widgetToken: string
+  /**
+   * The operator's payment terms (public settings): the review card states
+   * "30% deposit today (non-refundable), the rest by <date>" before submit.
+   */
+  paymentTerms?: CheckoutPaymentTerms | null
   /**
    * landr-7zc5.3: operator preview token. When present the submit body
    * carries preview_token so the API accepts bookings against draft products.
@@ -1073,6 +1079,7 @@ const NO_PICKS: OfferPick[] = []
 
 export function BookingForm({
   widgetToken,
+  paymentTerms,
   previewToken,
   product,
   selection,
@@ -2218,6 +2225,12 @@ export function BookingForm({
     onConfirmRef.current = onConfirm
   })
 
+  const reviewPaymentTerms = checkoutPaymentTermsNote(
+    paymentTerms,
+    selection.kind === 'slot' ? [selection.slot.date] : selection.selectedDays,
+    locale,
+  )
+
   return (
     <Card>
       <StepBackButton onBack={onBack} />
@@ -2227,6 +2240,11 @@ export function BookingForm({
           {product.name} · {describeSelection(selection, locale)}
           {showTimezone ? ` · ${timezone}` : ''}
         </CardDescription>
+        {reviewPaymentTerms ? (
+          <p className="mt-1 text-sm font-medium" data-testid="review-payment-terms">
+            {reviewPaymentTerms}
+          </p>
+        ) : null}
         {stay && stay.checkInIso && stay.checkOutIso ? (
           <div
             className="mt-2 rounded-lg border bg-surface-well px-3 py-2 text-sm shadow-well"
