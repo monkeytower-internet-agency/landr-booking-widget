@@ -21846,6 +21846,8 @@ export interface components {
          * @description Partial update payload — every field is optional.
          */
         OperatorPatch: {
+            /** Booking Window Months */
+            booking_window_months?: number | null;
             /** Cancellation Notice Hours */
             cancellation_notice_hours?: number | null;
             /** Cancellation Policy Text */
@@ -22181,6 +22183,8 @@ export interface components {
          *     landr-jb1k: widget_variant and widget_category_columns added.
          */
         OperatorSettings: {
+            /** Booking Window Months */
+            booking_window_months?: number | null;
             /** Contact Email */
             contact_email?: string | null;
             /** Country */

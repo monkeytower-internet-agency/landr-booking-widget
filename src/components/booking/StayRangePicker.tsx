@@ -50,6 +50,8 @@ interface Props {
   onLoaded?: () => void
   /** The operator's IANA timezone: "today" is the operator's day. */
   operatorTimezone?: string | null
+  /** How many months ahead guests may book (null / absent = unlimited). */
+  bookingWindowMonths?: number | null
   /** Availability source; defaults to the public API (tests inject a stub). */
   loadAvailability?: typeof getAvailability
 }
@@ -74,6 +76,7 @@ export function StayRangePicker({
   initialSelectedDays,
   onLoaded,
   operatorTimezone,
+  bookingWindowMonths,
   loadAvailability = getAvailability,
 }: Props) {
   const locale = browserLocale()
@@ -85,8 +88,8 @@ export function StayRangePicker({
 
   const { fromIso, toIso, today } = useMemo(() => {
     const from = startOfToday(operatorTimezone)
-    return { ...availabilityWindow(from), today: from }
-  }, [operatorTimezone])
+    return { ...availabilityWindow(from, bookingWindowMonths), today: from }
+  }, [operatorTimezone, bookingWindowMonths])
   const todayIso = isoDate(today)
 
   useEffect(() => {

@@ -2762,6 +2762,7 @@ function BookingFlowApp() {
             onPartySizeChange={onPartySizeChange}
             operatorToken={token ?? undefined}
             operatorTimezone={operatorSettings.timezone}
+            bookingWindowMonths={operatorSettings.booking_window_months}
             contactEmail={operatorSettings.contact_email ?? null}
             onBack={datePickerBack}
             // landr (breadcrumb): restore the prior slot on back-nav re-entry.
@@ -2876,6 +2877,7 @@ function BookingFlowApp() {
             onPartySizeChange={onPartySizeChange}
             operatorToken={token ?? undefined}
             operatorTimezone={operatorSettings.timezone}
+            bookingWindowMonths={operatorSettings.booking_window_months}
             contactEmail={operatorSettings.contact_email ?? null}
             onConfirm={(selectedDays, forcedDays, forcedReasons, pastStart) =>
               afterSelection(step.product, {
@@ -2910,6 +2912,7 @@ function BookingFlowApp() {
             onPartySizeChange={onPartySizeChange}
             operatorToken={token ?? undefined}
             operatorTimezone={operatorSettings.timezone}
+            bookingWindowMonths={operatorSettings.booking_window_months}
             contactEmail={operatorSettings.contact_email ?? null}
             onLoaded={onSelectionLoaded}
             onBack={datePickerBack}
@@ -2941,6 +2944,7 @@ function BookingFlowApp() {
             key={step.product.product_id}
             product={step.product}
             operatorTimezone={operatorSettings.timezone}
+            bookingWindowMonths={operatorSettings.booking_window_months}
             onLoaded={onSelectionLoaded}
             onBack={datePickerBack}
             initialSelectedDays={

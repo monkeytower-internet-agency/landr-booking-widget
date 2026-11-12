@@ -42,12 +42,23 @@ function firstOfMonth(d: Date): Date {
 }
 
 /** `[from, to]` ISO window every picker fetches availability for. */
-export function availabilityWindow(today: Date = startOfToday()): {
+export function availabilityWindow(
+  today: Date = startOfToday(),
+  bookingWindowMonths?: number | null,
+): {
   fromIso: string
   toIso: string
 } {
   const to = new Date(today)
   to.setDate(to.getDate() + AVAILABILITY_HORIZON_DAYS)
+  if (bookingWindowMonths && bookingWindowMonths > 0) {
+    // The operator's booking window: today + N calendar months (day clamped
+    // to the target month's length), the same rule the API enforces.
+    const limit = new Date(today.getFullYear(), today.getMonth() + bookingWindowMonths, 1)
+    const lastDay = new Date(limit.getFullYear(), limit.getMonth() + 1, 0).getDate()
+    limit.setDate(Math.min(today.getDate(), lastDay))
+    if (limit < to) return { fromIso: isoDate(today), toIso: isoDate(limit) }
+  }
   return { fromIso: isoDate(today), toIso: isoDate(to) }
 }
 

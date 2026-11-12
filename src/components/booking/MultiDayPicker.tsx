@@ -117,6 +117,8 @@ interface MultiDayPickerProps {
    * Absent -> browser clock.
    */
   operatorTimezone?: string | null
+  /** How many months ahead guests may book (null / absent = unlimited). */
+  bookingWindowMonths?: number | null
   /**
    * Product whose linked alternatives the "Also available" panel lists under
    * the calendar. Absent -> no panel (the picker used outside a booking).
@@ -202,6 +204,7 @@ export function MultiDayPicker({
   initialDroppedCount,
   seatsNeeded,
   operatorTimezone,
+  bookingWindowMonths,
   alternativesProductId,
   onSelectAlternative,
 }: MultiDayPickerProps) {
@@ -276,9 +279,9 @@ export function MultiDayPicker({
   // Last month the horizon reaches; the next arrow disables there and the
   // peek never reaches past it.
   const horizonMonth = useMemo(() => {
-    const end = dateFromIso(availabilityWindow(startOfToday(operatorTimezone)).toIso)
+    const end = dateFromIso(availabilityWindow(startOfToday(operatorTimezone), bookingWindowMonths).toIso)
     return new Date(end.getFullYear(), end.getMonth(), 1)
-  }, [operatorTimezone])
+  }, [operatorTimezone, bookingWindowMonths])
   // Operator's today: days before it are "past" (staff may still backfill them).
   const today = useMemo(() => startOfToday(operatorTimezone), [operatorTimezone])
   const isPast = useCallback((date: Date) => date < today, [today])
