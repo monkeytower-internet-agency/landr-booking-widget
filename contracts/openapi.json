@@ -7196,9 +7196,6 @@
             ],
             "title": "Next Action"
           },
-          "next_step": {
-            "$ref": "#/components/schemas/NextStep"
-          },
           "payment_link_amount": {
             "anyOf": [
               {
@@ -7229,7 +7226,6 @@
         "required": [
           "has_material_changes",
           "has_prior_confirmation",
-          "next_step",
           "payment_link_pending"
         ],
         "title": "ConfirmationStatusResponse",
@@ -18922,62 +18918,6 @@
         "title": "NewParticipantContact",
         "type": "object"
       },
-      "NextStep": {
-        "description": "The booking screen's ONE next step (landr-bj2o3.16).\n\n``kind`` is null when nothing is left to do; ``waiting_for`` is set for the\ntwo waiting kinds; ``since`` is when the wait began (null when unknown).",
-        "properties": {
-          "kind": {
-            "anyOf": [
-              {
-                "enum": [
-                  "decide_reschedule",
-                  "send_offer",
-                  "await_customer",
-                  "approve",
-                  "await_hotel",
-                  "send_confirmation",
-                  "resend_confirmation",
-                  "send_payment_link",
-                  "await_payment",
-                  "record_payment"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Kind"
-          },
-          "since": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Since"
-          },
-          "waiting_for": {
-            "anyOf": [
-              {
-                "enum": [
-                  "customer",
-                  "hotel"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Waiting For"
-          }
-        },
-        "title": "NextStep",
-        "type": "object"
-      },
       "NoShowIn": {
         "properties": {
           "charge_cancellation_fee": {
@@ -21699,19 +21639,6 @@
       "OperatorPatch": {
         "description": "Partial update payload \u2014 every field is optional.",
         "properties": {
-          "booking_window_months": {
-            "anyOf": [
-              {
-                "maximum": 60.0,
-                "minimum": 1.0,
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Booking Window Months"
-          },
           "cancellation_notice_hours": {
             "anyOf": [
               {
@@ -23057,17 +22984,6 @@
         "additionalProperties": true,
         "description": "Operator-level rendering/behaviour flags for the public booking widget.\n\nReturned by GET /api/public/operators/{token}/settings. Fields mirror the\npublic_get_operator_settings RPC projection exactly; extra=allow keeps the\nmodel forward-compatible so new RPC columns pass through without forcing a\nresponse-model bump on every migration.\n\nlandr-jb1k: widget_variant and widget_category_columns added.",
         "properties": {
-          "booking_window_months": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Booking Window Months"
-          },
           "contact_email": {
             "anyOf": [
               {
@@ -36245,8 +36161,7 @@
               "provider",
               "unit_day",
               "dashboard",
-              "location",
-              "widget"
+              "location"
             ],
             "title": "Entity Type",
             "type": "string"
@@ -42422,7 +42337,7 @@
         "type": "object"
       },
       "ViewUserStateIn": {
-        "description": "Per-user state patch. All fields optional \u2014 any combination is allowed\nin a single request. `pinned` replaces the historic `starred` flag\n(landr-45pb). `sort_order` is the per-user DnD-persisted index within\nthe Primary (pinned) bucket; it has no meaning when pinned=false but\nis preserved across pin toggles so a re-pin restores the prior slot.\n\n`layout` (landr-bj2o3.1) is the caller's own layout of a widget screen.\nLeaving it out keeps the stored layout; an explicit null clears it\n(\"follow the account\").",
+        "description": "Per-user state patch. All fields optional \u2014 any combination is allowed\nin a single request. `pinned` replaces the historic `starred` flag\n(landr-45pb). `sort_order` is the per-user DnD-persisted index within\nthe Primary (pinned) bucket; it has no meaning when pinned=false but\nis preserved across pin toggles so a re-pin restores the prior slot.",
         "properties": {
           "hidden": {
             "anyOf": [
@@ -42434,18 +42349,6 @@
               }
             ],
             "title": "Hidden"
-          },
-          "layout": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Layout"
           },
           "pinned": {
             "anyOf": [
@@ -61362,65 +61265,6 @@
         "summary": "Unlink Booking Group",
         "tags": [
           "staff-booking-groups"
-        ]
-      }
-    },
-    "/api/staff/operators/{operator_id}/bookings/{booking_id}/guide-languages": {
-      "get": {
-        "description": "The guide-language answer the Participants tab offers (landr-irova.25).\n\n`{\"mode\": \"restricted\"|\"any\"|\"none\", \"offered\": [codes]}` -- computed by\nthe same function the booking form uses so the dashboard carries no rule\nof its own. `restricted` lists the allowed codes (sorted; may be empty =\nnothing is allowed), `any` means every language is accepted, `none` means\nthe booking has no guided activity line. `offered` is empty unless\nrestricted.",
-        "operationId": "staff_get_booking_guide_languages",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "operator_id",
-            "required": true,
-            "schema": {
-              "title": "Operator Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "booking_id",
-            "required": true,
-            "schema": {
-              "title": "Booking Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Staff Get Booking Guide Languages",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Get Booking Guide Languages",
-        "tags": [
-          "staff-participant-day-state"
         ]
       }
     },
@@ -82325,7 +82169,7 @@
     },
     "/api/staff/operators/{operator_id}/saved-views": {
       "get": {
-        "description": "List Views visible to the caller: every Shared View on this\noperator plus every Personal View the caller created. Soft-deleted\nrows are excluded. Each row is decorated with the caller's\nper-user state (star / hidden / layout).\n\nWidget versions and the Booking / Calendar widget screens are not views\na user opens from the sidebar and are left out (landr-bj2o3.1); read\nthem with GET .../widget-screens/{ref}.",
+        "description": "List Views visible to the caller: every Shared View on this\noperator plus every Personal View the caller created. Soft-deleted\nrows are excluded. Each row is decorated with the caller's\nper-user state (star / hidden).",
         "operationId": "list_saved_views",
         "parameters": [
           {
@@ -82376,7 +82220,7 @@
         ]
       },
       "post": {
-        "description": "Create a View. creator_user_id is stamped from the caller's\nmembership (never accepted from the body) \u2014 defense in depth on\ntop of the RLS WITH CHECK.\n\nentity_type 'widget' saves a version of a widget (landr-bj2o3.1): config\nmust name its `template` (1 to 64 characters of a-z, 0-9 and '-') and be\nat most 64 KB; a shared one is the account's version and is for owners\nand Landr staff only (422 shared_widget_requires_owner). The config of a\n'dashboard' is its layout: at most 60 entries in `blocks` and 64 KB\n(422 layout_too_large).",
+        "description": "Create a View. creator_user_id is stamped from the caller's\nmembership (never accepted from the body) \u2014 defense in depth on\ntop of the RLS WITH CHECK.",
         "operationId": "create_saved_view",
         "parameters": [
           {
@@ -82436,7 +82280,7 @@
     },
     "/api/staff/operators/{operator_id}/saved-views/reorder": {
       "patch": {
-        "description": "Bulk-persist per-user sort_order across many Views in one round-trip.\n\nUsed by the Gmail-style sidebar (landr-45pb) when the user drags within\nthe Primary (pinned) bucket \u2014 every reorder shuffles N rows and we'd\nrather not fire N sequential PUTs.\n\nSemantics:\n  * Each item upserts the caller's view_user_state row for that view_id\n    with the supplied sort_order. Existing pinned/hidden values are\n    preserved; if no row exists yet a fresh one is created with\n    pinned=false, hidden=false, sort_order=<supplied>.\n  * Each view_id is validated against the operator before write \u2014\n    a view that is not on this operator (or is soft-deleted, or is a\n    Personal View the caller does not own, or is a widget version or\n    a Booking / Calendar widget screen) is silently skipped.\n    (Skipping rather than 4xx keeps the DnD UX forgiving: a stale\n    client cache shouldn't poison the rest of the batch.)\n  * Returns {\"updated\": <count>} \u2014 the number of rows actually written.\n\nEmpty body \u2192 400 (defensive; matches the per-row endpoint).",
+        "description": "Bulk-persist per-user sort_order across many Views in one round-trip.\n\nUsed by the Gmail-style sidebar (landr-45pb) when the user drags within\nthe Primary (pinned) bucket \u2014 every reorder shuffles N rows and we'd\nrather not fire N sequential PUTs.\n\nSemantics:\n  * Each item upserts the caller's view_user_state row for that view_id\n    with the supplied sort_order. Existing pinned/hidden values are\n    preserved; if no row exists yet a fresh one is created with\n    pinned=false, hidden=false, sort_order=<supplied>.\n  * Each view_id is validated against the operator before write \u2014\n    a view that is not on this operator (or is soft-deleted, or is a\n    Personal View the caller does not own) is silently skipped.\n    (Skipping rather than 4xx keeps the DnD UX forgiving: a stale\n    client cache shouldn't poison the rest of the batch.)\n  * Returns {\"updated\": <count>} \u2014 the number of rows actually written.\n\nEmpty body \u2192 400 (defensive; matches the per-row endpoint).",
         "operationId": "reorder_saved_views",
         "parameters": [
           {
@@ -82615,7 +82459,7 @@
         ]
       },
       "patch": {
-        "description": "Update name / visibility / config / sort_order. Enforces the\nView-editor rule in code (creator OR operator owner) \u2014 RLS does\nthe same, but the explicit 403 gives the dashboard a clean signal.\n\nlandr-bj2o3.1: the config of a system widget screen (Home, Booking,\nCalendar) is the account's layout, so changing it is for owners and\nLandr staff only (403 not_view_editor). The config of any dashboard is\nlimited to 60 placements / 64 KB (422 layout_too_large). A widget version\nfollows the rules of create; the account's version (shared) is changed by\nowners and Landr staff only.",
+        "description": "Update name / visibility / config / sort_order. Enforces the\nView-editor rule in code (creator OR operator owner) \u2014 RLS does\nthe same, but the explicit 403 gives the dashboard a clean signal.",
         "operationId": "patch_saved_view",
         "parameters": [
           {
@@ -82743,7 +82587,7 @@
     },
     "/api/staff/operators/{operator_id}/saved-views/{view_id}/state": {
       "put": {
-        "description": "Upsert the caller's view_user_state row (pinned / hidden / sort_order\n/ layout).\n\nBody is partial \u2014 omitted fields retain their current value (or\nsensible defaults on first write: pinned=false, hidden=false,\nsort_order=0, layout=null). Returns the resulting row.\n\n`layout` (landr-bj2o3.1) is the caller's own layout of a widget screen\nand is stored for the caller only. An object stores it; an explicit null\nclears it (\"follow the account\"). Only for a View with entity_type\n'dashboard' (422 layout_not_supported otherwise). More than 60 entries\nin layout.blocks, or more than 64 KB, is 422 layout_too_large and stores\nnothing; so does text jsonb cannot hold (422 layout_invalid). Otherwise\nthe content is opaque.",
+        "description": "Upsert the caller's view_user_state row (pinned / hidden / sort_order).\n\nBody is partial \u2014 omitted fields retain their current value (or\nsensible defaults on first write: pinned=false, hidden=false,\nsort_order=0). Returns the resulting row.",
         "operationId": "set_view_user_state",
         "parameters": [
           {
@@ -86011,65 +85855,6 @@
         "summary": "Get Weather Forecast",
         "tags": [
           "staff-operator-weather"
-        ]
-      }
-    },
-    "/api/staff/operators/{operator_id}/widget-screens/{ref}": {
-      "get": {
-        "description": "One read for a widget screen: the screen and every widget version the\ncaller may see.\n\n`ref` is a screen key ('home', 'booking', 'calendar') or the id of a\nsaved View with entity_type 'dashboard' that the caller may read. A\nscreen key creates the account's row for that screen on first read.\n\nReturns {\"screen\": <the saved-view row with user_state, whose `layout` is\nthe caller's own layout or null>, \"widgets\": [<every saved-view row with\nentity_type 'widget' on this operator that is shared, or personal and\ncreated by the caller>]}.\n\n404 view_not_found for an unknown key, an id on another operator, a View\nthat is not a dashboard, or someone else's personal dashboard.",
-        "operationId": "get_widget_screen",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "operator_id",
-            "required": true,
-            "schema": {
-              "title": "Operator Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "ref",
-            "required": true,
-            "schema": {
-              "title": "Ref",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Get Widget Screen",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Get Widget Screen",
-        "tags": [
-          "staff-saved-views"
         ]
       }
     },
