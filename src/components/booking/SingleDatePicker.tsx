@@ -103,6 +103,8 @@ interface Props {
    * fetch window) is the operator's day, not the browser's. Absent -> browser.
    */
   operatorTimezone?: string | null
+  /** How many months ahead guests may book (null / absent = unlimited). */
+  bookingWindowMonths?: number | null
   contactEmail?: string | null
   /**
    * Tapping a row of the "Also available" panel. A wiring point: the product
@@ -135,6 +137,7 @@ export function SingleDatePicker({
   onPartySizeChange,
   operatorToken,
   operatorTimezone,
+  bookingWindowMonths,
   contactEmail,
   onSelectAlternative,
 }: Props) {
@@ -155,8 +158,8 @@ export function SingleDatePicker({
 
   const { fromIso, toIso, today } = useMemo(() => {
     const from = startOfToday(operatorTimezone)
-    return { ...availabilityWindow(from), today: from }
-  }, [operatorTimezone])
+    return { ...availabilityWindow(from, bookingWindowMonths), today: from }
+  }, [operatorTimezone, bookingWindowMonths])
 
   useEffect(() => {
     let cancelled = false

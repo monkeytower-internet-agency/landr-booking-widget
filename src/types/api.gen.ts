@@ -15360,6 +15360,11 @@ export interface components {
             force_slot_time: boolean;
             /** Forced Days */
             forced_days?: string[] | null;
+            /**
+             * Notify Customer
+             * @default true
+             */
+            notify_customer: boolean;
             /** Product Id */
             product_id?: string | null;
             /** Quantity */
@@ -16490,6 +16495,8 @@ export interface components {
             category: string;
             /** Description */
             description: string;
+            /** Description De */
+            description_de?: string | null;
         };
         /** ChangelogHistoryOut */
         ChangelogHistoryOut: {

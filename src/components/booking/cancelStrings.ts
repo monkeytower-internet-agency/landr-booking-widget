@@ -21,6 +21,7 @@ export interface CancelBundle {
   refundStripe: string
   refundManual: string
   refundNone: string
+  depositKept: string
   confirmBody: string
   yes: string
   busy: string
@@ -53,6 +54,7 @@ const en: CancelBundle = {
   refundStripe: 'You will get {amount} back to your original payment method.',
   refundManual: '{operator} will refund {amount} to you directly.',
   refundNone: 'You have not been charged, so there is nothing to refund.',
+  depositKept: 'The deposit of {amount} is not refunded.',
   confirmBody: 'This cancels your booking right away. You cannot undo this.',
   yes: 'Yes, cancel booking',
   busy: 'Cancelling…',
@@ -90,6 +92,7 @@ const de: CancelBundle = {
     'Du erhältst {amount} auf dein ursprüngliches Zahlungsmittel zurück.',
   refundManual: '{operator} erstattet dir {amount} direkt.',
   refundNone: 'Dir wurde nichts berechnet, daher gibt es nichts zu erstatten.',
+  depositKept: 'Die Anzahlung von {amount} wird bei Stornierung nicht erstattet.',
   confirmBody:
     'Deine Buchung wird sofort storniert. Das lässt sich nicht rückgängig machen.',
   yes: 'Ja, Buchung stornieren',
@@ -128,6 +131,7 @@ const it: CancelBundle = {
   refundStripe: 'Riceverai {amount} sul tuo metodo di pagamento originale.',
   refundManual: '{operator} ti rimborserà {amount} direttamente.',
   refundNone: 'Non ti è stato addebitato nulla, quindi non c\u2019è nulla da rimborsare.',
+  depositKept: 'La caparra di {amount} non viene rimborsata.',
   confirmBody: 'La tua prenotazione verrà annullata subito. Non si può annullare l\u2019operazione.',
   yes: 'Sì, annulla la prenotazione',
   busy: 'Annullamento in corso…',
@@ -164,6 +168,7 @@ const es: CancelBundle = {
   refundStripe: 'Recibirás {amount} en tu método de pago original.',
   refundManual: '{operator} te reembolsará {amount} directamente.',
   refundNone: 'No se te ha cobrado nada, así que no hay nada que reembolsar.',
+  depositKept: 'El depósito de {amount} no se reembolsa.',
   confirmBody: 'Tu reserva se cancelará de inmediato. No se puede deshacer.',
   yes: 'Sí, cancelar la reserva',
   busy: 'Cancelando…',
@@ -200,6 +205,7 @@ const tr: CancelBundle = {
   refundStripe: '{amount} tutarı ilk ödeme yönteminize iade edilecek.',
   refundManual: '{operator}, {amount} tutarını size doğrudan iade edecek.',
   refundNone: 'Hesabınızdan ücret çekilmedi, bu nedenle iade edilecek bir tutar yok.',
+  depositKept: '{amount} tutarındaki ön ödeme iade edilmez.',
   confirmBody: 'Bu işlem rezervasyonunuzu hemen iptal eder. Geri alınamaz.',
   yes: 'Evet, rezervasyonu iptal et',
   busy: 'İptal ediliyor…',

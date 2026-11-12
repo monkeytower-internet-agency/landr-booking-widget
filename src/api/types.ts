@@ -606,6 +606,12 @@ export interface OperatorSettings {
    */
   timezone?: string | null
   /**
+   * How many months ahead guests may book (null / absent = unlimited). The
+   * API already refuses and hides later days; the widget stops its calendars
+   * at the same limit.
+   */
+  booking_window_months?: number | null
+  /**
    * landr-ens5 — the operator's 3-colour brand theme (brand/accent/
    * background, + optional dark overrides). When present it supersedes
    * primary_color and drives --background / --foreground / --brand /
@@ -652,6 +658,15 @@ export interface OperatorSettings {
    * absent value changes nothing.
    */
   payment_methods?: ('online' | 'bank_transfer' | 'on_site')[] | null
+  /**
+   * Payment terms shown in the checkout summary before booking: the deposit
+   * share (null = no deposit), whether a cancellation keeps it, and how many
+   * days before arrival the rest is due (null = no due date). Optional for
+   * rolling deploy: absent = nothing extra shown.
+   */
+  deposit_percent?: number | null
+  deposit_refundable?: boolean
+  balance_due_days_before_arrival?: number | null
   /**
    * Whether the operator has a voucher a guest could redeem right now. Only an
    * explicit `false` hides the checkout's voucher-code field (a `?voucher=`
@@ -1759,6 +1774,16 @@ export interface SubmitBookingResponse {
    * tolerates an older API deploy that predates the field.
    */
   deposit_percent?: number | null
+  /**
+   * Payment terms: false = a cancellation keeps the deposit. Absent on an
+   * older API deploy (read as refundable).
+   */
+  deposit_refundable?: boolean | null
+  /**
+   * ISO date by which the rest is due (N days before arrival), or null when
+   * the operator set no due date or the whole amount is due now.
+   */
+  balance_due_date?: string | null
   token?: string
   /**
    * Absolute URL to the per-booking iCal/.ics download (landr-3vr5).
