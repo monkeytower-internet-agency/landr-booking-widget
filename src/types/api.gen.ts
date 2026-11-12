@@ -6917,6 +6917,33 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/guide-languages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Booking Guide Languages
+         * @description The guide-language answer the Participants tab offers (landr-irova.25).
+         *
+         *     `{"mode": "restricted"|"any"|"none", "offered": [codes]}` -- computed by
+         *     the same function the booking form uses so the dashboard carries no rule
+         *     of its own. `restricted` lists the allowed codes (sorted; may be empty =
+         *     nothing is allowed), `any` means every language is accepted, `none` means
+         *     the booking has no guided activity line. `offered` is empty unless
+         *     restricted.
+         */
+        get: operations["staff_get_booking_guide_languages"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/bookings/{booking_id}/hotel-dates-correction": {
         parameters: {
             query?: never;
@@ -15360,6 +15387,11 @@ export interface components {
             force_slot_time: boolean;
             /** Forced Days */
             forced_days?: string[] | null;
+            /**
+             * Notify Customer
+             * @default true
+             */
+            notify_customer: boolean;
             /** Product Id */
             product_id?: string | null;
             /** Quantity */
@@ -16490,6 +16522,8 @@ export interface components {
             category: string;
             /** Description */
             description: string;
+            /** Description De */
+            description_de?: string | null;
         };
         /** ChangelogHistoryOut */
         ChangelogHistoryOut: {
@@ -40174,6 +40208,40 @@ export interface operations {
         };
     };
     staff_unlink_booking_group: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_get_booking_guide_languages: {
         parameters: {
             query?: never;
             header?: never;
