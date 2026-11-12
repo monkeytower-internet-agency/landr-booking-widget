@@ -3387,6 +3387,11 @@
             ],
             "title": "Forced Days"
           },
+          "notify_customer": {
+            "default": true,
+            "title": "Notify Customer",
+            "type": "boolean"
+          },
           "product_id": {
             "anyOf": [
               {
@@ -6410,6 +6415,17 @@
           "description": {
             "title": "Description",
             "type": "string"
+          },
+          "description_de": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description De"
           }
         },
         "required": [
@@ -61249,6 +61265,65 @@
         "summary": "Unlink Booking Group",
         "tags": [
           "staff-booking-groups"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/guide-languages": {
+      "get": {
+        "description": "The guide-language answer the Participants tab offers (landr-irova.25).\n\n`{\"mode\": \"restricted\"|\"any\"|\"none\", \"offered\": [codes]}` -- computed by\nthe same function the booking form uses so the dashboard carries no rule\nof its own. `restricted` lists the allowed codes (sorted; may be empty =\nnothing is allowed), `any` means every language is accepted, `none` means\nthe booking has no guided activity line. `offered` is empty unless\nrestricted.",
+        "operationId": "staff_get_booking_guide_languages",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "title": "Booking Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Staff Get Booking Guide Languages",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Booking Guide Languages",
+        "tags": [
+          "staff-participant-day-state"
         ]
       }
     },
