@@ -15360,6 +15360,11 @@ export interface components {
             force_slot_time: boolean;
             /** Forced Days */
             forced_days?: string[] | null;
+            /**
+             * Notify Customer
+             * @default true
+             */
+            notify_customer: boolean;
             /** Product Id */
             product_id?: string | null;
             /** Quantity */
@@ -16490,6 +16495,8 @@ export interface components {
             category: string;
             /** Description */
             description: string;
+            /** Description De */
+            description_de?: string | null;
         };
         /** ChangelogHistoryOut */
         ChangelogHistoryOut: {
@@ -21796,6 +21803,8 @@ export interface components {
          * @description Partial update payload — every field is optional.
          */
         OperatorPatch: {
+            /** Booking Window Months */
+            booking_window_months?: number | null;
             /** Cancellation Notice Hours */
             cancellation_notice_hours?: number | null;
             /** Cancellation Policy Text */
@@ -22131,6 +22140,8 @@ export interface components {
          *     landr-jb1k: widget_variant and widget_category_columns added.
          */
         OperatorSettings: {
+            /** Booking Window Months */
+            booking_window_months?: number | null;
             /** Contact Email */
             contact_email?: string | null;
             /** Country */

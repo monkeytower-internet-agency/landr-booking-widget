@@ -606,6 +606,12 @@ export interface OperatorSettings {
    */
   timezone?: string | null
   /**
+   * How many months ahead guests may book (null / absent = unlimited). The
+   * API already refuses and hides later days; the widget stops its calendars
+   * at the same limit.
+   */
+  booking_window_months?: number | null
+  /**
    * landr-ens5 — the operator's 3-colour brand theme (brand/accent/
    * background, + optional dark overrides). When present it supersedes
    * primary_color and drives --background / --foreground / --brand /

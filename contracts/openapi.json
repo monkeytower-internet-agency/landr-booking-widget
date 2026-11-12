@@ -3387,6 +3387,11 @@
             ],
             "title": "Forced Days"
           },
+          "notify_customer": {
+            "default": true,
+            "title": "Notify Customer",
+            "type": "boolean"
+          },
           "product_id": {
             "anyOf": [
               {
@@ -6410,6 +6415,17 @@
           "description": {
             "title": "Description",
             "type": "string"
+          },
+          "description_de": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description De"
           }
         },
         "required": [
@@ -21623,6 +21639,19 @@
       "OperatorPatch": {
         "description": "Partial update payload \u2014 every field is optional.",
         "properties": {
+          "booking_window_months": {
+            "anyOf": [
+              {
+                "maximum": 60.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Booking Window Months"
+          },
           "cancellation_notice_hours": {
             "anyOf": [
               {
@@ -22968,6 +22997,17 @@
         "additionalProperties": true,
         "description": "Operator-level rendering/behaviour flags for the public booking widget.\n\nReturned by GET /api/public/operators/{token}/settings. Fields mirror the\npublic_get_operator_settings RPC projection exactly; extra=allow keeps the\nmodel forward-compatible so new RPC columns pass through without forcing a\nresponse-model bump on every migration.\n\nlandr-jb1k: widget_variant and widget_category_columns added.",
         "properties": {
+          "booking_window_months": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Booking Window Months"
+          },
           "contact_email": {
             "anyOf": [
               {
