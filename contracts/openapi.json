@@ -7196,6 +7196,9 @@
             ],
             "title": "Next Action"
           },
+          "next_step": {
+            "$ref": "#/components/schemas/NextStep"
+          },
           "payment_link_amount": {
             "anyOf": [
               {
@@ -7226,6 +7229,7 @@
         "required": [
           "has_material_changes",
           "has_prior_confirmation",
+          "next_step",
           "payment_link_pending"
         ],
         "title": "ConfirmationStatusResponse",
@@ -18916,6 +18920,62 @@
           "first_name"
         ],
         "title": "NewParticipantContact",
+        "type": "object"
+      },
+      "NextStep": {
+        "description": "The booking screen's ONE next step (landr-bj2o3.16).\n\n``kind`` is null when nothing is left to do; ``waiting_for`` is set for the\ntwo waiting kinds; ``since`` is when the wait began (null when unknown).",
+        "properties": {
+          "kind": {
+            "anyOf": [
+              {
+                "enum": [
+                  "decide_reschedule",
+                  "send_offer",
+                  "await_customer",
+                  "approve",
+                  "await_hotel",
+                  "send_confirmation",
+                  "resend_confirmation",
+                  "send_payment_link",
+                  "await_payment",
+                  "record_payment"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind"
+          },
+          "since": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Since"
+          },
+          "waiting_for": {
+            "anyOf": [
+              {
+                "enum": [
+                  "customer",
+                  "hotel"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Waiting For"
+          }
+        },
+        "title": "NextStep",
         "type": "object"
       },
       "NoShowIn": {
