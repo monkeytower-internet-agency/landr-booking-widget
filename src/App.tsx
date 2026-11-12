@@ -3662,6 +3662,7 @@ function BookingFlowApp() {
         {step.name === 'fill-form' && !reviewNeedsAttributes ? (
           <BookingForm
             widgetToken={token!}
+            paymentTerms={operatorSettings}
             previewToken={previewToken ?? undefined}
             product={step.product}
             selection={step.selection}
@@ -3978,6 +3979,7 @@ function BookingFlowApp() {
             childAges={sidebarChildAges}
             payDirectly={paysDirectly(operatorSettings.payment_methods)}
             operatorName={operatorSettings.name ?? null}
+            paymentTerms={operatorSettings}
           />
         ) : null}
         </div>

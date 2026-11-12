@@ -871,6 +871,11 @@ export interface CancelPreviewRefund {
   amount: string
   currency: string
   method: CancelRefundMethod
+  /**
+   * Two-decimal string: the non-refundable deposit the operator keeps
+   * ("0.00" when the deposit is refundable). Absent on an older API.
+   */
+  retained_amount?: string
 }
 
 export interface CancelPreviewOperator {

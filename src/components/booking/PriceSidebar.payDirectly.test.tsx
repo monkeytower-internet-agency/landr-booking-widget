@@ -52,7 +52,11 @@ const ESTIMATE: EstimateResponse = {
   un_priceable: false,
 }
 
-function renderSidebar(extra: { payDirectly?: boolean; operatorName?: string | null }) {
+function renderSidebar(extra: {
+  payDirectly?: boolean
+  operatorName?: string | null
+  paymentTerms?: React.ComponentProps<typeof PriceSidebar>['paymentTerms']
+}) {
   vi.spyOn(client, 'estimateBookingPrice').mockResolvedValue(ESTIMATE)
   render(
     <PriceSidebar
@@ -113,5 +117,38 @@ describe('PriceSidebar: operator without online payment', () => {
       expect(screen.getAllByTestId('price-sidebar-amount-due').length).toBeGreaterThan(0)
     })
     expect(screen.queryAllByTestId('price-sidebar-pay-directly')).toHaveLength(0)
+  })
+})
+
+
+describe('PriceSidebar: payment terms before booking', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('states the non-refundable deposit and the balance due date in the summary', async () => {
+    renderSidebar({
+      paymentTerms: {
+        payment_methods: ['bank_transfer'],
+        deposit_percent: 30,
+        deposit_refundable: false,
+        balance_due_days_before_arrival: 30,
+      },
+    })
+    await waitFor(() => {
+      expect(screen.getAllByTestId('price-sidebar-payment-terms').length).toBeGreaterThan(0)
+    })
+    // selectedDays 2031-03-10 minus 30 days = 8 Feb 2031.
+    expect(screen.getByTestId('price-sidebar-desktop')).toHaveTextContent(
+      /30% deposit today \(non-refundable\), the rest by .*(Feb 8|8 Feb)/,
+    )
+  })
+
+  it('shows nothing extra with default terms', async () => {
+    renderSidebar({ paymentTerms: { payment_methods: ['online'], deposit_percent: 30 } })
+    await waitFor(() => {
+      expect(screen.getByTestId('price-sidebar-desktop')).toHaveTextContent('120')
+    })
+    expect(screen.queryByTestId('price-sidebar-payment-terms')).not.toBeInTheDocument()
   })
 })
