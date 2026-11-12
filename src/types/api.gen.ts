@@ -16771,6 +16771,7 @@ export interface components {
             last_sent_at?: string | null;
             /** Next Action */
             next_action?: string | null;
+            next_step: components["schemas"]["NextStep"];
             /** Payment Link Amount */
             payment_link_amount?: string | null;
             /** Payment Link Currency */
@@ -20831,6 +20832,21 @@ export interface components {
             last_name?: string | null;
             /** Phone */
             phone?: string | null;
+        };
+        /**
+         * NextStep
+         * @description The booking screen's ONE next step (landr-bj2o3.16).
+         *
+         *     ``kind`` is null when nothing is left to do; ``waiting_for`` is set for the
+         *     two waiting kinds; ``since`` is when the wait began (null when unknown).
+         */
+        NextStep: {
+            /** Kind */
+            kind?: ("decide_reschedule" | "send_offer" | "await_customer" | "approve" | "await_hotel" | "send_confirmation" | "resend_confirmation" | "send_payment_link" | "await_payment" | "record_payment") | null;
+            /** Since */
+            since?: string | null;
+            /** Waiting For */
+            waiting_for?: ("customer" | "hotel") | null;
         };
         /** NoShowIn */
         NoShowIn: {
