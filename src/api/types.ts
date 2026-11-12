@@ -653,6 +653,15 @@ export interface OperatorSettings {
    */
   payment_methods?: ('online' | 'bank_transfer' | 'on_site')[] | null
   /**
+   * Payment terms shown in the checkout summary before booking: the deposit
+   * share (null = no deposit), whether a cancellation keeps it, and how many
+   * days before arrival the rest is due (null = no due date). Optional for
+   * rolling deploy: absent = nothing extra shown.
+   */
+  deposit_percent?: number | null
+  deposit_refundable?: boolean
+  balance_due_days_before_arrival?: number | null
+  /**
    * Whether the operator has a voucher a guest could redeem right now. Only an
    * explicit `false` hides the checkout's voucher-code field (a `?voucher=`
    * link still keeps it). Optional for rolling deploy — an older API sends no

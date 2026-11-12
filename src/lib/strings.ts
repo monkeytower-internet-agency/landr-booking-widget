@@ -507,6 +507,9 @@ export type Bundle = {
   // non-refundable deposit is said up front.
   depositTodayRestBy: string
   depositNonRefundable: string
+  depositTodayNonRefundableRestBy: string
+  depositTodayNonRefundable: string
+  depositPercentNonRefundable: string
   // landr-k9pji.15 — OfferPage's /pay/{token} link is valid for 30 days;
   // the operator may have switched payment_mode away from 'online' since it
   // was sent (POST /initiate then 409s payment_mode_not_online). These
@@ -1601,6 +1604,9 @@ const en: Bundle = {
   paymentLinkForDepositOnItsWay: 'A payment link for your deposit is on its way.',
   depositTodayRestBy: '{percent}% deposit today, the rest by {date}.',
   depositNonRefundable: 'The deposit is not refunded if you cancel.',
+  depositTodayNonRefundableRestBy: '{percent}% deposit today (non-refundable), the rest by {date}.',
+  depositTodayNonRefundable: '{percent}% deposit today (non-refundable).',
+  depositPercentNonRefundable: 'The {percent}% deposit is not refunded if you cancel.',
   payModeNotOnlineTitle: 'This booking is no longer paid online',
   payModeNotOnlinePayOnSite: 'Please pay on the day, at the meeting point.',
   payModeNotOnlineBankTransfer: 'Please pay by bank transfer — details are in your confirmation email.',

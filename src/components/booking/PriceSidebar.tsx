@@ -32,6 +32,7 @@
  *   - Happy path: full breakdown with operator/hotel split + applied
  *     discount tags
  */
+import { checkoutPaymentTermsNote, type CheckoutPaymentTerms } from '@/lib/paymentTerms'
 import {
   ALTERNATIVE_BACK_SLOT_ID,
   ALTERNATIVES_SLOT_ID,
@@ -170,6 +171,12 @@ interface Props {
   payDirectly?: boolean
   /** The operator's display name for the "pay directly" line. */
   operatorName?: string | null
+  /**
+   * The operator's payment terms (public settings): the summary states
+   * "30% deposit today (non-refundable), the rest by <date>" before the
+   * guest books. Absent / defaults: nothing extra.
+   */
+  paymentTerms?: CheckoutPaymentTerms | null
 }
 
 /** landr-h0opd.3: the estimate's calculated total, lifted out of PriceSidebar. */
@@ -214,6 +221,8 @@ interface BookingOverviewBodyProps
   /** No online payment: show "pay directly to <operator>" under the total. */
   payDirectly?: boolean
   operatorName?: string | null
+  /** Payment terms line under the total (checkoutPaymentTermsNote). */
+  paymentTermsNote?: string | null
 }
 
 function BookingOverviewBody({
@@ -228,6 +237,7 @@ function BookingOverviewBody({
   voucherRejected = false,
   payDirectly = false,
   operatorName = null,
+  paymentTermsNote = null,
 }: BookingOverviewBodyProps) {
   const locale = browserLocale()
   if (!data && isLoading) {
@@ -480,6 +490,11 @@ function BookingOverviewBody({
                 : tr('payDirectlyNoteNoOperator', locale)}
             </p>
           ) : null}
+          {paymentTermsNote ? (
+            <p className="mt-2 text-xs font-medium" data-testid="price-sidebar-payment-terms">
+              {paymentTermsNote}
+            </p>
+          ) : null}
           {onSite.length > 0 ? (
             <div data-testid="price-sidebar-on-site" className="mt-3 space-y-1 text-sm">
               <h4 className="font-semibold">{tr('offerPayOnArrivalTotal', locale)}</h4>
@@ -668,7 +683,9 @@ export default function PriceSidebar(props: Props) {
     childAges,
     payDirectly,
     operatorName,
+    paymentTerms,
   } = props
+  const paymentTermsNote = checkoutPaymentTermsNote(paymentTerms, selectedDays, browserLocale())
 
   const offerTree = useMemo(
     () => cartTree(product, selectedDays, accommodationRooms, extraLines ?? []),
@@ -932,6 +949,7 @@ export default function PriceSidebar(props: Props) {
             voucherRejected={voucherStatus === 'not_applicable'}
             payDirectly={payDirectly}
             operatorName={operatorName}
+            paymentTermsNote={paymentTermsNote}
           />
         </div>
         {/* "Also available" panel of the date step portals in here. The extra
@@ -1070,6 +1088,7 @@ export default function PriceSidebar(props: Props) {
             voucherRejected={voucherStatus === 'not_applicable'}
             payDirectly={payDirectly}
             operatorName={operatorName}
+            paymentTermsNote={paymentTermsNote}
           />
           </div>
         ) : null}
