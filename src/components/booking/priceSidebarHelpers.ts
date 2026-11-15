@@ -191,9 +191,27 @@ const DISCOUNT_RULE_KINDS = new Set([
   'voucher_fixed',
 ])
 
-/** True when this applied_rules entry should render as a sidebar tag. */
-export function isDiscountRule(kind: string): boolean {
-  return DISCOUNT_RULE_KINDS.has(kind)
+/**
+ * True when this applied_rules entry should render as a sidebar tag.
+ * landr-r2hml: a multi-day tier is a DISCOUNT only when the matched rate is below the
+ * base (1-day) rate the API reports in `detail.base_tier`. A flat price list (one tier,
+ * or a minimum stay with the same rate) is just the price, not a discount. Without
+ * `detail` the old behaviour (tag shown) is kept.
+ */
+export function isDiscountRule(kind: string, detail?: Record<string, unknown>): boolean {
+  if (!DISCOUNT_RULE_KINDS.has(kind)) return false
+  if (!detail) return true
+  const base = (detail.base_tier as { amount_per_unit?: number } | undefined)?.amount_per_unit
+  if (kind === 'per_streak_tier') {
+    if (typeof base !== 'number') return true
+    const streaks = (detail.streaks as unknown[] | undefined) ?? []
+    return streaks.some((s) => Array.isArray(s) && Number(s[1]) < base)
+  }
+  if (kind === 'per_total_days_tier') {
+    // The API omits base_tier when the matched tier IS the base: no saving by construction.
+    return typeof base === 'number'
+  }
+  return true
 }
 
 /**

@@ -459,3 +459,22 @@ describe('isSavingsLine', () => {
     expect(isSavingsLine('spart 15,00 €/Tag gegenüber dem Standardpreis', 'de')).toBe(true)
   })
 })
+
+describe('isDiscountRule — a tier is a discount only when below the base rate (landr-r2hml)', () => {
+  const base = { threshold_min: 1, amount_per_unit: 250 }
+  it('hides the tag for a flat streak price (3 nights at the base 250)', () => {
+    expect(isDiscountRule('per_streak_tier', { streaks: [[3, 250]], base_tier: base })).toBe(false)
+  })
+  it('shows it for a cheaper streak rate, and when no base is reported', () => {
+    expect(isDiscountRule('per_streak_tier', { streaks: [[7, 210]], base_tier: base })).toBe(true)
+    expect(isDiscountRule('per_streak_tier', { streaks: [[3, 75]] })).toBe(true)
+  })
+  it('total-days tier: only with a base_tier (the API omits it when the base matched)', () => {
+    expect(isDiscountRule('per_total_days_tier', { days: 3 })).toBe(false)
+    expect(isDiscountRule('per_total_days_tier', { days: 3, base_tier: base })).toBe(true)
+  })
+  it('vouchers and unknown kinds are unchanged', () => {
+    expect(isDiscountRule('voucher_percent', {})).toBe(true)
+    expect(isDiscountRule('cleaning_fee', {})).toBe(false)
+  })
+})
