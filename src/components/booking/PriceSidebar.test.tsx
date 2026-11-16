@@ -74,7 +74,11 @@ const SAMPLE: EstimateResponse = {
   applied_rules: [
     {
       kind: 'per_total_days_tier',
-      detail: { days: 3, tier: { threshold_min: 3 } },
+      detail: {
+        days: 3,
+        tier: { threshold_min: 3 },
+        base_tier: { threshold_min: 1, amount_per_unit: 90 },
+      },
     },
   ],
   warnings: [],

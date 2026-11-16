@@ -306,7 +306,7 @@ function BookingOverviewBody({
   // the savings rows it explains (Subtotal → − saving → this → Amount due),
   // so Grand total is the sidebar's last line.
   const discountBlock =
-    data.applied_rules.some((r) => isDiscountRule(r.kind)) ? (
+    data.applied_rules.some((r) => isDiscountRule(r.kind, r.detail)) ? (
       // landr-8s6c: each discount rule renders its terse tag PLUS a
       // plain-language explanation of why the price dropped — the
       // consecutive-day count + the per-day rate that was applied —
@@ -315,7 +315,7 @@ function BookingOverviewBody({
       // buildDiscountExplanation (reads applied_rules[].detail).
       <ul className="space-y-2 py-1" data-testid="price-sidebar-discounts">
         {data.applied_rules
-          .filter((r) => isDiscountRule(r.kind))
+          .filter((r) => isDiscountRule(r.kind, r.detail))
           .map((rule, idx) => {
             const lines = buildDiscountExplanation(rule, data.currency, locale)
             return (

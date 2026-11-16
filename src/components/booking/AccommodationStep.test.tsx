@@ -1141,7 +1141,8 @@ describe('AccommodationStep', () => {
       screen.getByRole('button', { name: /Decrease Single Room quantity/i }),
     )
     expect(onLive).toHaveBeenLastCalledWith([], [])
-    expect(screen.queryByTestId('offer-row-bf-single-room')).toBeNull()
+    // The row stays (qty 0, landr-ehkz7) but the dropped pick is gone.
+    expect(bfQty('single-room')).toHaveTextContent('0')
   })
 
   it('shows no capacity warning when no rooms are picked', async () => {
@@ -1805,6 +1806,63 @@ describe('AccommodationStep — per-person room breakfast is a stepper (landr-ey
       binding: 'person',
       price_preview: { quantity: 1, unit_price_cents: 1200, total_cents: 9600, price_unit: 'guest_night', currency: 'EUR' },
     })
+
+  it('shows the breakfast row with its price at room qty 0, and + adds one room plus one breakfast (landr-ehkz7)', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([makeRoom('double-room', 'Standard Double', 73, 2)])
+    mockRoomOffers((id) => [personBreakfast(id)])
+    const onLive = vi.fn()
+
+    render(
+      <AccommodationStep
+        product={makeService('mandatory')}
+        selectedDays={['2026-06-10']}
+        operatorToken="para42"
+        participantCount={2}
+        participantNames={['Olaf', 'Matthias']}
+        onConfirm={vi.fn()}
+        onBack={vi.fn()}
+        onLiveAccommodationChange={onLive}
+      />,
+    )
+
+    // Rooms and their extras arrive together: no room-first, extras-later gap.
+    await waitFor(() => expect(bfPlus('double-room')).toBeInTheDocument())
+    const card = screen.getByTestId('room-card-double-room')
+    expect(card).toHaveTextContent('Standard Double')
+    expect(card).toHaveTextContent(/12[.,]00/)
+    expect(bfQty('double-room')).toHaveTextContent('0')
+    // qty-0 rows are not part of the cart.
+    expect(onLive).not.toHaveBeenCalled()
+
+    fireEvent.click(bfPlus('double-room'))
+    await waitFor(() => expect(bfQty('double-room')).toHaveTextContent('1'))
+    expect(screen.getByText('1', { selector: '[aria-live="polite"]' })).toBeInTheDocument()
+    const [rooms, addons] = onLive.mock.calls.at(-1)!
+    expect(rooms).toEqual([expect.objectContaining({ productId: 'double-room', quantity: 1 })])
+    expect(JSON.stringify(addons)).toMatch(/breakfast|bf-double-room/i)
+  })
+
+  it('shows no extras and no included-note on a premium breakfast room (landr-ehkz7)', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([
+      makeRoom('premium-room', 'Premium Single Room w/ Breakfast', 120, 1),
+    ])
+    mockRoomOffers((id) => [personBreakfast(id)])
+    render(
+      <AccommodationStep
+        product={makeService('mandatory')}
+        selectedDays={['2026-06-10']}
+        operatorToken="para42"
+        participantCount={1}
+        onConfirm={vi.fn()}
+        onBack={vi.fn()}
+      />,
+    )
+    await waitFor(() => expect(screen.getByText('Premium Single Room w/ Breakfast')).toBeInTheDocument())
+    expect(screen.queryByTestId('offer-row-bf-premium-room')).toBeNull()
+    expect(screen.queryByText(/breakfast included/i)).toBeNull()
+  })
 
   it('steppers under the room, unit price, clamps to the room cap on 2 -> 1 rooms', async () => {
     mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
