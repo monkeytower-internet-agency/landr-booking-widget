@@ -23,6 +23,7 @@
  * added product, see crossSell.ts ExtraLine).
  */
 import type {
+  OfferPricePreview,
   EstimateAddonLine,
   EstimateLineItem,
   EvaluatedLine,
@@ -1126,7 +1127,7 @@ export type PriceTone = 'online' | 'on_site' | 'free' | 'tbd'
  * total wins over the evaluator's preview once the pick is priced.
  */
 export function priceLabel(
-  o: Pick<EvaluatedOffer, 'collection' | 'price_preview'>,
+  o: Pick<EvaluatedOffer, 'collection' | 'price_preview' | 'options'>,
   locale: string,
   estimate?: readonly EstimateLineItem[],
   currency?: string,
@@ -1136,13 +1137,18 @@ export function priceLabel(
   if (o.collection === 'free') return { text: tr('offerPriceFree', locale), tone: 'free' }
   const unitCents = o.price_preview?.unit_price_cents
   const unitCcy = o.price_preview?.currency ?? currency
-  if (unit && typeof unitCents === 'number' && unitCcy) {
+  const pu = o.price_preview?.price_unit
+  // A per-night / per-guest / per-stay add-on always quotes its rate (picked or
+  // not): the totals live in the price summary.
+  const ratePriced = !!pu && pu !== 'booking'
+  if ((unit || ratePriced) && typeof unitCents === 'number' && unitCcy) {
     const rate = `${formatMoney((unitCents / 100).toFixed(2), unitCcy, locale)} ${addonUnitSuffix(o.price_preview?.price_unit, locale)}`
     return o.collection === 'on_site'
       ? { text: `${rate} · ${tr('offerPayOnArrival', locale)}`, tone: 'on_site' }
       : { text: rate, tone: 'online' }
   }
   let amount: string | null = null
+  let fromPrice = false
   let ccy = o.price_preview?.currency ?? currency ?? null
   if (estimate && estimate.length > 0) {
     const cents = estimate.reduce(
@@ -1157,10 +1163,17 @@ export function priceLabel(
     amount = (cents / 100).toFixed(2)
     ccy = currency ?? ccy
   } else if (typeof o.price_preview?.total_cents === 'number') {
-    amount = (o.price_preview.total_cents / 100).toFixed(2)
+    // Options not picked yet: the base plus the cheapest option, "from" when
+    // the options differ in price.
+    const deltas = (o.options ?? []).map((x) => x.price_delta_cents ?? 0)
+    const minDelta = deltas.length > 0 ? Math.min(...deltas) : 0
+    fromPrice = deltas.length > 0 && Math.max(...deltas) !== minDelta
+    amount = ((o.price_preview.total_cents + minDelta * (o.price_preview.quantity || 1)) / 100).toFixed(2)
   }
   if (amount === null || !ccy) return { text: tr('offerPriceOnDates', locale), tone: 'tbd' }
-  const money = formatMoney(amount, ccy, locale)
+  const money = fromPrice
+    ? fmt(tr('offerPriceFrom', locale), { price: formatMoney(amount, ccy, locale) })
+    : formatMoney(amount, ccy, locale)
   if (o.collection === 'on_site') {
     return { text: `${money} · ${tr('offerPayOnArrival', locale)}`, tone: 'on_site' }
   }
@@ -1214,8 +1227,17 @@ export function reasonText(
 }
 
 /** An option as the select shows it: "Both ways (+€10.00)". */
-export function optionLabel(o: OfferOption, currency: string, locale: string): string {
+export function optionLabel(
+  o: OfferOption,
+  currency: string,
+  locale: string,
+  /** The offer's price preview: a free base shows the option's absolute price. */
+  base?: Pick<OfferPricePreview, 'unit_price_cents' | 'total_cents'> | null,
+): string {
   const name = pickLocalized(o.label, o.label_localized ?? null, locale)
   if (!o.price_delta_cents) return name
+  if ((base?.unit_price_cents ?? base?.total_cents) === 0) {
+    return `${name} · ${formatMoney((o.price_delta_cents / 100).toFixed(2), currency, locale)}`
+  }
   return `${name} (+${formatMoney((o.price_delta_cents / 100).toFixed(2), currency, locale)})`
 }

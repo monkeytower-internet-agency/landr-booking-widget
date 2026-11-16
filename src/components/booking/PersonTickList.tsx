@@ -2,7 +2,7 @@
  * Who a per-person offer is for: one tick per guest, and one option select
  * per ticked guest when the offer has options.
  */
-import type { OfferOption } from '@/api/types'
+import type { OfferOption, OfferPricePreview } from '@/api/types'
 import { fmt, tr } from '@/lib/strings'
 import { optionLabel, type PartyMember } from './offerCart'
 
@@ -14,6 +14,8 @@ interface Props {
   /** Member keys the offer's rules admit (others are shown disabled). */
   admitted: ReadonlySet<string>
   options: readonly OfferOption[]
+  /** The offer's price preview (a free base shows absolute option prices). */
+  base?: OfferPricePreview | null
   picked: Readonly<Record<string, string>>
   currency: string
   locale: string
@@ -32,6 +34,7 @@ export function PersonTickList({
   ticked,
   admitted,
   options,
+  base,
   picked,
   currency,
   locale,
@@ -75,7 +78,7 @@ export function PersonTickList({
                 )}
                 {options.map((o) => (
                   <option key={o.key} value={o.key}>
-                    {optionLabel(o, currency, locale)}
+                    {optionLabel(o, currency, locale, base)}
                   </option>
                 ))}
               </select>
