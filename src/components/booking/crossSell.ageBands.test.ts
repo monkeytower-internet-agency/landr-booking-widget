@@ -33,16 +33,14 @@ describe('cross-sell inline ages follow the flow (landr-zcb24.2)', () => {
   const product = { ...mockOccupancyStay, occupancy_pricing: undefined }
   const line = inheritLine(product, ['2026-12-01'], 'l1', FLOW)
 
-  it('an added line whose flow asks ages brings the bands and the booker confirmation', () => {
+  it('an added line whose flow asks ages brings the bands', () => {
     const needs = lineNeeds([line], CTX)
     expect(needs.l1.ages).toBe(true)
     expect(needs.l1.ageBands?.map((b) => b.min_age)).toEqual([0, 18, 65])
   })
 
-  it('stays pending until the booker confirms 18+', () => {
-    expect(inlineModulesPending([line], CTX, NONE)).toBe(true)
-    const confirmed = { ...NONE, ages: { 0: { band: 'adult' as const, age: null, floor: 18, confirmed: true } } }
-    expect(inlineModulesPending([line], CTX, confirmed)).toBe(false)
+  it('needs no booker confirmation (landr-zcb24.34): the booker is assumed an adult', () => {
+    expect(inlineModulesPending([line], CTX, NONE)).toBe(false)
   })
 })
 

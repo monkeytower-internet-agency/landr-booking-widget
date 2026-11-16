@@ -63,11 +63,6 @@ export interface BookerDetails {
    * Always read it through `bookerJoins`, never as a bare truthiness check.
    */
   joins?: boolean
-  /**
-   * landr-zcb24.2: "I am 18 or older", ticked in the party step whenever the
-   * cart asks ages. Never sent: the API checks the booker's age itself.
-   */
-  adult_confirmed?: boolean
 }
 
 /** landr-jiagg.2: true unless the booker explicitly opted out of taking part. */

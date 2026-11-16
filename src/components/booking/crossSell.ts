@@ -123,8 +123,6 @@ export interface GuestAgeEntry {
   age: number | null
   /** landr-zcb24.2: an adult band's floor, sent as the age (+ age_exact=false). */
   floor?: number
-  /** landr-zcb24.2: the booker (entry 0) ticked "I am 18 or older". */
-  confirmed?: boolean
 }
 
 /**
@@ -407,8 +405,7 @@ export function inlineModulesPending(
         n.ageGuests === undefined &&
         (n.ageExact === true
           ? exactAgeEntryMissing(inline.ages, ctx.participantCount)
-          : hasChildWithoutAgeEntry(inline.ages) ||
-            (n.ageBands !== undefined && inline.ages?.[0]?.confirmed !== true))) ||
+          : hasChildWithoutAgeEntry(inline.ages))) ||
       n.forms.some((f) => !answered.has(f.key)),
   )
 }

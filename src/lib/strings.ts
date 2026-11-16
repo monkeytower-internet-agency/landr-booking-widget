@@ -361,10 +361,9 @@ export type Bundle = {
   occupancyChildBandFree: string
   guestAgeRequired: string
   agePlaceholder: string
-  bookerAdultConfirm: string
+  bookerAdultNotice: string
   ageRefineIntro: string
   ageRefineChoose: string
-  bookerAdultRequired: string
   exactAgeAria: string
   exactAgeRequired: string
   bookerExactAgeRequired: string
@@ -1460,10 +1459,9 @@ const en: Bundle = {
   occupancyChildBandFree: 'children {from}-{to} free',
   guestAgeRequired: 'Please select the age of each child.',
   agePlaceholder: 'Age',
-  bookerAdultConfirm: 'I am 18 or older',
+  bookerAdultNotice: 'By booking you confirm that you are 18 or older.',
   ageRefineIntro: 'The extras you added use a finer age grouping. Please choose the age group again for:',
   ageRefineChoose: 'Choose age group',
-  bookerAdultRequired: 'Please confirm that you are 18 or older to book.',
   exactAgeAria: 'Age',
   exactAgeRequired: 'Please enter the age of each guest.',
   bookerExactAgeRequired: 'Please enter your age (18 or older) to book.',
