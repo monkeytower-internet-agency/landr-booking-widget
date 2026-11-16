@@ -961,6 +961,9 @@ export interface EvaluatedOffer {
   name_localized?: Record<string, string> | null
   short_description?: string | null
   short_description_localized?: Record<string, string> | null
+  /** The offered product's long description (Markdown); absent on an older API. */
+  description?: string | null
+  description_localized?: Record<string, string> | null
   product_kind: string
   day_selection?: 'parent_all' | 'parent_subset' | null
   /** The offered product is already a child line of this line. */
