@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type SetStateAction } from 'react'
 import {
   getAvailability,
   getHotelRoomsForHotel,
@@ -406,6 +406,9 @@ function picksOfBookedRooms(
   }
   return picks.filter((p) => keep.has(p.lineId))
 }
+
+/** Longest the room list waits for the first offers answer before it shows without one. */
+const PREFETCH_GRACE_MS = 800
 
 export function AccommodationStep({
   product,
@@ -1070,6 +1073,25 @@ export function AccommodationStep({
     enabled: bookRooms && (rooms?.length ?? 0) > 0,
     debounceMs: 0,
   })
+  // Root cause of the late breakfast row (landr-ehkz7): the prefetch could only
+  // start once the room list was in (it needs the room product ids), so the
+  // rooms rendered first and their extras followed a whole /offers round trip
+  // later (more on a cold start). The list therefore waits, behind the same
+  // "loading rooms" line, for that first answer -- bounded, so a slow or
+  // failed evaluator never holds the rooms back.
+  const [prefetchGraceOver, setPrefetchGraceOver] = useState(false)
+  const roomsLoaded = rooms !== null
+  useEffect(() => {
+    if (!roomsLoaded) return
+    const t = setTimeout(() => setPrefetchGraceOver(true), PREFETCH_GRACE_MS)
+    return () => clearTimeout(t)
+  }, [roomsLoaded])
+  const awaitingPrefetch =
+    bookRooms &&
+    (rooms?.length ?? 0) > 0 &&
+    prefetchedOffers.answeredKey === null &&
+    !prefetchedOffers.checkFailed &&
+    !prefetchGraceOver
   const roomVerdicts = useMemo(
     () => ({ ...prefetchedOffers.byLine, ...roomOffers.byLine }),
     [prefetchedOffers.byLine, roomOffers.byLine],
@@ -1436,6 +1458,26 @@ export function AccommodationStep({
     setSelection(out)
     // landr-87n9.2: report the new room set live (with the picks left, their
     // guests named by the chip holders).
+    const settled = settleRoomStepperPicks(nextPicks, holdersByRoom, offerMembers)
+    reportedSignature.current = picksSignature(settled)
+    notifyLiveAccommodation(mode, out, settled)
+  }
+
+  // A room extra taken while its room type is at 0 adds one unit of that room
+  // too (1 room + the extra). The exact verdict then judges the cart; reconcile
+  // keeps the pick as long as the room is in it.
+  function addRoomWithPicks(
+    productId: string,
+    update: SetStateAction<OfferPick[]>,
+  ) {
+    if ((selection[productId] ?? 0) > 0) {
+      setRoomPicks(update)
+      return
+    }
+    const nextPicks = typeof update === 'function' ? update(roomPicks) : update
+    const out = { ...selection, [productId]: 1 }
+    setRoomPicks(nextPicks)
+    setSelection(out)
     const settled = settleRoomStepperPicks(nextPicks, holdersByRoom, offerMembers)
     reportedSignature.current = picksSignature(settled)
     notifyLiveAccommodation(mode, out, settled)
@@ -2012,7 +2054,7 @@ export function AccommodationStep({
                 )}
               </p>
             ) : null}
-            {rooms === null && !roomsError ? (
+            {(rooms === null || awaitingPrefetch) && !roomsError ? (
               <p className="text-sm text-muted-foreground">{tr('loadingRooms', locale)}</p>
             ) : null}
             {roomsError ? (
@@ -2023,17 +2065,18 @@ export function AccommodationStep({
                 {tr('noRoomsConfigured', locale)}
               </p>
             ) : null}
-            {rooms?.map((room) => {
+            {(awaitingPrefetch ? [] : (rooms ?? [])).map((room) => {
               const qty = selection[room.product_id] ?? 0
               const roomName = pickLocalized(room.name, room.name_localized, locale)
               const subtotal = roomSubtotal(room, qty, nights)
-              // Only show the room type's offers once at least one of THIS
-              // room is in the cart — otherwise an empty room block sprouts
-              // an un-actionable list of extras.
+              // The room type's extras (Breakfast) show from the moment the
+              // room list is in, at quantity 0 with their price (priced from
+              // the display-only prefetch). Taking one while the room is at 0
+              // adds one unit of this room too (addRoomWithPicks).
               // Premium-with-breakfast rooms already include breakfast in
               // their price; suppress their extras.
               const isPremium = roomIncludesBreakfast(room)
-              const showAddons = qty > 0 && !isPremium
+              const showAddons = !isPremium
               return (
                 // landr-3mo4: image-less room card with depth — a raised
                 // sub-card so the room reads as a distinct, selectable block.
@@ -2115,7 +2158,11 @@ export function AccommodationStep({
                       parentLineId={roomLineId(room.product_id)}
                       verdicts={roomVerdicts}
                       picks={settledRoomPicks}
-                      onPicksChange={setRoomPicks}
+                      onPicksChange={
+                        qty > 0
+                          ? setRoomPicks
+                          : (update) => addRoomWithPicks(room.product_id, update)
+                      }
                       tree={offerTree}
                       members={offerMembers}
                       idPrefix="a"
@@ -2123,11 +2170,11 @@ export function AccommodationStep({
                       currency={room.currency ?? product.currency ?? 'EUR'}
                       isPending={roomOffers.isPending}
                       showParentless={false}
-                      maxOccupancy={roomCaps[room.product_id] ?? (room.capacity_per_unit ?? 1) * qty}
+                      maxOccupancy={roomCaps[room.product_id] ?? (room.capacity_per_unit ?? 1) * Math.max(qty, 1)}
                       occupancyBasis={
                         (occupantsByProduct.get(room.product_id)?.length ?? 0) > 0 ? 'guests' : 'capacity'
                       }
-                      roomQty={qty}
+                      roomQty={Math.max(qty, 1)}
                     />
                   ) : null}
                 </div>
