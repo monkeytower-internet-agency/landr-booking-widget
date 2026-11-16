@@ -9335,6 +9335,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/invite-owner-to-tier": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Invite Owner To Tier
+         * @description Invite the owner(s) the last copy came with as owners on THIS tier, to
+         *     their real address (invite mail keeps the TEST header). Never on production.
+         *     Idempotent: owners already here / with a pending invite are reported, not
+         *     re-invited. Never automatic on copy: staff press the button.
+         */
+        post: operations["invite_owner_to_tier"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/invites": {
         parameters: {
             query?: never;
@@ -44815,6 +44838,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["VerifyResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    invite_owner_to_tier: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */

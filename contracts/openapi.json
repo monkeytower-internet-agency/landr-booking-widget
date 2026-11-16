@@ -69634,6 +69634,56 @@
         ]
       }
     },
+    "/api/staff/operators/{operator_id}/invite-owner-to-tier": {
+      "post": {
+        "description": "Invite the owner(s) the last copy came with as owners on THIS tier, to\ntheir real address (invite mail keeps the TEST header). Never on production.\nIdempotent: owners already here / with a pending invite are reported, not\nre-invited. Never automatic on copy: staff press the button.",
+        "operationId": "invite_owner_to_tier",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Invite Owner To Tier",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Invite Owner To Tier",
+        "tags": [
+          "landr-staff-setup-bundle"
+        ]
+      }
+    },
     "/api/staff/operators/{operator_id}/invites": {
       "get": {
         "description": "Open invites: pending plus lapsed (``expired``), newest first.",
