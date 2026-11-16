@@ -6089,6 +6089,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/setup-bundle/apply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Apply Setup Bundle */
+        post: operations["apply_setup_bundle"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/setup-bundle/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Preview Setup Bundle */
+        post: operations["preview_setup_bundle"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}": {
         parameters: {
             query?: never;
@@ -13008,6 +13042,23 @@ export interface paths {
         patch: operations["patch_service_role"];
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/setup-bundle": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Export Setup Bundle */
+        get: operations["export_setup_bundle"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/setup-checklist": {
         parameters: {
             query?: never;
@@ -13047,6 +13098,23 @@ export interface paths {
          * @description Mark one item required, optional or not applicable (reason needed).
          */
         put: operations["put_item_requirement"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/setup-drift": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Setup Drift */
+        get: operations["setup_drift"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -14378,6 +14446,20 @@ export interface components {
              * @description resource_types.code already present for this operator (untouched)
              */
             skipped: string[];
+        };
+        /** ApplyIn */
+        ApplyIn: {
+            /** Bundle */
+            bundle: {
+                [key: string]: unknown;
+            };
+            /**
+             * Confirm Production
+             * @default false
+             */
+            confirm_production: boolean;
+            /** Expected Target Fingerprint */
+            expected_target_fingerprint: string | null;
         };
         /** ApplyPresetRequest */
         ApplyPresetRequest: {
@@ -23156,6 +23238,13 @@ export interface components {
             withdrawable: boolean;
             /** Withdrawn */
             withdrawn: boolean;
+        };
+        /** PreviewIn */
+        PreviewIn: {
+            /** Bundle */
+            bundle: {
+                [key: string]: unknown;
+            };
         };
         /**
          * PreviewMigrationsResponse
@@ -38830,6 +38919,76 @@ export interface operations {
             };
         };
     };
+    apply_setup_bundle: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApplyIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_setup_bundle: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PreviewIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_operator: {
         parameters: {
             query?: never;
@@ -52407,6 +52566,39 @@ export interface operations {
             };
         };
     };
+    export_setup_bundle: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_setup_checklist: {
         parameters: {
             query?: never;
@@ -52455,6 +52647,39 @@ export interface operations {
                 "application/json": components["schemas"]["RequirementIn"];
             };
         };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    setup_drift: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {

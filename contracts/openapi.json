@@ -671,6 +671,37 @@
         "title": "AppliedTemplatesOut",
         "type": "object"
       },
+      "ApplyIn": {
+        "properties": {
+          "bundle": {
+            "additionalProperties": true,
+            "title": "Bundle",
+            "type": "object"
+          },
+          "confirm_production": {
+            "default": false,
+            "title": "Confirm Production",
+            "type": "boolean"
+          },
+          "expected_target_fingerprint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Target Fingerprint"
+          }
+        },
+        "required": [
+          "bundle",
+          "expected_target_fingerprint"
+        ],
+        "title": "ApplyIn",
+        "type": "object"
+      },
       "ApplyPresetRequest": {
         "properties": {
           "preset_key": {
@@ -25595,6 +25626,20 @@
           "withdrawn"
         ],
         "title": "PreviewDayOut",
+        "type": "object"
+      },
+      "PreviewIn": {
+        "properties": {
+          "bundle": {
+            "additionalProperties": true,
+            "title": "Bundle",
+            "type": "object"
+          }
+        },
+        "required": [
+          "bundle"
+        ],
+        "title": "PreviewIn",
         "type": "object"
       },
       "PreviewMigrationsResponse": {
@@ -58713,6 +58758,102 @@
         ]
       }
     },
+    "/api/staff/operators/setup-bundle/apply": {
+      "post": {
+        "operationId": "apply_setup_bundle",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApplyIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Apply Setup Bundle",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Apply Setup Bundle",
+        "tags": [
+          "landr-staff-setup-bundle"
+        ]
+      }
+    },
+    "/api/staff/operators/setup-bundle/preview": {
+      "post": {
+        "operationId": "preview_setup_bundle",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PreviewIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Preview Setup Bundle",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Preview Setup Bundle",
+        "tags": [
+          "landr-staff-setup-bundle"
+        ]
+      }
+    },
     "/api/staff/operators/{operator_id}": {
       "get": {
         "operationId": "get_operator",
@@ -83789,6 +83930,55 @@
         ]
       }
     },
+    "/api/staff/operators/{operator_id}/setup-bundle": {
+      "get": {
+        "operationId": "export_setup_bundle",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Export Setup Bundle",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Export Setup Bundle",
+        "tags": [
+          "landr-staff-setup-bundle"
+        ]
+      }
+    },
     "/api/staff/operators/{operator_id}/setup-checklist": {
       "get": {
         "description": "Return every setup-checklist item for the operator, done or not.\n\n``filled_by`` is ``{user_id, display_name, is_landr_staff}`` and\n``filled_at`` a timestamp, both from the audit log, only on done items.\n``setup_complete`` is true when no required item is open (done and\nnot-applicable items do not block). ``setup_is_landing`` is true only for\nan operator staff created, until then: the dashboard lands it on /setup.",
@@ -83905,6 +84095,55 @@
         "summary": "Put Item Requirement",
         "tags": [
           "staff-setup-checklist"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/setup-drift": {
+      "get": {
+        "operationId": "setup_drift",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Setup Drift",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Setup Drift",
+        "tags": [
+          "landr-staff-setup-bundle"
         ]
       }
     },
