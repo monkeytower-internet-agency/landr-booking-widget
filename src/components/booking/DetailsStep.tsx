@@ -491,11 +491,10 @@ export function DetailsStep({
   const setBookerBand = (bandKey: string) =>
     setBookerGuestData((prev) => withAgeChoice(prev, bands, bandKey, null, storeFloor))
   // landr-zcb24.7: exact age. A booker who takes part types theirs (18 or older)
-  // instead of ticking "I am 18 or older"; one who does not still ticks it.
+  // instead; the booker is otherwise assumed an adult (landr-zcb24.34), the
+  // server-side guard stays.
   const exactBooker = collectGuestAges && ageExact && joins
-  const bookerAdultOk = exactBooker
-    ? isValidExactAge(bookerGuestData.occupant_age, true)
-    : booker.adult_confirmed === true
+  const bookerAdultOk = !exactBooker || isValidExactAge(bookerGuestData.occupant_age, true)
   const setBookerExactAge = (age: number | null) =>
     setBookerGuestData((prev) => withExactAge(prev, age))
   // landr-zy2wm.2: product cap on total participants (booker included).
@@ -1311,8 +1310,7 @@ export function DetailsStep({
     (ageExact
       ? exactAgeMissing(additional) || exactAgeMissing(companions)
       : hasChildWithoutAge(additional) || hasChildWithoutAge(companions))
-  // landr-zcb24.2: the booker confirms "I am 18 or older" whenever ages are asked
-  // (landr-zcb24.7: an exact-age flow asks the booker's age instead).
+  // landr-zcb24.34: only an exact-age participating booker types their own age.
   const adultConfirmMissing = collectGuestAges && !bookerAdultOk
   const canContinue =
     withinCap &&
@@ -1509,8 +1507,8 @@ export function DetailsStep({
             </div>
           ) : null}
           {/* landr-zcb24.2: whenever ages are asked the booker is an adult (legal):
-              an explicit "I am 18 or older", and — when they take part and the
-              cart has several adult bands — which adult band they stand in. */}
+              when they take part and the cart has several adult bands, which
+              adult band they stand in; exact-age flows ask their own age. */}
           {collectGuestAges ? (
             <div className="flex flex-col gap-2" data-testid="booker-adult-block">
               {exactBooker ? (
@@ -1531,29 +1529,6 @@ export function DetailsStep({
                   onChange={(bandKey) => setBookerBand(bandKey)}
                   locale={locale}
                 />
-              ) : null}
-              {!exactBooker ? (
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    id="booker-adult-confirm"
-                    checked={booker.adult_confirmed === true}
-                    onCheckedChange={(v) => {
-                      setBooker((prev) => ({ ...prev, adult_confirmed: v === true }))
-                      markTouched('booker.adult')
-                    }}
-                    aria-invalid={touched.has('booker.adult') && !bookerAdultOk ? true : undefined}
-                    data-testid="booker-adult-confirm"
-                    className="border-foreground/60 bg-background dark:border-foreground/70 dark:bg-background"
-                  />
-                  <Label htmlFor="booker-adult-confirm" className="text-sm font-normal">
-                    {tr('bookerAdultConfirm', locale)}
-                  </Label>
-                </div>
-              ) : null}
-              {!exactBooker && touched.has('booker.adult') && !bookerAdultOk ? (
-                <p className="text-xs text-destructive" role="alert" data-testid="booker-adult-error">
-                  {tr('bookerAdultRequired', locale)}
-                </p>
               ) : null}
             </div>
           ) : null}
@@ -2542,6 +2517,11 @@ export function DetailsStep({
             same accent/reason presentation by hand instead of using the
             primitive directly. */}
         <NextAction active={canContinue} cue="continue" className="mt-2">
+          {collectGuestAges ? (
+            <p className="mb-2 text-xs text-muted-foreground" data-testid="booker-adult-notice">
+              {tr('bookerAdultNotice', locale)}
+            </p>
+          ) : null}
           <div className="flex items-center justify-end gap-3">
             <p
               id="details-step-gate"
