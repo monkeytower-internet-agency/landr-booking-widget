@@ -1053,6 +1053,9 @@ export type Bundle = {
   offerPayOnArrivalNote: string
   offerPriceFree: string
   offerPriceOnDates: string
+  offerPriceFrom: string
+  offerMoreInfo: string
+  offerLessInfo: string
   offerWhoTitle: string
   offerOptionPlaceholder: string
   offerNoOption: string
@@ -2123,6 +2126,9 @@ const en: Bundle = {
   offerPayOnArrivalNote: 'Paid on arrival, not part of the amount due now.',
   offerPriceFree: 'Free',
   offerPriceOnDates: 'Price for your dates',
+  offerPriceFrom: 'from {price}',
+  offerMoreInfo: 'More info',
+  offerLessInfo: 'Less info',
   offerWhoTitle: 'Who is it for?',
   offerOptionPlaceholder: 'Choose…',
   offerNoOption: 'No option',
