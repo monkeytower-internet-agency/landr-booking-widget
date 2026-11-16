@@ -1513,6 +1513,27 @@
         "title": "AssignmentIn",
         "type": "object"
       },
+      "AuthMethodsOut": {
+        "properties": {
+          "has_password": {
+            "title": "Has Password",
+            "type": "boolean"
+          },
+          "providers": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Providers",
+            "type": "array"
+          }
+        },
+        "required": [
+          "has_password",
+          "providers"
+        ],
+        "title": "AuthMethodsOut",
+        "type": "object"
+      },
       "AvailabilityBatchIn": {
         "description": "The day editor's whole diff, applied atomically (plan \u00a73c).\n\n- ``upsert`` \u2014 new bookable days, seat-count changes, and Reopen (a closed\n  day upserted back to ``status='open'``).\n- ``close``  \u2014 booked days the operator removed. The row survives with its\n  ``capacity`` untouched and ``status='closed'`` (OD-5), so the existing\n  bookings keep their seats and the day stays visible + reopenable.\n- ``delete`` \u2014 unbooked days the operator removed. Row gone.\n\nA date may appear in at most ONE list: two upserts for the same date would\ntrip Postgres 21000 (\"ON CONFLICT DO UPDATE command cannot affect row a\nsecond time\" \u2014 the same trap `AvailabilityBulkIn._check_slot_times_unique`\ndocuments), and close+delete for one date is simply ambiguous.",
         "properties": {
@@ -24587,6 +24608,32 @@
           }
         },
         "title": "PassTierPatch",
+        "type": "object"
+      },
+      "PasswordIn": {
+        "properties": {
+          "current_password": {
+            "anyOf": [
+              {
+                "maxLength": 1024,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Password"
+          },
+          "new_password": {
+            "maxLength": 1024,
+            "title": "New Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "new_password"
+        ],
+        "title": "PasswordIn",
         "type": "object"
       },
       "PatchMoscowIn": {
@@ -50861,6 +50908,80 @@
         "summary": "Set promotion_prompt + promotion_requested_at on a ticket (landr-staff only).",
         "tags": [
           "landr-staff-tickets-gateway"
+        ]
+      }
+    },
+    "/api/me/auth-methods": {
+      "get": {
+        "operationId": "me_auth_methods",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthMethodsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Auth Methods",
+        "tags": [
+          "me"
+        ]
+      }
+    },
+    "/api/me/password": {
+      "post": {
+        "operationId": "me_set_password",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Me Set Password",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Set Password",
+        "tags": [
+          "me"
         ]
       }
     },
