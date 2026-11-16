@@ -37,7 +37,7 @@ describe('InlineGuestAges bands (landr-zcb24.2)', () => {
     ])
   })
 
-  it('with the flow bands: floors for adults, booker adult-only with 18+ confirmation', () => {
+  it('with the flow bands: floors for adults, booker adult-only, no confirmation', () => {
     const onChange = vi.fn()
     render(<Harness onChange={onChange} ageBands={BANDS} />)
     expect(Array.from(screen.getByTestId('inline-age-band-0').querySelectorAll('option')).map((o) => o.textContent)).toEqual([
@@ -46,11 +46,7 @@ describe('InlineGuestAges bands (landr-zcb24.2)', () => {
     ])
     fireEvent.change(screen.getByTestId('inline-age-band-1'), { target: { value: 'age_65_plus' } })
     expect(onChange).toHaveBeenLastCalledWith({ 1: { band: 'adult', age: null, floor: 65 } })
-    fireEvent.click(screen.getByTestId('inline-booker-adult-confirm'))
-    expect(onChange).toHaveBeenLastCalledWith({
-      1: { band: 'adult', age: null, floor: 65 },
-      0: { band: 'adult', age: null, floor: 18, confirmed: true },
-    })
+    expect(screen.queryByTestId('inline-booker-adult-confirm')).not.toBeInTheDocument()
   })
 })
 
@@ -76,7 +72,7 @@ describe('InlineGuestAges exact (landr-zcb24.7)', () => {
     fireEvent.change(screen.getByTestId('guest-age-inline-0'), { target: { value: '40' } })
     fireEvent.change(screen.getByTestId('guest-age-inline-1'), { target: { value: '9' } })
     expect(onChange).toHaveBeenLastCalledWith({
-      0: { band: 'adult', age: 40, confirmed: true },
+      0: { band: 'adult', age: 40 },
       1: { band: 'child', age: 9 },
     })
   })

@@ -22,6 +22,7 @@ import {
   nextLineId,
   partyMembers,
   picksBlocking,
+  optionLabel,
   priceLabel,
   reasonText,
   reconcile,
@@ -585,6 +586,40 @@ describe('room stepper picks (landr-ey8fx)', () => {
       price_preview: { quantity: 1, unit_price_cents: 1200, total_cents: 9600, price_unit: 'guest_night' as const, currency: 'EUR' },
     }
     expect(priceLabel(o, 'en', undefined, 'EUR', true).text).toMatch(/12[.,]00.*guest/)
-    expect(priceLabel(o, 'en', undefined, 'EUR').text).toMatch(/96[.,]00/)
+    // a per-unit offer quotes its rate unprompted (the totals live in the summary)
+    expect(priceLabel(o, 'en', undefined, 'EUR').text).toMatch(/12[.,]00.*guest/)
+    const flat = { ...o, price_preview: { ...o.price_preview, price_unit: 'booking' as const } }
+    expect(priceLabel(flat, 'en', undefined, 'EUR').text).toMatch(/96[.,]00/)
+  })
+
+  it('priceLabel quotes the rate, picked or not, and keeps pay on arrival', () => {
+    const pv = { quantity: 1, unit_price_cents: 1000, total_cents: 3000, price_unit: 'night' as const, currency: 'EUR' }
+    const est = [{ line_total: '30.00' }] as never
+    expect(priceLabel({ collection: 'online', price_preview: pv }, 'en').text).toMatch(/10[.,]00.*night/)
+    expect(priceLabel({ collection: 'online', price_preview: pv }, 'en', est, 'EUR').text).toMatch(/10[.,]00.*night/)
+    const onSite = priceLabel({ collection: 'on_site', price_preview: pv }, 'en')
+    expect(onSite.text).toMatch(/10[.,]00.*night.*Pay on arrival/)
+    expect(onSite.tone).toBe('on_site')
+  })
+
+  it('priceLabel says "from" the cheapest option before a pick, the estimate after', () => {
+    const pv = { quantity: 1, total_cents: 0, price_unit: 'booking' as const, currency: 'EUR' }
+    const options = [
+      { key: 'one', label: 'One way', price_delta_cents: 500 },
+      { key: 'both', label: 'Both ways', price_delta_cents: 900 },
+    ]
+    expect(priceLabel({ collection: 'online', price_preview: pv, options }, 'en').text).toMatch(/^from €5[.,]00/)
+    expect(priceLabel({ collection: 'online', price_preview: { ...pv, total_cents: 1000 }, options }, 'en').text).toMatch(/^from €15[.,]00/)
+    const same = options.map((o) => ({ ...o, price_delta_cents: 500 }))
+    expect(priceLabel({ collection: 'online', price_preview: pv, options: same }, 'en').text).toBe('€5.00')
+    const est = [{ line_total: '9.00' }] as never
+    expect(priceLabel({ collection: 'online', price_preview: pv, options }, 'en', est, 'EUR').text).toBe('€9.00')
+  })
+
+  it('optionLabel shows the absolute price when the base is free, else the surcharge', () => {
+    const o = { key: 'one', label: 'One way', price_delta_cents: 500 }
+    expect(optionLabel(o, 'EUR', 'en', { total_cents: 0 })).toBe('One way · €5.00')
+    expect(optionLabel(o, 'EUR', 'en', { total_cents: 1000 })).toBe('One way (+€5.00)')
+    expect(optionLabel(o, 'EUR', 'en')).toBe('One way (+€5.00)')
   })
 })

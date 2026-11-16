@@ -3,7 +3,7 @@ import type { EstimateLineItem, EvaluatedOffer } from '@/api/types'
 import { priceLabel } from './offerCart'
 
 interface Props {
-  offer: Pick<EvaluatedOffer, 'collection' | 'price_preview'>
+  offer: Pick<EvaluatedOffer, 'collection' | 'price_preview' | 'options'>
   locale: string
   /** The estimate lines this pick produced, once it is priced. */
   estimate?: readonly EstimateLineItem[]

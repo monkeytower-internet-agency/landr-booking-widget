@@ -5,7 +5,7 @@
  *
  * landr-zcb24.2: the options are the cart's age bands. When an added line's
  * flow asks ages (`ageBands` given) the first guest (the booker) shows too:
- * adult bands only plus a required "I am 18 or older", and an adult band is
+ * adult bands only (assumed an adult), and an adult band is
  * stored as its floor.
  *
  * landr-zcb24.12: with `only` the party step already asked the ages and an added
@@ -24,7 +24,7 @@ interface Props {
   value: Readonly<Record<number, GuestAgeEntry>>
   onChange: (next: Record<number, GuestAgeEntry>) => void
   locale: string
-  /** The flow asks ages: the bands to offer, floors are stored, the booker confirms 18+. */
+  /** The flow asks ages: the bands to offer, floors are stored, the booker is assumed an adult. */
   ageBands?: readonly FlowAgeBand[]
   /** landr-zcb24.7: the operator collects age as exact: a number per guest, the booker 18+. */
   exact?: boolean
@@ -91,7 +91,6 @@ export function InlineGuestAges({ labels, value, onChange, locale, ageBands, exa
                   set(i, {
                     band: age !== null && age < ADULT_FROM ? 'child' : 'adult',
                     age,
-                    ...(i === 0 ? { confirmed: age !== null && age >= ADULT_FROM } : {}),
                   })
                 }
               />
@@ -128,26 +127,6 @@ export function InlineGuestAges({ labels, value, onChange, locale, ageBands, exa
                   </option>
                 ))}
               </select>
-            ) : null}
-            {i === 0 ? (
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  data-testid="inline-booker-adult-confirm"
-                  checked={entry.confirmed === true}
-                  onChange={(e) =>
-                    set(0, {
-                      ...entry,
-                      band: 'adult',
-                      age: null,
-                      floor: (adults.find((b) => b.min_age === entry.floor) ?? adults[0]).min_age,
-                      confirmed: e.target.checked,
-                    })
-                  }
-                  className="h-3.5 w-3.5 accent-primary"
-                />
-                {tr('bookerAdultConfirm', locale)}
-              </label>
             ) : null}
             {i > 0 && entry.band === 'child' ? (
               <select

@@ -520,3 +520,60 @@ describe('OfferRow: optional person offer under a room line (landr-ey8fx)', () =
     expect(screen.queryByTestId('offer-qty-bf')).toBeNull()
   })
 })
+
+describe('OfferRow: More info', () => {
+  const base = { short_description: 'Short blurb', description: 'Long **bold** text', description_localized: { de: 'Langer Text' } }
+
+  it('is collapsed by default and toggles the long description as Markdown', () => {
+    const offer = evalOffer('garage', base)
+    render(<Row offer={offer} />)
+    expect(screen.queryByTestId('offer-more-garage')).toBeNull()
+    fireEvent.click(screen.getByTestId('offer-more-toggle-garage'))
+    expect(screen.getByTestId('offer-more-garage').querySelector('strong')?.textContent).toBe('bold')
+    fireEvent.click(screen.getByTestId('offer-more-toggle-garage'))
+    expect(screen.queryByTestId('offer-more-garage')).toBeNull()
+  })
+
+  it('uses the guest language', () => {
+    render(<Row offer={evalOffer('garage', base)} locale="de" />)
+    fireEvent.click(screen.getByTestId('offer-more-toggle-garage'))
+    expect(screen.getByTestId('offer-more-garage')).toHaveTextContent('Langer Text')
+  })
+
+  it('is absent when there is no long text or it repeats the short one', () => {
+    const { unmount } = render(<Row offer={evalOffer('a', { short_description: 'Same', description: 'Same' })} />)
+    expect(screen.queryByTestId('offer-more-toggle-a')).toBeNull()
+    unmount()
+    render(<Row offer={evalOffer('b', { short_description: 'Short', description: '  ' })} />)
+    expect(screen.queryByTestId('offer-more-toggle-b')).toBeNull()
+  })
+})
+
+describe('OfferRow: header price', () => {
+  it('quotes the per-night rate unpicked and keeps it picked', () => {
+    const offer = evalOffer('late', {
+      collection: 'on_site',
+      price_preview: { quantity: 1, unit_price_cents: 1000, total_cents: 3000, price_unit: 'night', currency: 'EUR' },
+    })
+    render(<Row offer={offer} />)
+    expect(screen.getByTestId('offer-price').textContent).toMatch(/10[.,]00.*night.*Pay on arrival/)
+    fireEvent.click(screen.getByTestId('offer-toggle-late'))
+    expect(screen.getByTestId('offer-price').textContent).toMatch(/10[.,]00.*night.*Pay on arrival/)
+  })
+
+  it('shows "from" for options and absolute option prices on a free base', () => {
+    const offer = evalOffer('shuttle', {
+      options: [
+        { key: 'one', label: 'One way', price_delta_cents: 500 },
+        { key: 'both', label: 'Both ways', price_delta_cents: 900 },
+      ],
+      price_preview: { quantity: 1, total_cents: 0, price_unit: 'booking', currency: 'EUR' },
+    })
+    render(<Row offer={offer} />)
+    expect(screen.getByTestId('offer-price').textContent).toMatch(/^from €5[.,]00/)
+    fireEvent.click(screen.getByTestId('offer-toggle-shuttle'))
+    const select = screen.getByTestId('offer-option-shuttle')
+    expect(within(select).getByRole('option', { name: 'One way · €5.00' })).toBeInTheDocument()
+    expect(within(select).getByRole('option', { name: 'Both ways · €9.00' })).toBeInTheDocument()
+  })
+})

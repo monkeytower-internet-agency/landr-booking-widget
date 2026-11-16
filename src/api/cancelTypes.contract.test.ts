@@ -45,7 +45,7 @@ const genPreview = {
   already_cancelled: false,
   deadline: '2026-07-13T23:00:00+00:00',
   timezone: 'Atlantic/Canary',
-  refund: { amount: '75.00', currency: 'EUR', method: 'stripe_auto' },
+  refund: { amount: '75.00', currency: 'EUR', method: 'stripe_auto', retained_amount: '0.00' },
   operator: { name: 'Sky Op', phone: null, email: 'hello@sky.example' },
   policy_text: null,
   locale: 'en',

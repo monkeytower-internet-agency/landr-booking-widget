@@ -12,7 +12,8 @@
  * A mandatory offer starts picked and cannot be removed; a mandatory
  * per-person one is attached by the server and only names its guests.
  */
-import type { Dispatch, SetStateAction } from 'react'
+import { useState, type Dispatch, type SetStateAction } from 'react'
+import ReactMarkdown from 'react-markdown'
 import type { EstimateLineItem, EvaluatedOffer } from '@/api/types'
 import { Button } from '@/components/ui/button'
 import { pickLocalized } from '@/lib/locale'
@@ -113,6 +114,9 @@ export function OfferRow({
   const name = pickLocalized(offer.name, offer.name_localized, locale)
   const blurb = pickLocalized(offer.short_description, offer.short_description_localized, locale)
   const options = offer.options ?? []
+  const [moreOpen, setMoreOpen] = useState(false)
+  const longText = pickLocalized(offer.description, offer.description_localized, locale)
+  const hasMore = longText.trim() !== '' && longText.trim() !== blurb.trim()
   const dayStock = useCompanionDayStock(
     offer.parent_product_id ?? undefined,
     parentDays,
@@ -241,6 +245,27 @@ export function OfferRow({
             </span>
           ) : null}
           {blurb ? <p className="text-xs text-muted-foreground">{blurb}</p> : null}
+          {hasMore ? (
+            <div>
+              <button
+                type="button"
+                data-testid={`offer-more-toggle-${offer.id}`}
+                aria-expanded={moreOpen}
+                className="text-xs text-primary underline underline-offset-2"
+                onClick={() => setMoreOpen((v) => !v)}
+              >
+                {tr(moreOpen ? 'offerLessInfo' : 'offerMoreInfo', locale)}
+              </button>
+              {moreOpen ? (
+                <div
+                  data-testid={`offer-more-${offer.id}`}
+                  className="mt-1 text-xs text-foreground [&_p]:mb-2 last:[&_p]:mb-0 [&_ul]:mb-2 [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:mb-2 [&_ol]:list-decimal [&_ol]:pl-4 [&_a]:text-primary [&_a]:underline"
+                >
+                  <ReactMarkdown>{longText}</ReactMarkdown>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </div>
         <OfferPrice offer={offer} locale={locale} estimate={estimate} currency={currency} unit={roomStepper} />
       </div>
@@ -256,6 +281,7 @@ export function OfferRow({
           ticked={listed.map((m) => m.key)}
           admitted={admittedKeys}
           options={options}
+          base={offer.price_preview}
           picked={pick.options}
           currency={currency}
           locale={locale}
@@ -280,6 +306,7 @@ export function OfferRow({
           ticked={pick?.memberIds ?? []}
           admitted={admittedKeys}
           options={options}
+          base={offer.price_preview}
           picked={pick?.options ?? {}}
           currency={currency}
           locale={locale}
@@ -313,7 +340,7 @@ export function OfferRow({
               )}
               {options.map((o) => (
                 <option key={o.key} value={o.key}>
-                  {optionLabel(o, currency, locale)}
+                  {optionLabel(o, currency, locale, offer.price_preview)}
                 </option>
               ))}
             </select>
