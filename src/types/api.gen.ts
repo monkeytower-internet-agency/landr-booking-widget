@@ -2640,6 +2640,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/me/auth-methods": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Auth Methods */
+        get: operations["me_auth_methods"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/me/password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Set Password */
+        post: operations["me_set_password"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/operator/email-sender": {
         parameters: {
             query?: never;
@@ -14732,6 +14766,13 @@ export interface components {
             /** Provider Role Id */
             provider_role_id?: string | null;
         };
+        /** AuthMethodsOut */
+        AuthMethodsOut: {
+            /** Has Password */
+            has_password: boolean;
+            /** Providers */
+            providers: string[];
+        };
         /**
          * AvailabilityBatchIn
          * @description The day editor's whole diff, applied atomically (plan §3c).
@@ -22774,6 +22815,13 @@ export interface components {
             validity_days?: number | null;
             /** Validity Kind */
             validity_kind?: ("day" | "days" | "week" | "season") | null;
+        };
+        /** PasswordIn */
+        PasswordIn: {
+            /** Current Password */
+            current_password?: string | null;
+            /** New Password */
+            new_password: string;
         };
         /**
          * PatchMoscowIn
@@ -33884,6 +33932,61 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PromoteTicketOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    me_auth_methods: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthMethodsOut"];
+                };
+            };
+        };
+    };
+    me_set_password: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */
