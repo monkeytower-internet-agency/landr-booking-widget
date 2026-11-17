@@ -10,6 +10,9 @@
 // components/booking/approvalReplyStrings.ts and cancelStrings.ts) so a
 // language review is one file.
 
+import type { ProductKind } from '@/api/types'
+import { isStayKind } from '@/flowPlan'
+
 export type Bundle = {
   multiDayPickerHelp: string
   multiDayPickerHelpRange: string
@@ -422,6 +425,14 @@ export type Bundle = {
   stayMaxAdditionalGuestsTemplate: string
   stayMaxGuestsReachedOne: string
   stayMaxGuestsReachedTemplate: string
+  stayCrumbGuests: string
+  stayGuestsTitle: string
+  stayYouWillBeListedAsGuest1: string
+  stayGuestsYouPayForHint: string
+  stayPartyIncludedHeading: string
+  stayGuestCountSingular: string
+  stayGuestCountPlural: string
+  stayRemoveGuestAriaTemplate: string
   otherParticipantsTotalTemplate: string
   addAnyoneElseUpToTemplate: string
   participantOrdinalTemplate: string
@@ -1535,6 +1546,14 @@ const en: Bundle = {
   stayMaxAdditionalGuestsTemplate: 'Maximum of {n} additional guests reached',
   stayMaxGuestsReachedOne: 'Maximum of 1 guest reached',
   stayMaxGuestsReachedTemplate: 'Maximum of {n} guests reached',
+  stayCrumbGuests: 'Guests',
+  stayGuestsTitle: 'Guests',
+  stayYouWillBeListedAsGuest1: "You'll be listed as guest 1. Add more people below if others are joining.",
+  stayGuestsYouPayForHint: "People you're booking and paying for.",
+  stayPartyIncludedHeading: 'Guests (included in this booking)',
+  stayGuestCountSingular: '{n} guest',
+  stayGuestCountPlural: '{n} guests',
+  stayRemoveGuestAriaTemplate: 'Remove guest {n}',
   otherParticipantsTotalTemplate: 'Other participants ({n} total)',
   addAnyoneElseUpToTemplate: 'Add anyone else taking part. You can add up to {n} more.',
   participantOrdinalTemplate: 'Participant {n}',
@@ -2331,6 +2350,56 @@ export function tr(key: keyof Bundle, locale?: string): string {
   return pickBundle(locale)[key]
 }
 
+/**
+ * landr-3knn9: stay products (apartments sold per night) say "guests", every
+ * other product kind keeps "participants". This table is the ONE place that
+ * knows which participant-wording keys have a guest variant; call sites go
+ * through partyTr/partyKey with the product kind instead of branching on it.
+ * Add a key here (plus its stay* strings in every catalog) to extend it.
+ */
+const STAY_PARTY_VARIANT = {
+  crumbParticipants: 'stayCrumbGuests',
+  formPersonParticipantTag: 'formPersonGuestTag',
+  participantsTitle: 'stayGuestsTitle',
+  addParticipantAria: 'stayAddGuestAria',
+  addParticipantButton: 'stayAddGuestButton',
+  maxAdditionalParticipantsTemplate: 'stayMaxAdditionalGuestsTemplate',
+  otherParticipantsTotalTemplate: 'stayOtherGuestsTotalTemplate',
+  participantsTotalTemplate: 'stayGuestsTotalTemplate',
+  maxParticipantsReachedOne: 'stayMaxGuestsReachedOne',
+  maxParticipantsReachedTemplate: 'stayMaxGuestsReachedTemplate',
+  participantOrdinalTemplate: 'companionOrdinalTemplate',
+  youWillBeListedAsParticipant1: 'stayYouWillBeListedAsGuest1',
+  participantsYouPayForHint: 'stayGuestsYouPayForHint',
+  partyIncludedHeading: 'stayPartyIncludedHeading',
+  participantCountSingular: 'stayGuestCountSingular',
+  participantCountPlural: 'stayGuestCountPlural',
+  removeParticipantAriaTemplate: 'stayRemoveGuestAriaTemplate',
+} as const satisfies Partial<Record<keyof Bundle, keyof Bundle>>
+
+/** A participant-wording key that has a stay (guest) variant. */
+export type PartyKey = keyof typeof STAY_PARTY_VARIANT
+
+/** Narrowing guard for tables that mix participant-wording keys with others (breadcrumb crumbs). */
+export function isPartyKey(key: keyof Bundle): key is PartyKey {
+  return Object.prototype.hasOwnProperty.call(STAY_PARTY_VARIANT, key)
+}
+
+/**
+ * The catalog key to use for a participant-wording string: the guest variant
+ * for a stay product, the participant key for everything else — including an
+ * unknown / missing kind, so this can never throw (the widget has no error
+ * boundary). In a mixed cart pass the MAIN product's kind.
+ */
+export function partyKey(key: PartyKey, productKind?: ProductKind | null): keyof Bundle {
+  return productKind && isStayKind(productKind) ? STAY_PARTY_VARIANT[key] : key
+}
+
+/** `tr` for a participant-wording key, worded by product kind (see partyKey). */
+export function partyTr(key: PartyKey, locale?: string, productKind?: ProductKind | null): string {
+  return tr(partyKey(key, productKind), locale)
+}
+
 /** Fill `{name}` placeholders in a bundle template; unknown names are left as-is. */
 export function fmt(template: string, values: Record<string, string | number>): string {
   return template.replace(/\{(\w+)\}/g, (whole, name: string) =>
@@ -2639,9 +2708,12 @@ export function addonDeviationMessage(
 }
 
 /** "1 participant" / "N participants" (Confirmation summary). */
-export function participantCountLabel(n: number, locale?: string): string {
-  const t = pickBundle(locale)
-  const template = plural(n, t.participantCountSingular, t.participantCountPlural)
+export function participantCountLabel(n: number, locale?: string, productKind?: ProductKind | null): string {
+  const template = plural(
+    n,
+    partyTr('participantCountSingular', locale, productKind),
+    partyTr('participantCountPlural', locale, productKind),
+  )
   return template.replace('{n}', String(n))
 }
 
@@ -3010,21 +3082,21 @@ export function nextStepSendGroupLabel(inviteCount: number, locale?: string): st
 }
 
 /** DetailsStep: "Other participants ({n} total)". */
-export function otherParticipantsHeading(n: number, locale?: string, stay = false): string {
-  return tr(stay ? 'stayOtherGuestsTotalTemplate' : 'otherParticipantsTotalTemplate', locale).replace('{n}', String(n))
+export function otherParticipantsHeading(n: number, locale?: string, productKind?: ProductKind | null): string {
+  return partyTr('otherParticipantsTotalTemplate', locale, productKind).replace('{n}', String(n))
 }
 
 /** landr-jiagg.2 DetailsStep max notice when the booker does not take part:
  *  "Maximum of {n} participants reached" ("1 participant" singular). */
-export function maxParticipantsReachedMessage(n: number, locale?: string, stay = false): string {
+export function maxParticipantsReachedMessage(n: number, locale?: string, productKind?: ProductKind | null): string {
   return n === 1
-    ? tr(stay ? 'stayMaxGuestsReachedOne' : 'maxParticipantsReachedOne', locale)
-    : tr(stay ? 'stayMaxGuestsReachedTemplate' : 'maxParticipantsReachedTemplate', locale).replace('{n}', String(n))
+    ? partyTr('maxParticipantsReachedOne', locale, productKind)
+    : partyTr('maxParticipantsReachedTemplate', locale, productKind).replace('{n}', String(n))
 }
 
 /** landr-jiagg.2 DetailsStep (booker not taking part): "Participants ({n} total)". */
-export function participantsTotalHeading(n: number, locale?: string, stay = false): string {
-  return tr(stay ? 'stayGuestsTotalTemplate' : 'participantsTotalTemplate', locale).replace('{n}', String(n))
+export function participantsTotalHeading(n: number, locale?: string, productKind?: ProductKind | null): string {
+  return partyTr('participantsTotalTemplate', locale, productKind).replace('{n}', String(n))
 }
 
 /** Product switch note: "{name} takes up to {n} people, so the group was reduced to {n}." */
@@ -3040,8 +3112,8 @@ export function addAnyoneElseUpTo(n: number, locale?: string): string {
 }
 
 /** DetailsStep per-row heading: "Participant {n}". */
-export function participantOrdinalLabel(n: number, locale?: string, stay = false): string {
-  return tr(stay ? 'companionOrdinalTemplate' : 'participantOrdinalTemplate', locale).replace('{n}', String(n))
+export function participantOrdinalLabel(n: number, locale?: string, productKind?: ProductKind | null): string {
+  return partyTr('participantOrdinalTemplate', locale, productKind).replace('{n}', String(n))
 }
 
 /** DetailsStep per-row companion fallback name: "Guest {n}". */
@@ -3185,8 +3257,8 @@ export function reorderLanguageAriaLabel(languageDisplayName: string, locale?: s
 }
 
 /** DetailsStep's per-row remove-participant button aria-label: "Remove participant {n}". */
-export function removeParticipantAriaLabel(n: number, locale?: string): string {
-  return tr('removeParticipantAriaTemplate', locale).replace('{n}', String(n))
+export function removeParticipantAriaLabel(n: number, locale?: string, productKind?: ProductKind | null): string {
+  return partyTr('removeParticipantAriaTemplate', locale, productKind).replace('{n}', String(n))
 }
 
 /** DetailsStep's per-row remove-companion button aria-label: "Remove companion {n}". */

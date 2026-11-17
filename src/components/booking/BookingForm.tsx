@@ -89,6 +89,7 @@ import {
   forceBookReasonMessage,
   pastStartText,
   nightsWord,
+  partyTr,
   seatsShortMessage,
   seatsShortDaysMessage,
   tr,
@@ -2371,7 +2372,7 @@ export function BookingForm({
           className="rounded-lg border bg-surface-raised p-3 shadow-elev-1"
         >
           <h3 className="mb-2 text-sm font-semibold">
-            {tr('participantsTitle', locale)} ({participants.length})
+            {partyTr('participantsTitle', locale, product.product_kind)} ({participants.length})
           </h3>
           <ol className="space-y-1 text-sm">
             {participants.map((p, idx) => (

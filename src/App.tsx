@@ -2044,9 +2044,11 @@ function BookingFlowApp() {
     languageStepForProduct,
     opensOnDates,
   ])
+  // landr-3knn9: the funnel's main product decides participant vs guest wording.
+  const productKind = 'product' in step ? step.product.product_kind : null
   const breadcrumbNav = useMemo(
-    () => ({ items: breadcrumbItems, onNavigate: navigateTo }),
-    [breadcrumbItems, navigateTo],
+    () => ({ items: breadcrumbItems, onNavigate: navigateTo, productKind }),
+    [breadcrumbItems, navigateTo, productKind],
   )
 
   // landr-tkgx8.1: drop the boot splash once the step the customer lands on
@@ -2747,6 +2749,7 @@ function BookingFlowApp() {
                 email,
                 isSharedDouble: false,
                 shareReferenceEnabled: false,
+                productKind: step.product.product_kind,
               })
             }}
           />
@@ -3518,6 +3521,7 @@ function BookingFlowApp() {
             productId={step.product.product_id}
             formKey={step.formKey}
             productName={step.product.name}
+            productKind={step.product.product_kind}
             // Restore answers from draft on back-nav re-entry.
             initialAnswers={step.initialAnswers as Record<string, unknown> | undefined}
             // landr-db45: thread the already-resolved flow down so this step
@@ -3882,6 +3886,7 @@ function BookingFlowApp() {
                 // landr-h0opd.3: gates the share-reference hint; absent on
                 // an older API → false.
                 shareReferenceEnabled: step.product.share_reference_enabled === true,
+                productKind: step.product.product_kind,
               })
             }}
           />
@@ -3911,6 +3916,7 @@ function BookingFlowApp() {
               }}
               isSharedDouble={step.isSharedDouble}
               shareReferenceEnabled={step.shareReferenceEnabled}
+              productKind={step.productKind}
               operatorName={operatorSettings.name ?? null}
               contactEmail={operatorSettings.contact_email ?? null}
             />

@@ -2,7 +2,8 @@ import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { BreadcrumbItem } from '@/appStepMachine'
 import { browserLocale } from '@/lib/locale'
-import { tr, type Bundle } from '@/lib/strings'
+import type { ProductKind } from '@/api/types'
+import { isPartyKey, partyTr, tr, type Bundle } from '@/lib/strings'
 import { useBreadcrumbNav } from './breadcrumbNav'
 
 interface Props {
@@ -40,7 +41,13 @@ interface Props {
 export function StepBackButton({ onBack, label = tr('backLabel', browserLocale()) }: Props) {
   const nav = useBreadcrumbNav()
   if (nav && nav.items.length > 1) {
-    return <StepBreadcrumb items={nav.items} onNavigate={nav.onNavigate} />
+    return (
+      <StepBreadcrumb
+        items={nav.items}
+        onNavigate={nav.onNavigate}
+        productKind={nav.productKind}
+      />
+    )
   }
   if (!onBack) return null
   return (
@@ -77,18 +84,23 @@ const CRUMB_KEYS: Partial<Record<BreadcrumbItem['name'], keyof Bundle>> = {
 }
 
 /** Translated crumb text; the product crumb keeps the product's own name. */
-function crumbLabel(item: BreadcrumbItem): string {
+function crumbLabel(item: BreadcrumbItem, productKind?: ProductKind | null): string {
   const key = CRUMB_KEYS[item.name]
   if (!key || (item.name === 'product-detail' && item.label !== 'Overview')) return item.label
-  return tr(key, browserLocale())
+  // landr-3knn9: the participants crumb reads "Guests" on a stay product.
+  return isPartyKey(key)
+    ? partyTr(key, browserLocale(), productKind)
+    : tr(key, browserLocale())
 }
 
 function StepBreadcrumb({
   items,
   onNavigate,
+  productKind,
 }: {
   items: BreadcrumbItem[]
   onNavigate: (target: NonNullable<BreadcrumbItem['target']>) => void
+  productKind?: ProductKind | null
 }) {
   // Index of the crumb immediately before the current step.
   const backIndex = items.length - 2
@@ -112,7 +124,7 @@ function StepBreadcrumb({
                 aria-current="step"
                 className="font-semibold text-foreground"
               >
-                {crumbLabel(item)}
+                {crumbLabel(item, productKind)}
               </span>
             ) : (
               <button
@@ -125,7 +137,7 @@ function StepBreadcrumb({
                 }
                 className="rounded-sm text-muted-foreground underline-offset-2 hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
-                {crumbLabel(item)}
+                {crumbLabel(item, productKind)}
               </button>
             )}
           </li>
