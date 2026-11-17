@@ -219,6 +219,8 @@ export const it: Bundle = {
   addGuestButton: '+ Aggiungi ospite',
   enterYourNameEmailPhoneCue: 'inserisci nome, e-mail e telefono',
   enterYourNameEmailPhoneBillingCue: 'inserisci nome, e-mail, telefono e indirizzo di fatturazione',
+  enterYourBillingAddressCue: 'inserisci l\'indirizzo di fatturazione',
+  billingRequiredBeforeConfirm: 'Inserisci l\'indirizzo di fatturazione per confermare.',
   fillInEveryRequiredField: 'Compila tutti i campi obbligatori per continuare.',
   roleLabel: 'Ruolo',
   includeYourCountryCode: 'Includi il prefisso internazionale',

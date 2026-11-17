@@ -223,6 +223,8 @@ export const tr: Bundle = {
   addGuestButton: '+ Misafir ekle',
   enterYourNameEmailPhoneCue: 'adınızı, e-postanızı ve telefonunuzu girin',
   enterYourNameEmailPhoneBillingCue: 'adınızı, e-postanızı, telefonunuzu ve fatura adresinizi girin',
+  enterYourBillingAddressCue: 'fatura adresinizi girin',
+  billingRequiredBeforeConfirm: 'Onaylamak için fatura adresinizi girin.',
   fillInEveryRequiredField: 'Devam etmek için tüm zorunlu alanları doldurun.',
   roleLabel: 'Rol',
   includeYourCountryCode: 'Ülke kodunuzu ekleyin',

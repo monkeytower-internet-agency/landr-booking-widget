@@ -2985,8 +2985,6 @@ function BookingFlowApp() {
             // predate the key) the field stays hidden rather than flashing in
             // and then vanishing.
             hasMemberPerks={operatorSettings.has_member_perks ?? false}
-            // landr-uuntm.3: last link of the billing-country guess chain.
-            operatorCountry={operatorSettings.country ?? null}
             // landr-ehye: token passed to GroupInquiryForm for the POST.
             operatorToken={token!}
             // landr-jiagg.2: an invitee takes the seat themselves — no
@@ -3679,6 +3677,21 @@ function BookingFlowApp() {
             product={step.product}
             selection={step.selection}
             booker={step.booker}
+            // The billing address is entered on the review step;
+            // keep it on booker.billing in both the step and the persistent
+            // draft so Back / a reload restore what was typed.
+            onBillingChange={(billing) => {
+              setStep((cur) =>
+                cur.name === 'fill-form'
+                  ? { ...cur, booker: { ...cur.booker, billing } }
+                  : cur,
+              )
+              setBookingDraft((prev) =>
+                prev.booker ? { ...prev, booker: { ...prev.booker, billing } } : prev,
+              )
+            }}
+            // landr-uuntm.3: last link of the billing-country guess chain.
+            operatorCountry={operatorSettings.country ?? null}
             viaAlternativeOf={
               alternativeOrigin && alternativeOrigin.to === step.product.product_id
                 ? alternativeOrigin.from

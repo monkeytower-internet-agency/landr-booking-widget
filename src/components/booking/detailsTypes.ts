@@ -237,6 +237,25 @@ export function billingAddressComplete(b: BillingDetails | undefined): boolean {
   )
 }
 
+/**
+ * the four required billing fields (public widget) in screen
+ * order — the `booker.billing.*` touched key, the BillingDetails field, and
+ * the DOM id of its input (focus target of a failed Confirm tap).
+ */
+export const BILLING_REQUIRED_FIELDS = [
+  { key: 'booker.billing.address_line1', field: 'address_line1', id: 'booker-billing-line1' },
+  { key: 'booker.billing.postal_code', field: 'postal_code', id: 'booker-billing-postal' },
+  { key: 'booker.billing.city', field: 'city', id: 'booker-billing-city' },
+  { key: 'booker.billing.country', field: 'country', id: 'booker-billing-country' },
+] as const satisfies readonly { key: string; field: keyof BillingDetails; id: string }[]
+
+/** The first required billing field still blank, in screen order (undefined = complete). */
+export function firstMissingBillingField(
+  b: BillingDetails | undefined,
+): (typeof BILLING_REQUIRED_FIELDS)[number] | undefined {
+  return BILLING_REQUIRED_FIELDS.find((f) => !(b?.[f.field] ?? '').trim())
+}
+
 /** True when any billing field holds text (drives the company toggle + staff payload). */
 export function billingHasAny(b: BillingDetails | undefined): boolean {
   return !!b && Object.values(b).some((v) => v.trim() !== '')
@@ -342,8 +361,9 @@ export function bookerToParticipant(
 /**
  * Validity check used to enable the Continue button.
  *
- * - Booker: all four fields required (first, last, email, phone) plus the
- *   billing address (line1, postal code, city, country — landr-uuntm.3).
+ * - Booker: all four fields required (first, last, email, phone). The
+ *   billing address is NOT checked here: it is collected on the review step
+ *   and gated there (billingAddressComplete).
  * - Participants (additional, i.e. participants[1..N] in the final array):
  *     first + last + phone required (landr-nkbi); email stays optional.
  *     participants[0] is the booker, already validated above.
@@ -364,7 +384,6 @@ export function detailsAreComplete(
   booker: BookerDetails,
   participants: ParticipantDetails[],
   companions: CompanionDetails[] = [],
-  requireBilling: boolean = true,
 ): boolean {
   // landr-jiagg.2: when the booker does not take part, participants[0] is NOT
   // the booker but the first roster row ("Participant 1") — it carries its own
@@ -372,8 +391,6 @@ export function detailsAreComplete(
   const firstRowIsBooker = bookerJoins(booker)
   if (!firstRowIsBooker && participants.length === 0) return false
   if (!booker.first_name.trim() || !booker.last_name.trim()) return false
-  // landr-uuntm.3: the invoice recipient's address (staff-entered bookings opt out).
-  if (requireBilling && !billingAddressComplete(booker.billing)) return false
   if (!booker.email.trim() || !booker.phone.trim()) return false
   // basic email shape — full validation happens via the form library on
   // submit, but for enable/disable we just want non-empty and an @

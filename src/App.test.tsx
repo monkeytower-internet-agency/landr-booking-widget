@@ -1261,7 +1261,6 @@ describe('App', () => {
       setInput('booker_last_name', 'Lovelace')
       setInput('booker_email', 'ada@example.com')
       setInput('booker_phone', '+34 600000000')
-      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /continue/i }))
 
       // Dates, with the carried day already chosen.
@@ -1497,7 +1496,6 @@ describe('App', () => {
       fireEvent.change(bookerLast, { target: { value: 'Lovelace' } })
       fireEvent.change(bookerEmail, { target: { value: 'ada@example.com' } })
       fireEvent.change(bookerPhone, { target: { value: '+34 600000000' } })
-      fillBillingFields()
 
       const detailsContinue = screen.getByRole('button', { name: /continue/i })
       fireEvent.click(detailsContinue)
@@ -1578,7 +1576,6 @@ describe('App', () => {
       setInput('booker_last_name', 'Lovelace')
       setInput('booker_email', 'ada@example.com')
       setInput('booker_phone', '+34 600000000')
-      fillBillingFields()
       fireEvent.click(
         screen.getByRole('button', { name: /add participant/i }),
       )
@@ -1706,7 +1703,6 @@ describe('App', () => {
       setInput('booker_last_name', 'Lovelace')
       setInput('booker_email', 'ada@example.com')
       setInput('booker_phone', '+34 600000000')
-      fillBillingFields()
       // The OTP request fires on the email's blur, not on every keystroke.
       fireEvent.blur(
         document.querySelector<HTMLInputElement>('input[name="booker_email"]')!,
@@ -1744,6 +1740,7 @@ describe('App', () => {
       await waitFor(() =>
         expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
       )
+      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
       await waitFor(() =>
         expect(mocks.submitBooking).toHaveBeenCalledTimes(1),
@@ -1814,7 +1811,6 @@ describe('App', () => {
       setInput('booker_last_name', 'Lovelace')
       setInput('booker_email', 'ada@example.com')
       setInput('booker_phone', '+34 600000000')
-      fillBillingFields()
 
       // DetailsStep never gets a comment typed into it here — the whole
       // point is that the field is untouched on this step and only filled
@@ -1842,6 +1838,7 @@ describe('App', () => {
         'Allergic to bee stings',
       )
 
+      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
       await waitFor(() =>
         expect(mocks.submitBooking).toHaveBeenCalledTimes(1),
@@ -1946,7 +1943,6 @@ describe('App', () => {
       setInput('booker_last_name', 'Lovelace')
       setInput('booker_email', 'ada@example.com')
       setInput('booker_phone', '+34 600000000')
-      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /continue/i }))
 
       // PickupLocationPicker → pick "Beach Parking" → Continue.
@@ -2129,7 +2125,6 @@ describe('App', () => {
       setInput('booker_last_name', 'Lovelace')
       setInput('booker_email', 'ada@example.com')
       setInput('booker_phone', '+34 600000000')
-      fillBillingFields()
       // The hotel room is a capacity-2 Double Room; the occupancy gate now
       // requires both spots filled, so add a second guest before continuing.
       fireEvent.click(screen.getByRole('button', { name: /add participant/i }))
@@ -2347,7 +2342,6 @@ describe('App', () => {
       setInput('booker_last_name', 'Lovelace')
       setInput('booker_email', 'ada@example.com')
       setInput('booker_phone', '+34600000001')
-      fillBillingFields()
       fireEvent.click(screen.getByTestId('add-participant'))
       setInput('participant_2_first_name', 'Grace')
       setInput('participant_2_last_name', 'Hopper')
@@ -3154,7 +3148,6 @@ describe('App', () => {
       setInput('booker_last_name', 'Klein')
       setInput('booker_email', 'thomas@example.com')
       setInput('booker_phone', '+34 600000000')
-      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /continue/i }))
 
       // KEYSTONE ASSERTION: the invite flow still reaches the custom-form
@@ -3174,6 +3167,7 @@ describe('App', () => {
       await waitFor(() =>
         expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
       )
+      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /confirm booking/i }))
 
       await waitFor(() => expect(mocks.submitBooking).toHaveBeenCalled())
@@ -3312,7 +3306,6 @@ describe('App', () => {
       setInput('booker_last_name', 'Klein')
       setInput('booker_email', 'thomas@example.com')
       setInput('booker_phone', '+34 600000000')
-      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /continue/i }))
 
       // Accommodation: guiding only (preselected) or a room - no shared room.
@@ -3336,6 +3329,7 @@ describe('App', () => {
       await waitFor(() =>
         expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
       )
+      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /confirm booking/i }))
       await waitFor(() => expect(mocks.submitBooking).toHaveBeenCalled())
       const body = mocks.submitBooking.mock.calls[0]![0] as {
@@ -4155,7 +4149,6 @@ describe('App', () => {
       setInput('booker_last_name', 'Lovelace')
       setInput('booker_email', 'ada@example.com')
       setInput('booker_phone', '+34 600000000')
-      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /add participant/i }))
       setInput('participant_2_first_name', 'Grace')
       setInput('participant_2_last_name', 'Hopper')
@@ -4205,6 +4198,7 @@ describe('App', () => {
       await waitFor(() =>
         expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
       )
+      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /confirm booking/i }))
 
       // CRITICAL ASSERTION 2: the final submit payload carries the preserved
@@ -4308,7 +4302,6 @@ describe('App', () => {
       setInput('booker_last_name', 'Lovelace')
       setInput('booker_email', 'ada@example.com')
       setInput('booker_phone', '+34 600000000')
-      fillBillingFields()
       setInput('participant_2_first_name', 'Grace')
       setInput('participant_2_last_name', 'Hopper')
       setInput('participant_2_phone', '+34600000002')
@@ -4326,6 +4319,7 @@ describe('App', () => {
           JSON.stringify({ detail: { error: 'capacity_exceeded', message: 'full' } }),
         ),
       )
+      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /confirm booking/i }))
       fireEvent.click(await screen.findByTestId('review-change-dates'))
 
@@ -4466,7 +4460,6 @@ describe('App', () => {
       setInput('booker_last_name', 'Lovelace')
       setInput('booker_email', 'ada@example.com')
       setInput('booker_phone', '+34 600000000')
-      fillBillingFields()
       setInput('participant_2_first_name', 'Grace')
       setInput('participant_2_last_name', 'Hopper')
       setInput('participant_2_phone', '+34600000002')
@@ -4534,6 +4527,7 @@ describe('App', () => {
       await waitFor(() =>
         expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
       )
+      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /confirm booking/i }))
       await waitFor(() => expect(mocks.submitBooking).toHaveBeenCalled())
       const body = mocks.submitBooking.mock.calls[0]![0] as {
@@ -4692,7 +4686,6 @@ describe('App', () => {
       setInput('booker_last_name', 'Lovelace')
       setInput('booker_email', 'ada@example.com')
       setInput('booker_phone', '+34 600000000')
-      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /continue/i }))
 
       // KEYSTONE ASSERTION: the custom-form step renders (NOT straight to review).
@@ -4717,6 +4710,7 @@ describe('App', () => {
       await waitFor(() =>
         expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
       )
+      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /confirm booking/i }))
 
       // The submit payload carries the answers as form_responses.
@@ -4825,7 +4819,6 @@ describe('App', () => {
       setInput('booker_last_name', 'Lovelace')
       setInput('booker_email', 'ada@example.com')
       setInput('booker_phone', '+34 600000000')
-      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /continue/i }))
 
       // Form 1: declarations.
@@ -4857,6 +4850,7 @@ describe('App', () => {
       await waitFor(() =>
         expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
       )
+      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /confirm booking/i }))
 
       await waitFor(() => expect(mocks.submitBooking).toHaveBeenCalled())
@@ -4940,7 +4934,6 @@ describe('App', () => {
         setInput('booker_last_name', 'Lovelace')
         setInput('booker_email', 'ada@example.com')
         setInput('booker_phone', '+34 600000000')
-        fillBillingFields()
         fireEvent.click(screen.getByRole('button', { name: /continue/i }))
         await passLanguageStep()
         await waitFor(() =>
@@ -4961,6 +4954,7 @@ describe('App', () => {
         expect(screen.getByTestId('review-customer-completes')).toHaveTextContent(
           /Customer completes:.*Eligibility declarations/i,
         )
+        fillBillingFields()
         fireEvent.click(screen.getByRole('button', { name: /confirm booking/i }))
 
         await waitFor(() => expect(mocks.submitStaffBooking).toHaveBeenCalled())
@@ -4989,6 +4983,7 @@ describe('App', () => {
         expect(screen.getByTestId('review-customer-completes')).toHaveTextContent(
           /Customer completes:.*Eligibility declarations/i,
         )
+        fillBillingFields()
         fireEvent.click(screen.getByRole('button', { name: /confirm booking/i }))
 
         await waitFor(() => expect(mocks.submitStaffBooking).toHaveBeenCalled())
@@ -5016,6 +5011,7 @@ describe('App', () => {
           expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
         )
         expect(screen.queryByTestId('review-customer-completes')).toBeNull()
+        fillBillingFields()
         fireEvent.click(screen.getByRole('button', { name: /confirm booking/i }))
 
         await waitFor(() => expect(mocks.submitStaffBooking).toHaveBeenCalled())
@@ -5087,7 +5083,6 @@ describe('App', () => {
       setInput('booker_last_name', 'Lovelace')
       setInput('booker_email', 'ada@example.com')
       setInput('booker_phone', '+34 600000000')
-      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /continue/i }))
 
       // Straight to review — no custom-form step is produced.
@@ -5154,7 +5149,6 @@ describe('App', () => {
       setInput('booker_last_name', 'Lovelace')
       setInput('booker_email', 'ada@example.com')
       setInput('booker_phone', '+34 600000000')
-      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /continue/i }))
 
       // The widget still works — straight to review, no custom-form, no crash.
@@ -5249,7 +5243,6 @@ describe('App', () => {
       setInput('booker_last_name', 'Lovelace')
       setInput('booker_email', 'ada@example.com')
       setInput('booker_phone', '+34 600000000')
-      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /continue/i }))
 
       // The flow fetch is still in flight (releaseFirstFlow not yet called) —
@@ -5350,7 +5343,6 @@ describe('App', () => {
       setInput('booker_last_name', 'Lovelace')
       setInput('booker_email', 'ada@example.com')
       setInput('booker_phone', '+34 600000000')
-      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /continue/i }))
 
       // The custom-form step renders from App's already-resolved flow — no
@@ -5419,7 +5411,6 @@ describe('App', () => {
       setInput('booker_last_name', 'Lovelace')
       setInput('booker_email', 'ada@example.com')
       setInput('booker_phone', '+34 600000000')
-      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /continue/i }))
     }
 
@@ -5476,6 +5467,7 @@ describe('App', () => {
       await waitFor(() =>
         expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
       )
+      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /confirm booking/i }))
       await waitFor(() => expect(mocks.submitBooking).toHaveBeenCalled())
 
@@ -5883,7 +5875,6 @@ describe('App', () => {
       setField('booker_last_name', 'Lovelace')
       setField('booker_email', 'ada@example.com')
       setField('booker_phone', '+34600000001')
-      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /continue/i }))
     }
 
@@ -5927,6 +5918,7 @@ describe('App', () => {
       expect(screen.queryByTestId('participant-language-board')).not.toBeInTheDocument()
       expect(screen.queryByTestId('review-participant-language-0')).not.toBeInTheDocument()
 
+      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
       await waitFor(() => expect(mocks.submitBooking).toHaveBeenCalled())
       const body = mocks.submitBooking.mock.calls[0][0] as Body
@@ -6000,6 +5992,7 @@ describe('App', () => {
       expect(screen.queryByText(/card number|pay now|payment details/i)).not.toBeInTheDocument()
       expect(screen.getAllByText('Your price').length).toBeGreaterThan(0)
 
+      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
       await waitFor(() => expect(mocks.submitBooking).toHaveBeenCalled())
       expect(await screen.findByTestId('confirmation-held')).toBeInTheDocument()
@@ -6121,6 +6114,7 @@ describe('App', () => {
       expect(screen.queryByTestId('participant-language-board')).not.toBeInTheDocument()
       expect(screen.queryByTestId('breadcrumb-assign-languages')).not.toBeInTheDocument()
 
+      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
       await waitFor(() => expect(mocks.submitBooking).toHaveBeenCalled())
       const body = mocks.submitBooking.mock.calls[0][0] as Body
@@ -6193,6 +6187,7 @@ describe('App', () => {
       await assignThenSwitchToAny()
       expect(screen.queryByTestId('participant-language-board')).not.toBeInTheDocument()
       expect(screen.queryByTestId('review-participant-language-0')).not.toBeInTheDocument()
+      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
       await waitFor(() => expect(mocks.submitBooking).toHaveBeenCalled())
       const body = mocks.submitBooking.mock.calls[0][0] as Body
@@ -6319,7 +6314,6 @@ describe('App', () => {
       setField('booker_last_name', 'Lovelace')
       setField('booker_email', 'ada@example.com')
       setField('booker_phone', '+34600000001')
-      fillBillingFields()
       fireEvent.click(screen.getByTestId('add-participant'))
       setField('participant_2_first_name', 'Grace')
       setField('participant_2_last_name', 'Hopper')
@@ -6369,6 +6363,7 @@ describe('App', () => {
         screen.getByTestId('review-participant-language-1').textContent,
       ).toContain('German')
 
+      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
       await waitFor(() => expect(mocks.submitBooking).toHaveBeenCalled())
       const body = mocks.submitBooking.mock.calls[0][0] as {
@@ -6453,7 +6448,6 @@ describe('App', () => {
       setField('booker_last_name', 'Lovelace')
       setField('booker_email', 'ada@example.com')
       setField('booker_phone', '+34600000001')
-      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /continue/i }))
 
       // The language step still appears, with no custom form anywhere.
@@ -6475,6 +6469,7 @@ describe('App', () => {
       )
       expect(screen.queryByTestId('cf-submit')).not.toBeInTheDocument()
 
+      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
       await waitFor(() => expect(mocks.submitBooking).toHaveBeenCalled())
       const body = mocks.submitBooking.mock.calls[0][0] as {
@@ -6549,7 +6544,6 @@ describe('App', () => {
       setField('booker_last_name', 'Lovelace')
       setField('booker_email', 'ada@example.com')
       setField('booker_phone', '+34600000001')
-      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /continue/i }))
 
       await waitFor(() =>
@@ -6564,6 +6558,7 @@ describe('App', () => {
       await waitFor(() =>
         expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
       )
+      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
       await waitFor(() => expect(mocks.submitBooking).toHaveBeenCalled())
       const body = mocks.submitBooking.mock.calls[0][0] as {
@@ -6638,11 +6633,11 @@ describe('App', () => {
       setField('booker_last_name', 'Lovelace')
       setField('booker_email', 'ada@example.com')
       setField('booker_phone', '+34600000001')
-      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /continue/i }))
 
       await waitFor(() => expect(screen.getByText(/review your booking/i)).toBeInTheDocument())
       expect(screen.queryByTestId('guest-attributes-step')).toBeNull()
+      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
       await waitFor(() => expect(mocks.submitBooking).toHaveBeenCalled())
       const body = mocks.submitBooking.mock.calls[0][0] as {
@@ -6712,7 +6707,6 @@ describe('App', () => {
       setField('booker_last_name', 'Lovelace')
       setField('booker_email', 'ada@example.com')
       setField('booker_phone', '+34600000001')
-      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /continue/i }))
 
       await waitFor(() =>
@@ -6840,7 +6834,6 @@ describe('App', () => {
       setField('booker_last_name', 'Lovelace')
       setField('booker_email', 'ada@example.com')
       setField('booker_phone', '+34600000001')
-      fillBillingFields()
       // A non-guiding companion joins the trip but is never in the activity.
       fireEvent.click(screen.getByRole('button', { name: /add companion/i }))
       setField('companion_1_first_name', 'Kay')
@@ -6878,6 +6871,7 @@ describe('App', () => {
         screen.queryByTestId('review-companion-language-0'),
       ).not.toBeInTheDocument()
 
+      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
       await waitFor(() => expect(mocks.submitBooking).toHaveBeenCalled())
       const body = mocks.submitBooking.mock.calls[0][0] as {
@@ -6953,7 +6947,6 @@ describe('App', () => {
       setField('booker_last_name', 'Lovelace')
       setField('booker_email', 'ada@example.com')
       setField('booker_phone', '+34600000001')
-      fillBillingFields()
       fireEvent.click(screen.getByTestId('add-participant'))
       setField('participant_2_first_name', 'Grace')
       setField('participant_2_last_name', 'Hopper')
@@ -7000,6 +6993,7 @@ describe('App', () => {
       expect(screen.queryByTestId('participant-language-board')).not.toBeInTheDocument()
       expect(screen.queryByTestId('breadcrumb-assign-languages')).not.toBeInTheDocument()
 
+      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
       await waitFor(() => expect(mocks.submitBooking).toHaveBeenCalled())
       // Every party member is auto-filled with the product's one language —

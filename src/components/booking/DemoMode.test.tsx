@@ -1,5 +1,4 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { fillBillingFields } from '@/test/fillBilling'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from '@/App'
 import { resetDemoTemplateCache } from '@/api/demo'
@@ -95,8 +94,8 @@ describe('App in demo mode', () => {
     expect(val('booker_first_name')).toBe('Alex')
     expect(val('booker_email')).toBe('alex.morgan@example.com')
     expect(val('booker_phone')).toBe('+4915112345678')
-    expect(val('booker_billing_city')).toBe('Munich')
-    expect(val('booker_billing_country')).toBe('DE')
+    // the address is not asked here any more (see the review step).
+    expect(document.querySelector('[name^="booker_billing_"]')).toBeNull()
     expect(screen.getByRole('button', { name: /continue/i })).toBeEnabled()
   })
 
@@ -126,7 +125,6 @@ describe('App in demo mode', () => {
     setInput('booker_last_name', 'Lovelace')
     setInput('booker_email', 'ada@example.com')
     setInput('booker_phone', '+34 600000000')
-    fillBillingFields()
     fireEvent.click(screen.getByRole('button', { name: /continue/i }))
     const submit = await screen.findByTestId('language-step-submit').catch(() => null)
     if (submit) {
@@ -134,6 +132,12 @@ describe('App in demo mode', () => {
       await waitFor(() => expect(screen.getByTestId('language-step-submit')).toBeEnabled())
       fireEvent.click(screen.getByTestId('language-step-submit'))
     }
+    // The sample address rides along from the details step, pre-filled.
+    expect(
+      (await screen.findByRole('group', { name: 'Billing address' })).querySelector<HTMLInputElement>(
+        '[name="booker_billing_city"]',
+      ),
+    ).toHaveValue('Munich')
     fireEvent.click(await screen.findByRole('button', { name: /confirm booking/i }))
     expect(await screen.findByTestId('demo-congrats')).toBeInTheDocument()
     // the real confirmation, with the sample booking overview, under the demo-only text
