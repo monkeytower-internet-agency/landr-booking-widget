@@ -218,7 +218,6 @@ export const it: Bundle = {
   addParticipantButton: '+ Aggiungi partecipante',
   addGuestButton: '+ Aggiungi ospite',
   enterYourNameEmailPhoneCue: 'inserisci nome, e-mail e telefono',
-  enterYourNameEmailPhoneBillingCue: 'inserisci nome, e-mail, telefono e indirizzo di fatturazione',
   enterYourBillingAddressCue: 'inserisci l\'indirizzo di fatturazione',
   billingRequiredBeforeConfirm: 'Inserisci l\'indirizzo di fatturazione per confermare.',
   fillInEveryRequiredField: 'Compila tutti i campi obbligatori per continuare.',
@@ -410,8 +409,8 @@ export const it: Bundle = {
   themFallback: 'questa persona',
   youWillBeListedAsParticipant1:
     'Comparirai come partecipante 1. Aggiungi altre persone qui sotto se si uniscono.',
-  bookingForSomeoneElseLabel: 'Prenoto per qualcun altro e non parteciperò',
-  addPeopleJoiningBelow: 'Aggiungi qui sotto le persone che si uniscono.',
+  bookingForSomeoneElseLabel: 'Prenoto per altri e non sarò presente.',
+  addPeopleJoiningBelow: 'Aggiungi qui sotto le persone che saranno presenti.',
   participantsTotalTemplate: 'Partecipanti ({n} in totale)',
   sameAsYoursPlaceholder: 'come il tuo',
   invoiceToLabel: 'Intestatario della fattura:',
@@ -422,7 +421,7 @@ export const it: Bundle = {
   tooManyPeopleRemoveSomeone:
     'Ci sono più persone di quante ne ammetta questa attività: rimuovi qualcuno per continuare.',
   sharedDoubleRequiresBookerMessage:
-    'Una camera doppia condivisa copre il tuo letto, quindi puoi sceglierla solo se partecipi tu stesso. Torna all’alloggio e scegli un’altra opzione.',
+    'Una camera doppia condivisa copre il tuo letto, quindi puoi sceglierla solo se sei presente tu stesso. Torna all’alloggio e scegli un’altra opzione.',
   notAMemberOrNoCode:
     'Non sei socio o non hai un codice? Lascialo vuoto: non influisce sulla tua prenotazione.',
   participantsYouPayForHint: 'Persone per cui prenoti e paghi.',

@@ -222,7 +222,6 @@ export const tr: Bundle = {
   addParticipantButton: '+ Katılımcı ekle',
   addGuestButton: '+ Misafir ekle',
   enterYourNameEmailPhoneCue: 'adınızı, e-postanızı ve telefonunuzu girin',
-  enterYourNameEmailPhoneBillingCue: 'adınızı, e-postanızı, telefonunuzu ve fatura adresinizi girin',
   enterYourBillingAddressCue: 'fatura adresinizi girin',
   billingRequiredBeforeConfirm: 'Onaylamak için fatura adresinizi girin.',
   fillInEveryRequiredField: 'Devam etmek için tüm zorunlu alanları doldurun.',
@@ -414,8 +413,8 @@ export const tr: Bundle = {
   themFallback: 'bu kişi',
   youWillBeListedAsParticipant1:
     '1. katılımcı olarak listeleneceksiniz. Başkaları da katılıyorsa aşağıya daha fazla kişi ekleyin.',
-  bookingForSomeoneElseLabel: 'Başkası için rezervasyon yapıyorum ve katılmayacağım',
-  addPeopleJoiningBelow: 'Katılacak kişileri aşağıya ekleyin.',
+  bookingForSomeoneElseLabel: 'Başkaları için rezervasyon yapıyorum ve kendim orada olmayacağım.',
+  addPeopleJoiningBelow: 'Orada olacak kişileri aşağıya ekleyin.',
   participantsTotalTemplate: 'Katılımcılar (toplam {n})',
   sameAsYoursPlaceholder: 'sizinkiyle aynı',
   invoiceToLabel: 'Fatura muhatabı:',
@@ -426,7 +425,7 @@ export const tr: Bundle = {
   tooManyPeopleRemoveSomeone:
     'Bu aktivite için izin verilenden fazla kişi var — devam etmek için birini çıkarın.',
   sharedDoubleRequiresBookerMessage:
-    'Paylaşılan çift kişilik oda yalnızca kendi yatağınızı kapsar; bu nedenle ancak kendiniz katılıyorsanız seçilebilir. Lütfen konaklamaya geri dönüp başka bir seçenek belirleyin.',
+    'Paylaşılan çift kişilik oda yalnızca kendi yatağınızı kapsar; bu nedenle ancak kendiniz orada olacaksanız seçilebilir. Lütfen konaklamaya geri dönüp başka bir seçenek belirleyin.',
   notAMemberOrNoCode:
     'Üye değil misiniz veya kodunuz yok mu? Burayı boş bırakın — rezervasyonunuz etkilenmez.',
   participantsYouPayForHint: 'Rezervasyonunu yaptığınız ve ücretini ödediğiniz kişiler.',

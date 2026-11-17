@@ -1357,7 +1357,7 @@ describe('BookingForm submit body — booker not taking part (landr-jiagg.2)', (
       fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
     })
     const errBox = await screen.findByTestId('review-error')
-    expect(errBox.textContent).toMatch(/only pick it when you take part yourself/i)
+    expect(errBox.textContent).toMatch(/only pick it when you are there yourself/i)
     expect(errBox.textContent).not.toMatch(/422/)
   })
 
