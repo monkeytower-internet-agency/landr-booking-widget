@@ -1076,4 +1076,6 @@ export const de: Bundle = {
   addMoreModuleSave: 'Speichern',
   addMoreModuleDone: '{title} gespeichert',
   addMoreModuleChange: 'Ändern',
+  switchToDark: 'Zum dunklen Modus wechseln',
+  switchToLight: 'Zum hellen Modus wechseln',
 }

@@ -1121,6 +1121,9 @@ export type Bundle = {
   addMoreModuleSave: string
   addMoreModuleDone: string
   addMoreModuleChange: string
+  // landr-a5i49.3: visitor light/dark switcher (operator widget_color_switcher).
+  switchToDark: string
+  switchToLight: string
 }
 
 const en: Bundle = {
@@ -2197,6 +2200,8 @@ const en: Bundle = {
   addMoreModuleSave: 'Save',
   addMoreModuleDone: '{title} saved',
   addMoreModuleChange: 'Change',
+  switchToDark: 'Switch to dark mode',
+  switchToLight: 'Switch to light mode',
 }
 
 /**

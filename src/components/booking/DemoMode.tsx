@@ -1,8 +1,8 @@
-import { useState } from "react";
 import { Moon, PartyPopper, Sun } from "lucide-react";
 import { Confirmation } from "@/components/booking/Confirmation";
 import type { SubmitBookingResponse } from "@/api/types";
 import { Button } from "@/components/ui/button";
+import { setDark, useIsDark } from "@/lib/colorMode";
 import { DEMO_LANGS, demoCopy, demoLang, demoSignupUrl } from "@/lib/demo";
 
 const DEMO_LANG_LABEL: Record<string, string> = {
@@ -16,14 +16,8 @@ const DEMO_LANG_LABEL: Record<string, string> = {
 /** Language + light/dark switch, right-aligned under the banner. */
 function DemoControls() {
   const copy = demoCopy();
-  const [dark, setDark] = useState(() =>
-    document.documentElement.classList.contains("dark"),
-  );
-  const toggleTheme = () => {
-    const next = !dark;
-    document.documentElement.classList.toggle("dark", next);
-    setDark(next);
-  };
+  const dark = useIsDark();
+  const toggleTheme = () => setDark(!dark);
   const changeLang = (lang: string) => {
     const url = new URL(window.location.href);
     url.searchParams.set("lang", lang);

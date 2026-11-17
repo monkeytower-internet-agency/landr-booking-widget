@@ -536,10 +536,8 @@ export interface EventWindow {
  *   accent     — buttons / CTAs   (maps to --primary)
  *   background — the page canvas  (maps to --background)
  *
- * `dark` carries optional per-colour overrides for dark mode. The widget
- * has no active dark mode today (the .dark class in index.css is never
- * applied), so these are carried for forward-compat with the dashboard's
- * matching deriveDark and are NOT consumed yet.
+ * `dark` carries optional per-colour overrides for dark mode (`?theme=dark`
+ * or `auto` in the embed URL); missing keys are derived by deriveDark.
  */
 export interface WidgetTheme {
   brand: string
@@ -681,6 +679,14 @@ export interface OperatorSettings {
    * the logo" so an older API deploy renders byte-identically to today.
    */
   widget_show_logo?: boolean
+  /**
+   * landr-a5i49 — widget appearance from dashboard Settings → Embed:
+   * 'light' | 'dark' | 'auto' (visitor's OS). Optional for rolling deploy:
+   * absent = light. A `?theme=` embed param overrides it (lib/colorMode.ts).
+   */
+  widget_color_mode?: string | null
+  /** landr-a5i49 — show visitors a sun/moon light/dark switcher. Absent = off. */
+  widget_color_switcher?: boolean
   /**
    * Operator setting: offer "Add more to this booking" on the last step.
    * Optional for rolling deploy: absent/undefined means on (today's behaviour).

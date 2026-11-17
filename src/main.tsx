@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
 import { startAutoHeight } from './lib/autoHeight'
+import { startColorMode } from './lib/colorMode'
 import { browserLocale } from './lib/locale'
 import { loadUiCatalog } from './lib/strings'
 import { resolveShortLinkPath } from './lib/shortLink'
@@ -10,6 +11,9 @@ import { resolveShortLinkPath } from './lib/shortLink'
 // landr-6eita.1: when embedded in an iframe, keep the parent informed of the
 // content height (landr:resize) so the iframe grows instead of scrolling.
 startAutoHeight()
+
+// Light / dark / auto from the embed URL's `?theme=` (lib/colorMode.ts).
+startColorMode()
 
 // landr-8r6oc.18: the non-English catalogs are lazy chunks. Fetch the one for
 // the browser's language first so the first paint is already translated; a slow

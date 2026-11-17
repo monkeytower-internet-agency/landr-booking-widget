@@ -1071,4 +1071,6 @@ export const tr: Bundle = {
   addMoreModuleSave: 'Kaydet',
   addMoreModuleDone: '{title} kaydedildi',
   addMoreModuleChange: 'Değiştir',
+  switchToDark: 'Koyu moda geç',
+  switchToLight: 'Açık moda geç',
 }
