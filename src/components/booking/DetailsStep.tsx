@@ -20,6 +20,7 @@ import {
   participantsTotalHeading,
   maxParticipantsReachedMessage,
   removeCompanionAriaLabel,
+  partyTr,
   removeParticipantAriaLabel,
   tr,
   daysSelectedLabel,
@@ -1335,7 +1336,7 @@ export function DetailsStep({
     <Card>
       <StepBackButton onBack={onBack} />
       <CardHeader>
-        <CardTitle>{tr('participantsTitle', locale)}</CardTitle>
+        <CardTitle>{partyTr('participantsTitle', locale, product.product_kind)}</CardTitle>
         <CardDescription>
           {selection
             ? `${product.name} · ${describeSelection(selection, locale)}`
@@ -1368,7 +1369,7 @@ export function DetailsStep({
         <fieldset className="flex flex-col gap-3">
           <legend className="text-sm font-medium">{tr('yourContactDetailsTitle', locale)}</legend>
           <p className="text-xs text-muted-foreground" data-testid="booker-participant-helper">
-            {tr(joins ? 'youWillBeListedAsParticipant1' : 'addPeopleJoiningBelow', locale)}
+            {joins ? partyTr('youWillBeListedAsParticipant1', locale, product.product_kind) : tr('addPeopleJoiningBelow', locale)}
           </p>
           {/* landr-jiagg.2: the booker pays but does not take part (a parent
               booking for a child, a friend for a friend). Hidden in the invite
@@ -1589,17 +1590,17 @@ export function DetailsStep({
         <fieldset className="flex flex-col gap-3 border-t pt-4">
           <legend className="text-sm font-medium">
             {joins
-              ? otherParticipantsHeading(totalCount, locale, isStay)
-              : participantsTotalHeading(totalCount, locale, isStay)}
+              ? otherParticipantsHeading(totalCount, locale, product.product_kind)
+              : participantsTotalHeading(totalCount, locale, product.product_kind)}
           </legend>
           {noAccommodation ? (
             <p className="text-xs text-muted-foreground">
-              {tr('participantsYouPayForHint', locale)}
+              {partyTr('participantsYouPayForHint', locale, product.product_kind)}
             </p>
           ) : null}
           {moreAllowed > 0 ? (
             <p className="text-xs text-muted-foreground">
-              {addAnyoneElseUpTo(moreAllowed, locale)}
+              {addAnyoneElseUpTo(moreAllowed, locale, product.product_kind)}
             </p>
           ) : null}
 
@@ -1633,7 +1634,7 @@ export function DetailsStep({
                   top-stepper −). Removal preserves the OTHER rows' data. */}
               <div className="sm:col-span-2 flex items-center justify-between gap-2">
                 <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  {participantOrdinalLabel(n, locale, isStay)}
+                  {participantOrdinalLabel(n, locale, product.product_kind)}
                 </span>
                 {canRemove ? (
                 <Button
@@ -1641,7 +1642,7 @@ export function DetailsStep({
                   variant="ghost"
                   size="icon"
                   className="tap-44 rounded bg-primary/10 text-foreground shadow-elev-1 hover:bg-primary/20"
-                  aria-label={removeParticipantAriaLabel(n, locale)}
+                  aria-label={removeParticipantAriaLabel(n, locale, product.product_kind)}
                   data-testid={`remove-participant-${n}`}
                   onClick={() => removeParticipant(idx)}
                 >
@@ -1793,8 +1794,8 @@ export function DetailsStep({
                     beyond the joining booker, or the whole roster when the
                     booker does not take part (never "Maximum of 0 additional"). */}
                 {joins
-                  ? tr(isStay ? 'stayMaxAdditionalGuestsTemplate' : 'maxAdditionalParticipantsTemplate', locale).replace('{n}', String(maxAdditional))
-                  : maxParticipantsReachedMessage(rowCap, locale, isStay)}
+                  ? partyTr('maxAdditionalParticipantsTemplate', locale, product.product_kind).replace('{n}', String(maxAdditional))
+                  : maxParticipantsReachedMessage(rowCap, locale, product.product_kind)}
               </p>
               <p className="text-xs text-muted-foreground">
                 {tr('needLargerGroupHint', locale)}
@@ -1861,11 +1862,11 @@ export function DetailsStep({
               type="button"
               variant="ghost"
               className="tap-44 w-full justify-center rounded bg-primary/10 text-foreground shadow-elev-1 hover:bg-primary/20"
-              aria-label={tr(isStay ? 'stayAddGuestAria' : 'addParticipantAria', locale)}
+              aria-label={partyTr('addParticipantAria', locale, product.product_kind)}
               data-testid="add-participant"
               onClick={addParticipant}
             >
-              {tr(isStay ? 'stayAddGuestButton' : 'addParticipantButton', locale)}
+              {partyTr('addParticipantButton', locale, product.product_kind)}
             </Button>
           )}
         </fieldset>

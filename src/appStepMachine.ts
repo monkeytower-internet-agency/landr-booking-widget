@@ -27,7 +27,7 @@ import type {
 } from '@/components/booking/detailsTypes'
 import { hasFixedStartTimes } from '@/components/booking/slotKey'
 import { maxPartySize, seatsNeeded } from '@/lib/seatHold'
-import type { Product, ProductGroup, SubmitBookingResponse } from '@/api/types'
+import type { Product, ProductGroup, ProductKind, SubmitBookingResponse } from '@/api/types'
 import type {
   FlowGuestAttribute,
   FormResponseEntry,
@@ -458,6 +458,9 @@ export type Step =
       // landr-h0opd.3: the booked product's share_reference_enabled flag,
       // captured at submit time (the confirmed step carries no product).
       shareReferenceEnabled?: boolean
+      // landr-3knn9: the main product's kind, captured at submit time, so the
+      // confirmation words a stay's people as guests (the response has none).
+      productKind?: ProductKind | null
     }
 
 /**
