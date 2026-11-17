@@ -105,6 +105,16 @@ async function pickFirstAvailableDate(page: Page) {
   )
 }
 
+/** Fills the billing address when the current step shows it. */
+async function fillBillingIfPresent(page: Page): Promise<void> {
+  const street = page.getByLabel('Street and number')
+  if ((await street.count()) === 0) return
+  await street.fill('Hauptstrasse 1')
+  await page.getByLabel('Postal code').fill('10115')
+  await page.getByLabel('City', { exact: true }).fill('Berlin')
+  await page.getByLabel('Country', { exact: true }).selectOption('DE')
+}
+
 test('booking-submit happy path: catalog -> date -> participant -> confirm', async ({
   page,
 }) => {
@@ -136,17 +146,11 @@ test('booking-submit happy path: catalog -> date -> participant -> confirm', asy
   await page.getByLabel('Last name').fill('Smoketest')
   await page.getByLabel('Email').fill('playwright-smoke@example.com')
   await page.getByLabel('Phone').fill('+491701234567')
-  // landr-uuntm.3: the billing address is required in the booker block. This
-  // smoke runs against the DEPLOYED dev bundle (bw-dev.landr.de), which does
-  // not carry the fields until this change itself has deployed — so fill them
-  // only when the form has them (keeps both sides of that deploy green).
-  const street = page.getByLabel('Street and number')
-  if ((await street.count()) > 0) {
-    await street.fill('Hauptstrasse 1')
-    await page.getByLabel('Postal code').fill('10115')
-    await page.getByLabel('City', { exact: true }).fill('Berlin')
-    await page.getByLabel('Country', { exact: true }).selectOption('DE')
-  }
+  // The billing address moved from this step to the review step.
+  // This smoke runs against the DEPLOYED dev bundle (bw-dev.landr.de), which
+  // asks for it here until that change has deployed — so fill it here only
+  // when this step still has the fields (keeps both sides of that deploy green).
+  await fillBillingIfPresent(page)
   await page.getByRole('button', { name: 'Continue' }).click()
 
   // ---- Pickup location (fixture has needs_pickup=true, no accommodation) --
@@ -199,6 +203,8 @@ test('booking-submit happy path: catalog -> date -> participant -> confirm', asy
 
   // ---- Review + confirm -----------------------------------------------------
   await expect(page.getByText('Review your booking', { exact: true })).toBeVisible()
+  // The billing address is required right above Confirm.
+  await fillBillingIfPresent(page)
   // landr-5oox.30: intercept the submit response so the confirmation-title
   // assertion below can match whichever copy the approval engine actually
   // produced, instead of hardcoding one outcome. Small bookings inside Bus 1

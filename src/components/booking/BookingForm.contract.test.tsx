@@ -1203,22 +1203,24 @@ describe('BookingForm submit body — billing address (landr-uuntm.3)', () => {
     })
   })
 
-  it('omits customer_billing entirely when no complete address exists (staff-entered booking)', async () => {
-    const body = await submit({
-      ...BOOKER,
-      billing: {
-        address_line1: '',
-        address_line2: '',
-        postal_code: '',
-        city: '',
-        region: '',
-        country: '',
-        company: '',
-        tax_id: '',
-        name: '',
-      },
+  it('sends nothing while the address is incomplete (the review step gates Buchen)', async () => {
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct()}
+        selection={SELECTION}
+        booker={{ ...BOOKER, billing: { ...BOOKER.billing, city: '' } }}
+        participants={PARTICIPANTS}
+        pickupLocationId={null}
+        accommodationRooms={[]}
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
     })
-    expect(body).not.toHaveProperty('customer_billing')
+    expect(fetchSpy).not.toHaveBeenCalled()
   })
 })
 

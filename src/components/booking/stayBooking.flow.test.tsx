@@ -227,7 +227,6 @@ describe('standalone stay booking flow', () => {
     setInput('booker_last_name', 'Lovelace')
     setInput('booker_email', 'ada@example.com')
     setInput('booker_phone', '+34 600000000')
-    fillBillingFields()
     fireEvent.click(screen.getByRole('button', { name: /continue/i }))
 
     // No pickup and no guide-language step for a stay: straight to the review,
@@ -239,6 +238,7 @@ describe('standalone stay booking flow', () => {
     expect((await screen.findAllByTestId('price-sidebar-cleaning-fee'))[0]).toHaveTextContent(
       /Cleaning fee/,
     )
+    fillBillingFields()
     fireEvent.click(screen.getByRole('button', { name: /confirm booking/i }))
 
     await waitFor(() => expect(mocks.submitBooking).toHaveBeenCalled(), SLOW_FLOW)
@@ -296,7 +296,6 @@ describe('standalone stay booking flow', () => {
     setInput('booker_last_name', 'Lovelace')
     setInput('booker_email', 'ada@example.com')
     setInput('booker_phone', '+34 600000000')
-    fillBillingFields()
     fireEvent.click(screen.getByRole('button', { name: /continue/i }))
     await screen.findByText(/review your booking/i, undefined, SLOW_FLOW)
     expect((await screen.findAllByTestId('price-sidebar-stay-errors'))[0]).toHaveTextContent(

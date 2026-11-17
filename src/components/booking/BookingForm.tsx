@@ -53,7 +53,11 @@ import {
   billingAddressComplete,
   billingToPayload,
   bookerJoins,
+  BILLING_REQUIRED_FIELDS,
+  firstMissingBillingField,
   participantsForSubmit,
+  withBilling,
+  type BillingDetails,
   type BookerDetails,
   type CompanionDetails,
   type ParticipantDetails,
@@ -62,6 +66,8 @@ import { ADULT_FROM, DEFAULT_AGE_BANDS, adultAgeWire, adultFloorOf, resolveBands
 import { ContinueAction } from './ContinueAction'
 import { isOwnAccommodation, ownAccommodationWire } from './ownAccommodation'
 import { CustomerCommentField } from './CustomerCommentField'
+import { BillingAddressBlock } from './BillingAddressBlock'
+import { NextAction } from './NextAction'
 import { AddMoreProducts } from './AddMoreProducts'
 import {
   bookingLanguageOffer,
@@ -209,6 +215,17 @@ interface Props {
    * input. Callers that previously omitted booker fields must update.
    */
   booker: BookerDetails
+  /**
+   * The billing address is entered on this step (not on
+   * DetailsStep). Fires with every edit so App keeps `booker.billing` in the
+   * persistent draft + step, and Back / a reload restore what was typed.
+   */
+  onBillingChange?: (billing: BillingDetails) => void
+  /**
+   * landr-uuntm.3: the operator's ISO country, last link of the billing
+   * country guess chain (geo -> browser locale -> this). Absent/null = skip.
+   */
+  operatorCountry?: string | null
   /**
    * Full participant roster captured by DetailsStep (landr-8c03) —
    * includes the booker as participant 1 plus any additional people.
@@ -1084,6 +1101,8 @@ export function BookingForm({
   product,
   selection,
   booker,
+  onBillingChange,
+  operatorCountry,
   participants,
   companions = [],
   pickupLocationId: mainPickupLocationId,
@@ -1146,6 +1165,37 @@ export function BookingForm({
   // landr-aoak.2 [S3]: staff/operator mode. When inactive, none of the staff
   // branches below render and the submit body is byte-identical to today.
   const staff = useStaffMode()
+  // The billing address is entered here, right above Confirm. Held
+  // locally (so the block works wherever BookingForm is mounted) and mirrored
+  // up through onBillingChange, which keeps booker.billing in the draft so Back
+  // and a reload restore it. Staff-entered bookings (phone walk-ins) may not
+  // have the customer's address to hand: optional there, required publicly.
+  const [billing, setBilling] = useState<BillingDetails>(() => withBilling(booker).billing)
+  const requireBilling = !staff.active
+  const missingBilling = requireBilling ? firstMissingBillingField(billing) : undefined
+  const [billingTouched, setBillingTouched] = useState<ReadonlySet<string>>(() => new Set())
+  const touchBilling = (key: string) =>
+    setBillingTouched((prev) => (prev.has(key) ? prev : new Set(prev).add(key)))
+  const changeBilling = (next: BillingDetails) => {
+    setBilling(next)
+    onBillingChange?.(next)
+  }
+  // A Confirm tap with the address incomplete reveals every missing field and
+  // takes the customer to the first one (same recipe as the details step).
+  const revealMissingBilling = () => {
+    setBillingTouched((prev) => {
+      const next = new Set(prev)
+      for (const f of BILLING_REQUIRED_FIELDS) next.add(f.key)
+      return next
+    })
+    if (!missingBilling || typeof document === 'undefined') return
+    const el = document.getElementById(missingBilling.id)
+    if (!el) return
+    el.focus()
+    if (typeof el.scrollIntoView === 'function') {
+      el.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    }
+  }
   // "Add more to this booking" is the public funnel's; a staff booking keeps
   // its single product (staff add lines on the booking afterwards).
   const setExtraLines = staff.active ? undefined : onExtraLinesChange
@@ -1648,6 +1698,11 @@ export function BookingForm({
       setServerError(tr('voucherFixBeforeConfirm', locale))
       return
     }
+    // the public booking needs the invoice address before Buchen.
+    if (missingBilling) {
+      revealMissingBilling()
+      return
+    }
     if (extrasBlocked) {
       setServerError(tr('addMoreIncomplete', locale))
       return
@@ -1812,11 +1867,11 @@ export function BookingForm({
         customer_email: booker.email,
         customer_phone: booker.phone || null,
         // landr-uuntm.3: invoice recipient's billing address. The public
-        // widget requires it (DetailsStep gate); a staff-entered booking may
+        // widget requires it (review-step gate); a staff-entered booking may
         // legitimately leave it out, in which case the key is omitted rather
         // than sent half-filled (the API 422s an incomplete address).
-        ...(billingAddressComplete(booker.billing)
-          ? { customer_billing: billingToPayload(booker.billing) }
+        ...(billingAddressComplete(billing)
+          ? { customer_billing: billingToPayload(billing) }
           : {}),
         customer_preferred_locale: locale,
         cancellation_deadline: cancellationDeadline(firstSelectionDate(selection)),
@@ -2713,6 +2768,23 @@ export function BookingForm({
           collapsible
         />
 
+        {/* The invoice address belongs at checkout, last thing
+            before Confirm. Pending required control while incomplete, so it
+            owns the next-action ring (ContinueAction below stands down). */}
+        <NextAction
+          active={missingBilling !== undefined}
+          cue={tr('enterYourBillingAddressCue', locale)}
+        >
+          <BillingAddressBlock
+            booker={{ ...booker, billing }}
+            onChange={changeBilling}
+            required={requireBilling}
+            touched={billingTouched}
+            onTouch={touchBilling}
+            operatorCountry={operatorCountry}
+          />
+        </NextAction>
+
         {/* landr-xpbt2: every control that finishes the booking sits in this
             one box — above Confirm, the operator price-override
             (landr-aoak.2 [S3].3: sets override_gross_total + override_reason
@@ -2722,6 +2794,7 @@ export function BookingForm({
             with the fixed price at creation, so disabled while an amount is
             entered). Both are hidden entirely for normal customers. */}
         <ContinueAction
+          active={missingBilling === undefined && !submitting && !unPriceable && !voucherBlocked && !overrideBlocked && !verificationBlocked && !extrasBlocked && !mainIneligible}
           ready={
             !submitting && !unPriceable && !voucherBlocked && !overrideBlocked && !verificationBlocked && !extrasBlocked &&
             !mainIneligible
@@ -2739,6 +2812,8 @@ export function BookingForm({
               ? tr('addMoreIncomplete', locale)
               : verificationBlocked
               ? verificationStrings(locale).missingHint
+              : missingBilling
+              ? tr('billingRequiredBeforeConfirm', locale)
               : overrideAmountInvalid
               ? 'Enter a valid price'
               : overrideReasonMissing

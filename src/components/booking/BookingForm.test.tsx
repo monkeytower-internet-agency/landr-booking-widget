@@ -141,7 +141,7 @@ describe('BookingForm — review-only screen (landr-8c03)', () => {
     expect(list).toHaveTextContent(/Alan Turing/)
   })
 
-  it('does NOT render any form input fields (data flows in via props)', () => {
+  it('does NOT render any form input fields besides the billing address (data flows in via props)', () => {
     render(
       <BookingForm
         widgetToken="para42"
@@ -154,8 +154,11 @@ describe('BookingForm — review-only screen (landr-8c03)', () => {
         onConfirmed={vi.fn()}
       />,
     )
-    // No editable inputs (the review screen is read-only).
-    expect(document.querySelectorAll('input').length).toBe(0)
+    // The review screen is read-only apart from the billing address.
+    const outside = [...document.querySelectorAll('input, select, textarea')].filter(
+      (el) => !el.closest('[data-testid="booker-billing-group"]'),
+    )
+    expect(outside).toHaveLength(0)
   })
 
   it('renders the hotel block when accommodationRooms is non-empty (landr-iu3s)', () => {

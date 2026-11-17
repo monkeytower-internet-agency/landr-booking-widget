@@ -222,6 +222,8 @@ export const de: Bundle = {
   addGuestButton: '+ Gast hinzufügen',
   enterYourNameEmailPhoneCue: 'Name, E-Mail und Telefon eingeben',
   enterYourNameEmailPhoneBillingCue: 'Name, E-Mail, Telefon und Rechnungsadresse eingeben',
+  enterYourBillingAddressCue: 'Rechnungsadresse eingeben',
+  billingRequiredBeforeConfirm: 'Bitte geben Sie Ihre Rechnungsadresse ein, um zu buchen.',
   fillInEveryRequiredField: 'Füllen Sie alle Pflichtfelder aus, um fortzufahren.',
   roleLabel: 'Rolle',
   includeYourCountryCode: 'Bitte mit Landesvorwahl',

@@ -252,6 +252,8 @@ export type Bundle = {
   addGuestButton: string
   enterYourNameEmailPhoneCue: string
   enterYourNameEmailPhoneBillingCue: string
+  enterYourBillingAddressCue: string
+  billingRequiredBeforeConfirm: string
   fillInEveryRequiredField: string
   roleLabel: string
   includeYourCountryCode: string
@@ -1353,6 +1355,8 @@ const en: Bundle = {
   addGuestButton: '+ Add guest',
   enterYourNameEmailPhoneCue: 'enter your name, email and phone',
   enterYourNameEmailPhoneBillingCue: 'enter your name, email, phone and billing address',
+  enterYourBillingAddressCue: 'enter your billing address',
+  billingRequiredBeforeConfirm: 'Enter your billing address to confirm.',
   fillInEveryRequiredField: 'Fill in every required field to continue.',
   roleLabel: 'Role',
   includeYourCountryCode: 'Include your country code',
