@@ -14109,6 +14109,36 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/webhooks/stripe-sandbox": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Stripe Sandbox Webhook
+         * @description Shared staff-sandbox webhook (landr-8ipsi.5).
+         *
+         *     1. 404 unless test identities are enabled (never on production).
+         *     2. Verify with ``STAGING_STRIPE_SANDBOX_WEBHOOK_SECRET`` (503 when unset).
+         *     3. Resolve the operator from the event object's metadata; unresolvable ->
+         *        200 ignored + log.
+         *     4. Only operators whose identity is staff/fallback are served here; an
+         *        owner-activated operator uses its own per-operator endpoint (200
+         *        ignored, so Stripe does not retry).
+         *     5. Run the SAME processing as the per-operator endpoint
+         *        (``_handle_verified_event``).
+         */
+        post: operations["stripe_sandbox_webhook"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/webhooks/stripe/{operator_token}": {
         parameters: {
             query?: never;
@@ -54499,6 +54529,28 @@ export interface operations {
         };
     };
     stripe_connect_webhook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    stripe_sandbox_webhook: {
         parameters: {
             query?: never;
             header?: never;
