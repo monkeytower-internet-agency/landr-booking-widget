@@ -1071,6 +1071,9 @@ export type Bundle = {
   offerAutoFor: string
   offerQuantity: string
   offerAddToBooking: string
+  offerAdded: string
+  offerOnDay: string
+  offerPeriodEveryDay: string
   offerRemovedNotice: string
   offerChecking: string
   offerCheckFailed: string
@@ -2144,6 +2147,9 @@ const en: Bundle = {
   offerAutoFor: 'Added for {names}',
   offerQuantity: 'Quantity',
   offerAddToBooking: 'Add to booking',
+  offerAdded: 'Added',
+  offerOnDay: 'On {day}',
+  offerPeriodEveryDay: 'On every day of your booking: {period}',
   offerRemovedNotice: 'Some extras no longer fit your booking and were removed.',
   offerChecking: 'Checking extras for your party…',
   offerCheckFailed: 'We could not re-check extras for your party; they will be checked when you confirm.',

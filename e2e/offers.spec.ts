@@ -190,10 +190,10 @@ test('the demo apartment shows its offers and submits offer lines', async ({ pag
   expect(first.guests[1]!.attributes.age).toBeUndefined()
 
   // Air conditioning on three of the four nights; a cot for the child.
-  await page.getByTestId(`offer-toggle-${MOCK_OFFER_IDS.airCon}`).check()
+  await page.getByTestId(`offer-toggle-${MOCK_OFFER_IDS.airCon}`).click()
   await page.getByTestId(`offer-day-${MOCK_OFFER_IDS.airCon}-${NIGHTS[1]}`).click()
-  await page.getByTestId(`offer-who-${MOCK_OFFER_IDS.cot}-g3`).check()
-  await page.getByTestId(`offer-toggle-${MOCK_OFFER_IDS.garage}`).check()
+  await page.getByTestId(`offer-who-${MOCK_OFFER_IDS.cot}-g3`).click()
+  await page.getByTestId(`offer-toggle-${MOCK_OFFER_IDS.garage}`).click()
   await expect
     .poll(() =>
       seen.estimate.some((b) =>
@@ -275,7 +275,7 @@ test('a slow re-check keeps the rows, and a failed one lets the guest confirm', 
   const handle = await bedding.elementHandle()
 
   // A pick that changes the cart tree re-asks the evaluator.
-  await page.getByTestId(`offer-toggle-${MOCK_OFFER_IDS.garage}`).check()
+  await page.getByTestId(`offer-toggle-${MOCK_OFFER_IDS.garage}`).click()
   await expect(page.getByTestId('offer-tree-main')).toHaveAttribute('aria-busy', 'true')
   expect(await handle!.evaluate((el) => el.isConnected)).toBe(true)
 
@@ -292,7 +292,7 @@ test('an own-dated offer under a pick is added with its own slot and submits nes
   // one level down, under the pick (not as a row on the stay).
   await expect(row(page, MOCK_OFFER_IDS.bedding)).toBeVisible()
   await expect(page.getByTestId(`add-more-candidate-${MOCK_OFFER_PRODUCTS.yoga}`)).toHaveCount(0)
-  await page.getByTestId(`offer-toggle-${MOCK_OFFER_IDS.bedding}`).check()
+  await page.getByTestId(`offer-toggle-${MOCK_OFFER_IDS.bedding}`).click()
   const nested = page.getByTestId('offer-tree-o1')
   await nested.getByTestId(`add-more-candidate-${MOCK_OFFER_PRODUCTS.yoga}`).click()
 
