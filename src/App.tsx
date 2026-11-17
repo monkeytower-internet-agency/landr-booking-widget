@@ -185,6 +185,8 @@ import { isBookingInProgress, useStaffDirtySignal } from '@/lib/staffDirty'
 import { loadTileFont } from '@/lib/tileFont'
 import type { TileFontKey } from '@/lib/tileFont'
 import { widgetThemeStyle } from '@/lib/widgetTheme'
+import { setOperatorColorMode, useIsDark } from '@/lib/colorMode'
+import { ColorModeSwitch } from '@/components/booking/ColorModeSwitch'
 import { StepTransition } from '@/components/booking/StepTransition'
 import { applyBootLogo, dismissBootSplash, isBootReady } from '@/lib/bootSplash'
 
@@ -492,6 +494,8 @@ function BookingFlowApp() {
   // gate further down owns. Showing the landing page here would be the very
   // bug this ticket fixes.
   const [showLanding, setShowLanding] = useState<boolean>(!token && !invite)
+  // landr-a5i49.3: light / dark (lib/colorMode.ts) — picks the dark brand theme.
+  const isDark = useIsDark()
   // landr-2mgl: restore funnel progress persisted to sessionStorage on the
   // previous render (survives an accidental mobile pull-to-refresh OR an
   // intentional reload, which both remount this component from scratch).
@@ -1252,6 +1256,9 @@ function BookingFlowApp() {
         if (!cancelled) {
           setOperatorSettings(settings)
           setShowLanding(false)
+          // landr-a5i49.3: operator light/dark/auto (cached per token so the
+          // next visit's first paint is already dark).
+          setOperatorColorMode(settings.widget_color_mode, token)
           // landr-tkgx8.1: operator logo on the boot splash (and cached for
           // the next visit's first paint). widget_show_logo only hides the
           // in-widget header logo; the loading splash always shows the
@@ -2083,10 +2090,9 @@ function BookingFlowApp() {
   // The operator's 3-colour theme (brand/accent/background) wins when
   // present; otherwise the legacy single primary_color → --primary path
   // is preserved; otherwise no inline vars and index.css defaults stand.
-  // (See lib/widgetTheme.ts for the mapping + contrast safety. Dark mode
-  // is carried on the type but not applied — the widget has no active
-  // dark mode today.)
-  const brandStyle: CSSProperties = widgetThemeStyle(operatorSettings)
+  // (See lib/widgetTheme.ts for the mapping + contrast safety; in dark mode
+  // — `?theme=dark|auto`, lib/colorMode.ts — the theme's dark variant.)
+  const brandStyle: CSSProperties = widgetThemeStyle(operatorSettings, isDark)
 
   // landr-rjda — "first step" = the product/category selection screen.
   // pick-category only appears when the operator has >1 product group; both
@@ -2281,6 +2287,12 @@ function BookingFlowApp() {
         gives the sidebar breathing room without squeezing the step content.
       */}
       <div className="mx-auto flex max-w-5xl flex-col gap-6 p-2 sm:p-6">
+        {/* landr-a5i49.3: visitor light/dark switch, when the operator offers it. */}
+        {operatorSettings.widget_color_switcher ? (
+          <div className="-mb-4 flex justify-end">
+            <ColorModeSwitch />
+          </div>
+        ) : null}
         {/*
           landr-yp8x / landr-nils — operator brand + intro header. The
           widget is embedded inside the operator's own page, so they own

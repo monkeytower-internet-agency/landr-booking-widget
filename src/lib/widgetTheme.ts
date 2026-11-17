@@ -26,12 +26,11 @@
  * the bg-surface-tint surface (index.css) with the accent's luminance, so a
  * pale accent still tints visibly. See surfaceTintMix.
  *
- * Dark mode: the widget has NO active dark mode today (the `.dark` class in
- * index.css is never applied — no prefers-color-scheme toggle, no classList
- * manipulation). So `theme.dark` is intentionally NOT consumed here. The
- * hue-preserving deriveDark helper below is exported for when/if the widget
- * gains a dark mode (and to mirror the dashboard's matching derivation), but
- * it is not wired into the rendered style yet. See the handoff for status.
+ * Dark mode (`?theme=dark|auto`, lib/colorMode.ts): `.dark` on <html> swaps
+ * the index.css tokens; widgetThemeStyle(settings, true) maps the operator's
+ * theme through resolveDarkTheme (explicit theme.dark values win, the rest
+ * derived hue-preservingly by deriveDark) so a light brand canvas doesn't
+ * paint a white slab over the dark surfaces.
  */
 
 import type { CSSProperties } from 'react'
@@ -190,8 +189,7 @@ export function deriveDark(color: string): string {
 /**
  * Resolve the full dark theme from a WidgetTheme: explicit theme.dark values
  * win; any missing key is derived hue-preservingly from its light counterpart.
- * Exported for the (future) dark-mode wiring and for parity tests — NOT yet
- * consumed by widgetThemeStyle (the widget has no active dark mode).
+ * Consumed by widgetThemeStyle when the widget renders dark.
  */
 export function resolveDarkTheme(theme: WidgetTheme): {
   brand: string
@@ -219,8 +217,9 @@ export function resolveDarkTheme(theme: WidgetTheme): {
  */
 export function widgetThemeStyle(
   settings: Pick<OperatorSettings, 'theme' | 'primary_color'>,
+  dark = false,
 ): CSSVarStyle {
-  const theme = settings.theme
+  const theme = settings.theme && dark ? resolveDarkTheme(settings.theme) : settings.theme
   if (theme) {
     const style: CSSVarStyle = {
       '--background': theme.background,

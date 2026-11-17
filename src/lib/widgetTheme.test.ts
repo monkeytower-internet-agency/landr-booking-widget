@@ -107,6 +107,30 @@ describe('surfaceTintMix (landr-v94dz)', () => {
 })
 
 describe('widgetThemeStyle', () => {
+  it('dark: maps the theme through resolveDarkTheme (explicit dark wins, rest derived)', () => {
+    const theme = {
+      brand: '#111827',
+      accent: '#1d4ed8',
+      background: '#ffffff',
+      dark: { accent: '#93c5fd' },
+    }
+    const style = widgetThemeStyle({ theme, primary_color: null }, true)
+    const d = resolveDarkTheme(theme)
+    expect(style['--background']).toBe(d.background)
+    expect(style['--foreground']).toBe(d.brand)
+    expect(style['--primary']).toBe('#93c5fd')
+    expect(style['--primary-foreground']).toBe(readableTextOn('#93c5fd'))
+    // a white light canvas becomes a dark one, not a white slab
+    expect(parseHex(d.background)![0]).toBeLessThan(64)
+  })
+
+  it('dark without a theme keeps the legacy/default paths unchanged', () => {
+    expect(widgetThemeStyle({ theme: null, primary_color: null }, true)).toEqual({})
+    expect(widgetThemeStyle({ theme: null, primary_color: '#ff8800' }, true)['--primary']).toBe(
+      '#ff8800',
+    )
+  })
+
   it('maps a 3-colour theme onto the widget CSS vars', () => {
     const style = widgetThemeStyle({
       theme: { brand: '#222222', accent: '#1d4ed8', background: '#f5f5f5' },
