@@ -1600,7 +1600,7 @@ export function DetailsStep({
           ) : null}
           {moreAllowed > 0 ? (
             <p className="text-xs text-muted-foreground">
-              {addAnyoneElseUpTo(moreAllowed, locale)}
+              {addAnyoneElseUpTo(moreAllowed, locale, product.product_kind)}
             </p>
           ) : null}
 

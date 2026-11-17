@@ -108,7 +108,8 @@ describe('Stay products say Gäste — details step', () => {
     fireEvent.click(screen.getByTestId('add-participant'))
     expect(screen.getByText('Gast 2')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Gast 2 entfernen' })).toBeInTheDocument()
-    expect(document.body.textContent).not.toMatch(/Teilnehmer/)
+    expect(screen.getByText(/Fügen Sie alle weiteren Gäste hinzu/)).toBeInTheDocument()
+    expect(document.body.textContent).not.toMatch(/Teilnehm/)
   })
 
   it('keeps Teilnehmer for a service', () => {
@@ -144,7 +145,7 @@ describe('Stay products say Gäste — review summary', () => {
     germanBrowser()
     renderReview('stay')
     expect(screen.getByTestId('review-participants')).toHaveTextContent('Gäste (1)')
-    expect(screen.getByTestId('review-participants')).not.toHaveTextContent('Teilnehmer')
+    expect(screen.getByTestId('review-participants')).not.toHaveTextContent(/Teilnehm/)
   })
 
   it('titles the summary "Teilnehmer" for a service', () => {
@@ -221,7 +222,7 @@ describe('Stay products say Gäste — confirmation', () => {
     const block = screen.getByTestId('confirmation-participants')
     expect(block).toHaveTextContent('2 Gäste')
     expect(block).toHaveTextContent('Gäste (in dieser Buchung enthalten)')
-    expect(block).not.toHaveTextContent('Teilnehmer')
+    expect(block).not.toHaveTextContent(/Teilnehm/)
   })
 
   it('keeps Teilnehmer for a service or an unknown kind', () => {

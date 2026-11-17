@@ -26,6 +26,7 @@ const PARTY_KEYS: PartyKey[] = [
   'maxParticipantsReachedOne',
   'maxParticipantsReachedTemplate',
   'participantOrdinalTemplate',
+  'addAnyoneElseUpToTemplate',
   'youWillBeListedAsParticipant1',
   'participantsYouPayForHint',
   'partyIncludedHeading',
@@ -37,7 +38,7 @@ const PARTY_KEYS: PartyKey[] = [
 // The participant word of each catalog (stem, case-insensitive).
 const PARTICIPANT_WORD: Record<string, RegExp> = {
   en: /participant/i,
-  de: /teilnehmer/i,
+  de: /teilnehm/i,
   it: /partecipant/i,
   es: /participante/i,
   tr: /katılımcı/i,

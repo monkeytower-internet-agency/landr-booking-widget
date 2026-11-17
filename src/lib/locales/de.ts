@@ -407,6 +407,7 @@ export const de: Bundle = {
   stayGuestCountSingular: '{n} Gast',
   stayGuestCountPlural: '{n} Gäste',
   stayRemoveGuestAriaTemplate: 'Gast {n} entfernen',
+  stayAddAnyoneElseUpToTemplate: 'Fügen Sie alle weiteren Gäste hinzu. Sie können bis zu {n} weitere hinzufügen.',
   otherParticipantsTotalTemplate: 'Weitere Teilnehmer ({n} insgesamt)',
   addAnyoneElseUpToTemplate: 'Fügen Sie alle weiteren Teilnehmenden hinzu. Sie können bis zu {n} weitere hinzufügen.',
   participantOrdinalTemplate: 'Teilnehmer {n}',

@@ -433,6 +433,7 @@ export type Bundle = {
   stayGuestCountSingular: string
   stayGuestCountPlural: string
   stayRemoveGuestAriaTemplate: string
+  stayAddAnyoneElseUpToTemplate: string
   otherParticipantsTotalTemplate: string
   addAnyoneElseUpToTemplate: string
   participantOrdinalTemplate: string
@@ -1554,6 +1555,7 @@ const en: Bundle = {
   stayGuestCountSingular: '{n} guest',
   stayGuestCountPlural: '{n} guests',
   stayRemoveGuestAriaTemplate: 'Remove guest {n}',
+  stayAddAnyoneElseUpToTemplate: "Add anyone else staying. You can add up to {n} more.",
   otherParticipantsTotalTemplate: 'Other participants ({n} total)',
   addAnyoneElseUpToTemplate: 'Add anyone else taking part. You can add up to {n} more.',
   participantOrdinalTemplate: 'Participant {n}',
@@ -2369,6 +2371,7 @@ const STAY_PARTY_VARIANT = {
   maxParticipantsReachedOne: 'stayMaxGuestsReachedOne',
   maxParticipantsReachedTemplate: 'stayMaxGuestsReachedTemplate',
   participantOrdinalTemplate: 'companionOrdinalTemplate',
+  addAnyoneElseUpToTemplate: 'stayAddAnyoneElseUpToTemplate',
   youWillBeListedAsParticipant1: 'stayYouWillBeListedAsGuest1',
   participantsYouPayForHint: 'stayGuestsYouPayForHint',
   partyIncludedHeading: 'stayPartyIncludedHeading',
@@ -3107,8 +3110,8 @@ export function alternativePartyClampedMessage(name: string, n: number, locale?:
 }
 
 /** DetailsStep: "Add anyone else taking part. You can add up to {n} more." */
-export function addAnyoneElseUpTo(n: number, locale?: string): string {
-  return tr('addAnyoneElseUpToTemplate', locale).replace('{n}', String(n))
+export function addAnyoneElseUpTo(n: number, locale?: string, productKind?: ProductKind | null): string {
+  return partyTr('addAnyoneElseUpToTemplate', locale, productKind).replace('{n}', String(n))
 }
 
 /** DetailsStep per-row heading: "Participant {n}". */

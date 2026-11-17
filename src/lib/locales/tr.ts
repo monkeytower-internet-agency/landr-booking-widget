@@ -405,6 +405,7 @@ export const tr: Bundle = {
   stayGuestCountSingular: '{n} misafir',
   stayGuestCountPlural: '{n} misafir',
   stayRemoveGuestAriaTemplate: '{n}. misafiri kaldır',
+  stayAddAnyoneElseUpToTemplate: 'Diğer misafirleri ekleyin. En fazla {n} kişi daha ekleyebilirsiniz.',
   otherParticipantsTotalTemplate: 'Diğer katılımcılar (toplam {n})',
   addAnyoneElseUpToTemplate: 'Katılan başka kişileri ekleyin. En fazla {n} kişi daha ekleyebilirsiniz.',
   participantOrdinalTemplate: 'Katılımcı {n}',
