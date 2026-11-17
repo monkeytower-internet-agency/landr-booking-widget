@@ -2222,6 +2222,12 @@ export interface EstimateLineItem {
   /** The server attached this line itself (a mandatory offer). */
   auto_attached?: boolean | null
   missing_attribute_keys?: string[] | null
+  /** landr-zorj8: the bands an age-banded charge (tourist tax) counted its guests by. */
+  attribute_bands?: {
+    attribute_key: string
+    unit?: string | null
+    bands: { min: number | null; max: number | null; guests: number }[]
+  } | null
 }
 
 /**
