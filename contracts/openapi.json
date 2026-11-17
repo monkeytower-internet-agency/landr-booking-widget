@@ -64217,6 +64217,65 @@
         ]
       }
     },
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/send-booking-received": {
+      "post": {
+        "description": "Queue the ``booking_received`` mail. 404 when the booking is not the\ncaller's operator's (or is deleted), 422 ``no_customer_email``, 502\n``send_failed`` when nothing could be queued. Returns ``{email_id}``.",
+        "operationId": "send_booking_received_now",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "title": "Booking Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Send Booking Received Now",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Send Booking Received Now",
+        "tags": [
+          "staff-bookings-send-received"
+        ]
+      }
+    },
     "/api/staff/operators/{operator_id}/bookings/{booking_id}/send-confirmation": {
       "post": {
         "description": "Send the first booking_confirmation to the customer.\n\n- Verifies the booking belongs to this operator.\n- Guards: only allowed when the booking is in/past the confirmed set (same\n  gate as resend, landr-tf39) AND no prior confirmation exists yet.\n  If a prior exists \u2192 409 {\"error\": \"already_confirmed\"} (use resend).\n  If the stage is not yet confirmed/due \u2192 409 {\"error\": \"confirmation_not_allowed_yet\"}\n  (public-website bookings only; staff-created bookings skip this stage gate,\n  the hotel and offer guards still apply).\n- Calls send_booking_confirmation(is_update=False, no extra_context) which\n  records the initial last_confirmation_context snapshot.\n- Returns {\"sent\": true, \"email_id\": \"<id or null>\"}.\n- Optional body ``{\"email_override\": {to_address?, subject?, body_html?,\n  body_text?}}`` (landr-j6clr.1) replaces the rendered customer mail after\n  render; every other side effect of the send is unchanged. No body = as before.",

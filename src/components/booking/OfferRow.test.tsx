@@ -120,9 +120,27 @@ describe('OfferRow: binding booking', () => {
 
   it('shows a locked schedule as the parent period, read-only', () => {
     const offer = evalOffer('towels')
-    render(<Row offer={offer} initial={[picked(offer)]} />)
+    render(<Row offer={offer} parentIsStay initial={[picked(offer)]} />)
     expect(screen.getByTestId('offer-period-towels').textContent).toMatch(/whole stay/i)
     expect(screen.queryByTestId('offer-days-towels')).toBeNull()
+  })
+
+  it('non-stay parent: a locked schedule never claims the whole stay', () => {
+    const offer = evalOffer('towels')
+    render(<Row offer={offer} initial={[picked(offer)]} />)
+    const text = screen.getByTestId('offer-period-towels').textContent ?? ''
+    expect(text).not.toMatch(/whole stay/i)
+    expect(text).toMatch(/On every day of your booking: .*Nov/)
+  })
+
+  it('toggle button reflects the pick via aria-pressed', () => {
+    const offer = evalOffer('towels')
+    render(<Row offer={offer} />)
+    const btn = screen.getByTestId('offer-toggle-towels')
+    expect(btn).toHaveAttribute('aria-pressed', 'false')
+    fireEvent.click(btn)
+    expect(btn).toHaveAttribute('aria-pressed', 'true')
+    expect(btn.textContent).toMatch(/Added/)
   })
 })
 
@@ -219,7 +237,7 @@ describe('OfferRow: mode', () => {
     render(<Row offer={offer} initial={[picked(offer)]} />)
     expect(screen.getByTestId('offer-mandatory-badge')).toHaveTextContent(tr('offerMandatoryBadge', 'en'))
     const toggle = screen.getByTestId('offer-toggle-tax')
-    expect(toggle).toBeChecked()
+    expect(toggle).toHaveAttribute('aria-pressed', 'true')
     expect(toggle).toBeDisabled()
     fireEvent.click(toggle)
     expect(picksOf()).toHaveLength(1)
