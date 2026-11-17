@@ -731,6 +731,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/internal/release/express-chain/continue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Express Chain Continue
+         * @description End the hold of the express run now (landr-ijc0o). Auth: HMAC + approver.
+         */
+        post: operations["express_chain_continue"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/internal/release/express-chain/preflight": {
         parameters: {
             query?: never;
@@ -1618,6 +1638,29 @@ export interface paths {
          *     through at its staging tip). Non-express dev→staging is unaffected.
          */
         post: operations["create_dev_to_staging"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/landr-staff/promotions/express-chain/continue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Express Continue Now
+         * @description landr-ijc0o — "Continue now": end the hold of the live express chain's
+         *     staging run. Dev api only, release approvers only; relayed to staging (the
+         *     HMAC authenticates this service, staging re-checks the human is an approver).
+         *     409 unless the chain is relayed and staging's run is still queued.
+         */
+        post: operations["express_continue_now"];
         delete?: never;
         options?: never;
         head?: never;
@@ -31150,6 +31193,28 @@ export interface operations {
             };
         };
     };
+    express_chain_continue: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
     express_chain_preflight: {
         parameters: {
             query?: never;
@@ -32773,6 +32838,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    express_continue_now: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
         };
