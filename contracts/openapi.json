@@ -11675,6 +11675,18 @@
         "additionalProperties": true,
         "description": "One row in the PriceSidebar breakdown (landr-qez0). Mirrors the\nwidget's ``EstimateLineItem`` TypeScript interface (src/api/types.ts)\nand the dashboard's ``SimulateLineItem`` (src/lib/pricing-simulator.ts)\nfield-for-field. ``unit_price``/``line_total`` are decimal strings\n(e.g. \"60.00\"), matching ``_compute_line``'s wire format exactly.",
         "properties": {
+          "attribute_bands": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attribute Bands"
+          },
           "attribute_missing": {
             "anyOf": [
               {

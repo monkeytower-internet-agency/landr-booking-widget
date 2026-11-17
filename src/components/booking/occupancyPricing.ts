@@ -63,7 +63,7 @@ export function occupancyBlurb(
   ]
   if (Number(rule.extra_adult_per_night) > 0) {
     parts.push(
-      fmt(tr('occupancyExtraAdult', locale), {
+      fmt(tr(rule.child_bands.length > 0 ? 'occupancyExtraAdult' : 'occupancyExtraGuest', locale), {
         price: formatMoney(rule.extra_adult_per_night, currency, locale),
       }),
     )

@@ -18691,6 +18691,10 @@ export interface components {
          *     (e.g. "60.00"), matching ``_compute_line``'s wire format exactly.
          */
         EstimateLineItem: {
+            /** Attribute Bands */
+            attribute_bands?: {
+                [key: string]: unknown;
+            } | null;
             /** Attribute Missing */
             attribute_missing?: boolean | null;
             /** Auto Attached */

@@ -169,7 +169,7 @@ describe('BookingForm — offers on the review screen', () => {
     )
     renderForm()
     const box = await screen.findByTestId('main-ineligible')
-    expect(box).toHaveTextContent('No guests under 10')
+    expect(box).toHaveTextContent("This accommodation doesn't accept guests under 10.")
     expect(confirmButton()).toBeDisabled()
     expect(submitBooking).not.toHaveBeenCalled()
   })

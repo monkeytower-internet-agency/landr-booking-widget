@@ -357,6 +357,13 @@ export type Bundle = {
   occupancyIncludedOne: string
   occupancyIncludedMany: string
   occupancyExtraAdult: string
+  occupancyExtraGuest: string
+  taxedGuestsOne: string
+  taxedGuestsMany: string
+  taxedRangeFrom: string
+  taxedRangeBetween: string
+  taxedRangeUpTo: string
+  taxedAdult: string
   occupancyChildBand: string
   occupancyChildBandFree: string
   guestAgeRequired: string
@@ -1464,6 +1471,13 @@ const en: Bundle = {
   occupancyIncludedOne: 'incl. 1 adult',
   occupancyIncludedMany: 'incl. {count} adults',
   occupancyExtraAdult: 'additional adults +{price}/night',
+  occupancyExtraGuest: 'additional guests +{price}/night',
+  taxedGuestsOne: '{count} guest {range}',
+  taxedGuestsMany: '{count} guests {range}',
+  taxedRangeFrom: 'from {min}',
+  taxedRangeBetween: '{min} to {max}',
+  taxedRangeUpTo: 'up to {max}',
+  taxedAdult: 'adult',
   occupancyChildBand: 'children {from}-{to} +{price}/night',
   occupancyChildBandFree: 'children {from}-{to} free',
   guestAgeRequired: 'Please select the age of each child.',
@@ -2158,7 +2172,7 @@ const en: Bundle = {
   offerCheckFailed: 'We could not re-check extras for your party; they will be checked when you confirm.',
   offerMainIneligible: 'This cannot be booked for your party: {reason}',
   offerAnswerGuestQuestions: 'Answer the guest questions',
-  eligNoGuestsUnder: 'No guests under {n}',
+  eligNoGuestsUnder: "This accommodation doesn't accept guests under {n}.",
   eligGuestsUpTo: 'Only for guests up to {n}',
   eligGuestsBetween: 'Only for guests aged {min} to {max}',
   eligNeedsGuestAtLeast: 'At least one guest must be {n} or older',

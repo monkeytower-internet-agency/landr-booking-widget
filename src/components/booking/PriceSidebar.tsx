@@ -61,6 +61,7 @@ import { EMBEDDED_ATTR } from '@/lib/autoHeight'
 import { DayChips } from './DayChips'
 import { PerformerPaySections } from './PerformerPaySections'
 import { PriceBreakdown } from './PriceBreakdown'
+import { taxedGuestsLine } from './taxedGuests'
 import { useBookingEstimate } from './useBookingEstimate'
 import { extraEstimateRequests, mergeEstimates, type ExtraLine } from './crossSell'
 import {
@@ -197,6 +198,8 @@ interface BookingOverviewBodyProps
   extends ReturnType<typeof useBookingEstimate> {
   /** ISO YYYY-MM-DD days the customer picked for the guided service. */
   selectedDays: string[]
+  /** landr-zorj8: the party, to name the guests an age-banded line counted. */
+  members?: readonly PartyMember[]
   /**
    * The days a day-pickable companion add-on was picked on, by add-on
    * product id: its line shows these instead of the whole stay.
@@ -231,6 +234,7 @@ function BookingOverviewBody({
   isStale,
   error,
   selectedDays,
+  members = [],
   companionDays,
   accommodationCheckinOffsetDays,
   hasHotelRoom,
@@ -388,6 +392,14 @@ function BookingOverviewBody({
               >
                 <span className="flex-1">
                   <span className="block">{li.label}</span>
+                  {taxedGuestsLine(li.attribute_bands, members, locale) ? (
+                    <span
+                      className="block text-xs text-muted-foreground"
+                      data-testid="price-sidebar-taxed-guests"
+                    >
+                      {taxedGuestsLine(li.attribute_bands, members, locale)}
+                    </span>
+                  ) : null}
                   {li.product_id === stayLineId && stayEstimate ? (
                     <>
                       {stayEstimate.check_in && stayEstimate.check_out ? (
@@ -943,6 +955,7 @@ export default function PriceSidebar(props: Props) {
           <BookingOverviewBody
             {...visible}
             selectedDays={selectedDays}
+            members={members}
             companionDays={companionDays}
             accommodationCheckinOffsetDays={product.accommodation_checkin_offset_days}
             hasHotelRoom={hasHotelRoom}
@@ -1082,6 +1095,7 @@ export default function PriceSidebar(props: Props) {
             <BookingOverviewBody
             {...visible}
             selectedDays={selectedDays}
+            members={members}
             companionDays={companionDays}
             accommodationCheckinOffsetDays={product.accommodation_checkin_offset_days}
             hasHotelRoom={hasHotelRoom}
