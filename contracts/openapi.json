@@ -671,6 +671,37 @@
         "title": "AppliedTemplatesOut",
         "type": "object"
       },
+      "ApplyIn": {
+        "properties": {
+          "bundle": {
+            "additionalProperties": true,
+            "title": "Bundle",
+            "type": "object"
+          },
+          "confirm_production": {
+            "default": false,
+            "title": "Confirm Production",
+            "type": "boolean"
+          },
+          "expected_target_fingerprint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Target Fingerprint"
+          }
+        },
+        "required": [
+          "bundle",
+          "expected_target_fingerprint"
+        ],
+        "title": "ApplyIn",
+        "type": "object"
+      },
       "ApplyPresetRequest": {
         "properties": {
           "preset_key": {
@@ -1511,6 +1542,27 @@
           "assignment_date"
         ],
         "title": "AssignmentIn",
+        "type": "object"
+      },
+      "AuthMethodsOut": {
+        "properties": {
+          "has_password": {
+            "title": "Has Password",
+            "type": "boolean"
+          },
+          "providers": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Providers",
+            "type": "array"
+          }
+        },
+        "required": [
+          "has_password",
+          "providers"
+        ],
+        "title": "AuthMethodsOut",
         "type": "object"
       },
       "AvailabilityBatchIn": {
@@ -24589,6 +24641,32 @@
         "title": "PassTierPatch",
         "type": "object"
       },
+      "PasswordIn": {
+        "properties": {
+          "current_password": {
+            "anyOf": [
+              {
+                "maxLength": 1024,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Password"
+          },
+          "new_password": {
+            "maxLength": 1024,
+            "title": "New Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "new_password"
+        ],
+        "title": "PasswordIn",
+        "type": "object"
+      },
       "PatchMoscowIn": {
         "description": "Body for the moscow PATCH endpoint.\n\nmoscow: The MoSCoW category to assign, or null to clear it.\n    Allowed values: 'must' | 'should' | 'could' | 'wont' | null.",
         "properties": {
@@ -25548,6 +25626,20 @@
           "withdrawn"
         ],
         "title": "PreviewDayOut",
+        "type": "object"
+      },
+      "PreviewIn": {
+        "properties": {
+          "bundle": {
+            "additionalProperties": true,
+            "title": "Bundle",
+            "type": "object"
+          }
+        },
+        "required": [
+          "bundle"
+        ],
+        "title": "PreviewIn",
         "type": "object"
       },
       "PreviewMigrationsResponse": {
@@ -50864,6 +50956,80 @@
         ]
       }
     },
+    "/api/me/auth-methods": {
+      "get": {
+        "operationId": "me_auth_methods",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthMethodsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Auth Methods",
+        "tags": [
+          "me"
+        ]
+      }
+    },
+    "/api/me/password": {
+      "post": {
+        "operationId": "me_set_password",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Me Set Password",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Set Password",
+        "tags": [
+          "me"
+        ]
+      }
+    },
     "/api/operator/email-sender": {
       "get": {
         "description": "Return the operator's current sending-domain config + status + records.\n\nLazy reconciliation: while verification is still ``pending`` we re-check SES\non read and persist the result, so the dashboard's existing poll flips the\nbadge from \"verifying\" to \"verified\" on its own \u2014 the operator never has to\nclick \"Verify\" for an auto-provisioned (records-already-published) domain.\nBest-effort: a missing SES client or any SES error leaves the stored status\nuntouched and never fails the GET.",
@@ -58589,6 +58755,102 @@
         "summary": "Healthz",
         "tags": [
           "staff-operator"
+        ]
+      }
+    },
+    "/api/staff/operators/setup-bundle/apply": {
+      "post": {
+        "operationId": "apply_setup_bundle",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApplyIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Apply Setup Bundle",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Apply Setup Bundle",
+        "tags": [
+          "landr-staff-setup-bundle"
+        ]
+      }
+    },
+    "/api/staff/operators/setup-bundle/preview": {
+      "post": {
+        "operationId": "preview_setup_bundle",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PreviewIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Preview Setup Bundle",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Preview Setup Bundle",
+        "tags": [
+          "landr-staff-setup-bundle"
         ]
       }
     },
@@ -69369,6 +69631,56 @@
         "summary": "Verify Integration Credential",
         "tags": [
           "staff-operator-integration-credentials"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/invite-owner-to-tier": {
+      "post": {
+        "description": "Invite the owner(s) the last copy came with as owners on THIS tier, to\ntheir real address (invite mail keeps the TEST header). Never on production.\nIdempotent: owners already here / with a pending invite are reported, not\nre-invited. Never automatic on copy: staff press the button.",
+        "operationId": "invite_owner_to_tier",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Invite Owner To Tier",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Invite Owner To Tier",
+        "tags": [
+          "landr-staff-setup-bundle"
         ]
       }
     },
@@ -83668,6 +83980,55 @@
         ]
       }
     },
+    "/api/staff/operators/{operator_id}/setup-bundle": {
+      "get": {
+        "operationId": "export_setup_bundle",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Export Setup Bundle",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Export Setup Bundle",
+        "tags": [
+          "landr-staff-setup-bundle"
+        ]
+      }
+    },
     "/api/staff/operators/{operator_id}/setup-checklist": {
       "get": {
         "description": "Return every setup-checklist item for the operator, done or not.\n\n``filled_by`` is ``{user_id, display_name, is_landr_staff}`` and\n``filled_at`` a timestamp, both from the audit log, only on done items.\n``setup_complete`` is true when no required item is open (done and\nnot-applicable items do not block). ``setup_is_landing`` is true only for\nan operator staff created, until then: the dashboard lands it on /setup.",
@@ -83784,6 +84145,55 @@
         "summary": "Put Item Requirement",
         "tags": [
           "staff-setup-checklist"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/setup-drift": {
+      "get": {
+        "operationId": "setup_drift",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Setup Drift",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Setup Drift",
+        "tags": [
+          "landr-staff-setup-bundle"
         ]
       }
     },
@@ -86863,6 +87273,30 @@
           }
         },
         "summary": "Stripe Connect Webhook",
+        "tags": [
+          "stripe-webhook"
+        ]
+      }
+    },
+    "/api/webhooks/stripe-sandbox": {
+      "post": {
+        "description": "Shared staff-sandbox webhook (landr-8ipsi.5).\n\n1. 404 unless test identities are enabled (never on production).\n2. Verify with ``STAGING_STRIPE_SANDBOX_WEBHOOK_SECRET`` (503 when unset).\n3. Resolve the operator from the event object's metadata; unresolvable ->\n   200 ignored + log.\n4. Only operators whose identity is staff/fallback are served here; an\n   owner-activated operator uses its own per-operator endpoint (200\n   ignored, so Stripe does not retry).\n5. Run the SAME processing as the per-operator endpoint\n   (``_handle_verified_event``).",
+        "operationId": "stripe_sandbox_webhook",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Stripe Sandbox Webhook",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Stripe Sandbox Webhook",
         "tags": [
           "stripe-webhook"
         ]

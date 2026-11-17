@@ -2640,6 +2640,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/me/auth-methods": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Auth Methods */
+        get: operations["me_auth_methods"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/me/password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Set Password */
+        post: operations["me_set_password"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/operator/email-sender": {
         parameters: {
             query?: never;
@@ -6055,6 +6089,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/setup-bundle/apply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Apply Setup Bundle */
+        post: operations["apply_setup_bundle"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/setup-bundle/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Preview Setup Bundle */
+        post: operations["preview_setup_bundle"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}": {
         parameters: {
             query?: never;
@@ -9261,6 +9329,29 @@ export interface paths {
          *     provider. Always 200 — `ok` carries the verdict.
          */
         post: operations["verify_integration_credential"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/invite-owner-to-tier": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Invite Owner To Tier
+         * @description Invite the owner(s) the last copy came with as owners on THIS tier, to
+         *     their real address (invite mail keeps the TEST header). Never on production.
+         *     Idempotent: owners already here / with a pending invite are reported, not
+         *     re-invited. Never automatic on copy: staff press the button.
+         */
+        post: operations["invite_owner_to_tier"];
         delete?: never;
         options?: never;
         head?: never;
@@ -12974,6 +13065,23 @@ export interface paths {
         patch: operations["patch_service_role"];
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/setup-bundle": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Export Setup Bundle */
+        get: operations["export_setup_bundle"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/setup-checklist": {
         parameters: {
             query?: never;
@@ -13013,6 +13121,23 @@ export interface paths {
          * @description Mark one item required, optional or not applicable (reason needed).
          */
         put: operations["put_item_requirement"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/setup-drift": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Setup Drift */
+        get: operations["setup_drift"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -13984,6 +14109,36 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/webhooks/stripe-sandbox": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Stripe Sandbox Webhook
+         * @description Shared staff-sandbox webhook (landr-8ipsi.5).
+         *
+         *     1. 404 unless test identities are enabled (never on production).
+         *     2. Verify with ``STAGING_STRIPE_SANDBOX_WEBHOOK_SECRET`` (503 when unset).
+         *     3. Resolve the operator from the event object's metadata; unresolvable ->
+         *        200 ignored + log.
+         *     4. Only operators whose identity is staff/fallback are served here; an
+         *        owner-activated operator uses its own per-operator endpoint (200
+         *        ignored, so Stripe does not retry).
+         *     5. Run the SAME processing as the per-operator endpoint
+         *        (``_handle_verified_event``).
+         */
+        post: operations["stripe_sandbox_webhook"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/webhooks/stripe/{operator_token}": {
         parameters: {
             query?: never;
@@ -14344,6 +14499,20 @@ export interface components {
              * @description resource_types.code already present for this operator (untouched)
              */
             skipped: string[];
+        };
+        /** ApplyIn */
+        ApplyIn: {
+            /** Bundle */
+            bundle: {
+                [key: string]: unknown;
+            };
+            /**
+             * Confirm Production
+             * @default false
+             */
+            confirm_production: boolean;
+            /** Expected Target Fingerprint */
+            expected_target_fingerprint: string | null;
         };
         /** ApplyPresetRequest */
         ApplyPresetRequest: {
@@ -14731,6 +14900,13 @@ export interface components {
             provider_id: string;
             /** Provider Role Id */
             provider_role_id?: string | null;
+        };
+        /** AuthMethodsOut */
+        AuthMethodsOut: {
+            /** Has Password */
+            has_password: boolean;
+            /** Providers */
+            providers: string[];
         };
         /**
          * AvailabilityBatchIn
@@ -22775,6 +22951,13 @@ export interface components {
             /** Validity Kind */
             validity_kind?: ("day" | "days" | "week" | "season") | null;
         };
+        /** PasswordIn */
+        PasswordIn: {
+            /** Current Password */
+            current_password?: string | null;
+            /** New Password */
+            new_password: string;
+        };
         /**
          * PatchMoscowIn
          * @description Body for the moscow PATCH endpoint.
@@ -23108,6 +23291,13 @@ export interface components {
             withdrawable: boolean;
             /** Withdrawn */
             withdrawn: boolean;
+        };
+        /** PreviewIn */
+        PreviewIn: {
+            /** Bundle */
+            bundle: {
+                [key: string]: unknown;
+            };
         };
         /**
          * PreviewMigrationsResponse
@@ -33897,6 +34087,61 @@ export interface operations {
             };
         };
     };
+    me_auth_methods: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthMethodsOut"];
+                };
+            };
+        };
+    };
+    me_set_password: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_config: {
         parameters: {
             query?: {
@@ -38723,6 +38968,76 @@ export interface operations {
                     "application/json": {
                         [key: string]: string;
                     };
+                };
+            };
+        };
+    };
+    apply_setup_bundle: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApplyIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_setup_bundle: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PreviewIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -44553,6 +44868,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["VerifyResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    invite_owner_to_tier: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */
@@ -52304,6 +52652,39 @@ export interface operations {
             };
         };
     };
+    export_setup_bundle: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_setup_checklist: {
         parameters: {
             query?: never;
@@ -52352,6 +52733,39 @@ export interface operations {
                 "application/json": components["schemas"]["RequirementIn"];
             };
         };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    setup_drift: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {
@@ -54115,6 +54529,28 @@ export interface operations {
         };
     };
     stripe_connect_webhook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    stripe_sandbox_webhook: {
         parameters: {
             query?: never;
             header?: never;
