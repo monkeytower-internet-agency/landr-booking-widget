@@ -236,11 +236,11 @@ describe('Booking for someone else — German UI (landr-jiagg.2)', () => {
     )
     fireEvent.click(
       screen.getByRole('checkbox', {
-        name: 'Ich buche für jemand anderen und nehme selbst nicht teil',
+        name: 'Ich buche für andere und bin selbst nicht dabei.',
       }),
     )
     expect(
-      screen.getByText('Tragen Sie unten die Personen ein, die teilnehmen.'),
+      screen.getByText('Tragen Sie unten die Personen ein, die dabei sind.'),
     ).toBeInTheDocument()
     expect(screen.getByText(/Teilnehmer \(1 insgesamt\)/)).toBeInTheDocument()
     expect(
@@ -248,7 +248,7 @@ describe('Booking for someone else — German UI (landr-jiagg.2)', () => {
     ).toBe('wie Ihre')
 
     // English strings must not leak through.
-    expect(screen.queryByText("I'm booking for someone else and won't take part")).not.toBeInTheDocument()
+    expect(screen.queryByText("I'm booking for others and won't be there myself.")).not.toBeInTheDocument()
   })
 
   it('BookingForm review: "Nimmt nicht teil · zahlt die Rechnung" in German', () => {
@@ -296,7 +296,7 @@ describe('Booking for someone else — German UI (landr-jiagg.2)', () => {
       />,
     )
     const toggle = screen.getByRole('checkbox', {
-      name: 'Ich buche für jemand anderen und nehme selbst nicht teil',
+      name: 'Ich buche für andere und bin selbst nicht dabei.',
     })
     fireEvent.click(toggle)
     expect(screen.getByTestId('participants-max-notice')).toHaveTextContent(

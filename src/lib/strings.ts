@@ -251,7 +251,6 @@ export type Bundle = {
   addParticipantButton: string
   addGuestButton: string
   enterYourNameEmailPhoneCue: string
-  enterYourNameEmailPhoneBillingCue: string
   enterYourBillingAddressCue: string
   billingRequiredBeforeConfirm: string
   fillInEveryRequiredField: string
@@ -1361,7 +1360,6 @@ const en: Bundle = {
   addParticipantButton: '+ Add participant',
   addGuestButton: '+ Add guest',
   enterYourNameEmailPhoneCue: 'enter your name, email and phone',
-  enterYourNameEmailPhoneBillingCue: 'enter your name, email, phone and billing address',
   enterYourBillingAddressCue: 'enter your billing address',
   billingRequiredBeforeConfirm: 'Enter your billing address to confirm.',
   fillInEveryRequiredField: 'Fill in every required field to continue.',
@@ -1553,8 +1551,8 @@ const en: Bundle = {
   themFallback: 'them',
   youWillBeListedAsParticipant1:
     "You'll be listed as participant 1. Add more people below if others are joining.",
-  bookingForSomeoneElseLabel: "I'm booking for someone else and won't take part",
-  addPeopleJoiningBelow: 'Add the people who are joining below.',
+  bookingForSomeoneElseLabel: "I'm booking for others and won't be there myself.",
+  addPeopleJoiningBelow: 'Add the people who will be there below.',
   participantsTotalTemplate: 'Participants ({n} total)',
   sameAsYoursPlaceholder: 'same as yours',
   invoiceToLabel: 'Invoice to:',
@@ -1565,7 +1563,7 @@ const en: Bundle = {
   tooManyPeopleRemoveSomeone:
     'There are more people than this activity allows — remove someone to continue.',
   sharedDoubleRequiresBookerMessage:
-    'A shared double room covers your own bed, so you can only pick it when you take part yourself. Please go back to accommodation and choose another option.',
+    'A shared double room covers your own bed, so you can only pick it when you are there yourself. Please go back to accommodation and choose another option.',
   notAMemberOrNoCode:
     "Not a member, or don't have a code? Leave this blank — it won't affect your booking.",
   participantsYouPayForHint: "People you're booking and paying for.",

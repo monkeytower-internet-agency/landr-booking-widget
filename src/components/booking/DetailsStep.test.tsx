@@ -2515,7 +2515,7 @@ describe('DetailsStep — no billing address', () => {
 // landr-jiagg.2: "I'm booking for someone else and won't take part" — the
 // booker pays (customer_* fields) but is not in participants[].
 describe('DetailsStep — booking for someone else (landr-jiagg.2)', () => {
-  const TOGGLE = "I'm booking for someone else and won't take part"
+  const TOGGLE = "I'm booking for others and won't be there myself."
 
   function fillP1({
     first = 'Max',
@@ -2544,7 +2544,7 @@ describe('DetailsStep — booking for someone else (landr-jiagg.2)', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: TOGGLE }))
 
     expect(screen.getByTestId('booker-participant-helper')).toHaveTextContent(
-      'Add the people who are joining below.',
+      'Add the people who will be there below.',
     )
     const row = screen.getByTestId('participant-row-1')
     expect(row).toHaveTextContent('Participant 1')
