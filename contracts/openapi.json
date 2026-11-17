@@ -46269,6 +46269,30 @@
         ]
       }
     },
+    "/api/internal/release/express-chain/continue": {
+      "post": {
+        "description": "End the hold of the express run now (landr-ijc0o). Auth: HMAC + approver.",
+        "operationId": "express_chain_continue",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Express Chain Continue",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Express Chain Continue",
+        "tags": [
+          "release-internal"
+        ]
+      }
+    },
     "/api/internal/release/express-chain/preflight": {
       "post": {
         "description": "Is a customer sign-off pending / staging\u2192main in flight for these repos?\n\nAuth: HMAC (see module docstring). 200 either way \u2014 ``ok: false`` carries\nthe blocking reason; the dev api turns it into its own 409.",
@@ -48930,6 +48954,35 @@
           }
         ],
         "summary": "Create Dev To Staging",
+        "tags": [
+          "landr-staff-promotions"
+        ]
+      }
+    },
+    "/api/landr-staff/promotions/express-chain/continue": {
+      "post": {
+        "description": "landr-ijc0o \u2014 \"Continue now\": end the hold of the live express chain's\nstaging run. Dev api only, release approvers only; relayed to staging (the\nHMAC authenticates this service, staging re-checks the human is an approver).\n409 unless the chain is relayed and staging's run is still queued.",
+        "operationId": "express_continue_now",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Express Continue Now",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Express Continue Now",
         "tags": [
           "landr-staff-promotions"
         ]
