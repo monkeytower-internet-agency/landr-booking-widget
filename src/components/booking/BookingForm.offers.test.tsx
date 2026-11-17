@@ -246,7 +246,7 @@ describe('BookingForm — offers on the review screen', () => {
     vi.mocked(submitBooking).mockResolvedValue({ booking_id: 'b-1', semantic_state: 'pending' })
     renderForm()
     const toggle = await screen.findByTestId('offer-toggle-offer-ins')
-    await waitFor(() => expect(toggle).toBeChecked())
+    await waitFor(() => expect(toggle).toHaveAttribute('aria-pressed', 'true'))
     expect(toggle).toBeDisabled()
     await confirmWhenSettled()
     await waitFor(() => expect(submitBooking).toHaveBeenCalledTimes(1))

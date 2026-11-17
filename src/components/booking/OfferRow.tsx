@@ -12,6 +12,7 @@
  * A mandatory offer starts picked and cannot be removed; a mandatory
  * per-person one is attached by the server and only names its guests.
  */
+import { ToggleChip } from './ToggleChip'
 import { useState, type Dispatch, type SetStateAction } from 'react'
 import ReactMarkdown from 'react-markdown'
 import type { EstimateLineItem, EvaluatedOffer } from '@/api/types'
@@ -316,16 +317,14 @@ export function OfferRow({
         />
       ) : offer.binding === 'booking' ? (
         <div className="flex flex-wrap items-center gap-2 text-sm">
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              data-testid={`offer-toggle-${offer.id}`}
-              checked={!!pick}
-              disabled={off || (mandatory && !!pick)}
-              onChange={onToggleBooking}
-            />
-            {tr('offerAddToBooking', locale)}
-          </label>
+          <ToggleChip
+            on={!!pick}
+            data-testid={`offer-toggle-${offer.id}`}
+            disabled={off || (mandatory && !!pick)}
+            onToggle={onToggleBooking}
+          >
+            {pick ? tr('offerAdded', locale) : tr('offerAddToBooking', locale)}
+          </ToggleChip>
           {options.length > 0 && (pick || mandatory) ? (
             <select
               data-testid={`offer-option-${offer.id}`}
@@ -390,12 +389,19 @@ export function OfferRow({
         </p>
       ) : (pick || serverAttached) && parentDays.length > 0 && schedule === 'locked' ? (
         <p className="text-xs text-muted-foreground" data-testid={`offer-period-${offer.id}`}>
-          {fmt(tr('offerPeriodLocked', locale), {
-            period:
-              parentDays.length > 1
-                ? `${formatDayLabel(parentDays[0]!, locale)} – ${formatDayLabel(parentDays[parentDays.length - 1]!, locale)}`
-                : formatDayLabel(parentDays[0]!, locale),
-          })}
+          {fmt(
+            tr(
+              parentIsStay ? 'offerPeriodLocked' : parentDays.length > 1 ? 'offerPeriodEveryDay' : 'offerOnDay',
+              locale,
+            ),
+            {
+              period:
+                parentDays.length > 1
+                  ? `${formatDayLabel(parentDays[0]!, locale)} – ${formatDayLabel(parentDays[parentDays.length - 1]!, locale)}`
+                  : formatDayLabel(parentDays[0]!, locale),
+              day: formatDayLabel(parentDays[0]!, locale),
+            },
+          )}
         </p>
       ) : null}
 
