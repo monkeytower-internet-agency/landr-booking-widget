@@ -87278,6 +87278,30 @@
         ]
       }
     },
+    "/api/webhooks/stripe-sandbox": {
+      "post": {
+        "description": "Shared staff-sandbox webhook (landr-8ipsi.5).\n\n1. 404 unless test identities are enabled (never on production).\n2. Verify with ``STAGING_STRIPE_SANDBOX_WEBHOOK_SECRET`` (503 when unset).\n3. Resolve the operator from the event object's metadata; unresolvable ->\n   200 ignored + log.\n4. Only operators whose identity is staff/fallback are served here; an\n   owner-activated operator uses its own per-operator endpoint (200\n   ignored, so Stripe does not retry).\n5. Run the SAME processing as the per-operator endpoint\n   (``_handle_verified_event``).",
+        "operationId": "stripe_sandbox_webhook",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Stripe Sandbox Webhook",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Stripe Sandbox Webhook",
+        "tags": [
+          "stripe-webhook"
+        ]
+      }
+    },
     "/api/webhooks/stripe/{operator_token}": {
       "post": {
         "description": "PER-OPERATOR endpoint (landr-1nwu.3).\n\nResolve token -> operator (404 if unknown) BEFORE verification, verify with\nTHAT operator's env-selected webhook secret (no app-level fallback \u2014\n503 if the operator has none), then dispatch the event scoped to this\noperator (refuse cross-operator payment_intent ids).",
