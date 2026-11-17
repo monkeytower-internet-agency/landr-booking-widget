@@ -1,9 +1,10 @@
 /**
- * Who a per-person offer is for: one tick per guest, and one option select
+ * Who a per-person offer is for: one toggle per guest, and one option select
  * per ticked guest when the offer has options.
  */
 import type { OfferOption, OfferPricePreview } from '@/api/types'
 import { fmt, tr } from '@/lib/strings'
+import { ToggleChip } from './ToggleChip'
 import { optionLabel, type PartyMember } from './offerCart'
 
 interface Props {
@@ -52,16 +53,15 @@ export function PersonTickList({
         const ok = admitted.has(m.key)
         return (
           <div key={m.key} className="flex flex-wrap items-center gap-2 text-sm">
-            <label className={`flex items-center gap-2 ${ok ? '' : 'opacity-50'}`}>
-              <input
-                type="checkbox"
-                data-testid={`offer-who-${offerId}-${m.ref}`}
-                checked={on}
-                disabled={disabled || (!ok && !on)}
-                onChange={() => onToggle(m.key)}
-              />
+            <ToggleChip
+              on={on}
+              data-testid={`offer-who-${offerId}-${m.ref}`}
+              disabled={disabled || (!ok && !on)}
+              onToggle={() => onToggle(m.key)}
+              className={ok ? '' : 'opacity-50'}
+            >
               {m.name}
-            </label>
+            </ToggleChip>
             {on && options.length > 0 ? (
               <select
                 aria-label={fmt(tr('offerOptionForTemplate', locale), { name: m.name })}
