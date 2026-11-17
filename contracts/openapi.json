@@ -2354,6 +2354,88 @@
         "title": "BillingProfileIn",
         "type": "object"
       },
+      "BoardCheck": {
+        "properties": {
+          "board_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Board Name"
+          },
+          "board_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Board Url"
+          },
+          "checked_at": {
+            "title": "Checked At",
+            "type": "string"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "member_full_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Member Full Name"
+          },
+          "member_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Member Id"
+          },
+          "status": {
+            "enum": [
+              "ok",
+              "board_not_found",
+              "no_access",
+              "board_closed",
+              "member_not_found",
+              "not_configured",
+              "error"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "checked_at"
+        ],
+        "title": "BoardCheck",
+        "type": "object"
+      },
       "BookingCalendarEvent": {
         "description": "Parsed calendar event for client-side Google Calendar / Outlook deep-links.\n\nlandr-odsr: mirrors the widget's ``BookingCalendarEvent`` TypeScript interface\n(src/api/types.ts) exactly \u2014 field names must not diverge or the confirmation\nscreen goes blank (landr-9ut4).",
         "properties": {
@@ -6610,6 +6692,30 @@
           "entries"
         ],
         "title": "ChangelogOut",
+        "type": "object"
+      },
+      "CheckIn": {
+        "properties": {
+          "trello_board_id": {
+            "title": "Trello Board Id",
+            "type": "string"
+          },
+          "trello_member_username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trello Member Username"
+          }
+        },
+        "required": [
+          "trello_board_id"
+        ],
+        "title": "CheckIn",
         "type": "object"
       },
       "CheckinIn": {
@@ -41226,6 +41332,17 @@
             ],
             "title": "Board Name"
           },
+          "board_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Board Url"
+          },
           "created_at": {
             "title": "Created At",
             "type": "string"
@@ -41237,6 +41354,39 @@
           "is_default": {
             "title": "Is Default",
             "type": "boolean"
+          },
+          "last_check_detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Check Detail"
+          },
+          "last_check_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Check Status"
+          },
+          "last_checked_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Checked At"
           },
           "operator_id": {
             "title": "Operator Id",
@@ -87032,6 +87182,83 @@
         ]
       }
     },
+    "/api/staff/trello-board-links/check": {
+      "post": {
+        "description": "Dry-run connection test for the add/edit dialog; stores nothing.",
+        "operationId": "staff_trello_check_board",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoardCheck"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Staff Trello Check Board",
+        "tags": [
+          "staff-trello-board-links"
+        ]
+      }
+    },
+    "/api/staff/trello-board-links/check-all": {
+      "post": {
+        "operationId": "staff_trello_check_all",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TrelloBoardLinkOut"
+                  },
+                  "title": "Response Staff Trello Check All",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Staff Trello Check All",
+        "tags": [
+          "staff-trello-board-links"
+        ]
+      }
+    },
     "/api/staff/trello-board-links/resolve": {
       "get": {
         "operationId": "staff_trello_resolve_board",
@@ -87169,6 +87396,53 @@
           }
         ],
         "summary": "Staff Trello Patch Link",
+        "tags": [
+          "staff-trello-board-links"
+        ]
+      }
+    },
+    "/api/staff/trello-board-links/{link_id}/check": {
+      "post": {
+        "operationId": "staff_trello_check_link",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "link_id",
+            "required": true,
+            "schema": {
+              "title": "Link Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrelloBoardLinkOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Staff Trello Check Link",
         "tags": [
           "staff-trello-board-links"
         ]
