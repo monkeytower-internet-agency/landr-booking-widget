@@ -60857,7 +60857,7 @@
     },
     "/api/staff/operators/{operator_id}/agent/earnings": {
       "get": {
-        "description": "An agent's commission rows with the booking they came from, plus totals.\n\n``totals`` = projected (expected, customer not paid yet) / earned (the\ncustomer has paid) / paid (paid out). The same scoping as the bookings list.",
+        "description": "An agent's commission rows with the booking they came from, plus totals.\n\n``totals`` = projected (expected, customer not paid yet) / earned (the\ncustomer has paid) / paid (paid out) / held (a link booking through a paused\nagent), summed over the FULL scoped set; ``rows`` is the newest ``limit`` of\nit and ``truncated`` says the list is shorter than the set the totals\ncover. Rows on a soft-deleted booking are hidden like My bookings hides the\nbooking, except those still carrying money. The same scoping as the\nbookings list.",
         "operationId": "staff_agent_earnings_list",
         "parameters": [
           {

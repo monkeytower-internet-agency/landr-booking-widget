@@ -6413,7 +6413,12 @@ export interface paths {
          * @description An agent's commission rows with the booking they came from, plus totals.
          *
          *     ``totals`` = projected (expected, customer not paid yet) / earned (the
-         *     customer has paid) / paid (paid out). The same scoping as the bookings list.
+         *     customer has paid) / paid (paid out) / held (a link booking through a paused
+         *     agent), summed over the FULL scoped set; ``rows`` is the newest ``limit`` of
+         *     it and ``truncated`` says the list is shorter than the set the totals
+         *     cover. Rows on a soft-deleted booking are hidden like My bookings hides the
+         *     booking, except those still carrying money. The same scoping as the
+         *     bookings list.
          */
         get: operations["staff_agent_earnings_list"];
         put?: never;
