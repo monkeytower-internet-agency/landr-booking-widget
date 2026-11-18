@@ -6231,7 +6231,11 @@ export interface paths {
          *
          *     Source: ``commissions WHERE recipient_kind='agent'`` (landr-xnbfe.4).
          *     Optional filters: agent_user_id, status_filter (projected|earned|paid|
-         *     reversed|held|no_commission).
+         *     reversed|held|no_commission). Each row also carries ``status_label``
+         *     (projected|held|earned|paid|dropped|reversed|no_commission; ``reversed``
+         *     rows split into dropped / reversed by the last lifecycle entry) and its
+         *     ``open_adjustments`` (not yet netted into a payout) with their total
+         *     (landr-xnbfe.39).
          *     Read-only — earnings accrue via recipient_commission_drain, not this API.
          */
         get: operations["list_agent_earnings"];
@@ -6261,7 +6265,11 @@ export interface paths {
          *     customer's payments have earned so far (earned_amount, a part of the
          *     commission while the invoice is part-paid), ``projected_total`` the rest of
          *     the expected commission, ``accrued_total`` the pre-lifecycle label (kept so
-         *     the legacy response shape holds). Read-only.
+         *     the legacy response shape holds). Additively (landr-xnbfe.39):
+         *     ``dropped_total`` is the part of ``reversed_total`` that was dropped
+         *     (cancelled before the customer paid); ``open_adjustments_total`` the signed
+         *     sum of the agent's adjustments not yet netted into a payout batch
+         *     (negative = to be deducted). Read-only.
          *
          *     Done in-Python over the operator's earning rows rather than via a
          *     SQL GROUP BY because the supabase REST client doesn't expose
