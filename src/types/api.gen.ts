@@ -22384,6 +22384,8 @@ export interface components {
             date_range_end?: string | null;
             /** Date Range Start */
             date_range_start?: string | null;
+            /** Is Addon Only */
+            is_addon_only?: boolean | null;
             /** Name */
             name: string;
             /** Name Localized */
@@ -22392,6 +22394,8 @@ export interface components {
             } | null;
             /** Product Id */
             product_id: string;
+            /** Product Kind */
+            product_kind?: string | null;
             /** Quantity */
             quantity: number;
             /** Selected Days */

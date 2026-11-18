@@ -871,6 +871,8 @@ export type Bundle = {
   savesVsStandardRate: string
   participantSuffixSingular: string
   participantSuffixPlural: string
+  stayGuestSuffixSingular: string
+  stayGuestSuffixPlural: string
   multiDayDiscountLabel: string
   streakDiscountLabel: string
   voucherAppliedLabel: string
@@ -1973,6 +1975,8 @@ const en: Bundle = {
   savesVsStandardRate: 'saves {amount} vs standard rate',
   participantSuffixSingular: '× {n} participant',
   participantSuffixPlural: '× {n} participants',
+  stayGuestSuffixSingular: '× {n} guest',
+  stayGuestSuffixPlural: '× {n} guests',
   multiDayDiscountLabel: 'Multi-day discount',
   streakDiscountLabel: 'Streak discount',
   voucherAppliedLabel: 'Voucher applied',
@@ -2363,6 +2367,9 @@ const STAY_PARTY_VARIANT = {
   crumbParticipants: 'stayCrumbGuests',
   formPersonParticipantTag: 'formPersonGuestTag',
   participantsTitle: 'stayGuestsTitle',
+  offerParticipantsTitle: 'stayGuestsTitle',
+  participantSuffixSingular: 'stayGuestSuffixSingular',
+  participantSuffixPlural: 'stayGuestSuffixPlural',
   addParticipantAria: 'stayAddGuestAria',
   addParticipantButton: 'stayAddGuestButton',
   maxAdditionalParticipantsTemplate: 'stayMaxAdditionalGuestsTemplate',

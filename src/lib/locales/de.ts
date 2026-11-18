@@ -829,6 +829,8 @@ export const de: Bundle = {
   savesVsStandardRate: 'spart {amount} gegenüber dem Standardpreis',
   participantSuffixSingular: '× {n} Teilnehmer',
   participantSuffixPlural: '× {n} Teilnehmer',
+  stayGuestSuffixSingular: '× {n} Gast',
+  stayGuestSuffixPlural: '× {n} Gäste',
   multiDayDiscountLabel: 'Mehrtagesrabatt',
   streakDiscountLabel: 'Serienrabatt',
   voucherAppliedLabel: 'Gutschein eingelöst',
