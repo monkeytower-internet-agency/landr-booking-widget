@@ -6258,23 +6258,23 @@ export interface paths {
          * Agent Earnings Summary
          * @description Per-agent commission totals for the operator, by lifecycle status.
          *
-         *     Aggregates the agent commissions rows (``commissions WHERE
-         *     recipient_kind='agent'``, landr-xnbfe.4) by recipient_user_id
-         *     and status. Returns one row per agent with a bucket per status (+ currency,
-         *     which is uniform per agent in practice). ``earned_total`` is what the
-         *     customer's payments have earned so far (earned_amount, a part of the
-         *     commission while the invoice is part-paid), ``projected_total`` the rest of
-         *     the expected commission, ``accrued_total`` the pre-lifecycle label (kept so
-         *     the legacy response shape holds). Additively (landr-xnbfe.39):
-         *     ``dropped_total`` is the part of ``reversed_total`` that was dropped
-         *     (cancelled before the customer paid); ``open_adjustments_total`` the signed
-         *     sum of the agent's adjustments not yet netted into a payout batch
-         *     (negative = to be deducted). Read-only.
+         *     One row per Sales agent and currency, aggregated IN SQL
+         *     (``agent_payout_summary``, landr-xnbfe.5) over ``commissions WHERE
+         *     recipient_kind='agent'`` of this operator, with the agent's ``display_name``
+         *     and ``email``. ``earned_total`` is what the customer's payments have earned
+         *     and is not yet paid out (earned_amount), ``projected_total`` the rest of the
+         *     expected commission, ``accrued_total`` the pre-lifecycle label,
+         *     ``paid_total`` what payouts paid. ``dropped_total`` is the part of
+         *     ``reversed_total`` cancelled before the customer paid; ``held_total`` /
+         *     ``held_count`` / ``no_commission_count`` keep paused-agent and zero-term
+         *     bookings visible; ``open_adjustments_total`` the signed sum of the agent's
+         *     adjustments not yet netted into a payout (negative = to be deducted);
+         *     ``payable_total`` = earned + open adjustments, what Mark paid would pay.
          *
-         *     Done in-Python over the operator's earning rows rather than via a
-         *     SQL GROUP BY because the supabase REST client doesn't expose
-         *     aggregate grouping; the row volume per operator is small (one row
-         *     per agent×booking) and bounded by the same row guard.
+         *     ``period=YYYY-MM`` narrows the rows to the bookings of that payout month
+         *     (the month of the booking's cancellation_deadline in the operator's
+         *     timezone, the same predicate mark-paid claims by) and adds the month's
+         *     latest paid ``batch_id`` / ``batch_status`` (null when none). Read-only.
          */
         get: operations["agent_earnings_summary"];
         put?: never;
@@ -8441,6 +8441,33 @@ export interface paths {
         head?: never;
         /** Patch Tier */
         patch: operations["commission_patch_tier"];
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/commissions/payouts/mark-paid": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mark Payout Paid
+         * @description Mark one Sales agent's earned commission for a month as paid.
+         *
+         *     Creates a NEW paid batch (never reuses one) and claims the agent's EARNED,
+         *     unbatched commissions of ``period`` plus their open adjustments, all in one
+         *     transaction. 404 ``agent_not_found`` when the user has no agent contract at
+         *     this operator, 409 ``nothing_to_pay`` when nothing is earned in the month
+         *     (or open reversals outweigh it). Held, projected and reversed rows are
+         *     never payable. owner / admin / finance.
+         */
+        post: operations["commission_mark_payout_paid"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/staff/operators/{operator_id}/company-inquiry": {
@@ -23700,6 +23727,25 @@ export interface components {
              * @enum {string}
              */
             method: "sepa_core" | "open_invoice";
+        };
+        /** PayoutMarkPaidIn */
+        PayoutMarkPaidIn: {
+            /** Currency */
+            currency: string;
+            /** Notes */
+            notes?: string | null;
+            /** Period */
+            period: string;
+            /**
+             * Recipient Kind
+             * @constant
+             */
+            recipient_kind: "agent";
+            /**
+             * Recipient User Id
+             * Format: uuid
+             */
+            recipient_user_id: string;
         };
         /**
          * PendingDecisionDetail
@@ -39927,7 +39973,9 @@ export interface operations {
     };
     agent_earnings_summary: {
         parameters: {
-            query?: never;
+            query?: {
+                period?: string | null;
+            };
             header?: never;
             path: {
                 operator_id: string;
@@ -44201,6 +44249,43 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["app__routers__staff_commission__TierPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    commission_mark_payout_paid: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PayoutMarkPaidIn"];
             };
         };
         responses: {
