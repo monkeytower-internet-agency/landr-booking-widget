@@ -6370,6 +6370,52 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/agent/bookings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Agent Bookings
+         * @description The operator's bookings attributed to an agent, newest first.
+         *
+         *     An agent (alone or combined with another non-owner role) reads only their
+         *     own; an owner/admin reads every agent's and may filter with ``agent_user_id``.
+         */
+        get: operations["staff_agent_bookings_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/agent/earnings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Agent Earnings
+         * @description An agent's commission rows with the booking they came from, plus totals.
+         *
+         *     ``totals`` = projected (expected, customer not paid yet) / earned (the
+         *     customer has paid) / paid (paid out). The same scoping as the bookings list.
+         */
+        get: operations["staff_agent_earnings_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/ai-onboarding/health": {
         parameters: {
             query?: never;
@@ -40185,6 +40231,78 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AgentRateDefaultsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_agent_bookings_list: {
+        parameters: {
+            query?: {
+                agent_user_id?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    }[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_agent_earnings_list: {
+        parameters: {
+            query?: {
+                agent_user_id?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */

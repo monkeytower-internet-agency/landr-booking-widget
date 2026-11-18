@@ -60773,6 +60773,167 @@
         ]
       }
     },
+    "/api/staff/operators/{operator_id}/agent/bookings": {
+      "get": {
+        "description": "The operator's bookings attributed to an agent, newest first.\n\nAn agent (alone or combined with another non-owner role) reads only their\nown; an owner/admin reads every agent's and may filter with ``agent_user_id``.",
+        "operationId": "staff_agent_bookings_list",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "agent_user_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Agent User Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 200,
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "title": "Response Staff Agent Bookings List",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Agent Bookings",
+        "tags": [
+          "staff-agent-portal"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/agent/earnings": {
+      "get": {
+        "description": "An agent's commission rows with the booking they came from, plus totals.\n\n``totals`` = projected (expected, customer not paid yet) / earned (the\ncustomer has paid) / paid (paid out). The same scoping as the bookings list.",
+        "operationId": "staff_agent_earnings_list",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "agent_user_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Agent User Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 500,
+              "maximum": 1000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Staff Agent Earnings List",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Agent Earnings",
+        "tags": [
+          "staff-agent-portal"
+        ]
+      }
+    },
     "/api/staff/operators/{operator_id}/ai-onboarding/health": {
       "get": {
         "operationId": "get_health",
