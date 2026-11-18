@@ -60117,7 +60117,7 @@
     },
     "/api/staff/operators/{operator_id}/agent-earnings": {
       "get": {
-        "description": "List the operator's agent commission rows, newest first.\n\nSource: ``commissions WHERE recipient_kind='agent'`` (landr-xnbfe.4).\nOptional filters: agent_user_id, status_filter (projected|earned|paid|\nreversed|held|no_commission).\nRead-only \u2014 earnings accrue via recipient_commission_drain, not this API.",
+        "description": "List the operator's agent commission rows, newest first.\n\nSource: ``commissions WHERE recipient_kind='agent'`` (landr-xnbfe.4).\nOptional filters: agent_user_id, status_filter (projected|earned|paid|\nreversed|held|no_commission). Each row also carries ``status_label``\n(projected|held|earned|paid|dropped|reversed|no_commission; ``reversed``\nrows split into dropped / reversed by the last lifecycle entry) and its\n``open_adjustments`` (not yet netted into a payout) with their total\n(landr-xnbfe.39).\nRead-only \u2014 earnings accrue via recipient_commission_drain, not this API.",
         "operationId": "list_agent_earnings",
         "parameters": [
           {
@@ -60221,7 +60221,7 @@
     },
     "/api/staff/operators/{operator_id}/agent-earnings/summary": {
       "get": {
-        "description": "Per-agent commission totals for the operator, by lifecycle status.\n\nAggregates the agent commissions rows (``commissions WHERE\nrecipient_kind='agent'``, landr-xnbfe.4) by recipient_user_id\nand status. Returns one row per agent with a bucket per status (+ currency,\nwhich is uniform per agent in practice). ``earned_total`` is what the\ncustomer's payments have earned so far (earned_amount, a part of the\ncommission while the invoice is part-paid), ``projected_total`` the rest of\nthe expected commission, ``accrued_total`` the pre-lifecycle label (kept so\nthe legacy response shape holds). Read-only.\n\nDone in-Python over the operator's earning rows rather than via a\nSQL GROUP BY because the supabase REST client doesn't expose\naggregate grouping; the row volume per operator is small (one row\nper agent\u00d7booking) and bounded by the same row guard.",
+        "description": "Per-agent commission totals for the operator, by lifecycle status.\n\nAggregates the agent commissions rows (``commissions WHERE\nrecipient_kind='agent'``, landr-xnbfe.4) by recipient_user_id\nand status. Returns one row per agent with a bucket per status (+ currency,\nwhich is uniform per agent in practice). ``earned_total`` is what the\ncustomer's payments have earned so far (earned_amount, a part of the\ncommission while the invoice is part-paid), ``projected_total`` the rest of\nthe expected commission, ``accrued_total`` the pre-lifecycle label (kept so\nthe legacy response shape holds). Additively (landr-xnbfe.39):\n``dropped_total`` is the part of ``reversed_total`` that was dropped\n(cancelled before the customer paid); ``open_adjustments_total`` the signed\nsum of the agent's adjustments not yet netted into a payout batch\n(negative = to be deducted). Read-only.\n\nDone in-Python over the operator's earning rows rather than via a\nSQL GROUP BY because the supabase REST client doesn't expose\naggregate grouping; the row volume per operator is small (one row\nper agent\u00d7booking) and bounded by the same row guard.",
         "operationId": "agent_earnings_summary",
         "parameters": [
           {
