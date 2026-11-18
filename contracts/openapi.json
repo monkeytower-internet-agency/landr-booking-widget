@@ -25881,6 +25881,51 @@
         "title": "PaymentMethodIn",
         "type": "object"
       },
+      "PayoutMarkPaidIn": {
+        "properties": {
+          "currency": {
+            "maxLength": 3,
+            "minLength": 3,
+            "title": "Currency",
+            "type": "string"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "period": {
+            "pattern": "^\\d{4}-(0[1-9]|1[0-2])$",
+            "title": "Period",
+            "type": "string"
+          },
+          "recipient_kind": {
+            "const": "agent",
+            "title": "Recipient Kind",
+            "type": "string"
+          },
+          "recipient_user_id": {
+            "format": "uuid",
+            "title": "Recipient User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "recipient_kind",
+          "recipient_user_id",
+          "period",
+          "currency"
+        ],
+        "title": "PayoutMarkPaidIn",
+        "type": "object"
+      },
       "PendingDecisionDetail": {
         "description": "Full detail including landr_snapshot and candidates jsonb.",
         "properties": {
@@ -60243,7 +60288,7 @@
     },
     "/api/staff/operators/{operator_id}/agent-earnings/summary": {
       "get": {
-        "description": "Per-agent commission totals for the operator, by lifecycle status.\n\nAggregates the agent commissions rows (``commissions WHERE\nrecipient_kind='agent'``, landr-xnbfe.4) by recipient_user_id\nand status. Returns one row per agent with a bucket per status (+ currency,\nwhich is uniform per agent in practice). ``earned_total`` is what the\ncustomer's payments have earned so far (earned_amount, a part of the\ncommission while the invoice is part-paid), ``projected_total`` the rest of\nthe expected commission, ``accrued_total`` the pre-lifecycle label (kept so\nthe legacy response shape holds). Additively (landr-xnbfe.39):\n``dropped_total`` is the part of ``reversed_total`` that was dropped\n(cancelled before the customer paid); ``open_adjustments_total`` the signed\nsum of the agent's adjustments not yet netted into a payout batch\n(negative = to be deducted). Read-only.\n\nDone in-Python over the operator's earning rows rather than via a\nSQL GROUP BY because the supabase REST client doesn't expose\naggregate grouping; the row volume per operator is small (one row\nper agent\u00d7booking) and bounded by the same row guard.",
+        "description": "Per-agent commission totals for the operator, by lifecycle status.\n\nOne row per Sales agent and currency, aggregated IN SQL\n(``agent_payout_summary``, landr-xnbfe.5) over ``commissions WHERE\nrecipient_kind='agent'`` of this operator, with the agent's ``display_name``\nand ``email``. ``earned_total`` is what the customer's payments have earned\nand is not yet paid out (earned_amount), ``projected_total`` the rest of the\nexpected commission, ``accrued_total`` the pre-lifecycle label,\n``paid_total`` what payouts paid. ``dropped_total`` is the part of\n``reversed_total`` cancelled before the customer paid; ``held_total`` /\n``held_count`` / ``no_commission_count`` keep paused-agent and zero-term\nbookings visible; ``open_adjustments_total`` the signed sum of the agent's\nadjustments not yet netted into a payout (negative = to be deducted);\n``payable_total`` = earned + open adjustments, what Mark paid would pay.\n\n``period=YYYY-MM`` narrows the rows to the bookings of that payout month\n(the month of the booking's cancellation_deadline in the operator's\ntimezone, the same predicate mark-paid claims by) and adds the month's\nlatest paid ``batch_id`` / ``batch_status`` (null when none). Read-only.",
         "operationId": "agent_earnings_summary",
         "parameters": [
           {
@@ -60253,6 +60298,23 @@
             "schema": {
               "title": "Operator Id",
               "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "period",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^\\d{4}-(0[1-9]|1[0-2])$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Period"
             }
           }
         ],
@@ -68085,6 +68147,66 @@
           }
         ],
         "summary": "Patch Tier",
+        "tags": [
+          "staff-commission"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/commissions/payouts/mark-paid": {
+      "post": {
+        "description": "Mark one Sales agent's earned commission for a month as paid.\n\nCreates a NEW paid batch (never reuses one) and claims the agent's EARNED,\nunbatched commissions of ``period`` plus their open adjustments, all in one\ntransaction. 404 ``agent_not_found`` when the user has no agent contract at\nthis operator, 409 ``nothing_to_pay`` when nothing is earned in the month\n(or open reversals outweigh it). Held, projected and reversed rows are\nnever payable. owner / admin / finance.",
+        "operationId": "commission_mark_payout_paid",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PayoutMarkPaidIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Commission Mark Payout Paid",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Mark Payout Paid",
         "tags": [
           "staff-commission"
         ]
