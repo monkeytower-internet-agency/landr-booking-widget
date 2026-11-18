@@ -302,6 +302,470 @@
         "title": "AddonDayStock",
         "type": "object"
       },
+      "AgentChannelTermsOut": {
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "level": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Level"
+          },
+          "terms": {
+            "items": {
+              "$ref": "#/components/schemas/AgentEffectiveTermOut"
+            },
+            "title": "Terms",
+            "type": "array"
+          }
+        },
+        "required": [
+          "enabled",
+          "terms"
+        ],
+        "title": "AgentChannelTermsOut",
+        "type": "object"
+      },
+      "AgentEffectiveTermOut": {
+        "properties": {
+          "currency": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Currency"
+          },
+          "product_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Id"
+          },
+          "rate_kind": {
+            "title": "Rate Kind",
+            "type": "string"
+          },
+          "term_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Term Id"
+          },
+          "value": {
+            "title": "Value",
+            "type": "number"
+          }
+        },
+        "required": [
+          "rate_kind",
+          "value"
+        ],
+        "title": "AgentEffectiveTermOut",
+        "type": "object"
+      },
+      "AgentEffectiveTermsOut": {
+        "properties": {
+          "assisted": {
+            "$ref": "#/components/schemas/AgentChannelTermsOut"
+          },
+          "self_serve": {
+            "$ref": "#/components/schemas/AgentChannelTermsOut"
+          }
+        },
+        "required": [
+          "assisted",
+          "self_serve"
+        ],
+        "title": "AgentEffectiveTermsOut",
+        "type": "object"
+      },
+      "AgentGroupIn": {
+        "additionalProperties": false,
+        "properties": {
+          "books_for_clients": {
+            "default": true,
+            "title": "Books For Clients",
+            "type": "boolean"
+          },
+          "has_link": {
+            "default": true,
+            "title": "Has Link",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "AgentGroupIn",
+        "type": "object"
+      },
+      "AgentGroupOut": {
+        "properties": {
+          "agent_count": {
+            "default": 0,
+            "title": "Agent Count",
+            "type": "integer"
+          },
+          "books_for_clients": {
+            "title": "Books For Clients",
+            "type": "boolean"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "has_link": {
+            "title": "Has Link",
+            "type": "boolean"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "operator_id": {
+            "title": "Operator Id",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "operator_id",
+          "name",
+          "books_for_clients",
+          "has_link",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "AgentGroupOut",
+        "type": "object"
+      },
+      "AgentGroupPatch": {
+        "additionalProperties": false,
+        "properties": {
+          "books_for_clients": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Books For Clients"
+          },
+          "has_link": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Has Link"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "title": "AgentGroupPatch",
+        "type": "object"
+      },
+      "AgentRateDefaultsIn": {
+        "additionalProperties": false,
+        "properties": {
+          "books_for_clients": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Books For Clients"
+          },
+          "has_link": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Has Link"
+          },
+          "terms": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/AgentRateTermIn"
+                },
+                "maxItems": 500,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Terms"
+          }
+        },
+        "title": "AgentRateDefaultsIn",
+        "type": "object"
+      },
+      "AgentRateDefaultsOut": {
+        "properties": {
+          "books_for_clients": {
+            "title": "Books For Clients",
+            "type": "boolean"
+          },
+          "has_link": {
+            "title": "Has Link",
+            "type": "boolean"
+          },
+          "terms": {
+            "items": {
+              "$ref": "#/components/schemas/AgentRateTermOut"
+            },
+            "title": "Terms",
+            "type": "array"
+          }
+        },
+        "required": [
+          "books_for_clients",
+          "has_link",
+          "terms"
+        ],
+        "title": "AgentRateDefaultsOut",
+        "type": "object"
+      },
+      "AgentRateTermIn": {
+        "additionalProperties": false,
+        "properties": {
+          "channel": {
+            "enum": [
+              "assisted",
+              "self_serve"
+            ],
+            "title": "Channel",
+            "type": "string"
+          },
+          "currency": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Currency"
+          },
+          "product_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Id"
+          },
+          "rate_kind": {
+            "enum": [
+              "percent",
+              "flat_per_booking",
+              "flat_per_person"
+            ],
+            "title": "Rate Kind",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "channel",
+          "rate_kind",
+          "value"
+        ],
+        "title": "AgentRateTermIn",
+        "type": "object"
+      },
+      "AgentRateTermOut": {
+        "properties": {
+          "channel": {
+            "enum": [
+              "assisted",
+              "self_serve"
+            ],
+            "title": "Channel",
+            "type": "string"
+          },
+          "currency": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Currency"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "product_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Id"
+          },
+          "rate_kind": {
+            "enum": [
+              "percent",
+              "flat_per_booking",
+              "flat_per_person"
+            ],
+            "title": "Rate Kind",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "channel",
+          "rate_kind",
+          "value"
+        ],
+        "title": "AgentRateTermOut",
+        "type": "object"
+      },
+      "AgentRateTermsIn": {
+        "additionalProperties": false,
+        "properties": {
+          "terms": {
+            "items": {
+              "$ref": "#/components/schemas/AgentRateTermIn"
+            },
+            "maxItems": 500,
+            "title": "Terms",
+            "type": "array"
+          }
+        },
+        "required": [
+          "terms"
+        ],
+        "title": "AgentRateTermsIn",
+        "type": "object"
+      },
+      "AgentRateTermsOut": {
+        "properties": {
+          "terms": {
+            "items": {
+              "$ref": "#/components/schemas/AgentRateTermOut"
+            },
+            "title": "Terms",
+            "type": "array"
+          }
+        },
+        "required": [
+          "terms"
+        ],
+        "title": "AgentRateTermsOut",
+        "type": "object"
+      },
+      "AgentRatesOut": {
+        "properties": {
+          "contract_id": {
+            "title": "Contract Id",
+            "type": "string"
+          },
+          "effective": {
+            "$ref": "#/components/schemas/AgentEffectiveTermsOut"
+          },
+          "own": {
+            "items": {
+              "$ref": "#/components/schemas/AgentRateTermOut"
+            },
+            "title": "Own",
+            "type": "array"
+          }
+        },
+        "required": [
+          "contract_id",
+          "own",
+          "effective"
+        ],
+        "title": "AgentRatesOut",
+        "type": "object"
+      },
       "AiSettingsOut": {
         "properties": {
           "enabled": {
@@ -7456,6 +7920,17 @@
             ],
             "title": "Accepted At"
           },
+          "can_book_for_clients": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Can Book For Clients"
+          },
           "commission_scheme_id": {
             "anyOf": [
               {
@@ -7494,6 +7969,28 @@
               }
             ],
             "title": "Ended At"
+          },
+          "group_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Group Id"
+          },
+          "has_link": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Has Link"
           },
           "id": {
             "title": "Id",
@@ -7624,6 +8121,17 @@
       "ContractPatch": {
         "additionalProperties": false,
         "properties": {
+          "can_book_for_clients": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Can Book For Clients"
+          },
           "commission_scheme_id": {
             "anyOf": [
               {
@@ -7646,6 +8154,28 @@
               }
             ],
             "title": "Currency"
+          },
+          "group_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Group Id"
+          },
+          "has_link": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Has Link"
           },
           "notes": {
             "anyOf": [
@@ -18903,6 +19433,23 @@
         "title": "MultiDaySavingsOut",
         "type": "object"
       },
+      "MyAgentRatesOut": {
+        "properties": {
+          "contract_id": {
+            "title": "Contract Id",
+            "type": "string"
+          },
+          "effective": {
+            "$ref": "#/components/schemas/AgentEffectiveTermsOut"
+          }
+        },
+        "required": [
+          "contract_id",
+          "effective"
+        ],
+        "title": "MyAgentRatesOut",
+        "type": "object"
+      },
       "MyLanguageIn": {
         "additionalProperties": false,
         "properties": {
@@ -22604,6 +23151,33 @@
             ],
             "title": "Widget Category Columns"
           },
+          "widget_color_mode": {
+            "anyOf": [
+              {
+                "enum": [
+                  "light",
+                  "dark",
+                  "auto"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Widget Color Mode"
+          },
+          "widget_color_switcher": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Widget Color Switcher"
+          },
           "widget_cross_sell_enabled": {
             "anyOf": [
               {
@@ -23517,6 +24091,16 @@
               }
             ],
             "title": "Widget Category Columns"
+          },
+          "widget_color_mode": {
+            "default": "light",
+            "title": "Widget Color Mode",
+            "type": "string"
+          },
+          "widget_color_switcher": {
+            "default": false,
+            "title": "Widget Color Switcher",
+            "type": "boolean"
           },
           "widget_cross_sell_enabled": {
             "default": true,
@@ -59440,6 +60024,447 @@
         ]
       }
     },
+    "/api/staff/operators/{operator_id}/agent-groups": {
+      "get": {
+        "operationId": "list_agent_groups",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AgentGroupOut"
+                  },
+                  "title": "Response List Agent Groups",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Agent Groups",
+        "tags": [
+          "staff-agent-rates"
+        ]
+      },
+      "post": {
+        "operationId": "create_agent_group",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentGroupIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentGroupOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Agent Group",
+        "tags": [
+          "staff-agent-rates"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/agent-groups/{group_id}": {
+      "delete": {
+        "operationId": "delete_agent_group",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "title": "Group Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Delete Agent Group",
+        "tags": [
+          "staff-agent-rates"
+        ]
+      },
+      "patch": {
+        "operationId": "patch_agent_group",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "title": "Group Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentGroupPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentGroupOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Patch Agent Group",
+        "tags": [
+          "staff-agent-rates"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/agent-groups/{group_id}/rates": {
+      "get": {
+        "operationId": "get_agent_group_rates",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "title": "Group Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentRateTermsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Agent Group Rates",
+        "tags": [
+          "staff-agent-rates"
+        ]
+      },
+      "put": {
+        "operationId": "put_agent_group_rates",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "title": "Group Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentRateTermsIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentRateTermsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Put Agent Group Rates",
+        "tags": [
+          "staff-agent-rates"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/agent-rate-defaults": {
+      "get": {
+        "operationId": "get_agent_rate_defaults",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentRateDefaultsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Agent Rate Defaults",
+        "tags": [
+          "staff-agent-rates"
+        ]
+      },
+      "put": {
+        "operationId": "put_agent_rate_defaults",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentRateDefaultsIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentRateDefaultsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Put Agent Rate Defaults",
+        "tags": [
+          "staff-agent-rates"
+        ]
+      }
+    },
     "/api/staff/operators/{operator_id}/ai-onboarding/health": {
       "get": {
         "operationId": "get_health",
@@ -67344,6 +68369,54 @@
         ]
       }
     },
+    "/api/staff/operators/{operator_id}/contracts/me/agent-rates": {
+      "get": {
+        "description": "landr-xnbfe.25: the caller's OWN effective Sales agent terms at this\noperator (their open agent contract, filtered by operator AND user) --\nthe only way an agent reads rates (agent_rate_terms RLS shows them none).",
+        "operationId": "my_agent_rates",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyAgentRatesOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "My Agent Rates",
+        "tags": [
+          "staff-contracts"
+        ]
+      }
+    },
     "/api/staff/operators/{operator_id}/contracts/{contract_id}": {
       "patch": {
         "operationId": "patch_contract",
@@ -67405,6 +68478,128 @@
           }
         ],
         "summary": "Patch Contract",
+        "tags": [
+          "staff-contracts"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/contracts/{contract_id}/agent-rates": {
+      "get": {
+        "description": "landr-xnbfe.25: an agent contract's own terms and what applies.",
+        "operationId": "get_contract_agent_rates",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contract_id",
+            "required": true,
+            "schema": {
+              "title": "Contract Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentRatesOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Contract Agent Rates",
+        "tags": [
+          "staff-contracts"
+        ]
+      },
+      "put": {
+        "description": "landr-xnbfe.25: replace an agent contract's own terms atomically; []\nremoves them so the group / default terms apply. Bookings already made\nkeep their frozen snapshot.",
+        "operationId": "put_contract_agent_rates",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contract_id",
+            "required": true,
+            "schema": {
+              "title": "Contract Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentRateTermsIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentRatesOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Put Contract Agent Rates",
         "tags": [
           "staff-contracts"
         ]
