@@ -21611,6 +21611,17 @@
             ],
             "title": "Date Range Start"
           },
+          "is_addon_only": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Addon Only"
+          },
           "name": {
             "title": "Name",
             "type": "string"
@@ -21632,6 +21643,17 @@
           "product_id": {
             "title": "Product Id",
             "type": "string"
+          },
+          "product_kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Kind"
           },
           "quantity": {
             "title": "Quantity",

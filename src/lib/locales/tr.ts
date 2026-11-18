@@ -823,6 +823,8 @@ export const tr: Bundle = {
   savesVsStandardRate: 'standart fiyata göre {amount} tasarruf',
   participantSuffixSingular: '× {n} katılımcı',
   participantSuffixPlural: '× {n} katılımcı',
+  stayGuestSuffixSingular: '× {n} misafir',
+  stayGuestSuffixPlural: '× {n} misafir',
   multiDayDiscountLabel: 'Çok günlük indirim',
   streakDiscountLabel: 'Ardışık gün indirimi',
   voucherAppliedLabel: 'Kupon uygulandı',

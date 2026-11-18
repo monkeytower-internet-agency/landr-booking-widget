@@ -193,6 +193,53 @@ describe('OfferPage', () => {
     expect(parts[1]).toHaveTextContent('John')
   })
 
+  describe('landr-4pm5n: party wording follows the main product line kind', () => {
+    const line = (over: Record<string, unknown>) => ({ ...OFFER.product_lines[0], ...over })
+    const withLines = (product_lines: unknown[]) => ({
+      ...OFFER,
+      product_lines,
+      line_items: [
+        {
+          product_id: 'p1', label: 'Sailing Week', qty: 1, units: 1, line_total: 100,
+          unit_price: 100, paid_to: 'operator', participants: 2, per_person_price: 50,
+        },
+      ],
+    })
+    const renderWith = async (offer: unknown) => {
+      mocks.getBookingByToken.mockResolvedValue(offer)
+      render(<OfferPage token={TOKEN} />)
+      await waitFor(() => screen.getByTestId('offer-ready'))
+    }
+
+    it('says Guests / guests for a stay offer', async () => {
+      await renderWith(withLines([line({ product_kind: 'stay', is_addon_only: false })]))
+      expect(screen.getByText('Guests')).toBeInTheDocument()
+      expect(screen.queryByText('Participants')).not.toBeInTheDocument()
+      expect(screen.getByTestId('offer-line-per-person')).toHaveTextContent('× 2 guests')
+    })
+
+    it('keeps participants for a service offer', async () => {
+      await renderWith(withLines([line({ product_kind: 'service', is_addon_only: false })]))
+      expect(screen.getByText('Participants')).toBeInTheDocument()
+      expect(screen.getByTestId('offer-line-per-person')).toHaveTextContent('× 2 participants')
+    })
+
+    it('keeps participants when the API sends no kind (older response)', async () => {
+      await renderWith(withLines([line({})]))
+      expect(screen.getByText('Participants')).toBeInTheDocument()
+    })
+
+    it('words by the first non add-on line, not a leading add-on', async () => {
+      await renderWith(
+        withLines([
+          line({ product_id: 'a1', name: 'Breakfast', product_kind: 'service', is_addon_only: true }),
+          line({ product_kind: 'stay', is_addon_only: false }),
+        ]),
+      )
+      expect(screen.getByText('Guests')).toBeInTheDocument()
+    })
+  })
+
   it('shows fetch error card when getBookingByToken rejects', async () => {
     mocks.getBookingByToken.mockRejectedValue(new Error('403 Forbidden'))
     render(<OfferPage token={TOKEN} />)
