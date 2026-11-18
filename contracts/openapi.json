@@ -515,6 +515,99 @@
         "title": "AgentGroupPatch",
         "type": "object"
       },
+      "AgentInviteBody": {
+        "description": "Add Sales agent (landr-xnbfe.27): who, which group, how they sell.",
+        "properties": {
+          "can_book_for_clients": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Can Book For Clients"
+          },
+          "contact_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contact Id"
+          },
+          "email": {
+            "maxLength": 320,
+            "minLength": 3,
+            "pattern": "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$",
+            "title": "Email",
+            "type": "string"
+          },
+          "group_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Group Id"
+          },
+          "has_link": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Has Link"
+          },
+          "locale": {
+            "anyOf": [
+              {
+                "maxLength": 16,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Locale"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone"
+          }
+        },
+        "required": [
+          "name",
+          "email"
+        ],
+        "title": "AgentInviteBody",
+        "type": "object"
+      },
       "AgentRateDefaultsIn": {
         "additionalProperties": false,
         "properties": {
@@ -8015,6 +8108,17 @@
             "title": "Kind",
             "type": "string"
           },
+          "mute_link_bookings": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mute Link Bookings"
+          },
           "notes": {
             "anyOf": [
               {
@@ -11153,6 +11257,105 @@
           "participant_id"
         ],
         "title": "DayUnitSortItem",
+        "type": "object"
+      },
+      "DecisionIn": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "enum": [
+              "reactivate",
+              "pay_once",
+              "no_commission",
+              "mute",
+              "unmute"
+            ],
+            "title": "Action",
+            "type": "string"
+          },
+          "commission_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Commission Id"
+          }
+        },
+        "required": [
+          "action"
+        ],
+        "title": "DecisionIn",
+        "type": "object"
+      },
+      "DecisionOut": {
+        "properties": {
+          "action": {
+            "enum": [
+              "reactivate",
+              "pay_once",
+              "no_commission",
+              "mute",
+              "unmute"
+            ],
+            "title": "Action",
+            "type": "string"
+          },
+          "agent_paused": {
+            "title": "Agent Paused",
+            "type": "boolean"
+          },
+          "applied": {
+            "title": "Applied",
+            "type": "boolean"
+          },
+          "commission_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Commission Id"
+          },
+          "commission_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Commission Status"
+          },
+          "has_link": {
+            "title": "Has Link",
+            "type": "boolean"
+          },
+          "mute_link_bookings": {
+            "title": "Mute Link Bookings",
+            "type": "boolean"
+          },
+          "resolved_count": {
+            "default": 0,
+            "title": "Resolved Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "action",
+          "applied",
+          "mute_link_bookings",
+          "agent_paused",
+          "has_link"
+        ],
+        "title": "DecisionOut",
         "type": "object"
       },
       "DerivedCut": {
@@ -15714,6 +15917,46 @@
           }
         },
         "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "HeldLinkBookingOut": {
+        "properties": {
+          "booking_id": {
+            "title": "Booking Id",
+            "type": "string"
+          },
+          "commission_amount": {
+            "title": "Commission Amount",
+            "type": "number"
+          },
+          "commission_id": {
+            "title": "Commission Id",
+            "type": "string"
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "held_at": {
+            "format": "date-time",
+            "title": "Held At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "commission_id",
+          "booking_id",
+          "commission_amount",
+          "currency",
+          "held_at",
+          "expires_at"
+        ],
+        "title": "HeldLinkBookingOut",
         "type": "object"
       },
       "HeldSeatRow": {
@@ -59874,7 +60117,7 @@
     },
     "/api/staff/operators/{operator_id}/agent-earnings": {
       "get": {
-        "description": "List the operator's agent commission rows, newest first.\n\nSource: ``commissions WHERE recipient_kind='agent'`` (landr-xnbfe.4).\nOptional filters: agent_user_id, status_filter (accrued|paid|reversed).\nRead-only \u2014 earnings accrue via recipient_commission_drain, not this API.",
+        "description": "List the operator's agent commission rows, newest first.\n\nSource: ``commissions WHERE recipient_kind='agent'`` (landr-xnbfe.4).\nOptional filters: agent_user_id, status_filter (projected|earned|paid|\nreversed|held|no_commission).\nRead-only \u2014 earnings accrue via recipient_commission_drain, not this API.",
         "operationId": "list_agent_earnings",
         "parameters": [
           {
@@ -59910,9 +60153,13 @@
               "anyOf": [
                 {
                   "enum": [
+                    "projected",
+                    "earned",
                     "accrued",
                     "paid",
-                    "reversed"
+                    "reversed",
+                    "held",
+                    "no_commission"
                   ],
                   "type": "string"
                 },
@@ -59974,7 +60221,7 @@
     },
     "/api/staff/operators/{operator_id}/agent-earnings/summary": {
       "get": {
-        "description": "Per-agent accrued/paid/reversed commission totals for the operator.\n\nAggregates the agent commissions rows (``commissions WHERE\nrecipient_kind='agent'``, landr-xnbfe.4) by recipient_user_id\nand status. Returns one row per agent with the three status buckets\n(+ currency, which is uniform per agent in practice). Read-only.\n\nDone in-Python over the operator's earning rows rather than via a\nSQL GROUP BY because the supabase REST client doesn't expose\naggregate grouping; the row volume per operator is small (one row\nper agent\u00d7booking) and bounded by the same row guard.",
+        "description": "Per-agent commission totals for the operator, by lifecycle status.\n\nAggregates the agent commissions rows (``commissions WHERE\nrecipient_kind='agent'``, landr-xnbfe.4) by recipient_user_id\nand status. Returns one row per agent with a bucket per status (+ currency,\nwhich is uniform per agent in practice). ``earned_total`` is what the\ncustomer's payments have earned so far (earned_amount, a part of the\ncommission while the invoice is part-paid), ``projected_total`` the rest of\nthe expected commission, ``accrued_total`` the pre-lifecycle label (kept so\nthe legacy response shape holds). Read-only.\n\nDone in-Python over the operator's earning rows rather than via a\nSQL GROUP BY because the supabase REST client doesn't expose\naggregate grouping; the row volume per operator is small (one row\nper agent\u00d7booking) and bounded by the same row guard.",
         "operationId": "agent_earnings_summary",
         "parameters": [
           {
@@ -60361,6 +60608,66 @@
         "summary": "Put Agent Group Rates",
         "tags": [
           "staff-agent-rates"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/agent-invites": {
+      "post": {
+        "description": "Add Sales agent (landr-xnbfe.27): invite + pending contract + referral\ntoken in one transaction; the response carries the link to print.",
+        "operationId": "create_agent_invite",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentInviteBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Create Agent Invite",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Agent Invite",
+        "tags": [
+          "staff-invites"
         ]
       }
     },
@@ -68659,6 +68966,132 @@
         "summary": "End Contract",
         "tags": [
           "staff-contracts"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/contracts/{contract_id}/held-link-bookings": {
+      "get": {
+        "operationId": "list_held_link_bookings",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contract_id",
+            "required": true,
+            "schema": {
+              "title": "Contract Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/HeldLinkBookingOut"
+                  },
+                  "title": "Response List Held Link Bookings",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Held Link Bookings",
+        "tags": [
+          "staff-link-booking-decision"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/contracts/{contract_id}/link-booking-decision": {
+      "post": {
+        "operationId": "decide_link_booking",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contract_id",
+            "required": true,
+            "schema": {
+              "title": "Contract Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecisionIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Decide Link Booking",
+        "tags": [
+          "staff-link-booking-decision"
         ]
       }
     },

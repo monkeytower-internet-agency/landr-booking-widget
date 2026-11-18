@@ -6230,7 +6230,8 @@ export interface paths {
          * @description List the operator's agent commission rows, newest first.
          *
          *     Source: ``commissions WHERE recipient_kind='agent'`` (landr-xnbfe.4).
-         *     Optional filters: agent_user_id, status_filter (accrued|paid|reversed).
+         *     Optional filters: agent_user_id, status_filter (projected|earned|paid|
+         *     reversed|held|no_commission).
          *     Read-only — earnings accrue via recipient_commission_drain, not this API.
          */
         get: operations["list_agent_earnings"];
@@ -6251,12 +6252,16 @@ export interface paths {
         };
         /**
          * Agent Earnings Summary
-         * @description Per-agent accrued/paid/reversed commission totals for the operator.
+         * @description Per-agent commission totals for the operator, by lifecycle status.
          *
          *     Aggregates the agent commissions rows (``commissions WHERE
          *     recipient_kind='agent'``, landr-xnbfe.4) by recipient_user_id
-         *     and status. Returns one row per agent with the three status buckets
-         *     (+ currency, which is uniform per agent in practice). Read-only.
+         *     and status. Returns one row per agent with a bucket per status (+ currency,
+         *     which is uniform per agent in practice). ``earned_total`` is what the
+         *     customer's payments have earned so far (earned_amount, a part of the
+         *     commission while the invoice is part-paid), ``projected_total`` the rest of
+         *     the expected commission, ``accrued_total`` the pre-lifecycle label (kept so
+         *     the legacy response shape holds). Read-only.
          *
          *     Done in-Python over the operator's earning rows rather than via a
          *     SQL GROUP BY because the supabase REST client doesn't expose
@@ -6320,6 +6325,27 @@ export interface paths {
         /** Put Agent Group Rates */
         put: operations["put_agent_group_rates"];
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/agent-invites": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Agent Invite
+         * @description Add Sales agent (landr-xnbfe.27): invite + pending contract + referral
+         *     token in one transaction; the response carries the link to print.
+         */
+        post: operations["create_agent_invite"];
         delete?: never;
         options?: never;
         head?: never;
@@ -8633,6 +8659,40 @@ export interface paths {
         put?: never;
         /** End Contract */
         post: operations["end_contract"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/contracts/{contract_id}/held-link-bookings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Held Link Bookings */
+        get: operations["list_held_link_bookings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/contracts/{contract_id}/link-booking-decision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Decide Link Booking */
+        post: operations["decide_link_booking"];
         delete?: never;
         options?: never;
         head?: never;
@@ -14682,6 +14742,28 @@ export interface components {
             /** Name */
             name?: string | null;
         };
+        /**
+         * AgentInviteBody
+         * @description Add Sales agent (landr-xnbfe.27): who, which group, how they sell.
+         */
+        AgentInviteBody: {
+            /** Can Book For Clients */
+            can_book_for_clients?: boolean | null;
+            /** Contact Id */
+            contact_id?: string | null;
+            /** Email */
+            email: string;
+            /** Group Id */
+            group_id?: string | null;
+            /** Has Link */
+            has_link?: boolean | null;
+            /** Locale */
+            locale?: string | null;
+            /** Name */
+            name: string;
+            /** Phone */
+            phone?: string | null;
+        };
         /** AgentRateDefaultsIn */
         AgentRateDefaultsIn: {
             /** Books For Clients */
@@ -17513,6 +17595,8 @@ export interface components {
              * @enum {string}
              */
             kind: "provider" | "agent";
+            /** Mute Link Bookings */
+            mute_link_bookings?: boolean | null;
             /** Notes */
             notes?: string | null;
             /** Operator Id */
@@ -18526,6 +18610,41 @@ export interface components {
             participant_id: string;
             /** Unit Id */
             unit_id?: string | null;
+        };
+        /** DecisionIn */
+        DecisionIn: {
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "reactivate" | "pay_once" | "no_commission" | "mute" | "unmute";
+            /** Commission Id */
+            commission_id?: string | null;
+        };
+        /** DecisionOut */
+        DecisionOut: {
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "reactivate" | "pay_once" | "no_commission" | "mute" | "unmute";
+            /** Agent Paused */
+            agent_paused: boolean;
+            /** Applied */
+            applied: boolean;
+            /** Commission Id */
+            commission_id?: string | null;
+            /** Commission Status */
+            commission_status?: string | null;
+            /** Has Link */
+            has_link: boolean;
+            /** Mute Link Bookings */
+            mute_link_bookings: boolean;
+            /**
+             * Resolved Count
+             * @default 0
+             */
+            resolved_count: number;
         };
         /**
          * DerivedCut
@@ -20179,6 +20298,27 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /** HeldLinkBookingOut */
+        HeldLinkBookingOut: {
+            /** Booking Id */
+            booking_id: string;
+            /** Commission Amount */
+            commission_amount: number;
+            /** Commission Id */
+            commission_id: string;
+            /** Currency */
+            currency: string;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /**
+             * Held At
+             * Format: date-time
+             */
+            held_at: string;
         };
         /**
          * HeldSeatRow
@@ -39689,7 +39829,7 @@ export interface operations {
         parameters: {
             query?: {
                 agent_user_id?: string | null;
-                status_filter?: ("accrued" | "paid" | "reversed") | null;
+                status_filter?: ("projected" | "earned" | "accrued" | "paid" | "reversed" | "held" | "no_commission") | null;
                 limit?: number;
             };
             header?: never;
@@ -39942,6 +40082,43 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AgentRateTermsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_agent_invite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentInviteBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */
@@ -44421,6 +44598,74 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ContractOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_held_link_bookings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                contract_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HeldLinkBookingOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    decide_link_booking: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                contract_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DecisionIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DecisionOut"];
                 };
             };
             /** @description Validation Error */
