@@ -6272,6 +6272,78 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/agent-groups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Agent Groups */
+        get: operations["list_agent_groups"];
+        put?: never;
+        /** Create Agent Group */
+        post: operations["create_agent_group"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/agent-groups/{group_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Agent Group */
+        delete: operations["delete_agent_group"];
+        options?: never;
+        head?: never;
+        /** Patch Agent Group */
+        patch: operations["patch_agent_group"];
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/agent-groups/{group_id}/rates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Agent Group Rates */
+        get: operations["get_agent_group_rates"];
+        /** Put Agent Group Rates */
+        put: operations["put_agent_group_rates"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/agent-rate-defaults": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Agent Rate Defaults */
+        get: operations["get_agent_rate_defaults"];
+        /** Put Agent Rate Defaults */
+        put: operations["put_agent_rate_defaults"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/ai-onboarding/health": {
         parameters: {
             query?: never;
@@ -8485,6 +8557,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/contracts/me/agent-rates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * My Agent Rates
+         * @description landr-xnbfe.25: the caller's OWN effective Sales agent terms at this
+         *     operator (their open agent contract, filtered by operator AND user) --
+         *     the only way an agent reads rates (agent_rate_terms RLS shows them none).
+         */
+        get: operations["my_agent_rates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/contracts/{contract_id}": {
         parameters: {
             query?: never;
@@ -8500,6 +8594,32 @@ export interface paths {
         head?: never;
         /** Patch Contract */
         patch: operations["patch_contract"];
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/contracts/{contract_id}/agent-rates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Contract Agent Rates
+         * @description landr-xnbfe.25: an agent contract's own terms and what applies.
+         */
+        get: operations["get_contract_agent_rates"];
+        /**
+         * Put Contract Agent Rates
+         * @description landr-xnbfe.25: replace an agent contract's own terms atomically; []
+         *     removes them so the group / default terms apply. Bookings already made
+         *     keep their frozen snapshot.
+         */
+        put: operations["put_contract_agent_rates"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/staff/operators/{operator_id}/contracts/{contract_id}/end": {
@@ -14483,6 +14603,161 @@ export interface components {
             /** Unavailable Reason */
             unavailable_reason?: ("sold_out" | "unit_taken") | null;
         };
+        /** AgentChannelTermsOut */
+        AgentChannelTermsOut: {
+            /** Enabled */
+            enabled: boolean;
+            /** Level */
+            level?: string | null;
+            /** Terms */
+            terms: components["schemas"]["AgentEffectiveTermOut"][];
+        };
+        /** AgentEffectiveTermOut */
+        AgentEffectiveTermOut: {
+            /** Currency */
+            currency?: string | null;
+            /** Product Id */
+            product_id?: string | null;
+            /** Rate Kind */
+            rate_kind: string;
+            /** Term Id */
+            term_id?: string | null;
+            /** Value */
+            value: number;
+        };
+        /** AgentEffectiveTermsOut */
+        AgentEffectiveTermsOut: {
+            assisted: components["schemas"]["AgentChannelTermsOut"];
+            self_serve: components["schemas"]["AgentChannelTermsOut"];
+        };
+        /** AgentGroupIn */
+        AgentGroupIn: {
+            /**
+             * Books For Clients
+             * @default true
+             */
+            books_for_clients: boolean;
+            /**
+             * Has Link
+             * @default true
+             */
+            has_link: boolean;
+            /** Name */
+            name: string;
+        };
+        /** AgentGroupOut */
+        AgentGroupOut: {
+            /**
+             * Agent Count
+             * @default 0
+             */
+            agent_count: number;
+            /** Books For Clients */
+            books_for_clients: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Has Link */
+            has_link: boolean;
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Operator Id */
+            operator_id: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** AgentGroupPatch */
+        AgentGroupPatch: {
+            /** Books For Clients */
+            books_for_clients?: boolean | null;
+            /** Has Link */
+            has_link?: boolean | null;
+            /** Name */
+            name?: string | null;
+        };
+        /** AgentRateDefaultsIn */
+        AgentRateDefaultsIn: {
+            /** Books For Clients */
+            books_for_clients?: boolean | null;
+            /** Has Link */
+            has_link?: boolean | null;
+            /** Terms */
+            terms?: components["schemas"]["AgentRateTermIn"][] | null;
+        };
+        /** AgentRateDefaultsOut */
+        AgentRateDefaultsOut: {
+            /** Books For Clients */
+            books_for_clients: boolean;
+            /** Has Link */
+            has_link: boolean;
+            /** Terms */
+            terms: components["schemas"]["AgentRateTermOut"][];
+        };
+        /** AgentRateTermIn */
+        AgentRateTermIn: {
+            /**
+             * Channel
+             * @enum {string}
+             */
+            channel: "assisted" | "self_serve";
+            /** Currency */
+            currency?: string | null;
+            /** Product Id */
+            product_id?: string | null;
+            /**
+             * Rate Kind
+             * @enum {string}
+             */
+            rate_kind: "percent" | "flat_per_booking" | "flat_per_person";
+            /** Value */
+            value: number | string;
+        };
+        /** AgentRateTermOut */
+        AgentRateTermOut: {
+            /**
+             * Channel
+             * @enum {string}
+             */
+            channel: "assisted" | "self_serve";
+            /** Currency */
+            currency?: string | null;
+            /** Id */
+            id: string;
+            /** Product Id */
+            product_id?: string | null;
+            /**
+             * Rate Kind
+             * @enum {string}
+             */
+            rate_kind: "percent" | "flat_per_booking" | "flat_per_person";
+            /** Value */
+            value: number;
+        };
+        /** AgentRateTermsIn */
+        AgentRateTermsIn: {
+            /** Terms */
+            terms: components["schemas"]["AgentRateTermIn"][];
+        };
+        /** AgentRateTermsOut */
+        AgentRateTermsOut: {
+            /** Terms */
+            terms: components["schemas"]["AgentRateTermOut"][];
+        };
+        /** AgentRatesOut */
+        AgentRatesOut: {
+            /** Contract Id */
+            contract_id: string;
+            effective: components["schemas"]["AgentEffectiveTermsOut"];
+            /** Own */
+            own: components["schemas"]["AgentRateTermOut"][];
+        };
         /** AiSettingsOut */
         AiSettingsOut: {
             /** Enabled */
@@ -17212,6 +17487,8 @@ export interface components {
         ContractOut: {
             /** Accepted At */
             accepted_at?: string | null;
+            /** Can Book For Clients */
+            can_book_for_clients?: boolean | null;
             /** Commission Scheme Id */
             commission_scheme_id?: string | null;
             /**
@@ -17223,6 +17500,10 @@ export interface components {
             currency?: string | null;
             /** Ended At */
             ended_at?: string | null;
+            /** Group Id */
+            group_id?: string | null;
+            /** Has Link */
+            has_link?: boolean | null;
             /** Id */
             id: string;
             /** Invite Id */
@@ -17267,10 +17548,16 @@ export interface components {
         };
         /** ContractPatch */
         ContractPatch: {
+            /** Can Book For Clients */
+            can_book_for_clients?: boolean | null;
             /** Commission Scheme Id */
             commission_scheme_id?: string | null;
             /** Currency */
             currency?: string | null;
+            /** Group Id */
+            group_id?: string | null;
+            /** Has Link */
+            has_link?: boolean | null;
             /** Notes */
             notes?: string | null;
             /** Rate Kind */
@@ -21205,6 +21492,12 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /** MyAgentRatesOut */
+        MyAgentRatesOut: {
+            /** Contract Id */
+            contract_id: string;
+            effective: components["schemas"]["AgentEffectiveTermsOut"];
+        };
         /** MyLanguageIn */
         MyLanguageIn: {
             /** Language */
@@ -22393,6 +22686,10 @@ export interface components {
             widget_catalog_layout?: string | null;
             /** Widget Category Columns */
             widget_category_columns?: number | null;
+            /** Widget Color Mode */
+            widget_color_mode?: ("light" | "dark" | "auto") | null;
+            /** Widget Color Switcher */
+            widget_color_switcher?: boolean | null;
             /** Widget Cross Sell Enabled */
             widget_cross_sell_enabled?: boolean | null;
             /** Widget Description */
@@ -22693,6 +22990,16 @@ export interface components {
             widget_catalog_layout?: string | null;
             /** Widget Category Columns */
             widget_category_columns?: number | null;
+            /**
+             * Widget Color Mode
+             * @default light
+             */
+            widget_color_mode: string;
+            /**
+             * Widget Color Switcher
+             * @default false
+             */
+            widget_color_switcher: boolean;
             /**
              * Widget Cross Sell Enabled
              * @default true
@@ -39448,6 +39755,272 @@ export interface operations {
             };
         };
     };
+    list_agent_groups: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentGroupOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_agent_group: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentGroupIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentGroupOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_agent_group: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                group_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_agent_group: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                group_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentGroupPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentGroupOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_agent_group_rates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                group_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentRateTermsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_agent_group_rates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                group_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentRateTermsIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentRateTermsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_agent_rate_defaults: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentRateDefaultsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_agent_rate_defaults: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentRateDefaultsIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentRateDefaultsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_health: {
         parameters: {
             query?: never;
@@ -43694,6 +44267,37 @@ export interface operations {
             };
         };
     };
+    my_agent_rates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MyAgentRatesOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     patch_contract: {
         parameters: {
             query?: never;
@@ -43717,6 +44321,74 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ContractOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_contract_agent_rates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                contract_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentRatesOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_contract_agent_rates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                contract_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentRateTermsIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentRatesOut"];
                 };
             };
             /** @description Validation Error */
