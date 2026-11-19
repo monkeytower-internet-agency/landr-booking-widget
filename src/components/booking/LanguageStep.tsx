@@ -40,12 +40,24 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { StepBackButton } from '@/components/booking/StepBackButton'
-import { languageStepCue, languageStepGate, tr } from '@/lib/strings'
+import { languageStepCue, languageStepGate, secondLanguageGate, tr } from '@/lib/strings'
 import { browserLocale } from '@/lib/locale'
 import { ContinueAction } from './ContinueAction'
 import { CustomerCommentField } from './CustomerCommentField'
 import { HelpDisclosure } from './HelpDisclosure'
 import { ParticipantLanguageBoard } from './ParticipantLanguageBoard'
+import {
+  SecondLanguageQuestions,
+  type AskedParticipant,
+} from './SecondLanguageQuestions'
+import {
+  applyAnswerToEveryone,
+  askedParticipants,
+  pruneAcceptedAnswers,
+  unansweredIndices,
+  type AcceptedLanguagesMap,
+  type SecondLanguageCart,
+} from './secondLanguage'
 import {
   applyLanguageAssignment,
   isLanguageAssignmentComplete,
@@ -71,6 +83,14 @@ export interface LanguageStepProps {
   /** Restored party-index → language map for back-nav re-entry. */
   initialAssignment?: ParticipantLanguageMap
   /**
+   * landr-hdk4y.2: the second-guiding-language rule for this cart. Absent (or
+   * every line `off`) = nobody is asked and the step is unchanged. The step only
+   * ever asks the participants it was handed, once they have a main language.
+   */
+  secondLanguage?: SecondLanguageCart
+  /** Restored party-index → accepted other languages for back-nav re-entry. */
+  initialAccepted?: AcceptedLanguagesMap
+  /**
    * landr-n6ii3: current value of the "Anything we should know?" comment,
    * read straight off App.tsx's bookingDraft.customerComment. Optional
    * (defaults to '' / a no-op) so existing tests need no change.
@@ -84,7 +104,7 @@ export interface LanguageStepProps {
    * button, no comment field, no help text, and a "Save" button.
    */
   embedded?: boolean
-  onConfirm: (assignment: ParticipantLanguageMap) => void
+  onConfirm: (assignment: ParticipantLanguageMap, accepted: AcceptedLanguagesMap) => void
 }
 
 /**
@@ -117,6 +137,8 @@ export function LanguageStep({
   guestFlags = [],
   offeredLanguages,
   initialAssignment,
+  secondLanguage,
+  initialAccepted,
   customerComment = '',
   onCustomerCommentChange = () => {},
   onBack,
@@ -130,6 +152,9 @@ export function LanguageStep({
     seedAssignment(offeredLanguages, partyCount, initialAssignment),
   )
   const [openedLanguages, setOpenedLanguages] = useState<string[]>([])
+  const [rawAccepted, setRawAccepted] = useState<AcceptedLanguagesMap>(
+    () => initialAccepted ?? {},
+  )
 
   // Pruned at DERIVE time rather than in an effect: the roster can shrink
   // upstream and the offered list can change under a long-lived tab, and
@@ -151,6 +176,38 @@ export function LanguageStep({
     [partyCount, assignment, participantNames],
   )
   const complete = isLanguageAssignmentComplete(partyCount, assignment, offeredLanguages)
+
+  // landr-hdk4y.2: who is asked the second-language question, derived from the
+  // CURRENT main languages so a changed language or product setting drops a
+  // stale answer at derive time (no effect, no render loop).
+  const asked = useMemo(
+    () =>
+      secondLanguage ? askedParticipants(secondLanguage, assignment, partyCount) : {},
+    [secondLanguage, assignment, partyCount],
+  )
+  const accepted = useMemo(
+    () => pruneAcceptedAnswers(rawAccepted, asked),
+    [rawAccepted, asked],
+  )
+  const askedList = useMemo<AskedParticipant[]>(
+    () =>
+      Object.keys(asked)
+        .map(Number)
+        .sort((a, b) => a - b)
+        .map((index) => ({
+          index,
+          name: memberLabel(participantNames, index),
+          main: assignment[index]!,
+          options: asked[index]!,
+          answer: accepted[index],
+        })),
+    [asked, accepted, assignment, participantNames],
+  )
+  const unansweredLabels = useMemo(
+    () => unansweredIndices(asked, accepted).map((i) => memberLabel(participantNames, i)),
+    [asked, accepted, participantNames],
+  )
+  const answered = unansweredLabels.length === 0
   // Before the customer has placed anyone the gate is guidance, not a failure —
   // a red validation error on arrival is noise rather than feedback.
   const started = Object.keys(assignment).length > 0
@@ -162,11 +219,20 @@ export function LanguageStep({
   const handleAssign = useCallback(
     (memberIndex: number, code: string | null) => {
       setRawAssignment((prev) => applyLanguageAssignment(prev, memberIndex, code))
+      // A different main language is a different question: reset the answer.
+      if (assignment[memberIndex] !== code) {
+        setRawAccepted((prev) => {
+          if (!(memberIndex in prev)) return prev
+          const next = { ...prev }
+          delete next[memberIndex]
+          return next
+        })
+      }
       // Assigning through a dropdown, or emptying a column, must not make the
       // column vanish under the customer: pin it open until they remove it.
       if (code !== null) openColumn(code)
     },
-    [openColumn],
+    [openColumn, assignment],
   )
 
   const handleAssignEveryone = useCallback(
@@ -176,9 +242,33 @@ export function LanguageStep({
         for (let i = 0; i < partyCount; i += 1) next[i] = code
         return next
       })
+      setRawAccepted((prev) => {
+        const next = { ...prev }
+        for (let i = 0; i < partyCount; i += 1) if (assignment[i] !== code) delete next[i]
+        return next
+      })
       openColumn(code)
     },
-    [partyCount, openColumn],
+    [partyCount, openColumn, assignment],
+  )
+
+  const handleAcceptedChange = useCallback(
+    (index: number, answer: string[] | undefined) => {
+      setRawAccepted((prev) => {
+        const next = { ...prev }
+        if (answer === undefined) delete next[index]
+        else next[index] = answer
+        return next
+      })
+    },
+    [],
+  )
+
+  const handleApplyToEveryone = useCallback(
+    (source: number) => {
+      setRawAccepted(applyAnswerToEveryone(accepted, asked, source))
+    },
+    [accepted, asked],
   )
 
   const handleCloseLanguage = useCallback((code: string) => {
@@ -227,6 +317,15 @@ export function LanguageStep({
           nextActionCue={nextActionCue}
         />
 
+        {/* landr-hdk4y.2: second guiding language, once a participant has a main
+            language and the product asks. Renders nothing when nobody is asked. */}
+        <SecondLanguageQuestions
+          asked={askedList}
+          onChange={handleAcceptedChange}
+          onApplyToEveryone={handleApplyToEveryone}
+          locale={locale}
+        />
+
         {/* landr-n6ii3: same field DetailsStep collects, editable here too —
             last field before Continue. */}
         {embedded ? null : (
@@ -243,13 +342,17 @@ export function LanguageStep({
             has placed anyone it is guidance, not a failure, so it only turns
             red once they have started. */}
         <ContinueAction
-          ready={complete}
-          reason={languageStepGate(unassignedLabels, locale)}
+          ready={complete && answered}
+          reason={
+            complete && !answered
+              ? secondLanguageGate(unansweredLabels, locale)
+              : languageStepGate(unassignedLabels, locale)
+          }
           reasonId={gateId}
           reasonTestId="language-step-gate"
           reasonClassName={!complete && started ? 'text-destructive' : undefined}
           {...(embedded ? { label: tr('addMoreModuleSave', locale) } : {})}
-          onContinue={() => onConfirm(assignment)}
+          onContinue={() => onConfirm(assignment, accepted)}
           data-testid="language-step-submit"
         />
       </CardContent>

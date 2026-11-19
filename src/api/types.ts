@@ -460,6 +460,17 @@ export interface Product {
    */
   guide_languages?: components['schemas']['OperatorProduct']['guide_languages']
   /**
+   * landr-hdk4y.2: the second-guiding-language question (landr-hdk4y.1). Served
+   * by the public products endpoint ONLY for an operator with the feature; every
+   * other product reads `off` (or absent on an older API), so no widget UI for it
+   * ever appears. See secondLanguage.ts for the rule these three feed.
+   */
+  second_language_mode?: 'off' | 'not_preferred' | 'always'
+  /** The product's preferred guiding languages (a subset of `guide_languages`; [] = none). */
+  preferred_guide_languages?: string[]
+  /** Which languages are offered as second language: all the cart's, or the preferred ones only. */
+  second_language_options?: 'all' | 'preferred'
+  /**
    * landr-t869m.1: preparation-window DURATION in minutes (not days — a
    * tandem flight may need 30 minutes, a multi-day trip 7 days). 0 = no
    * configured lead time. The widget never re-derives the gating rule from
@@ -1214,6 +1225,14 @@ export interface Participant {
    * server-side (where it stays NULL) keep compiling.
    */
   language?: string | null
+  /**
+   * landr-hdk4y.2: the OTHER guiding languages this participant accepts when no
+   * guide of their main `language` is available. `[]` = "only my main language";
+   * absent = not asked (the API rejects an answer for a participant it does not
+   * ask, and rejects a missing one for a participant it does; see
+   * `accepted_languages_supported` on the submit body).
+   */
+  accepted_languages?: string[]
 }
 
 /**
@@ -1440,6 +1459,12 @@ export interface CustomerBilling {
 
 export interface SubmitBookingBody {
   widget_token: string
+  /**
+   * landr-hdk4y.2: declares that this widget can ask the second-guiding-language
+   * question; the API enforces the required answer only when it is set. Sent
+   * `true` on every submit.
+   */
+  accepted_languages_supported?: boolean
   customer_first_name: string
   customer_last_name?: string | null
   customer_email: string

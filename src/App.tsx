@@ -78,6 +78,7 @@ import {
   productAcceptsAnyLanguage,
   singleLanguageAssignment,
 } from '@/components/booking/participantLanguages'
+import { buildSecondLanguageCart } from '@/components/booking/secondLanguage'
 import { FixedDateWindowPicker } from '@/components/booking/FixedDateWindowPicker'
 import { expandWindowDays } from '@/components/booking/expandWindowDays'
 import { MembershipCheckoutStep } from '@/components/booking/MembershipCheckoutStep'
@@ -1670,8 +1671,12 @@ function BookingFlowApp() {
     // than in an effect: react-hooks/set-state-in-effect.)
     if (productAcceptsAnyLanguage(product.guide_languages)) {
       setBookingDraft((prev) =>
-        prev.participantLanguages
-          ? { ...prev, participantLanguages: undefined }
+        prev.participantLanguages || prev.participantAcceptedLanguages
+          ? {
+              ...prev,
+              participantLanguages: undefined,
+              participantAcceptedLanguages: undefined,
+            }
           : prev,
       )
     }
@@ -3440,6 +3445,17 @@ function BookingFlowApp() {
                   bookingDraft.participantLanguages,
                   roster,
                 ),
+                // landr-hdk4y.2: the second-guiding-language question for this
+                // product (nobody is asked unless the operator switched it on),
+                // and the answers restored on back-nav.
+                secondLanguage: buildSecondLanguageCart(
+                  [step.product],
+                  [offeredLanguagesForProduct(step.product)],
+                ),
+                initialAccepted: toIndexKeyed(
+                  bookingDraft.participantAcceptedLanguages,
+                  roster,
+                ),
               }
             })()}
             // landr-n6ii3: editable "Anything we should know?" field on
@@ -3473,15 +3489,14 @@ function BookingFlowApp() {
                 }),
               )
             }
-            onConfirm={(assignment) => {
+            onConfirm={(assignment, accepted) => {
               // THE OUTBOUND SEAM: the board reports party indices, the draft
               // stores stable ids so a later roster edit cannot hand one person
               // another person's language (landr-uwvl).
+              const roster = buildPartyRoster(step.participants, step.companions)
               mergeDraft({
-                participantLanguages: toIdentityKeyed(
-                  assignment,
-                  buildPartyRoster(step.participants, step.companions),
-                ),
+                participantLanguages: toIdentityKeyed(assignment, roster),
+                participantAcceptedLanguages: toIdentityKeyed(accepted, roster),
               })
               setStep(
                 stepAfterLanguages(
@@ -3762,6 +3777,12 @@ function BookingFlowApp() {
                 // companions — the whole roster) is auto-filled with that
                 // one language here, overriding anything an earlier
                 // product left in the draft.
+                // landr-hdk4y.2: the language step's second-language answers;
+                // BookingForm re-derives who is asked from the whole cart.
+                participantAcceptedLanguages: toIndexKeyed(
+                  bookingDraft.participantAcceptedLanguages,
+                  roster,
+                ),
                 participantLanguages:
                   singleLanguageAssignment(
                     offeredLanguagesForProduct(step.product),

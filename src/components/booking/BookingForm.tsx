@@ -92,6 +92,7 @@ import {
   partyTr,
   seatsShortMessage,
   seatsShortDaysMessage,
+  secondLanguageGate,
   tr,
   type ForceReason,
 } from '@/lib/strings'
@@ -102,6 +103,15 @@ import {
   type ParticipantLanguageMap,
 } from './participantLanguages'
 import { withFallbackGuestLanguage } from './stayFlow'
+import { SecondLanguageQuestions, type AskedParticipant } from './SecondLanguageQuestions'
+import {
+  applyAnswerToEveryone,
+  askedParticipants,
+  pruneAcceptedAnswers,
+  secondLanguageCartFor,
+  unansweredIndices,
+  type AcceptedLanguagesMap,
+} from './secondLanguage'
 import { isStayKind } from '@/flowPlan'
 
 /** Answers given inline on added lines (language board, forms, pickup). */
@@ -341,6 +351,14 @@ interface Props {
    * was driven past the step, and the submit will be rejected.
    */
   participantLanguages?: Record<number, string>
+  /**
+   * landr-hdk4y.2: the language step's answers to "which other guiding
+   * languages would also work?" (party index → codes, `[]` = only the main
+   * language). Never trusted as-is: who is asked, and which values are valid, is
+   * re-derived here from the WHOLE cart (an added product can change both), and
+   * an asked participant without an answer is asked again on this screen.
+   */
+  participantAcceptedLanguages?: Record<number, string[]>
   /**
    * landr-ffyg.2: "second pilot in a shared double room" mode. When true
    * the submit carries the top-level is_shared_double=true (landr-ffyg.1)
@@ -1120,6 +1138,7 @@ export function BookingForm({
   customerComment,
   onCustomerCommentChange = () => {},
   participantLanguages: mainParticipantLanguages = {},
+  participantAcceptedLanguages: mainAcceptedLanguages,
   isSharedDouble: isSharedDoubleProp = false,
   roomAssignment,
   occupantAgeMap = {},
@@ -1291,6 +1310,64 @@ export function BookingForm({
     bookingLanguageOffer(mainOfferedLanguages, crossSellLines),
     participants.length + companions.length,
   )
+  // landr-hdk4y.2: the second-guiding-language question over the WHOLE cart —
+  // the same rule the API validates the submit against. The language step asked
+  // the main product's version of it; an added product can ask more or fewer
+  // people and offer other options, so the answers are re-checked here and the
+  // missing ones asked inline (only when a product was added: otherwise the
+  // language step already covered it).
+  const [acceptedAnswers, setAcceptedAnswers] = useState<AcceptedLanguagesMap>(
+    () => mainAcceptedLanguages ?? {},
+  )
+  const secondLanguageCart = useMemo(
+    () => secondLanguageCartFor(product, crossSellLines),
+    [product, crossSellLines],
+  )
+  // An answer belongs to the main language it was given for: when a participant's
+  // main language changes (the added product's own language module can do it),
+  // their answer is dropped and asked again. Adjusted during render (the React
+  // "derived state" pattern) so no stale answer is ever sent or shown.
+  const mainsKey = JSON.stringify(participantLanguages)
+  const [seenMains, setSeenMains] = useState({
+    key: JSON.stringify(mainParticipantLanguages),
+    map: mainParticipantLanguages as Readonly<Record<number, string>>,
+  })
+  if (seenMains.key !== mainsKey) {
+    setSeenMains({ key: mainsKey, map: participantLanguages })
+    setAcceptedAnswers((prev) => {
+      const next: AcceptedLanguagesMap = {}
+      for (const [k, v] of Object.entries(prev)) {
+        const i = Number(k)
+        if (seenMains.map[i] === participantLanguages[i]) next[i] = v
+      }
+      return next
+    })
+  }
+  const submitParticipantCount = participantsForSubmit(booker, participants).length
+  const askedSecondLanguage = askedParticipants(
+    secondLanguageCart,
+    participantLanguages,
+    submitParticipantCount,
+  )
+  const acceptedLanguages = pruneAcceptedAnswers(acceptedAnswers, askedSecondLanguage)
+  const unansweredSecondLanguage = unansweredIndices(askedSecondLanguage, acceptedLanguages)
+  const secondLanguageBlocked = unansweredSecondLanguage.length > 0
+  const secondLanguageNames = disambiguatePartyLabels(
+    participantsForSubmit(booker, participants).map((p) => ({
+      first: p.first_name,
+      last: p.last_name,
+    })),
+  )
+  const askedSecondLanguageList: AskedParticipant[] = Object.keys(askedSecondLanguage)
+    .map(Number)
+    .sort((a, b) => a - b)
+    .map((index) => ({
+      index,
+      name: secondLanguageNames[index] || tr('guestFallbackTemplate', locale).replace('{n}', String(index + 1)),
+      main: participantLanguages[index]!,
+      options: askedSecondLanguage[index]!,
+      answer: acceptedLanguages[index],
+    }))
   const pickupLocationId =
     mainPickupLocationId ?? (addedNeeds.some((n) => n.pickup) ? inlinePickupId : null)
   // Only the forms a CURRENT line still needs are sent (a removed line's
@@ -1708,6 +1785,15 @@ export function BookingForm({
       setServerError(tr('addMoreIncomplete', locale))
       return
     }
+    if (secondLanguageBlocked) {
+      setServerError(
+        secondLanguageGate(
+          unansweredSecondLanguage.map((i) => secondLanguageNames[i] || String(i + 1)),
+          locale,
+        ),
+      )
+      return
+    }
     if (mainIneligible) return
     // The extras are being re-checked for a changed cart / party: hold the
     // Confirm (spinner) until the verdict is in, then submit (bounded by the
@@ -1877,6 +1963,9 @@ export function BookingForm({
         customer_preferred_locale: locale,
         cancellation_deadline: cancellationDeadline(firstSelectionDate(selection)),
         booking_channel: 'public_website',
+        // landr-hdk4y.2: this widget can ask the second-guiding-language
+        // question; the API enforces the required answer only when told so.
+        accepted_languages_supported: true,
         products: productLines,
         // landr-jiagg.2: no booker row when the booker does not take part
         // (DetailsStep already left it out); "Participant 1"'s blank
@@ -1952,6 +2041,9 @@ export function BookingForm({
             ...(participantLanguages[idx]
               ? { language: participantLanguages[idx] }
               : {}),
+            // landr-hdk4y.2: the accepted other guiding languages — only for a
+            // participant the cart asks (the API rejects an answer otherwise).
+            ...(acceptedLanguages[idx] ? { accepted_languages: acceptedLanguages[idx] } : {}),
           }
         }),
         // landr-87n9.3: non-guiding companions as the top-level companions[]
@@ -2786,6 +2878,30 @@ export function BookingForm({
           />
         </NextAction>
 
+        {/* landr-hdk4y.2: an added product changed the second-language question
+            (who is asked, or which options): ask it here, in the same wording
+            the language step uses. Without an added product the language step
+            has already asked it, unless an answer is still missing. */}
+        {(crossSellLines.length > 0 || secondLanguageBlocked) && askedSecondLanguageList.length > 0 ? (
+          <SecondLanguageQuestions
+            asked={askedSecondLanguageList}
+            locale={locale}
+            onChange={(index, answer) =>
+              setAcceptedAnswers((prev) => {
+                const next = { ...prev }
+                if (answer === undefined) delete next[index]
+                else next[index] = answer
+                return next
+              })
+            }
+            onApplyToEveryone={(source) =>
+              setAcceptedAnswers(
+                applyAnswerToEveryone(acceptedLanguages, askedSecondLanguage, source),
+              )
+            }
+          />
+        ) : null}
+
         {/* landr-xpbt2: every control that finishes the booking sits in this
             one box — above Confirm, the operator price-override
             (landr-aoak.2 [S3].3: sets override_gross_total + override_reason
@@ -2795,10 +2911,10 @@ export function BookingForm({
             with the fixed price at creation, so disabled while an amount is
             entered). Both are hidden entirely for normal customers. */}
         <ContinueAction
-          active={missingBilling === undefined && !submitting && !unPriceable && !voucherBlocked && !overrideBlocked && !verificationBlocked && !extrasBlocked && !mainIneligible}
+          active={missingBilling === undefined && !submitting && !unPriceable && !voucherBlocked && !overrideBlocked && !verificationBlocked && !extrasBlocked && !secondLanguageBlocked && !mainIneligible}
           ready={
             !submitting && !unPriceable && !voucherBlocked && !overrideBlocked && !verificationBlocked && !extrasBlocked &&
-            !mainIneligible
+            !secondLanguageBlocked && !mainIneligible
           }
           reason={
             mainIneligible && mainVerdict
@@ -2811,6 +2927,11 @@ export function BookingForm({
               ? tr('voucherFixBeforeConfirm', locale)
               : extrasBlocked
               ? tr('addMoreIncomplete', locale)
+              : secondLanguageBlocked
+              ? secondLanguageGate(
+                  unansweredSecondLanguage.map((i) => secondLanguageNames[i] || String(i + 1)),
+                  locale,
+                )
               : verificationBlocked
               ? verificationStrings(locale).missingHint
               : missingBilling

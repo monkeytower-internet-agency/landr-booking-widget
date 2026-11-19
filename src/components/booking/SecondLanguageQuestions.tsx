@@ -1,0 +1,122 @@
+/**
+ * landr-hdk4y.2 — SecondLanguageQuestions
+ *
+ * "If no French guide is available, which language would also work?" asked of
+ * every guided participant the cart's rule asks (secondLanguage.ts). One helper
+ * line above the list, then per participant: a checkbox per option plus the
+ * exclusive "I only speak {language}". Ticking the exclusive one clears the
+ * others and ticking another clears it; at least one tick is required (the
+ * caller gates Continue). The first asked participant can copy their answer to
+ * the others.
+ *
+ * Presentational only: the parent owns the answers (party index → string[]).
+ */
+import { browserLocale } from '@/lib/locale'
+import { secondLanguageText, tr } from '@/lib/strings'
+import { languageName } from './participantLanguages'
+import { toggleAcceptedLanguage, toggleOnlyMainLanguage } from './secondLanguage'
+
+export interface AskedParticipant {
+  /** Party index (the key the answers map uses). */
+  index: number
+  name: string
+  /** The participant's main guiding language (ISO 639-1). */
+  main: string
+  /** The languages offered as second language, already without `main`. */
+  options: readonly string[]
+  /** Undefined = unanswered; `[]` = only the main language. */
+  answer: readonly string[] | undefined
+}
+
+interface Props {
+  asked: readonly AskedParticipant[]
+  onChange: (index: number, answer: string[] | undefined) => void
+  onApplyToEveryone: (sourceIndex: number) => void
+  locale?: string
+}
+
+export function SecondLanguageQuestions({ asked, onChange, onApplyToEveryone, locale = browserLocale() }: Props) {
+  if (asked.length === 0) return null
+  const first = asked[0]!
+  return (
+    <section
+      className="flex flex-col gap-3 border-t border-border pt-4"
+      data-testid="second-language-questions"
+    >
+      <p className="text-sm text-muted-foreground" data-testid="second-language-helper">
+        {secondLanguageText('helper', languageName(first.main, locale), locale)}
+      </p>
+      {asked.map((p, position) => {
+        const mainName = languageName(p.main, locale)
+        const only = Array.isArray(p.answer) && p.answer.length === 0
+        const legendId = `second-language-q-${p.index}`
+        return (
+          <fieldset
+            key={p.index}
+            className="flex flex-col gap-2"
+            aria-labelledby={legendId}
+            data-testid={`second-language-asked-${p.index}`}
+          >
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-medium">{p.name}</span>
+              <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-semibold">
+                {mainName}
+              </span>
+            </div>
+            <p id={legendId} className="text-sm font-semibold">
+              {secondLanguageText('question', mainName, locale)}
+              <span aria-hidden="true"> *</span>
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {p.options.map((code) => {
+                const on = p.answer?.includes(code) === true
+                return (
+                  <label
+                    key={code}
+                    className={`inline-flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-1.5 text-sm ${
+                      on ? 'border-primary bg-primary/10' : 'border-border'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={on}
+                      data-testid={`second-language-${p.index}-${code}`}
+                      onChange={() => onChange(p.index, toggleAcceptedLanguage(p.answer, code))}
+                    />
+                    {languageName(code, locale)}
+                  </label>
+                )
+              })}
+              <label
+                className={`inline-flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-1.5 text-sm ${
+                  only ? 'border-primary bg-primary/10' : 'border-border'
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={only}
+                  data-testid={`second-language-${p.index}-only`}
+                  onChange={() => onChange(p.index, toggleOnlyMainLanguage(p.answer))}
+                />
+                {secondLanguageText('only', mainName, locale)}
+              </label>
+            </div>
+            {position === 0 && asked.length > 1 ? (
+              <div>
+                <button
+                  type="button"
+                  className="rounded-lg border border-border px-3 py-1 text-sm hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={p.answer === undefined}
+                  data-testid="second-language-apply-all"
+                  onClick={() => onApplyToEveryone(p.index)}
+                >
+                  {tr('secondLanguageApplyAll', locale)}
+                </button>
+              </div>
+            ) : null}
+          </fieldset>
+        )
+      })}
+    </section>
+  )
+}
