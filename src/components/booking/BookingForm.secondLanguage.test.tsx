@@ -7,6 +7,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { Product } from '@/api/types'
+import type { ExtraLine } from './crossSell'
 import { BookingForm, type BookingSelection } from './BookingForm'
 import type {
   BookerDetails,
@@ -199,5 +200,75 @@ describe('BookingForm — second guiding language (landr-hdk4y.2)', () => {
     await confirm()
     const body = await submitted()
     expect(body.participants[0]).toMatchObject({ accepted_languages: ['de'] })
+  })
+
+  it('drops an answer when the participant main language changes, and asks again', () => {
+    const { rerender } = render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct(ASKING)}
+        selection={SELECTION}
+        booker={BOOKER}
+        participants={PARTICIPANTS}
+        companions={COMPANIONS}
+        participantLanguages={{ 0: 'fr', 1: 'de' }}
+        participantAcceptedLanguages={{ 0: [] }}
+        pickupLocationId={null}
+        accommodationRooms={[]}
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    // Answered ("only French"): nothing blocks.
+    expect(screen.getByRole('button', { name: /Confirm booking/i })).not.toBeDisabled()
+    rerender(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct(ASKING)}
+        selection={SELECTION}
+        booker={BOOKER}
+        participants={PARTICIPANTS}
+        companions={COMPANIONS}
+        participantLanguages={{ 0: 'es', 1: 'de' }}
+        participantAcceptedLanguages={{ 0: [] }}
+        pickupLocationId={null}
+        accommodationRooms={[]}
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    expect(screen.getByRole('button', { name: /Confirm booking/i })).toBeDisabled()
+    expect(screen.getByTestId('second-language-asked-0')).toBeTruthy()
+    expect(screen.getByTestId('second-language-0-only')).not.toBeChecked()
+  })
+
+  it('an add-on line with a mode set does not ask a participant the main product would not', async () => {
+    const addon = makeServiceProduct({
+      product_id: 'video',
+      second_language_mode: 'always',
+      second_language_options: 'all',
+    })
+    const line = {
+      key: 'video',
+      lineId: 'o1',
+      offerId: 'offer-1',
+      parentLineId: 'main',
+      product: addon,
+      mode: 'days',
+      days: ['2026-06-10'],
+      slot: null,
+      windowId: null,
+      quantity: 1,
+      unavailableDays: [],
+      checking: false,
+    } as unknown as ExtraLine
+    renderForm({
+      product: makeServiceProduct(ASKING),
+      participantLanguages: { 0: 'de', 1: 'de' },
+      extraLines: [line],
+      onExtraLinesChange: vi.fn(),
+    })
+    expect(screen.queryByTestId('second-language-questions')).toBeNull()
+    expect(screen.getByRole('button', { name: /Confirm booking/i })).not.toBeDisabled()
   })
 })

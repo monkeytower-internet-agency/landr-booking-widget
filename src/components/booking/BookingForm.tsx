@@ -107,8 +107,8 @@ import { SecondLanguageQuestions, type AskedParticipant } from './SecondLanguage
 import {
   applyAnswerToEveryone,
   askedParticipants,
-  buildSecondLanguageCart,
   pruneAcceptedAnswers,
+  secondLanguageCartFor,
   unansweredIndices,
   type AcceptedLanguagesMap,
 } from './secondLanguage'
@@ -1320,13 +1320,29 @@ export function BookingForm({
     () => mainAcceptedLanguages ?? {},
   )
   const secondLanguageCart = useMemo(
-    () =>
-      buildSecondLanguageCart(
-        [product, ...crossSellLines.map((l) => l.product)],
-        [mainOfferedLanguages, ...crossSellLines.map((l) => productOfferedLanguages(l.product))],
-      ),
-    [product, crossSellLines, mainOfferedLanguages],
+    () => secondLanguageCartFor(product, crossSellLines),
+    [product, crossSellLines],
   )
+  // An answer belongs to the main language it was given for: when a participant's
+  // main language changes (the added product's own language module can do it),
+  // their answer is dropped and asked again. Adjusted during render (the React
+  // "derived state" pattern) so no stale answer is ever sent or shown.
+  const mainsKey = JSON.stringify(participantLanguages)
+  const [seenMains, setSeenMains] = useState({
+    key: JSON.stringify(mainParticipantLanguages),
+    map: mainParticipantLanguages as Readonly<Record<number, string>>,
+  })
+  if (seenMains.key !== mainsKey) {
+    setSeenMains({ key: mainsKey, map: participantLanguages })
+    setAcceptedAnswers((prev) => {
+      const next: AcceptedLanguagesMap = {}
+      for (const [k, v] of Object.entries(prev)) {
+        const i = Number(k)
+        if (seenMains.map[i] === participantLanguages[i]) next[i] = v
+      }
+      return next
+    })
+  }
   const submitParticipantCount = participantsForSubmit(booker, participants).length
   const askedSecondLanguage = askedParticipants(
     secondLanguageCart,

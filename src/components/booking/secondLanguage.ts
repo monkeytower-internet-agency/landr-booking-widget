@@ -16,6 +16,8 @@
  * NEVER throws: the widget has no React error boundary (bd memory landr-9ut4).
  */
 import type { Product } from '@/api/types'
+import type { ExtraLine } from './crossSell'
+import { productDisplayLanguages } from './participantLanguages'
 
 export type SecondLanguageMode = 'off' | 'not_preferred' | 'always'
 export type SecondLanguageOffer = 'all' | 'preferred'
@@ -115,6 +117,31 @@ export function buildSecondLanguageCart(
       ? null
       : restricted[0]!.filter((code) => restricted.every((s) => s.includes(code)))
   return { lines: products.map(secondLanguageLine), cartLanguages }
+}
+
+/**
+ * The cart for a booking: the main product plus the added lines THE API COUNTS
+ * (app/services/booking_submit.py `_counted_service_rows`): service-kind lines
+ * only, and add-ons attached to another product of the cart (an offer's line)
+ * are dropped; if nothing but add-on service lines remain they count instead.
+ * The widget's catalogue does not carry `is_addon_only`, so a plainly added
+ * product counts as primary. A line that does not count never asks, and does not
+ * narrow the cart's languages either.
+ */
+export function secondLanguageCartFor(
+  main: Product,
+  lines: readonly ExtraLine[],
+): SecondLanguageCart {
+  const candidates = [
+    { product: main, attached: false },
+    ...lines.map((l) => ({ product: l.product, attached: l.offerId !== undefined })),
+  ].filter((c) => c.product.product_kind === 'service')
+  const primary = candidates.filter((c) => !c.attached)
+  const counted = primary.length > 0 ? primary : candidates
+  return buildSecondLanguageCart(
+    counted.map((c) => c.product),
+    counted.map((c) => productDisplayLanguages(c.product.guide_languages)),
+  )
 }
 
 /** Who is asked what: party index → options, for the participants that have a main language. */

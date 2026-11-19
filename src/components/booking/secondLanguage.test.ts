@@ -4,11 +4,14 @@
  * the ones that file's own tests pin: keep the two in step.
  */
 import { describe, expect, it } from 'vitest'
+import type { Product } from '@/api/types'
+import type { ExtraLine } from './crossSell'
 import {
   applyAnswerToEveryone,
   askedParticipants,
   buildSecondLanguageCart,
   pruneAcceptedAnswers,
+  secondLanguageCartFor,
   secondLanguageLine,
   secondLanguageOptions,
   toggleAcceptedLanguage,
@@ -139,5 +142,47 @@ describe('answers', () => {
     expect(applyAnswerToEveryone({ 0: ['es'] }, asked, 0)).toEqual({ 0: ['es'] })
     // no answer yet: nothing to copy
     expect(applyAnswerToEveryone({}, asked, 0)).toEqual({})
+  })
+})
+
+describe('secondLanguageCartFor (the lines the API counts)', () => {
+  const svc = (id: string, langs: string[], mode: 'off' | 'always' = 'off', kind = 'service') =>
+    ({
+      product_id: id,
+      product_kind: kind,
+      guide_languages: langs,
+      second_language_mode: mode,
+      preferred_guide_languages: [],
+      second_language_options: 'all',
+    }) as unknown as Product
+  const line = (product: Product, offerId?: string) =>
+    ({ key: product.product_id, product, ...(offerId ? { offerId, lineId: 'o1' } : {}) }) as unknown as ExtraLine
+
+  it('an add-on line attached from an offer neither asks nor narrows the cart', () => {
+    const main = svc('main', ['en', 'de', 'fr'])
+    const addon = svc('video', ['en'], 'always')
+    const cart = secondLanguageCartFor(main, [line(addon, 'offer-1')])
+    expect(cart.lines).toHaveLength(1)
+    expect(cart.cartLanguages).toEqual(['en', 'de', 'fr'])
+    expect(askedParticipants(cart, { 0: 'fr' }, 1)).toEqual({})
+  })
+
+  it('a plainly added service product counts: it asks and narrows', () => {
+    const cart = secondLanguageCartFor(svc('main', ['en', 'de', 'fr']), [line(svc('b', ['en', 'fr'], 'always'))])
+    expect(cart.lines).toHaveLength(2)
+    expect(cart.cartLanguages).toEqual(['en', 'fr'])
+    expect(askedParticipants(cart, { 0: 'fr' }, 1)).toEqual({ 0: ['en'] })
+  })
+
+  it('non-service lines (stays, rooms) are ignored', () => {
+    const cart = secondLanguageCartFor(svc('main', ['en', 'de']), [line(svc('room', ['fr'], 'always', 'hotel_room'))])
+    expect(cart.lines).toHaveLength(1)
+    expect(cart.cartLanguages).toEqual(['en', 'de'])
+  })
+
+  it('only add-on service lines left: they count instead', () => {
+    const cart = secondLanguageCartFor(svc('stay', [], 'off', 'stay'), [line(svc('video', ['en', 'de'], 'always'), 'o1')])
+    expect(cart.lines).toHaveLength(1)
+    expect(cart.cartLanguages).toEqual(['en', 'de'])
   })
 })
