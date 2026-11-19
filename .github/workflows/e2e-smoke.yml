@@ -16,6 +16,12 @@ on:
 permissions:
   contents: read
 
+# landr-k82g0: a new push to a PR cancels that PR's older smoke run; pushes to
+# main/staging/dev are never cancelled (they queue per ref).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   # landr-r6e5x.1 (2026-09-11): NOT gated behind ALLOW_GITHUB_RUNNERS, unlike
   # every other repo's ubuntu-latest fallback tier — this is deliberate, not
