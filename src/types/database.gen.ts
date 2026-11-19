@@ -9018,7 +9018,6 @@ export type Database = {
           collection: string
           created_at: string
           id: string
-          legacy_addon_id: string | null
           legacy_source: string | null
           max_qty: number | null
           min_qty: number
@@ -9038,7 +9037,6 @@ export type Database = {
           collection?: string
           created_at?: string
           id?: string
-          legacy_addon_id?: string | null
           legacy_source?: string | null
           max_qty?: number | null
           min_qty?: number
@@ -9058,7 +9056,6 @@ export type Database = {
           collection?: string
           created_at?: string
           id?: string
-          legacy_addon_id?: string | null
           legacy_source?: string | null
           max_qty?: number | null
           min_qty?: number
@@ -9074,13 +9071,6 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "offers_legacy_addon_id_fkey"
-            columns: ["legacy_addon_id", "operator_id"]
-            isOneToOne: false
-            referencedRelation: "product_addons"
-            referencedColumns: ["id", "operator_id"]
-          },
           {
             foreignKeyName: "offers_operator_id_fkey"
             columns: ["operator_id"]
@@ -11407,7 +11397,6 @@ export type Database = {
           widget_catalog_layout: string | null
           widget_category_columns: number | null
           widget_cross_sell_enabled: boolean
-          widget_cross_sell_product_ids: string[]
           widget_description: string | null
           widget_description_first_page_only: boolean
           widget_footer: string | null
@@ -11514,7 +11503,6 @@ export type Database = {
           widget_catalog_layout?: string | null
           widget_category_columns?: number | null
           widget_cross_sell_enabled?: boolean
-          widget_cross_sell_product_ids?: string[]
           widget_description?: string | null
           widget_description_first_page_only?: boolean
           widget_footer?: string | null
@@ -11621,7 +11609,6 @@ export type Database = {
           widget_catalog_layout?: string | null
           widget_category_columns?: number | null
           widget_cross_sell_enabled?: boolean
-          widget_cross_sell_product_ids?: string[]
           widget_description?: string | null
           widget_description_first_page_only?: boolean
           widget_footer?: string | null
@@ -13507,88 +13494,6 @@ export type Database = {
           },
         ]
       }
-      product_addons: {
-        Row: {
-          addon_product_id: string
-          created_at: string
-          id: string
-          is_required: boolean
-          max_qty: number | null
-          min_qty: number
-          operator_id: string
-          parent_product_id: string
-          sort_order: number
-          updated_at: string
-        }
-        Insert: {
-          addon_product_id: string
-          created_at?: string
-          id?: string
-          is_required?: boolean
-          max_qty?: number | null
-          min_qty?: number
-          operator_id: string
-          parent_product_id: string
-          sort_order?: number
-          updated_at?: string
-        }
-        Update: {
-          addon_product_id?: string
-          created_at?: string
-          id?: string
-          is_required?: boolean
-          max_qty?: number | null
-          min_qty?: number
-          operator_id?: string
-          parent_product_id?: string
-          sort_order?: number
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "product_addons_addon_product_id_fkey"
-            columns: ["addon_product_id", "operator_id"]
-            isOneToOne: false
-            referencedRelation: "products"
-            referencedColumns: ["id", "operator_id"]
-          },
-          {
-            foreignKeyName: "product_addons_operator_id_fkey"
-            columns: ["operator_id"]
-            isOneToOne: false
-            referencedRelation: "feedback_inbox_operator_summary"
-            referencedColumns: ["operator_id"]
-          },
-          {
-            foreignKeyName: "product_addons_operator_id_fkey"
-            columns: ["operator_id"]
-            isOneToOne: false
-            referencedRelation: "operator_activation"
-            referencedColumns: ["operator_id"]
-          },
-          {
-            foreignKeyName: "product_addons_operator_id_fkey"
-            columns: ["operator_id"]
-            isOneToOne: false
-            referencedRelation: "operators"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "product_addons_operator_id_fkey"
-            columns: ["operator_id"]
-            isOneToOne: false
-            referencedRelation: "staff_operator_overview"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "product_addons_parent_product_id_fkey"
-            columns: ["parent_product_id", "operator_id"]
-            isOneToOne: false
-            referencedRelation: "products"
-            referencedColumns: ["id", "operator_id"]
-          },
-        ]
-      }
       product_alternatives: {
         Row: {
           alternative_product_id: string
@@ -14682,8 +14587,6 @@ export type Database = {
           activity_code: string | null
           activity_code_rotate_weekly: boolean
           activity_code_rotated_at: string | null
-          addon_quantity_max: number | null
-          addon_quantity_rule: string | null
           booking_mode: string
           briefing_content: Json
           capacity_per_unit: number | null
@@ -14763,8 +14666,6 @@ export type Database = {
           activity_code?: string | null
           activity_code_rotate_weekly?: boolean
           activity_code_rotated_at?: string | null
-          addon_quantity_max?: number | null
-          addon_quantity_rule?: string | null
           booking_mode?: string
           briefing_content?: Json
           capacity_per_unit?: number | null
@@ -14844,8 +14745,6 @@ export type Database = {
           activity_code?: string | null
           activity_code_rotate_weekly?: boolean
           activity_code_rotated_at?: string | null
-          addon_quantity_max?: number | null
-          addon_quantity_rule?: string | null
           booking_mode?: string
           briefing_content?: Json
           capacity_per_unit?: number | null
@@ -22787,14 +22686,6 @@ export type Database = {
         Args: { p_actual: Json; p_op: string; p_value: Json }
         Returns: boolean
       }
-      _offers_cross_sell_at_defaults: {
-        Args: { o: Database["public"]["Tables"]["offers"]["Row"] }
-        Returns: boolean
-      }
-      _offers_legacy_same_operator: {
-        Args: { p_addon_id: string; p_have: string; p_want: string }
-        Returns: string
-      }
       _operator_link_allows: {
         Args: {
           p_level: string
@@ -24153,50 +24044,6 @@ export type Database = {
           thumb_path: string
         }[]
       }
-      offers_api_delete_legacy: {
-        Args: { p_offer_id: string; p_operator_id: string }
-        Returns: number
-      }
-      offers_api_patch_legacy_addon: {
-        Args: { p_offer_id: string; p_operator_id: string; p_patch: Json }
-        Returns: number
-      }
-      offers_legacy_addon_mapping: {
-        Args: { p_addon_id?: string; p_addon_product_id?: string }
-        Returns: {
-          binding: string
-          legacy_addon_id: string
-          max_qty: number
-          min_qty: number
-          mode: string
-          operator_id: string
-          parent_product_id: string
-          product_id: string
-          sort_order: number
-        }[]
-      }
-      offers_legacy_cross_sell_source: {
-        Args: { p_operator_id: string }
-        Returns: {
-          product_id: string
-        }[]
-      }
-      offers_legacy_parity_violations: {
-        Args: never
-        Returns: {
-          detail: string
-          kind: string
-          ref: string
-        }[]
-      }
-      offers_sync_from_product_addon: {
-        Args: { p_addon_id?: string; p_addon_product_id?: string }
-        Returns: number
-      }
-      offers_sync_legacy_cross_sell: {
-        Args: { p_operator_id: string }
-        Returns: number
-      }
       operator_effective_entitlements: {
         Args: { p_operator_id: string }
         Returns: {
@@ -24682,7 +24529,6 @@ export type Database = {
           widget_catalog_layout: string
           widget_category_columns: number
           widget_cross_sell_enabled: boolean
-          widget_cross_sell_product_ids: string[]
           widget_description: string
           widget_description_first_page_only: boolean
           widget_footer: string
@@ -24697,30 +24543,6 @@ export type Database = {
           widget_tile_scrim: string
           widget_title_case: string
           widget_variant: string
-        }[]
-      }
-      public_get_product_addons: {
-        Args: { p_parent_product_id: string }
-        Returns: {
-          addon_product_id: string
-          addon_quantity_max: number
-          addon_quantity_rule: string
-          currency: string
-          day_selection: string
-          images: Json
-          is_required: boolean
-          max_qty: number
-          min_qty: number
-          name: string
-          name_localized: Json
-          price_per_unit: number
-          price_unit: string
-          product_addon_id: string
-          product_kind: string
-          short_description: string
-          short_description_localized: Json
-          sort_order: number
-          thumb_path: string
         }[]
       }
       public_get_product_alternatives: {
