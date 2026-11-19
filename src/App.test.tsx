@@ -6249,7 +6249,7 @@ describe('App', () => {
       }
     }
 
-    async function advanceToLanguageBoard() {
+    async function advanceToLanguageBoard(productExtra: Partial<Product> = {}) {
       const today = new Date()
       today.setHours(12, 0, 0, 0)
       mocks.getOperatorSettings.mockResolvedValue({
@@ -6267,6 +6267,7 @@ describe('App', () => {
           // landr-p68d2: the offered set now lives on the PRODUCT — this
           // was the operator's offered_languages before landr-p68d2.1/.2.
           guide_languages: ['en', 'de', 'es'],
+          ...productExtra,
         }),
       ])
       mocks.getAvailability.mockResolvedValue([
@@ -6380,6 +6381,50 @@ describe('App', () => {
       })
       // Booking-level list derived from the same map, booker first.
       expect(body.customer_languages).toEqual(['es', 'de'])
+    })
+
+    it('asks the second guiding language per participant and submits the answers (landr-hdk4y.2)', async () => {
+      // EN/DE preferred, mode "only when the main language is not preferred":
+      // the Spanish guest is asked, the German one is not.
+      await advanceToLanguageBoard({
+        second_language_mode: 'not_preferred',
+        preferred_guide_languages: ['en', 'de'],
+        second_language_options: 'all',
+      })
+      assignLanguage(0, 'es')
+      assignLanguage(1, 'de')
+      expect(screen.getByTestId('second-language-asked-0')).toBeInTheDocument()
+      expect(screen.queryByTestId('second-language-asked-1')).not.toBeInTheDocument()
+      // Everyone placed, but Ada has not answered: Continue says why.
+      expect(screen.getByTestId('language-step-submit')).toBeDisabled()
+      fireEvent.click(screen.getByTestId('second-language-0-en'))
+      fireEvent.click(screen.getByTestId('second-language-0-de'))
+      await waitFor(() =>
+        expect(screen.getByTestId('language-step-submit')).toBeEnabled(),
+      )
+      fireEvent.click(screen.getByTestId('language-step-submit'))
+
+      await waitFor(() => expect(screen.getByTestId('cf-submit')).toBeEnabled())
+      fireEvent.click(screen.getByTestId('cf-submit'))
+      await waitFor(() =>
+        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
+      )
+      // Answered on the language step, so the review does not ask again.
+      expect(screen.queryByTestId('second-language-questions')).not.toBeInTheDocument()
+
+      fillBillingFields()
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+      await waitFor(() => expect(mocks.submitBooking).toHaveBeenCalled())
+      const body = mocks.submitBooking.mock.calls[0][0] as {
+        accepted_languages_supported?: boolean
+        participants: Array<Record<string, unknown>>
+      }
+      expect(body.accepted_languages_supported).toBe(true)
+      expect(body.participants[0]).toMatchObject({
+        language: 'es',
+        accepted_languages: ['en', 'de'],
+      })
+      expect('accepted_languages' in body.participants[1]!).toBe(false)
     })
 
     it('runs the language step for a product with NO custom form at all', async () => {

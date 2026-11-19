@@ -14,6 +14,7 @@ import type { RoomSelection } from '@/components/booking/accommodationCalc'
 import type {
   PartyAssignmentMap,
   PartyBreakfastMap,
+  PartyAcceptedLanguagesMap,
   PartyLanguageMap,
   PartyOccupantAgeMap,
 } from '@/components/booking/partyIdentity'
@@ -142,6 +143,14 @@ export interface BookingDraft {
    * at the seam with toIdentityKeyed / toIndexKeyedOrUndefined.
    */
   participantLanguages?: PartyLanguageMap
+  /**
+   * landr-hdk4y.2: each guided participant's answer to "which other guiding
+   * languages would also work?" (identity-keyed like `participantLanguages`).
+   * Written by the language step, read back at review. `[]` = only the main
+   * language. Never trusted as-is: the submit re-derives who is asked and which
+   * values are valid from the current cart (see secondLanguage.ts).
+   */
+  participantAcceptedLanguages?: PartyAcceptedLanguagesMap
 }
 
 /**

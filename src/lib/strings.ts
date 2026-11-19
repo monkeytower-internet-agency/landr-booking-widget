@@ -982,6 +982,15 @@ export type Bundle = {
   namesAndOthersTemplate: string
   languageStepGateDone: string
   languageStepGateWaitingTemplate: string
+  // landr-hdk4y.2: the second-guiding-language question (language step).
+  /** Whether the language name inside the question / the opt-out keeps its catalog case ('keep') or is lower-cased ('lower'): German builds "{language}sprachiger" (lower) but says "nur Französisch" (keep). */
+  secondLanguageQuestionCase: 'lower' | 'keep'
+  secondLanguageOnlyCase: 'lower' | 'keep'
+  secondLanguageQuestionTemplate: string
+  secondLanguageHelperTemplate: string
+  secondLanguageOnlyTemplate: string
+  secondLanguageApplyAll: string
+  secondLanguageGateWaitingTemplate: string
   singleDateGateSelected: string
   singleDateGateEmpty: string
   multiDayGateNone: string
@@ -2082,6 +2091,14 @@ const en: Bundle = {
   namesAndOthersTemplate: '{first} and {n} others',
   languageStepGateDone: 'Everyone has a language.',
   languageStepGateWaitingTemplate: 'Assign every participant to a language — still waiting on {names}.',
+  secondLanguageQuestionCase: 'keep',
+  secondLanguageOnlyCase: 'keep',
+  secondLanguageQuestionTemplate: 'If no {language} guide is available, which language would also work?',
+  secondLanguageHelperTemplate:
+    '{language} stays your first choice. The more languages you tick, the more likely we can confirm your booking.',
+  secondLanguageOnlyTemplate: 'I only speak {language}',
+  secondLanguageApplyAll: 'Apply to everyone',
+  secondLanguageGateWaitingTemplate: 'Tick at least one option for each person — still open: {names}.',
   singleDateGateSelected: 'Date selected.',
   singleDateGateEmpty: 'Choose a date to continue.',
   multiDayGateNone: 'Choose at least one date to continue.',
@@ -2809,6 +2826,33 @@ export function languageStepGate(unassignedNames: string[], locale?: string): st
   const t = pickBundle(locale)
   if (unassignedNames.length === 0) return t.languageStepGateDone
   return fmt(t.languageStepGateWaitingTemplate, { names: unassignedNames.join(', ') })
+}
+
+/**
+ * landr-hdk4y.2: the second-guiding-language question wording. `language` is the
+ * participant's main-language NAME as the widget shows it; `kind` picks which
+ * sentence. The question and the opt-out sit mid-sentence, so they follow the
+ * catalog's name case (German: "französischsprachiger"); the helper opens its
+ * sentence with the name, so it always keeps the name as given.
+ */
+export function secondLanguageText(
+  kind: 'question' | 'helper' | 'only',
+  language: string,
+  locale?: string,
+): string {
+  const t = pickBundle(locale)
+  const ui = resolveUiLanguage(locale)
+  const cased = (c: 'lower' | 'keep') => (c === 'lower' ? language.toLocaleLowerCase(ui) : language)
+  if (kind === 'helper') return fmt(t.secondLanguageHelperTemplate, { language })
+  if (kind === 'question') {
+    return fmt(t.secondLanguageQuestionTemplate, { language: cased(t.secondLanguageQuestionCase) })
+  }
+  return fmt(t.secondLanguageOnlyTemplate, { language: cased(t.secondLanguageOnlyCase) })
+}
+
+/** landr-hdk4y.2: the gate line beside Continue while asked participants have not answered. */
+export function secondLanguageGate(unansweredNames: string[], locale?: string): string {
+  return fmt(pickBundle(locale).secondLanguageGateWaitingTemplate, { names: unansweredNames.join(', ') })
 }
 
 /**
