@@ -38256,6 +38256,13 @@
       },
       "SecondLanguageBreakdownOut": {
         "properties": {
+          "combos": {
+            "items": {
+              "$ref": "#/components/schemas/SecondLanguageComboRow"
+            },
+            "title": "Combos",
+            "type": "array"
+          },
           "rows": {
             "items": {
               "$ref": "#/components/schemas/SecondLanguageBreakdownRow"
@@ -38265,7 +38272,8 @@
           }
         },
         "required": [
-          "rows"
+          "rows",
+          "combos"
         ],
         "title": "SecondLanguageBreakdownOut",
         "type": "object"
@@ -38315,6 +38323,44 @@
           "none"
         ],
         "title": "SecondLanguageBreakdownRow",
+        "type": "object"
+      },
+      "SecondLanguageComboRow": {
+        "description": "``count`` distinct participants of ``main_language`` who were on exactly\n``product_ids`` that ``day``: sum the combos touching a set of products to\ncount each guest once.",
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "day": {
+            "title": "Day",
+            "type": "string"
+          },
+          "main_language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Main Language"
+          },
+          "product_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Product Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "day",
+          "product_ids",
+          "count"
+        ],
+        "title": "SecondLanguageComboRow",
         "type": "object"
       },
       "SecondLanguageCopyIn": {

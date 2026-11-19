@@ -28009,6 +28009,8 @@ export interface components {
         };
         /** SecondLanguageBreakdownOut */
         SecondLanguageBreakdownOut: {
+            /** Combos */
+            combos: components["schemas"]["SecondLanguageComboRow"][];
             /** Rows */
             rows: components["schemas"]["SecondLanguageBreakdownRow"][];
         };
@@ -28028,6 +28030,22 @@ export interface components {
             product_id: string;
             /** Total */
             total: number;
+        };
+        /**
+         * SecondLanguageComboRow
+         * @description ``count`` distinct participants of ``main_language`` who were on exactly
+         *     ``product_ids`` that ``day``: sum the combos touching a set of products to
+         *     count each guest once.
+         */
+        SecondLanguageComboRow: {
+            /** Count */
+            count: number;
+            /** Day */
+            day: string;
+            /** Main Language */
+            main_language?: string | null;
+            /** Product Ids */
+            product_ids: string[];
         };
         /**
          * SecondLanguageCopyIn
