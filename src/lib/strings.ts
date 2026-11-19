@@ -991,6 +991,9 @@ export type Bundle = {
   secondLanguageOnlyTemplate: string
   secondLanguageApplyAll: string
   secondLanguageGateWaitingTemplate: string
+  /** Submit 422s `participant_accepted_languages_missing` / `_invalid`. */
+  secondLanguageErrorMissing: string
+  secondLanguageErrorInvalid: string
   singleDateGateSelected: string
   singleDateGateEmpty: string
   multiDayGateNone: string
@@ -2099,6 +2102,10 @@ const en: Bundle = {
   secondLanguageOnlyTemplate: 'I only speak {language}',
   secondLanguageApplyAll: 'Apply to everyone',
   secondLanguageGateWaitingTemplate: 'Tick at least one option for each person — still open: {names}.',
+  secondLanguageErrorMissing:
+    'Please go back to the language step and say which other guiding languages each person would accept.',
+  secondLanguageErrorInvalid:
+    'The other guiding languages on offer have changed. Please go back to the language step and choose again.',
   singleDateGateSelected: 'Date selected.',
   singleDateGateEmpty: 'Choose a date to continue.',
   multiDayGateNone: 'Choose at least one date to continue.',

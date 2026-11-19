@@ -66,12 +66,13 @@ describe('secondLanguageOptions', () => {
     expect(secondLanguageOptions(cartOf(product('always'), ['en']), 'en')).toEqual([])
   })
 
-  it('an unrestricted (any-language) cart has no list to offer for "all", but does for "preferred"', () => {
+  it('an unrestricted (any-language) cart has no language step, so nobody is asked', () => {
     const any = buildSecondLanguageCart([product('always')], [[]])
     expect(any.cartLanguages).toBeNull()
     expect(secondLanguageOptions(any, 'fr')).toEqual([])
     const pref = buildSecondLanguageCart([product('always', ['en', 'de'], 'preferred')], [[]])
-    expect(secondLanguageOptions(pref, 'fr')).toEqual(['de', 'en'])
+    expect(secondLanguageOptions(pref, 'fr')).toEqual([])
+    expect(askedParticipants(pref, { 0: 'fr' }, 1)).toEqual({})
   })
 
   it('multi-product cart: asked if any line asks, options union, inside the cart intersection', () => {
@@ -93,8 +94,69 @@ describe('secondLanguageOptions', () => {
     expect(secondLanguageLine({})).toEqual({ mode: 'off', preferred: [], options: 'all' })
   })
 
-  it('an unknown main language counts as not preferred', () => {
-    expect(secondLanguageOptions(cartOf(product('not_preferred')), null)).toEqual(['de', 'en', 'es', 'fr'])
+  it('an unknown main language is never asked', () => {
+    expect(secondLanguageOptions(cartOf(product('not_preferred')), null)).toEqual([])
+    expect(secondLanguageOptions(cartOf(product('always')), '  ')).toEqual([])
+  })
+})
+
+/**
+ * Parity table with the API's own pure-rule table
+ * (app/tests/test_second_guiding_language.py `test_second_language_options`):
+ * the same rows, the same answers. Change one side, change the other.
+ */
+describe('rule parity with the API', () => {
+  const CART = ['en', 'de', 'fr', 'es']
+  const line = (
+    mode: 'off' | 'not_preferred' | 'always' = 'always',
+    preferred: string[] = [],
+    options: 'all' | 'preferred' = 'all',
+  ) => product(mode, preferred, options)
+  const table: Array<
+    [string, ReturnType<typeof line>[], string | null, string[] | null, string[]]
+  > = [
+    ['always minus main', [line()], 'en', CART, ['de', 'es', 'fr']],
+    ['not_preferred, main preferred', [line('not_preferred', ['en', 'de'])], 'en', CART, []],
+    ['not_preferred, main not preferred', [line('not_preferred', ['en', 'de'])], 'fr', CART, ['de', 'en', 'es']],
+    ['preferred list inside the cart', [line('always', ['en', 'fr', 'it'], 'preferred')], 'de', CART, ['en', 'fr']],
+    ['preferred list minus main', [line('always', ['en', 'fr'], 'preferred')], 'en', CART, ['fr']],
+    ['off never asks', [line('off')], 'en', CART, []],
+    ['no options left', [line('always', ['en'], 'preferred')], 'en', CART, []],
+    ['single-language cart', [line()], 'en', ['en'], []],
+    ['any-language cart', [line()], 'en', null, []],
+    ['any-language cart with a preferred list', [line('always', ['en', 'fr'], 'preferred')], 'en', null, []],
+    ['single-language cart with a preferred list', [line('always', ['en', 'fr'], 'preferred')], 'en', ['en'], []],
+    ['single language, other main', [line('always', ['fr'], 'preferred')], 'de', ['fr'], []],
+    ['no main language, not_preferred', [line('not_preferred', ['en'])], null, CART, []],
+    ['no main language, always', [line()], null, CART, []],
+    ['blank main language', [line()], '  ', CART, []],
+    ['main case and whitespace', [line()], ' EN ', CART, ['de', 'es', 'fr']],
+    ['union over lines', [line('off'), line('always', ['fr'], 'preferred')], 'en', CART, ['fr']],
+    ['any line asks', [line('not_preferred', ['en']), line('always', ['de'], 'preferred')], 'en', CART, ['de']],
+  ]
+  it.each(table)('%s', (_name, lines, main, cart, expected) => {
+    const sets = lines.map(() => cart ?? [])
+    const built = buildSecondLanguageCart(lines, sets)
+    // the cart's languages are the table's, not the intersection of per-line sets
+    expect(secondLanguageOptions({ ...built, cartLanguages: cart }, main)).toEqual(expected)
+  })
+
+  it('a product open to any or one language is read as off, wherever the cart languages come from', () => {
+    for (const set of [[], ['en']]) {
+      const cart = buildSecondLanguageCart([line('always')], [set])
+      expect(cart.lines[0]!.mode).toBe('off')
+    }
+    const two = buildSecondLanguageCart([line('always')], [['en', 'de']])
+    expect(two.lines[0]!.mode).toBe('always')
+  })
+
+  it('an open product beside a restricted one asks nothing for itself', () => {
+    const cart = buildSecondLanguageCart(
+      [line('always'), line('off')],
+      [[], ['en', 'de']],
+    )
+    expect(cart.cartLanguages).toEqual(['en', 'de'])
+    expect(secondLanguageOptions(cart, 'en')).toEqual([])
   })
 })
 
