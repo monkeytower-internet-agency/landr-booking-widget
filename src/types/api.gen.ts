@@ -22974,6 +22974,8 @@ export interface components {
          * @description Partial update payload — every field is optional.
          */
         OperatorPatch: {
+            /** Address Form */
+            address_form?: ("informal" | "formal") | null;
             /** Balance Due Days Before Arrival */
             balance_due_days_before_arrival?: number | null;
             /** Booking Window Months */
@@ -23331,6 +23333,11 @@ export interface components {
          *     landr-jb1k: widget_variant and widget_category_columns added.
          */
         OperatorSettings: {
+            /**
+             * Address Form
+             * @default informal
+             */
+            address_form: string;
             /** Balance Due Days Before Arrival */
             balance_due_days_before_arrival?: number | null;
             /** Booking Window Months */

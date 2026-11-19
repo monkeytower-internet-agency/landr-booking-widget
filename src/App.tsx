@@ -172,6 +172,7 @@ import {
   overrideBookingLocale,
   pickLocalized,
 } from '@/lib/locale'
+import { setAddressForm } from '@/lib/addressForm'
 import { seatsNeeded } from '@/lib/seatHold'
 import { paysDirectly } from '@/lib/paymentMode'
 import { InviteHoldNote } from '@/components/booking/InviteHoldNote'
@@ -1250,6 +1251,9 @@ function BookingFlowApp() {
           // globally to every browserLocale() call from here on, no prop
           // threading needed.
           configureCustomerLocale(settings.customer_languages, settings.default_locale)
+          // landr-wm0jv: du/sen vs Sie/siz for the German and Turkish
+          // catalogs; absent (older API) = informal. Set before the catalog load.
+          setAddressForm(settings.address_form)
           // landr-8r6oc.18: the resolved language may differ from the
           // browser's, so fetch its catalog before the settings render.
           await loadUiCatalog(browserLocale(), APP_CATALOG_WAIT_MS)

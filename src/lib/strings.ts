@@ -12,6 +12,7 @@
 
 import type { ProductKind } from '@/api/types'
 import { isStayKind } from '@/flowPlan'
+import { getAddressForm } from '@/lib/addressForm'
 
 export type Bundle = {
   multiDayPickerHelp: string
@@ -1167,13 +1168,9 @@ const en: Bundle = {
   // now drives help text. This string is kept for callers that pass it as
   // a helpText override; MultiDayStep no longer passes it (passes undefined).
   multiDayPickerHelp: 'Tap days to add or remove them.',
-  multiDayPickerHelpRange: 'Tap a start date, then tap another to span the days between.',
-  multiDayPickerHelpContiguous:
-    'Click a start date, then click another to extend the range. Selection must be consecutive days.',
-  customerCommentHint:
-    'If you add a comment, a person will read your request before it is ' +
-    'confirmed, so it can take a little longer. If it matters, please do ' +
-    'tell us.',
+  multiDayPickerHelpRange: 'Tap a start date, then an end date.',
+  multiDayPickerHelpContiguous: 'Click a start date, then an end date. The days must be consecutive.',
+  customerCommentHint: 'If you add a note, someone from our team reads it before confirming, so it may take a little longer. If it matters, do tell us.',
   nextActionPrefix: 'Next:',
   helpDisclosureLabel: 'How this works',
   continueCue: 'continue',
@@ -1184,9 +1181,7 @@ const en: Bundle = {
   languageStepWhy:
     'Tell us who speaks what, so the guide briefs everyone in a language ' +
     'they understand.',
-  languageStepHowTo:
-    'Tap a language to put everyone in it. To split the group, drag a name ' +
-    'onto another language — or tap a name and then tap a language.',
+  languageStepHowTo: 'Tap a language to assign everyone to it. To split the group, drag a name onto another language — or tap a name, then a language.',
   categoryStepCue: 'choose a category',
   noCategoriesAvailable: 'No categories are available right now.',
   productListCue: 'choose a product',
@@ -1223,12 +1218,12 @@ const en: Bundle = {
   readyToContinue: 'Ready to continue.',
   somethingWentWrong: 'Something went wrong.',
   somethingWentWrongRetry: 'Something went wrong. Please try again later.',
-  couldNotLoadAvailability: 'Could not load availability.',
+  couldNotLoadAvailability: "We couldn't load availability.",
   pickADate: 'Pick a date',
   availableDaysFor: 'Available days for {name}.',
   sendingEllipsis: 'Sending…',
   loadingProducts: 'Loading products…',
-  couldNotLoadProducts: 'We could not load the products.',
+  couldNotLoadProducts: "We couldn't load the products.",
   noProductsInCategory: 'No products in this category.',
   checkBackLater: 'Please check back later.',
   priceOnRequest: 'Price on request',
@@ -1248,7 +1243,7 @@ const en: Bundle = {
   timeConfirmedByOperator: 'Time confirmed by the operator',
   timeConfirmedHelper: 'The operator will confirm the exact time and details after you book.',
   freeStartTimeLabel: 'Start time',
-  freeStartTimeHint: 'No set times on this day. Enter the start time (HH:MM).',
+  freeStartTimeHint: 'No fixed times on this day. Enter a start time (HH:MM).',
   freeStartTimePast: 'That time has already passed today.',
   timesOnTemplate: 'Times on {date}',
   seatSingular: 'seat',
@@ -1256,10 +1251,10 @@ const en: Bundle = {
   selectedDateTemplate: 'Selected: {date}',
 
   pickACourseWindow: 'Pick a course window',
-  couldNotLoadCourseWindows: 'Could not load course windows.',
+  couldNotLoadCourseWindows: "We couldn't load the course dates.",
   loadingWindows: 'Loading available dates…',
-  noUpcomingWindows: 'No upcoming windows for this course. Please check back later.',
-  upcomingWindowsFor: 'Upcoming {name} windows. Pick one to continue.',
+  noUpcomingWindows: 'No upcoming dates for this course. Please check back later.',
+  upcomingWindowsFor: 'Upcoming dates for {name}. Pick one to continue.',
   fullBadge: 'Full',
   tooLateToBook: 'Too late to book',
   availableBadge: 'Available',
@@ -1271,12 +1266,9 @@ const en: Bundle = {
   loadingAvailabilityEllipsis: 'Loading availability…',
   changeYourDatesToContinue: 'Change your dates to continue.',
   dayNoLongerAvailableReason: '{date} is no longer available — remove it to continue.',
-  capacityExceededMessage:
-    'Sorry, there is not enough space left for your booking on one of your dates. Please change your dates and try again.',
-  slotCapacityExceededMessage:
-    'Sorry, there is not enough space left at that start time. Please pick another time and try again.',
-  slotStartTimeInvalidMessage:
-    'Sorry, that start time is no longer available. Please pick another time and try again.',
+  capacityExceededMessage: "Sorry, one of your dates doesn't have enough space left. Change your dates and try again.",
+  slotCapacityExceededMessage: "Sorry, that start time doesn't have enough space left. Pick another time and try again.",
+  slotStartTimeInvalidMessage: 'Sorry, that start time is no longer available. Pick another time and try again.',
   seatsShortOne: 'Only 1 seat left on {day} — you need {need}.',
   seatsShortOther: 'Only {n} seats left on {day} — you need {need}.',
   seatsShortNone: 'No seats left on {day} — you need {need}.',
@@ -1295,15 +1287,11 @@ const en: Bundle = {
   seatFitWindowsOne: '1 course date fits {n} people',
   seatFitWindowsOther: '{count} course dates fit {n} people',
   seatFitNoneWindows: 'No upcoming course dates with room for {n} people.',
-  holdUntilOnly:
-    'When you booked, seats for {name} were still free. Held until {when}.',
-  holdRequested:
-    'Seats for {name} are requested and held for {n} hours, until {when}. The operator still has to confirm that everyone fits.',
-  holdHeldOne:
-    'When you booked, seats for {name} were still free. Held for 1 hour, until {when}.',
-  holdHeldOther:
-    'When you booked, seats for {name} were still free. Held for {n} hours, until {when}.',
-  holdNotHeld: 'Seats for {name} are not held — they can book while seats last.',
+  holdUntilOnly: 'Seats for {name} were free when you booked and are held until {when}.',
+  holdRequested: "Seats for {name} are requested and held for {n} hours, until {when}. The operator still needs to confirm there's room for everyone.",
+  holdHeldOne: 'Seats for {name} were free when you booked and are held for 1 hour, until {when}.',
+  holdHeldOther: 'Seats for {name} were free when you booked and are held for {n} hours, until {when}.',
+  holdNotHeld: "Seats for {name} aren't held — they can book while seats last.",
   holdTonight: 'tonight',
   holdToday: 'today at {time}',
   holdTomorrow: 'tomorrow at {time}',
@@ -1313,12 +1301,10 @@ const en: Bundle = {
   readyToContinueWithHostsDates: "Ready to continue with the host's dates.",
   continueWithTheseDates: 'Continue with these dates',
   changeDates: 'Change dates',
-  personalCapReached:
-    "This month's limit of priced bookings on the current plan is reached. Switch plan to add more.",
+  personalCapReached: "You've reached this month's limit of priced bookings on the current plan. Switch plans to add more.",
   pickCourse: 'Pick a course',
   courseFallbackName: 'Course {n}',
-  fixedDateWindowAmbiguousMessage:
-    'More than one course starts on this day. Please go back and pick the course you want.',
+  fixedDateWindowAmbiguousMessage: 'More than one course starts on this day. Go back and pick the course you want.',
   sameDaysAsHostFor: 'The same days as {host} for {product}.',
   inviteBannerDatesAndHotel:
     'You’re joining {host}’s booking (ref {ref}). Dates and hotel are prefilled — change anything that differs for you.',
@@ -1335,12 +1321,11 @@ const en: Bundle = {
   pickupLocationCue: 'choose your pickup location',
   chooseWhereWePickYouUp: 'Choose where we pick you up',
   loadingPickupLocations: 'Loading pickup locations…',
-  noPickupLocationsConfigured: 'No pickup locations configured — contact operator',
+  noPickupLocationsConfigured: 'No pickup locations set up yet — contact the operator',
   choosePickupLocationToContinue: 'Choose a pickup location to continue.',
 
   guideLanguageTitle: 'Guide language',
-  guideLanguageOthersHint:
-    'Other participants will choose their own language when they make their own booking.',
+  guideLanguageOthersHint: 'Other participants choose their own language when they book.',
   optionalSuffix: '(optional)',
   unassignedOption: 'Unassigned',
   roomFullSuffix: ' (full)',
@@ -1357,13 +1342,13 @@ const en: Bundle = {
   moveSelectedHereUnassign: 'Move selected here (unassign)',
 
   selectPlaceholder: '— select —',
-  noFormConfigForProduct: 'No form configuration found for this product.',
-  formDefinitionNotFound: 'Form definition not found.',
-  couldNotLoadFormRetry: 'Could not load the form. Please go back and try again.',
+  noFormConfigForProduct: 'No form is set up for this product.',
+  formDefinitionNotFound: "We couldn't find this form.",
+  couldNotLoadFormRetry: "We couldn't load the form. Go back and try again.",
   additionalInformationTitle: 'Additional information',
-  completeEveryRequiredField: 'Complete every required field to continue.',
+  completeEveryRequiredField: 'Complete the required fields to continue.',
   unsupportedFieldTypeTemplate: '(Unsupported field type: {type})',
-  productFormSubtitleTemplate: '{product} · please complete the form below',
+  productFormSubtitleTemplate: '{product} · complete the form below',
   loadingEllipsis: 'Loading…',
   formPersonParticipantTag: 'Participant',
   formPersonGuestTag: 'Guest',
@@ -1373,8 +1358,8 @@ const en: Bundle = {
   staffFormFillInNow: 'Fill in now instead',
   staffFormLetCustomerComplete: 'Let the customer complete this instead',
   staffReviewCustomerCompletes: 'Customer completes:',
-  formPersonSectionHint: 'Please answer for each person.',
-  formResponsesInvalidIntro: 'Some answers in the form need fixing. Please go back to the form and correct:',
+  formPersonSectionHint: 'Answer for each person.',
+  formResponsesInvalidIntro: 'Some answers in the form need fixing. Go back to the form and correct:',
 
   customerCommentPlaceholder:
     'e.g. a dietary need, an accessibility request, a special occasion…',
@@ -1390,7 +1375,7 @@ const en: Bundle = {
   enterYourNameEmailPhoneCue: 'enter your name, email and phone',
   enterYourBillingAddressCue: 'enter your billing address',
   billingRequiredBeforeConfirm: 'Enter your billing address to confirm.',
-  fillInEveryRequiredField: 'Fill in every required field to continue.',
+  fillInEveryRequiredField: 'Complete the required fields to continue.',
   roleLabel: 'Role',
   includeYourCountryCode: 'Include your country code',
   billingAddressTitle: 'Billing address',
@@ -1403,7 +1388,7 @@ const en: Bundle = {
   billingCountryPlaceholder: '— select a country —',
   billingInvoiceToCompanyLabel: 'Invoice to a company?',
   billingInvoiceNameLabel: 'Invoice name (optional)',
-  billingInvoiceNameHint: 'Only if the invoice should be made out to a different name than yours.',
+  billingInvoiceNameHint: 'Only if the invoice should be in a different name from yours.',
   billingCompanyLabel: 'Company',
   billingTaxIdLabel: 'Tax ID (NIF / VAT)',
   memberPerkOtpLabel: 'Member? Enter the 6-digit code we emailed you to apply your member price.',
@@ -1444,66 +1429,55 @@ const en: Bundle = {
   accommodationTitle: 'Accommodation',
   hotelStayRequired: 'Hotel stay required',
   addHotelStayOptional: 'Add a hotel stay (optional)',
-  guidingOnlyLabel: 'Guiding only — I will take care of accommodation myself',
+  guidingOnlyLabel: "Guiding only — I'll sort out my own accommodation",
   guidingOnlyHint: 'No hotel booked through us — straight to pickup.',
   bookAccommodationPackageLabel: 'Book accommodation (package)',
   bookAccommodationPackageHint: 'Pick a hotel and rooms for your stay.',
   sharedDoubleLabel: 'I am sharing a double room booked by someone else',
   chooseYourHotel: 'Choose your hotel',
-  noHotelsConfigured: 'No hotels configured for this operator yet.',
+  noHotelsConfigured: 'No hotels set up for this operator yet.',
   roomsLegend: 'Rooms',
   additionalAccommodationLegend: 'Additional accommodation',
   loadingRooms: 'Loading rooms…',
-  noRoomsConfigured: 'No rooms configured for this hotel yet.',
+  noRoomsConfigured: 'No rooms set up for this hotel yet.',
   perNightSuffix: '/ night',
   roomAssignmentLegend: 'Room assignment',
   assignEveryoneToARoomCue: 'assign everyone to a room',
   halfFullRoomCueTemplate: '{room} has a free bed — add a guest who stays with you, or choose a smaller room',
   halfFullRoomsCueTemplate: '{rooms} have a free bed — add guests who stay with you, or choose smaller rooms',
   stayNightsLabel: 'Stay',
-  hotelPaidAtCheckin:
-    'Hotel is paid directly at check-in (cash / card) — not included in your booking total.',
+  hotelPaidAtCheckin: 'You pay the hotel directly at check-in (cash or card). Not included in your booking total.',
   completeStepsAboveToContinue: 'Complete the steps above to continue.',
   checkingAccommodationAvailability: 'Checking accommodation availability for this date…',
   howWouldYouLikeToHandleAccommodation: 'How would you like to handle accommodation?',
-  sharedDoubleNormalNotice:
-    'You are sharing a double room with another guest. No room is booked for you — the other guest holds the room — and you will be collected from the hotel.',
-  travellingWithFamilyHint:
-    'Travelling with family or friends? Add them as companions in the previous step and you can book additional rooms for them here.',
-  pleaseEnterChildAgeHint:
-    'Please enter the age for each child guest — the hotel needs it to prepare the room.',
+  sharedDoubleNormalNotice: "You're sharing a double room with another guest. The room is booked in their name, not yours, and we'll pick you up at the hotel.",
+  travellingWithFamilyHint: 'Travelling with family or friends? Add them as companions in the previous step to book extra rooms for them here.',
+  pleaseEnterChildAgeHint: "Enter each child's age — the hotel needs it to prepare the room.",
   sharedDoubleReferenceInputLabel: 'Booking reference of the person who booked the room',
   sharedDoubleReferenceLookingUp: 'Looking that up…',
-  sharedDoubleReferenceNotFoundTemplate:
-    "We couldn't find that reference for this operator — double-check it, or just leave it blank and add it later.",
-  sharedDoubleReferenceFoundTemplate: 'Booking of {name} from {date} — is that them?',
+  sharedDoubleReferenceNotFoundTemplate: "We couldn't find that reference for this operator. Double-check it, or leave it blank and add it later.",
+  sharedDoubleReferenceFoundTemplate: "{name}'s booking from {date} — is that them?",
   sharedDoubleReferenceConfirmYes: 'Yes, link us',
   sharedDoubleReferenceConfirmNo: 'No',
   sharedDoubleReferenceLinkedTemplate: "Linked to {name}'s booking.",
-  sharedDoubleReferenceHelp:
-    "It's nice if you have the code, totally fine if not — you can add it later from your booking page. " +
-    'Easiest is to ask the person who booked for their invite link, then everything is prefilled.',
+  sharedDoubleReferenceHelp: 'Got the code? Great. No code? No problem — you can add it later on your booking page. The easiest way: ask the person who booked for their invite link, and everything is prefilled.',
   additionalAccommodationOptionalHint:
     'Optional — rooms for the people travelling with you. Your own bed is already covered by the shared double room.',
-  sharedDoubleOthersTooLateTemplate:
-    "Only you share the host's room; it's too late to book rooms for other pilots ({names}) — remove them or contact the operator.",
+  sharedDoubleOthersTooLateTemplate: "Only you can share the host's room, and it's too late to book rooms for the other pilots ({names}). Remove them or contact the operator.",
   stayingAtTemplate: 'Staying at {hotel}.',
 
   whoStaysWhereTitle: 'Who stays where?',
-  roomAssignmentHelp:
-    'Drag a name onto a room, or tap a name then tap a room. You can also ' +
-    'use the dropdown on each name. When a room has fewer breakfasts than ' +
-    'guests, drag the Breakfast chip onto whoever gets it.',
+  roomAssignmentHelp: 'Drag a name onto a room, or tap a name, then a room. You can also use the dropdown next to each name. If a room has fewer breakfasts than guests, drag the Breakfast chip onto whoever gets it.',
   adultOption: 'Adult',
   childOption: 'Child',
-  childYearOption: 'Child, 1 year',
-  childYearsOption: 'Child, {n} years',
+  childYearOption: 'Child, 1 year old',
+  childYearsOption: 'Child, {n} years old',
   ageBandAria: 'Age band',
   childAgeAria: 'Child age',
   occupancyIncludedOne: 'incl. 1 adult',
   occupancyIncludedMany: 'incl. {count} adults',
-  occupancyExtraAdult: 'additional adults +{price}/night',
-  occupancyExtraGuest: 'additional guests +{price}/night',
+  occupancyExtraAdult: 'extra adults +{price}/night',
+  occupancyExtraGuest: 'extra guests +{price}/night',
   taxedGuestsOne: '{count} guest {range}',
   taxedGuestsMany: '{count} guests {range}',
   taxedRangeFrom: 'from {min}',
@@ -1512,22 +1486,22 @@ const en: Bundle = {
   taxedAdult: 'adult',
   occupancyChildBand: 'children {from}-{to} +{price}/night',
   occupancyChildBandFree: 'children {from}-{to} free',
-  guestAgeRequired: 'Please select the age of each child.',
+  guestAgeRequired: "Enter each child's age.",
   agePlaceholder: 'Age',
-  bookerAdultNotice: 'By booking you confirm that you are 18 or older.',
-  ageRefineIntro: 'The extras you added use a finer age grouping. Please choose the age group again for:',
+  bookerAdultNotice: "By booking, you confirm you're at least 18.",
+  ageRefineIntro: 'Your extras use narrower age groups. Choose the age group again for:',
   ageRefineChoose: 'Choose age group',
   exactAgeAria: 'Age',
-  exactAgeRequired: 'Please enter the age of each guest.',
-  bookerExactAgeRequired: 'Please enter your age (18 or older) to book.',
+  exactAgeRequired: "Enter each guest's age.",
+  bookerExactAgeRequired: 'Enter your age (18 or older) to book.',
   guestAttrsTitle: 'About your guests',
-  guestAttrsIntro: 'A few details per guest, so we can prepare the right gear and price.',
+  guestAttrsIntro: 'A few details about each guest, so we can prepare the right gear and price.',
   guestAttrsFallback: 'Guest {n}',
   guestAttrsChoose: 'Choose',
   guestAttrsCue: 'fill in the guest details',
   guestAttrsMissing: '{count} answer(s) still missing.',
   guestAttrsOk: 'All guest details are in.',
-  guestAttrsInvalid: 'Please check this value.',
+  guestAttrsInvalid: 'Check this value.',
   guestAttrsRange: '{min}-{max}',
   guestAttrsLater: "You can add this later — we'll ask before your arrival",
   breakfastLabel: 'Breakfast',
@@ -1540,7 +1514,7 @@ const en: Bundle = {
 
   reviewYourBookingTitle: 'Review your booking',
   hotelPrefix: 'Hotel:',
-  paidDirectlyToHotel: 'Paid directly to hotel — not included in your booking total.',
+  paidDirectlyToHotel: 'Paid directly to the hotel — not included in your booking total.',
   yourContactHeading: 'Your contact',
   nameLabel: 'Name',
   emailLabel: 'Email',
@@ -1580,29 +1554,26 @@ const en: Bundle = {
   companionOrdinalTemplate: 'Guest {n}',
   maxCompanionsReachedTemplate: 'Maximum of {n} guests reached',
   companionInviteHint: "We'll use this to send them their own booking link.",
-  companionOwnAccommodationLabel: 'Arranges own accommodation (no room booked through us)',
-  companionOwnAccommodationHint:
-    'No room is booked for them in this booking. Their invite link lets them book guiding only or a room of their own.',
+  companionOwnAccommodationLabel: 'Has their own accommodation (no room booked through us)',
+  companionOwnAccommodationHint: "We won't book a room for them in this booking. With their invite link, they can book guiding only or a room of their own.",
   ownAccommodationNoRoomBooked: 'own accommodation — no room booked',
   inviteOwnBookRoomLabel: 'Book a room with us',
-  inviteOwnBookRoomHint: 'Pick a hotel and a room of your own. The hotel of the person who invited you is preselected.',
+  inviteOwnBookRoomHint: "Pick a hotel and a room of your own. We've preselected the hotel of the person who invited you.",
   companionContactRequiredTemplate: 'We need an email or phone number to send {name} their booking link',
   themFallback: 'them',
   youWillBeListedAsParticipant1:
     "You'll be listed as participant 1. Add more people below if others are joining.",
   bookingForSomeoneElseLabel: "I'm booking for others and won't be there myself.",
-  addPeopleJoiningBelow: 'Add the people who will be there below.',
+  addPeopleJoiningBelow: 'Add the people taking part below.',
   participantsTotalTemplate: 'Participants ({n} total)',
   sameAsYoursPlaceholder: 'same as yours',
   invoiceToLabel: 'Invoice to:',
   notTakingPartPaysInvoice: 'Not taking part · pays the invoice',
   maxParticipantsReachedOne: 'Maximum of 1 participant reached',
   maxParticipantsReachedTemplate: 'Maximum of {n} participants reached',
-  alternativePartyClampedTemplate: '{name} takes up to {n} people, so the group was reduced to {n}.',
-  tooManyPeopleRemoveSomeone:
-    'There are more people than this activity allows — remove someone to continue.',
-  sharedDoubleRequiresBookerMessage:
-    'A shared double room covers your own bed, so you can only pick it when you are there yourself. Please go back to accommodation and choose another option.',
+  alternativePartyClampedTemplate: '{name} takes up to {n} people, so we reduced your group to {n}.',
+  tooManyPeopleRemoveSomeone: 'Too many people for this activity — remove someone to continue.',
+  sharedDoubleRequiresBookerMessage: "A shared double room covers your own bed, so you can only choose it if you're coming yourself. Go back to accommodation and choose another option.",
   notAMemberOrNoCode:
     "Not a member, or don't have a code? Leave this blank — it won't affect your booking.",
   participantsYouPayForHint: "People you're booking and paying for.",
@@ -1621,9 +1592,9 @@ const en: Bundle = {
   occupancyAddAnotherGuestTemplate: '{list} — add another guest or book a smaller room.',
   occupancyAddMoreGuestsTemplate: '{list} — add more guests or book a smaller room.',
   occupancyFillEachRoomTemplate: '{list}. Fill each room or book smaller rooms.',
-  occupancySharedDoubleOneTemplate: 'Only your own bed is the shared double — {names} still needs a room.',
-  occupancySharedDoubleManyTemplate: 'Only your own bed is the shared double — {names} still need a room.',
-  occupancyAssignEveryoneTemplate: 'Assign everyone to a room — still waiting on: {names}.',
+  occupancySharedDoubleOneTemplate: 'The shared double only covers your own bed — {names} still needs a room.',
+  occupancySharedDoubleManyTemplate: 'The shared double only covers your own bed — {names} still need a room.',
+  occupancyAssignEveryoneTemplate: 'Assign everyone to a room. Still missing: {names}.',
   readyToConfirm: 'Ready to confirm.',
   reviewStepCueLabel: 'Last step: confirm your booking',
   submittingYourBookingEllipsis: 'Submitting your booking…',
@@ -1653,34 +1624,33 @@ const en: Bundle = {
   bookingCreated: 'Booking created',
   bookingConfirmed: 'Booking confirmed',
   bookingReceived: 'Booking received',
-  confirmationEmailFailed:
-    'We received your booking request, but we could not send the confirmation email.',
-  confirmationEmailSent: 'A confirmation email has been sent with your booking details.',
-  confirmationEmailPending: 'You will receive a confirmation email shortly with the next steps.',
+  confirmationEmailFailed: "We received your booking request, but we couldn't send the confirmation email.",
+  confirmationEmailSent: "We've emailed you a confirmation with your booking details.",
+  confirmationEmailPending: "You'll get a confirmation email with the next steps shortly.",
   downloadIcsButton: 'Download .ics',
   makeAnotherBookingLink: 'Make another booking',
   bookingConfirmedInboxNote: 'Your booking is confirmed — the details are in your inbox.',
   paymentLinkOnItsWay: 'A payment link is on its way.',
-  payOnSiteNote: 'Please pay on the day, at the meeting point.',
+  payOnSiteNote: 'You pay on the day, at the meeting point.',
   bankTransferNote: 'Bank details are in your confirmation email.',
   paymentLinkForDepositOnItsWay: 'A payment link for your deposit is on its way.',
   depositTodayRestBy: '{percent}% deposit today, the rest by {date}.',
-  depositNonRefundable: 'The deposit is not refunded if you cancel.',
+  depositNonRefundable: 'The deposit is non-refundable.',
   depositTodayNonRefundableRestBy: '{percent}% deposit today (non-refundable), the rest by {date}.',
   depositTodayNonRefundable: '{percent}% deposit today (non-refundable).',
-  depositPercentNonRefundable: 'The {percent}% deposit is not refunded if you cancel.',
+  depositPercentNonRefundable: 'The {percent}% deposit is non-refundable.',
   payModeNotOnlineTitle: 'This booking is no longer paid online',
-  payModeNotOnlinePayOnSite: 'Please pay on the day, at the meeting point.',
-  payModeNotOnlineBankTransfer: 'Please pay by bank transfer — details are in your confirmation email.',
-  payModeNotOnlineGeneric: 'Online payment is no longer available for this booking. Please contact the operator about how to pay.',
+  payModeNotOnlinePayOnSite: 'You pay on the day, at the meeting point.',
+  payModeNotOnlineBankTransfer: 'Pay by bank transfer — the details are in your confirmation email.',
+  payModeNotOnlineGeneric: 'Online payment is no longer available for this booking. Contact the operator to arrange payment.',
   payByBankTransferTitle: 'Pay by bank transfer',
   bankAccountHolderLabel: 'Account holder',
   bankIbanLabel: 'IBAN',
   bankBicLabel: 'BIC',
   bankReferenceLabel: 'Reference',
-  bankTransferReferenceHint: 'Please quote the reference so we can match your transfer.',
+  bankTransferReferenceHint: 'Include the reference so we can match your payment.',
   payOnSiteAlsoHint: 'You can also pay on site, on the day.',
-  awaitingOperatorConfirmation: 'Your booking is awaiting confirmation from the operator.',
+  awaitingOperatorConfirmation: 'Your booking is waiting for the operator to confirm.',
   participantCountSingular: '{n} participant',
   participantCountPlural: '{n} participants',
   pickupPrefix: 'Pickup:',
@@ -1691,7 +1661,7 @@ const en: Bundle = {
   bookedRefTemplate: 'Booked ✓ (ref {ref})',
   sendBookingLinkToTemplate: 'Send booking link to {name}',
   inviteEmailSentLabel: 'Sent ✓',
-  emailUnavailableNotice: 'Email sending unavailable — copy the link instead.',
+  emailUnavailableNotice: "Email isn't available — copy the link instead.",
   groupBookedTogetherWith: 'Booked together with',
   bookedTogetherMemberTemplate: '{name} (ref {ref})',
   hostSuffixLabel: ' — host',
@@ -1701,10 +1671,9 @@ const en: Bundle = {
     "We couldn't find a booking with that reference, so your booking wasn't linked to theirs.",
   joinErrorSameBooking: 'That reference points to your own booking, so there was nothing to link.',
   joinErrorJoinFailed: "We couldn't link your booking to that reference right now.",
-  joinErrorFollowup:
-    'Your booking itself is confirmed as usual — you can still add the reference later on your booking page.',
-  bookingConfirmedEmailFailed: 'Your booking is confirmed — but we could not send the confirmation email.',
-  contactOperatorToConfirm: 'Please contact the operator directly to confirm your booking details.',
+  joinErrorFollowup: 'Your booking is still confirmed — you can add the reference later on your booking page.',
+  bookingConfirmedEmailFailed: "Your booking is confirmed, but we couldn't send the confirmation email.",
+  contactOperatorToConfirm: 'Contact the operator directly to confirm your booking details.',
   changeActivityHint: 'Want a different activity? Contact {operator} to change it.',
   changeActivityHintNoOperator: 'Want a different activity? Contact the operator to change it.',
   heldTitle: 'Request received',
@@ -1714,51 +1683,38 @@ const en: Bundle = {
   heldNoDeadlineNoOperator: 'The operator will get back to you about your request.',
   heldNotConfirmed: 'This is a request, not a confirmed booking. Nothing is due now.',
   heldContactLabel: 'Contact',
-  payDirectlyNote: 'Pay directly to {operator}. There is no online payment.',
-  payDirectlyNoteNoOperator: 'Pay directly to the operator. There is no online payment.',
+  payDirectlyNote: "You pay {operator} directly — there's no online payment.",
+  payDirectlyNoteNoOperator: "You pay the operator directly — there's no online payment.",
   nextStepSendGroupLinkSingular: 'Next step: send your group their booking link',
   nextStepSendGroupLinkPlural: 'Next step: send your group their booking links',
   eachCompletesOwnBooking: 'Each of them completes their own booking from their link.',
   linkCannotBeEmailed: "This link can't be emailed from here any more — copy it instead.",
   emailAddressRejected: 'That email address was rejected.',
   tooManyEmailsRetry: 'Too many emails right now — try again in a few minutes.',
-  couldNotSendEmailGeneric:
-    'Could not send that email — please try again, or use WhatsApp / copy the link instead.',
+  couldNotSendEmailGeneric: "Couldn't send that email. Try again, or use WhatsApp or copy the link instead.",
 
   confirmingYourPayment: 'Confirming your payment…',
   usuallyTakesAFewSeconds: 'This usually takes a few seconds.',
-  pleaseWaitConfirmingPayment: 'Please wait while we confirm your payment with our records.',
+  pleaseWaitConfirmingPayment: 'Please wait while we confirm your payment.',
   paymentComplete: 'Payment complete',
   yourBookingIsConfirmed: 'Your booking is confirmed.',
-  paymentCompleteBody:
-    'Thank you! We have received your payment and your booking is confirmed. ' +
-    'You will receive a confirmation email shortly.',
+  paymentCompleteBody: "Thank you! We've received your payment and your booking is confirmed. You'll get a confirmation email shortly.",
   stillConfirmingYourPayment: 'Still confirming your payment',
   takingLongerThanUsual: 'This is taking longer than usual.',
-  paymentPendingBody:
-    'We have not been able to confirm your payment yet. This does not ' +
-    'necessarily mean anything is wrong — we will email you a confirmation ' +
-    'as soon as it is processed. If you do not hear from us shortly, please ' +
-    'contact us.',
-  couldNotCheckPaymentStatusTitle: 'We could not check your payment status',
-  paymentUnknownBody:
-    'We were unable to reach our records just now. If your payment ' +
-    'succeeded, you will receive a confirmation email shortly. If you are ' +
-    'not sure, please contact us.',
+  paymentPendingBody: "We haven't been able to confirm your payment yet. That doesn't mean anything is wrong — we'll email you a confirmation as soon as it's processed. If you don't hear from us soon, please contact us.",
+  couldNotCheckPaymentStatusTitle: "We couldn't check your payment status",
+  paymentUnknownBody: "We couldn't reach our system just now. If your payment went through, you'll get a confirmation email shortly. If you're not sure, please contact us.",
   paymentCancelledTitle: 'Payment cancelled',
-  yourBookingHasNotBeenCharged: 'Your booking has not been charged.',
-  paymentCancelledBody:
-    'You left the payment page without completing payment. Your booking is ' +
-    'still reserved — click below to try again.',
+  yourBookingHasNotBeenCharged: "You haven't been charged.",
+  paymentCancelledBody: 'You left the payment page before paying. Your booking is still reserved — click below to try again.',
   paymentLinkNotFoundTitle: 'Payment link not found',
   offerNotFoundTitle: 'Offer not found',
-  offerLinkInvalidBody:
-    'This offer link is invalid or has expired. Please contact the operator for a fresh link.',
-  paymentFailedToStartTitle: 'Payment failed to start',
+  offerLinkInvalidBody: 'This offer link is invalid or has expired. Contact the operator for a new link.',
+  paymentFailedToStartTitle: "Payment couldn't start",
   loadingYourOffer: 'Loading your offer…',
   pleaseWait: 'Please wait.',
   completeYourPayment: 'Complete your payment',
-  paymentPageTitle: 'Payment site',
+  paymentPageTitle: 'Payment',
   yourCustomOffer: 'Your custom offer',
   payModeDescription: 'Your booking is confirmed. Pay the outstanding balance below to secure it.',
   offerModeDescription: 'Review the details below and click Accept & Pay to confirm your booking.',
@@ -1804,36 +1760,35 @@ const en: Bundle = {
   totalBookingValueLabel: 'Total booking value',
   offerTotalLabel: 'Total',
   amountDueNowLabel: 'Amount due now',
-  totalBookingValueNote: 'This is the full value of the booking — not the amount being charged now.',
+  totalBookingValueNote: 'This is the full value of the booking, not the amount charged now.',
   payableDirectlyToHotel: 'Payable directly to the hotel on arrival',
-  hotelSettledAtCheckin:
-    'Your accommodation is settled with the hotel at check-in. It is not part of the amount charged here.',
+  hotelSettledAtCheckin: "You pay the hotel for your accommodation at check-in. It's not part of the amount charged here.",
   nothingToPay: 'Nothing to pay',
   redirectingToPaymentEllipsis: 'Redirecting to payment…',
   payNowLabel: 'Pay now',
   acceptAndPayLabel: 'Accept & Pay',
   nothingFurtherToPay: "There's nothing further to pay through this link right now.",
-  paymentLinkPersonal: 'This payment link is personal. Do not share it.',
-  offerLinkPersonal: 'This offer link is personal. Do not share it.',
+  paymentLinkPersonal: "This payment link is personal. Don't share it.",
+  offerLinkPersonal: "This offer link is personal. Don't share it.",
   offerAcceptLabel: 'Accept offer',
   offerAcceptingEllipsis: 'Accepting…',
-  offerAcceptErrorTitle: 'Could not accept the offer',
-  offerAcceptErrorChanged: 'The operator changed this offer after the link was sent. Please open the link in your latest email.',
+  offerAcceptErrorTitle: "Couldn't accept the offer",
+  offerAcceptErrorChanged: 'The operator changed this offer after sending the link. Open the link in your latest email.',
   offerAcceptErrorClosed: 'This booking is no longer open.',
-  offerAcceptErrorGeneric: 'We could not record your acceptance. Please try again or contact us.',
+  offerAcceptErrorGeneric: "We couldn't record your acceptance. Try again or contact us.",
   offerAgreedTitle: 'Your booking as agreed',
-  offerAgreedDescription: 'This is your booking as we agreed it, so there is nothing for you to accept.',
+  offerAgreedDescription: "This is your booking as we agreed it, so there's nothing to accept.",
   offerAcceptedDescription: 'You have accepted this offer.',
-  offerReviewHotelDescription: 'Review the details below. You can accept the offer now; we send your confirmation and payment link as soon as the hotel confirms.',
+  offerReviewHotelDescription: "Review the details below. You can accept now — we'll send your confirmation and payment link once the hotel confirms.",
   offerReviewAcceptDescription: 'Review the details below and click Accept offer to confirm your booking.',
   offerHotelNote: 'Your offer becomes valid once the hotel confirms your dates.',
-  offerHotelNoteAfterAccept: 'You can accept now — we send your confirmation and payment link as soon as the hotel confirms.',
-  offerHotelNoteNow: 'You have accepted. We are waiting for the hotel; we send your confirmation and payment link as soon as it confirms.',
+  offerHotelNoteAfterAccept: "You can accept now — we'll send your confirmation and payment link once the hotel confirms.",
+  offerHotelNoteNow: "You've accepted. We're waiting for the hotel and will send your confirmation and payment link once it confirms.",
   offerHotelConfirmed: 'Hotel confirmed',
   offerHotelConfirmedAfterAccept: 'The hotel has confirmed your rooms. Accept the offer to get your confirmation and payment link.',
   offerHotelConfirmedAccepted: 'The hotel has confirmed your rooms.',
   offerHotelDeclined: 'We are updating your offer.',
-  offerHotelDeclinedBody: 'The hotel could not confirm these rooms. We will send you an updated offer shortly. Nothing is due now.',
+  offerHotelDeclinedBody: "The hotel couldn't confirm these rooms. We'll send you an updated offer shortly. Nothing is due now.",
   offerSavingsIntroTemplate: 'You save {x} compared to our regular prices.',
   offerYouSavePerDayTemplate: 'You save {a} per day · {b}',
   offerYouSaveTemplate: 'You save {b}',
@@ -1848,12 +1803,11 @@ const en: Bundle = {
   offerInclTaxNamedTemplate: 'incl. {a} {n} ({p} %)',
   offerTaxAddedNamedTemplate: '+ {a} {n} ({p} %)',
   offerPaidAtHotelTemplate: '+ {a} paid at the hotel on arrival',
-  couldNotStartPayment: 'We could not start the payment. Please try again or contact us.',
+  couldNotStartPayment: "We couldn't start the payment. Try again or contact us.",
 
   becomeAMember: 'Become a member',
   backToProductsLabel: 'Back to products',
-  membershipRedirectHelp:
-    "You'll be redirected to our secure payment provider to complete your membership.",
+  membershipRedirectHelp: "You'll be taken to our secure payment provider to complete your membership.",
   enterYourEmailCue: 'enter your email',
   yourNameThing: 'your name',
   firstNameLabel: 'First name',
@@ -1863,7 +1817,7 @@ const en: Bundle = {
   shopKindPass: 'pass',
   passPickTier: 'Choose your pass',
   passNoTiers: 'No passes are on sale right now.',
-  passLoadFailed: 'Passes could not be loaded. Please try again.',
+  passLoadFailed: "We couldn't load the passes. Please try again.",
   passValidityDay: 'Valid for 1 day',
   passValidityDays: 'Valid for {n} days',
   passValidityWeek: 'Valid for 7 days',
@@ -1882,31 +1836,28 @@ const en: Bundle = {
   passMemberCodeLabel: 'Code from your email',
   passMemberApply: 'Apply member price',
   passMemberApplied: 'Member price applied',
-  passMemberFailed: 'That code did not work. Request a new one.',
+  passMemberFailed: "That code didn't work. Request a new one.",
   passMemberPriceLabel: 'Member price',
   passTotalLabel: 'Total',
   passBuyCta: 'Book pass',
   passBuying: 'Booking…',
-  passCheckoutError: 'We could not book your pass. Please check your details and try again.',
+  passCheckoutError: "We couldn't book your pass. Check your details and try again.",
   passStartInPast: 'Pick today or a later start date.',
   passTicketsTitle: 'Your pass tickets',
   passTicketsHelp: 'Show this QR code at the entrance. Valid {from} – {until}.',
   passEnterDetailsCue: 'enter your name, email, phone and billing address',
-  membershipUnavailableBody:
-    'This membership option is not available right now. Please contact the operator directly.',
+  membershipUnavailableBody: "This membership isn't available right now. Please contact the operator directly.",
   tooManyAttemptsTitle: 'Too many attempts',
   tooManyAttemptsBody: 'Please wait a few minutes and try again.',
-  membershipGenericErrorBody: 'We could not start checkout. Please try again or contact the operator.',
+  membershipGenericErrorBody: "We couldn't start checkout. Try again or contact the operator.",
   redirectingToPaymentDots: 'Redirecting to payment…',
   onYourWayToMembershipTitle: "You're on your way to becoming a member",
   membershipBeingActivated: 'Your membership is being activated.',
   checkoutCancelledTitle: 'Checkout cancelled',
-  membershipNotCharged: 'You have not been charged.',
-  membershipCancelledBody:
-    'You left checkout without completing your membership. No payment was taken — you can try again any time.',
+  membershipNotCharged: "You haven't been charged.",
+  membershipCancelledBody: 'You left checkout before completing your membership. Nothing was charged — you can try again any time.',
   continueBrowsing: 'Continue browsing',
-  membershipActivatingBody:
-    "Thank you! We received your payment and your membership is being set up now. You'll get a confirmation email as soon as it's active — this is usually quick, but please don't refresh this page waiting for it to change.",
+  membershipActivatingBody: "Thank you! We've received your payment and are setting up your membership now. You'll get a confirmation email as soon as it's active. This is usually quick, but please don't refresh this page while you wait.",
 
   addonsTitle: 'Add-ons',
   loadingAddons: 'Loading add-ons…',
@@ -1919,17 +1870,17 @@ const en: Bundle = {
   companionDaysAriaTemplate: 'Days for {item}',
   companionDayFull: 'Fully booked on this day',
   companionDaysRequired: 'Pick at least one day.',
-  companionPickedDaySoldOut: 'Sold out on a day you picked — pick other days.',
+  companionPickedDaySoldOut: 'Sold out on one of your days — pick other days.',
   companionDaysToContinue: 'Pick at least one day for each add-on you chose.',
   companionQtyToContinue: 'Lower the quantity of your add-ons to continue.',
-  companionErrDaysRequired: 'Please pick at least one day for this add-on.',
-  companionErrOutsideParent: 'This add-on can only be booked on days your booking covers. Please go back and check the days.',
+  companionErrDaysRequired: 'Pick at least one day for this add-on.',
+  companionErrOutsideParent: 'This add-on can only be booked on days your booking covers. Go back and check the days.',
   companionErrParentMissing: 'This add-on can only be booked together with the product it belongs to.',
-  companionErrOutOfStock: 'Not enough of this add-on is left on the days you picked. Please lower the quantity or pick other days.',
-  companionErrQuantityMax: 'You picked more of this add-on than is allowed. Please lower the quantity.',
-  companionErrNoLongerFits: 'This add-on no longer fits your booking dates. Please go back and check its days.',
+  companionErrOutOfStock: "There isn't enough of this add-on left on the days you picked. Lower the quantity or pick other days.",
+  companionErrQuantityMax: 'You picked more of this add-on than allowed. Lower the quantity.',
+  companionErrNoLongerFits: 'This add-on no longer fits your booking dates. Go back and check its days.',
   pickRequiredAddonsCue: 'pick your required add-ons',
-  pickRequiredAddonsToContinue: 'Pick every required add-on to continue.',
+  pickRequiredAddonsToContinue: 'Pick all required add-ons to continue.',
   requiredSuffix: 'required',
   eachSuffix: 'each',
   overbookManyRoomsTemplate: 'More {addon} ({qty}) than these {roomQty} rooms sleep ({expected}) — bringing extras?',
@@ -1944,7 +1895,7 @@ const en: Bundle = {
   offerOccupancyCapMany: 'Up to {expected} — one per guest in these rooms',
 
   fullyBookedLabel: 'Fully booked',
-  fullyBookedBlurb: 'There are no upcoming dates available for this product right now. Please check back later.',
+  fullyBookedBlurb: 'There are no upcoming dates for this product right now. Please check back later.',
   alternativesHeadingDay: 'Also available on this day',
   alternativesHeadingDays: 'Also available on these days',
   alternativesHeadingCourses: 'Also starting in {month}',
@@ -1979,8 +1930,7 @@ const en: Bundle = {
   bookNow: 'Book now',
   tickEveryLanguageHelp: 'Tick every language you speak, and drag your preferred one to the top.',
   draftPreviewBadge: 'Draft — preview',
-  shopComingSoonBodyTemplate:
-    'This {kind} is sold in our Shop, which is coming soon. Please contact the operator directly to order it in the meantime.',
+  shopComingSoonBodyTemplate: 'This {kind} will be sold in our Shop, which is coming soon. Until then, contact the operator directly to order it.',
   landingPageTitle: 'This is the booking-widget host for Landr',
   poweredByLandr: 'Powered by LANDR',
 
@@ -2002,7 +1952,7 @@ const en: Bundle = {
   voucherFixBeforeConfirm: 'Fix or clear the voucher code to continue.',
 
   calculatingEllipsis: 'Calculating…',
-  couldNotFetchPrice: "Couldn't fetch price — your final total will be shown at confirmation.",
+  couldNotFetchPrice: "Couldn't load the price — you'll see your final total at confirmation.",
   pickYourOptionsToSeePrice: 'Pick your options to see the price.',
   bookingOverviewTitle: 'Booking overview',
   updatePriceTitle: 'Update price',
@@ -2050,19 +2000,18 @@ const en: Bundle = {
   detailsLoadingTitle: 'Loading your questions…',
   detailsLoadingBody: 'One moment, please.',
   detailsInvalidTitle: 'This link is no longer valid',
-  detailsInvalidBody:
-    'The link may have expired or been replaced. Please contact the company you booked with.',
+  detailsInvalidBody: 'The link may have expired or been replaced. Contact the company you booked with.',
   detailsErrorTitle: 'Something went wrong',
-  detailsErrorBody: 'We could not load your questions. Please try again in a moment.',
+  detailsErrorBody: "We couldn't load your questions. Please try again in a moment.",
   detailsRetry: 'Try again',
   detailsNothingTitle: 'Nothing to complete',
-  detailsNothingBody: 'There is nothing left for you to fill in. {operator} already has everything they need.',
-  detailsNothingBodyNoOperator: 'There is nothing left for you to fill in. The organiser already has everything they need.',
+  detailsNothingBody: "There's nothing left for you to fill in. {operator} already has everything they need.",
+  detailsNothingBodyNoOperator: "There's nothing left for you to fill in. The organiser already has everything they need.",
   detailsDoneTitle: 'Thanks — your details are saved',
-  detailsDoneBody: 'We have passed them on to {operator}. You can close this page.',
-  detailsDoneBodyNoOperator: 'We have passed them on. You can close this page.',
-  detailsIntro: 'Please answer the questions below for your booking with {operator}.',
-  detailsIntroNoOperator: 'Please answer the questions below for your booking.',
+  detailsDoneBody: "We've passed them on to {operator}. You can close this page.",
+  detailsDoneBodyNoOperator: "We've passed them on. You can close this page.",
+  detailsIntro: 'Answer the questions below for your booking with {operator}.',
+  detailsIntroNoOperator: 'Answer the questions below for your booking.',
   detailsInlineIntro: 'Before you accept, {operator} needs a few details from you.',
   detailsInlineIntroNoOperator: 'Before you accept, we need a few details from you.',
   detailsStepCounter: 'Form {n} of {total}',
@@ -2070,12 +2019,12 @@ const en: Bundle = {
   detailsSubmitAndAccept: 'Save and accept',
   detailsSaving: 'Saving…',
   detailsConfirmTitle: 'No questions left to answer',
-  detailsConfirmBody: 'The questions for this booking are no longer needed. Confirm to let {operator} know.',
-  detailsConfirmBodyNoOperator: 'The questions for this booking are no longer needed. Confirm to let the organiser know.',
+  detailsConfirmBody: 'These questions are no longer needed for this booking. Confirm to let {operator} know.',
+  detailsConfirmBodyNoOperator: 'These questions are no longer needed for this booking. Confirm to let the organiser know.',
   detailsConfirmButton: 'Confirm',
-  detailsProblemsTitle: 'Please check these answers',
-  detailsSaveFailed: 'We could not save your details. Please try again.',
-  detailsBookingClosed: 'This booking is closed, so details can no longer be added.',
+  detailsProblemsTitle: 'Check these answers',
+  detailsSaveFailed: "We couldn't save your details. Please try again.",
+  detailsBookingClosed: 'This booking is closed, so you can no longer add details.',
   fieldRequiredTemplate: '{label} is required.',
   fieldMinLengthTemplate: '{label} must be at least {n} characters.',
   fieldMaxLengthTemplate: '{label} must be at most {n} characters.',
@@ -2097,7 +2046,7 @@ const en: Bundle = {
   namesPairTemplate: '{first} and {second}',
   namesAndOthersTemplate: '{first} and {n} others',
   languageStepGateDone: 'Everyone has a language.',
-  languageStepGateWaitingTemplate: 'Assign every participant to a language — still waiting on {names}.',
+  languageStepGateWaitingTemplate: 'Assign every participant to a language. Still missing: {names}.',
   secondLanguageQuestionCase: 'keep',
   secondLanguageOnlyCase: 'keep',
   secondLanguageQuestionTemplate: 'If no {language} guide is available, which language would also work?',
@@ -2105,11 +2054,9 @@ const en: Bundle = {
     '{language} stays your first choice. The more languages you tick, the more likely we can confirm your booking.',
   secondLanguageOnlyTemplate: 'I only speak {language}',
   secondLanguageApplyAll: 'Apply to everyone',
-  secondLanguageGateWaitingTemplate: 'Tick at least one option for each person — still open: {names}.',
-  secondLanguageErrorMissing:
-    'Please go back to the language step and say which other guiding languages each person would accept.',
-  secondLanguageErrorInvalid:
-    'The other guiding languages on offer have changed. Please go back to the language step and choose again.',
+  secondLanguageGateWaitingTemplate: 'Tick at least one option for each person. Still open: {names}.',
+  secondLanguageErrorMissing: 'Go back to the language step and choose which other guiding languages work for each person.',
+  secondLanguageErrorInvalid: 'The guiding languages on offer have changed. Go back to the language step and choose again.',
   singleDateGateSelected: 'Date selected.',
   singleDateGateEmpty: 'Choose a date to continue.',
   multiDayGateNone: 'Choose at least one date to continue.',
@@ -2125,16 +2072,16 @@ const en: Bundle = {
   fixedDateWindowGateEmpty: 'Choose a window to continue.',
   availabilityGateTimeSelected: 'Time selected.',
   availabilityGateChooseTime: 'Choose a time to continue.',
-  accommodationTooLateTemplate: 'You can still book this date — the activity is available. Booking a hotel stay is no longer possible for this date, though: check-in would have needed to be on {date}.',
+  accommodationTooLateTemplate: "You can still book the activity on this date, but it's too late to add a hotel stay: check-in would have been on {date}.",
   occupantSingular: 'person',
   occupantPlural: 'people',
   bedSingular: 'bed',
   bedPlural: 'beds',
-  occupancyOverbookTemplate: 'You have {occupants} {occupantWord} but only {beds} {bedWord} — sure?',
+  occupancyOverbookTemplate: 'You have {occupants} {occupantWord} but only {beds} {bedWord} — are you sure?',
   multiDayDiffSummaryTemplate: '+{added} {addedWord} / −{removed} {removedWord} vs {original}',
   multiDayDiffOriginalFallback: 'the original booking',
   multiDayResetToDatesTemplate: 'Reset to {name}’s dates',
-  multiDayResetToOriginalDates: 'Reset to the original’s dates',
+  multiDayResetToOriginalDates: 'Reset to the original dates',
   multiDayResetDroppedOne: '{n} of {name}\'s days is no longer available.',
   multiDayResetDroppedOther: '{n} of {name}\'s days are no longer available.',
   multiDayResetDroppedHostFallback: 'the host',
@@ -2144,12 +2091,12 @@ const en: Bundle = {
   hostRoomFullMany: 'The room you\'re sharing is full — add a room for the people travelling with you.',
   hostRoomFewBedsOne: 'Only 1 more bed is free in the room you\'re sharing — add a room for the rest of the people travelling with you.',
   hostRoomFewBedsOther: 'Only {n} more beds are free in the room you\'re sharing — add a room for the rest of the people travelling with you.',
-  inviteRoomBookedTemplate: 'Your room is already booked by {who}{room}. You will be collected from the hotel.',
+  inviteRoomBookedTemplate: "Your room is already booked by {who}{room}. We'll pick you up at the hotel.",
   inviteRoomBookedWhoFallback: 'the person who invited you',
   inviteRoomLabelTemplate: 'My room is booked by {who}',
   inviteRoomLabelWhoFallback: 'the person who invited me',
-  inviteRoomHintText: 'Your bed is in the room the person who invited you already booked. You are collected from the hotel.',
-  hostRoomFullRequiredHintText: 'Rooms for the people travelling with you. Your own bed is already covered by the shared double room, but there is no space left in it for anyone else.',
+  inviteRoomHintText: "Your bed is in the room the person who invited you has already booked. We'll pick you up at the hotel.",
+  hostRoomFullRequiredHintText: 'Rooms for the people travelling with you. Your own bed is already covered by the shared double room, but it has no space left for anyone else.',
   shopKindService: 'service',
   shopKindHotelRoom: 'hotel room',
   shopKindSubscription: 'subscription',
@@ -2163,7 +2110,7 @@ const en: Bundle = {
   factKindMembership: 'Membership',
   factKindSubscription: 'Subscription',
   factKindHotelRoom: 'Hotel room',
-  factKindAddon: 'Addon',
+  factKindAddon: 'Add-on',
   calendarDaySelected: 'selected',
   calendarDayAdded: 'added',
   calendarDayRemoved: 'removed',
@@ -2178,10 +2125,10 @@ const en: Bundle = {
   stayErrInvalidRange: 'Pick a check-out date after the check-in date.',
   stayErrNotContiguous: 'A stay must cover every night between check-in and check-out.',
   stayErrCheckInPast: 'The check-in date has already passed.',
-  stayErrBelowMin: 'This stay needs more nights.',
-  stayErrAboveMax: 'This stay allows fewer nights.',
-  stayErrTooManyGuests: 'This place sleeps fewer guests than selected.',
-  stayErrBlockedTemplate: 'The night of {date} is not available.',
+  stayErrBelowMin: 'This stay is too short.',
+  stayErrAboveMax: 'This stay is too long.',
+  stayErrTooManyGuests: "This place doesn't sleep that many guests.",
+  stayErrBlockedTemplate: "The night of {date} isn't available.",
   stayErrTakenTemplate: 'The night of {date} is already booked.',
   cleaningFeeLabel: 'Cleaning fee',
   stayNightsTimesRateTemplate: '{nights} {nightWord} × {rate}',
@@ -2207,7 +2154,7 @@ const en: Bundle = {
   offerWhoTitle: 'Who is it for?',
   offerOptionPlaceholder: 'Choose…',
   offerNoOption: 'No option',
-  offerOptionRequired: 'Please choose an option.',
+  offerOptionRequired: 'Choose an option.',
   offerOptionForTemplate: 'Option for {name}',
   offerPeriodLocked: 'For your whole stay: {period}',
   offerOnArrivalDay: 'On your arrival day: {day}',
@@ -2224,8 +2171,8 @@ const en: Bundle = {
   offerPeriodEveryDay: 'On every day of your booking: {period}',
   offerRemovedNotice: 'Some extras no longer fit your booking and were removed.',
   offerChecking: 'Checking extras for your party…',
-  offerCheckFailed: 'We could not re-check extras for your party; they will be checked when you confirm.',
-  offerMainIneligible: 'This cannot be booked for your party: {reason}',
+  offerCheckFailed: "We couldn't re-check the extras for your party. We'll check them when you confirm.",
+  offerMainIneligible: 'Not available for your party: {reason}',
   offerAnswerGuestQuestions: 'Answer the guest questions',
   eligNoGuestsUnder: "This accommodation doesn't accept guests under {n}.",
   eligGuestsUpTo: 'Only for guests up to {n}',
@@ -2234,23 +2181,23 @@ const en: Bundle = {
   eligNeedsGuestAtMost: 'At least one guest must be {n} or younger',
   eligNeedsGuestBetween: 'At least one guest must be aged {min} to {max}',
   eligAgeGeneric: 'Not available for the ages in your party',
-  eligAnswerNeeded: 'Please answer the guest questions first',
+  eligAnswerNeeded: 'Answer the guest questions first',
   eligNotOnDates: 'Not available on your dates',
   eligNights: 'Not available for this number of nights',
   eligSoldOut: 'Sold out for your dates',
   eligGeneric: 'Not available for your booking',
-  offerErrNotEligible: 'An extra in your booking is not available for your party. Please check your extras.',
-  offerErrProductNotEligible: 'This booking is not available for your party.',
-  offerErrAttributeMissing: 'Please answer the guest questions before confirming.',
-  offerErrParentUnknown: 'An extra lost the item it belongs to. Please check your extras.',
-  offerErrParticipantRequired: 'Please pick who this extra is for.',
+  offerErrNotEligible: "One of your extras isn't available for your party. Check your extras.",
+  offerErrProductNotEligible: "This booking isn't available for your party.",
+  offerErrAttributeMissing: 'Answer the guest questions before confirming.',
+  offerErrParentUnknown: 'An extra is no longer linked to the item it belongs to. Check your extras.',
+  offerErrParticipantRequired: 'Choose who this extra is for.',
   offerErrParticipantDuplicate: 'A guest was picked twice for the same extra.',
-  offerErrOptionRequired: 'Please choose an option for this extra.',
-  offerErrOptionUnknown: 'That option is no longer offered. Please choose another one.',
-  offerErrQuantity: 'The quantity of this extra is not allowed. Please change it.',
-  offerErrDaysRequired: 'Please pick the days for this extra.',
-  offerErrBadParent: 'Your extras changed while you were booking. Please check them again.',
-  offerErrStale: 'The extras on offer changed. Please check your extras and confirm again.',
+  offerErrOptionRequired: 'Choose an option for this extra.',
+  offerErrOptionUnknown: 'That option is no longer available. Choose another one.',
+  offerErrQuantity: "That quantity isn't allowed for this extra. Change it.",
+  offerErrDaysRequired: 'Pick the days for this extra.',
+  offerErrBadParent: 'Your extras changed while you were booking. Check them again.',
+  offerErrStale: 'The extras on offer have changed. Check your extras and confirm again.',
   addMoreDates: 'Dates',
   addMoreNights: 'Nights',
   addMoreRemoveDay: 'Remove {date}',
@@ -2288,14 +2235,26 @@ const en: Bundle = {
  * never blank, never a throw (the widget has no error boundary).
  */
 const CATALOG_LOADERS: Record<string, () => Promise<Bundle>> = {
-  de: () => import('./locales/de').then((m) => m.de),
+  // landr-wm0jv: German and Turkish ship two registers; the operator's
+  // address_form (lib/addressForm.ts) picks which one loads and is served.
+  'de:informal': () => import('./locales/de.informal').then((m) => m.deInformal),
+  'de:formal': () => import('./locales/de').then((m) => m.de),
   es: () => import('./locales/es').then((m) => m.es),
-  tr: () => import('./locales/tr').then((m) => m.tr),
+  'tr:informal': () => import('./locales/tr.informal').then((m) => m.trInformal),
+  'tr:formal': () => import('./locales/tr').then((m) => m.tr),
   it: () => import('./locales/it').then((m) => m.it),
   fr: () => import('./locales/fr').then((m) => m.fr),
 }
 
-/** Catalogs in memory; `en` is always present. */
+/** Languages whose catalog depends on the operator's address form. */
+const FORM_AWARE_LANGUAGES: readonly string[] = ['de', 'tr']
+
+/** Catalog registry key for a UI language under the current address form. */
+function catalogKey(lang: string): string {
+  return FORM_AWARE_LANGUAGES.includes(lang) ? `${lang}:${getAddressForm()}` : lang
+}
+
+/** Catalogs in memory, by registry key; `en` is always present. */
 const LOADED: Record<string, Bundle> = { en }
 const IN_FLIGHT = new Map<string, Promise<void>>()
 
@@ -2320,7 +2279,7 @@ export function subscribeUiCatalogs(listener: () => void): () => void {
 }
 
 /** Languages that have a real bundle; everything else falls back to English. */
-export const SUPPORTED_UI_LANGUAGES: readonly string[] = ['en', ...Object.keys(CATALOG_LOADERS)]
+export const SUPPORTED_UI_LANGUAGES: readonly string[] = ['en', 'de', 'es', 'tr', 'it', 'fr']
 
 /** The bundle's language code for any BCP-47-ish tag ('de-AT', 'ES', 'tr_TR', …); 'en' when unsupported. */
 export function resolveUiLanguage(locale?: string): string {
@@ -2339,13 +2298,14 @@ export function resolveUiLanguage(locale?: string): string {
  */
 export function loadUiCatalog(locale?: string, maxWaitMs = 3000): Promise<void> {
   const lang = resolveUiLanguage(locale)
-  const loader = CATALOG_LOADERS[lang]
-  if (!loader || LOADED[lang]) return Promise.resolve()
-  let pending = IN_FLIGHT.get(lang)
+  const key = catalogKey(lang)
+  const loader = CATALOG_LOADERS[key]
+  if (!loader || LOADED[key]) return Promise.resolve()
+  let pending = IN_FLIGHT.get(key)
   if (!pending) {
     pending = loader()
       .then((bundle) => {
-        LOADED[lang] = bundle
+        LOADED[key] = bundle
         catalogVersion += 1
         CATALOG_LISTENERS.forEach((listener) => listener())
       })
@@ -2353,9 +2313,9 @@ export function loadUiCatalog(locale?: string, maxWaitMs = 3000): Promise<void> 
         // Offline / chunk 404 after a deploy: stay on English.
       })
       .finally(() => {
-        IN_FLIGHT.delete(lang)
+        IN_FLIGHT.delete(key)
       })
-    IN_FLIGHT.set(lang, pending)
+    IN_FLIGHT.set(key, pending)
   }
   let timer: ReturnType<typeof setTimeout> | undefined
   const deadline = new Promise<void>((resolve) => {
@@ -2364,9 +2324,16 @@ export function loadUiCatalog(locale?: string, maxWaitMs = 3000): Promise<void> 
   return Promise.race([pending, deadline]).finally(() => clearTimeout(timer))
 }
 
-/** Load every registered catalog (tests that exercise several languages). */
+/** Load every registered catalog, both address forms (tests that exercise several languages). */
 export function loadAllUiCatalogs(): Promise<void> {
-  return Promise.all(SUPPORTED_UI_LANGUAGES.map((l) => loadUiCatalog(l))).then(() => undefined)
+  return Promise.all(
+    Object.entries(CATALOG_LOADERS).map(async ([key, loader]) => {
+      if (LOADED[key]) return
+      LOADED[key] = await loader()
+      catalogVersion += 1
+      CATALOG_LISTENERS.forEach((listener) => listener())
+    }),
+  ).then(() => undefined)
 }
 
 /**
@@ -2378,7 +2345,7 @@ export function loadAllUiCatalogs(): Promise<void> {
  * two locale layers agree on how a tag is read.
  */
 export function pickBundle(locale?: string): Bundle {
-  return LOADED[resolveUiLanguage(locale)] ?? en
+  return LOADED[catalogKey(resolveUiLanguage(locale))] ?? en
 }
 
 export function tr(key: keyof Bundle, locale?: string): string {

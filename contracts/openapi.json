@@ -22803,6 +22803,21 @@
       "OperatorPatch": {
         "description": "Partial update payload \u2014 every field is optional.",
         "properties": {
+          "address_form": {
+            "anyOf": [
+              {
+                "enum": [
+                  "informal",
+                  "formal"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address Form"
+          },
           "balance_due_days_before_arrival": {
             "anyOf": [
               {
@@ -24229,6 +24244,11 @@
         "additionalProperties": true,
         "description": "Operator-level rendering/behaviour flags for the public booking widget.\n\nReturned by GET /api/public/operators/{token}/settings. Fields mirror the\npublic_get_operator_settings RPC projection exactly; extra=allow keeps the\nmodel forward-compatible so new RPC columns pass through without forcing a\nresponse-model bump on every migration.\n\nlandr-jb1k: widget_variant and widget_category_columns added.",
         "properties": {
+          "address_form": {
+            "default": "informal",
+            "title": "Address Form",
+            "type": "string"
+          },
           "balance_due_days_before_arrival": {
             "anyOf": [
               {

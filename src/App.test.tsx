@@ -5987,7 +5987,7 @@ describe('App', () => {
         expect(screen.getAllByTestId('price-sidebar-pay-directly').length).toBeGreaterThan(0),
       )
       expect(screen.getAllByTestId('price-sidebar-pay-directly')[0]).toHaveTextContent(
-        'Pay directly to Sky Club',
+        'You pay Sky Club directly',
       )
       expect(screen.queryByText(/card number|pay now|payment details/i)).not.toBeInTheDocument()
       expect(screen.getAllByText('Your price').length).toBeGreaterThan(0)
@@ -6057,7 +6057,7 @@ describe('App', () => {
         expect(screen.getAllByTestId('price-sidebar-pay-directly').length).toBeGreaterThan(0),
       )
       expect(screen.getAllByTestId('price-sidebar-pay-directly')[0]).toHaveTextContent(
-        'Pay directly to Sky Club. There is no online payment.',
+        "You pay Sky Club directly — there's no online payment.",
       )
       expect(mocks.submitBooking).not.toHaveBeenCalled()
     })

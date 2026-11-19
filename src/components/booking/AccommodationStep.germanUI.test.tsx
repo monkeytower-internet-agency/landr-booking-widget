@@ -156,7 +156,7 @@ describe('AccommodationStep — German UI (landr-5aih0.27)', () => {
     )
     // The reference field's own help copy is German.
     expect(screen.getByTestId('shared-double-reference')).toHaveTextContent(
-      'Schön, wenn Sie den Code zur Hand haben',
+      'Sie haben den Code nicht zur Hand? Kein Problem',
     )
 
     mocks.lookupBookingReference.mockResolvedValue({

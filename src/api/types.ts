@@ -699,6 +699,11 @@ export interface OperatorSettings {
   /** landr-a5i49 — show visitors a sun/moon light/dark switcher. Absent = off. */
   widget_color_switcher?: boolean
   /**
+   * landr-wm0jv — how German and Turkish strings address guests: 'informal'
+   * (du / sen) or 'formal' (Sie / siz). Absent (older API) = informal.
+   */
+  address_form?: 'informal' | 'formal'
+  /**
    * Operator setting: offer "Add more to this booking" on the last step.
    * Optional for rolling deploy: absent/undefined means on (today's behaviour).
    */

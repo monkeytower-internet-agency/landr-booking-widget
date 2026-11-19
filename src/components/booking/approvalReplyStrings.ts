@@ -79,7 +79,7 @@ const en: ApprovalReplyBundle = {
   loadingTitle: 'Loading…',
   errorTitle: 'Something went wrong',
   errorBody:
-    'We could not load this reply. The link may be invalid, or there was a temporary problem. Please try again, or reply to the original email.',
+    "We couldn't load this request. The link may be invalid, or something went wrong on our side. Try again or reply to the original email.",
   tryAgain: 'Try again',
 
   pageTitle: 'Rooms request',
@@ -98,9 +98,9 @@ const en: ApprovalReplyBundle = {
   commentLabel: 'Comment',
   commentPlaceholderChanges: 'Tell us what needs to change (required)…',
   commentPlaceholderDefault: 'Add a comment (optional)…',
-  commentRequiredHint: 'Please describe the changes — this field is required.',
+  commentRequiredHint: 'Describe the changes. This field is required.',
   reasonChipFullyBooked: 'Fully booked',
-  reasonChipDatesNotPossible: 'Dates not possible',
+  reasonChipDatesNotPossible: 'Dates not available',
   reasonChipGroupTooLarge: 'Group too large',
   reasonChipOther: 'Other',
 
@@ -112,22 +112,22 @@ const en: ApprovalReplyBundle = {
   changeAnswerButton: 'Change my answer',
 
   answeredTitle: 'Your answer has been recorded',
-  answeredBody: 'You told {operator} {decision} on {date}.',
+  answeredBody: 'On {date}, you answered {operator}: “{decision}”.',
 
   expiredTitle: 'This link has expired',
-  expiredBody: 'Please reply to the email or call {phone}.',
+  expiredBody: 'Reply to the email or call {phone}.',
   supersededTitle: 'This link is no longer current',
   supersededBody:
-    '{operator} sent an updated request — please use their most recent email, or call {phone}.',
+    '{operator} has sent an updated request. Use their latest email or call {phone}.',
   closedConfirmedTitle: 'Already confirmed',
   closedConfirmedBody:
-    'Thanks — this booking is already confirmed with {operator}. Nothing further needed.',
+    "Thanks, this booking is already confirmed with {operator}. You don't need to do anything else.",
   closedCancelledTitle: 'Booking cancelled',
-  closedCancelledBody: 'This booking was cancelled — no rooms needed.',
+  closedCancelledBody: 'This booking was cancelled, so no rooms are needed.',
 
   successTitle: 'Thank you',
   successBody: "We've recorded your answer and let {operator} know.",
-  successAlreadyRecorded: 'We already had this answer on file — nothing changed.',
+  successAlreadyRecorded: 'We already had this answer, so nothing has changed.',
 
   languageSwitcherLabel: 'Language',
 }
@@ -136,7 +136,7 @@ const de: ApprovalReplyBundle = {
   loadingTitle: 'Wird geladen…',
   errorTitle: 'Etwas ist schiefgelaufen',
   errorBody:
-    'Wir konnten diese Anfrage nicht laden. Der Link könnte ungültig sein, oder es gab ein vorübergehendes Problem. Bitte versuchen Sie es erneut oder antworten Sie auf die ursprüngliche E-Mail.',
+    'Diese Anfrage ließ sich nicht laden. Vielleicht ist der Link ungültig oder es gab eine kurze Störung. Versuchen Sie es erneut oder antworten Sie auf die ursprüngliche E-Mail.',
   tryAgain: 'Erneut versuchen',
 
   pageTitle: 'Zimmeranfrage',
@@ -154,12 +154,12 @@ const de: ApprovalReplyBundle = {
 
   commentLabel: 'Kommentar',
   commentPlaceholderChanges:
-    'Bitte beschreiben Sie, was geändert werden muss (erforderlich)…',
+    'Beschreiben Sie die gewünschten Änderungen (Pflichtfeld)…',
   commentPlaceholderDefault: 'Kommentar hinzufügen (optional)…',
   commentRequiredHint:
-    'Bitte beschreiben Sie die Änderungen — dieses Feld ist erforderlich.',
+    'Bitte beschreiben Sie die Änderungen. Dies ist ein Pflichtfeld.',
   reasonChipFullyBooked: 'Ausgebucht',
-  reasonChipDatesNotPossible: 'Termine nicht möglich',
+  reasonChipDatesNotPossible: 'Zeitraum nicht verfügbar',
   reasonChipGroupTooLarge: 'Gruppe zu groß',
   reasonChipOther: 'Sonstiges',
 
@@ -171,23 +171,23 @@ const de: ApprovalReplyBundle = {
   changeAnswerButton: 'Antwort ändern',
 
   answeredTitle: 'Ihre Antwort wurde gespeichert',
-  answeredBody: 'Sie haben {operator} am {date} mit „{decision}“ geantwortet.',
+  answeredBody: 'Sie haben {operator} am {date} geantwortet: „{decision}“.',
 
   expiredTitle: 'Dieser Link ist abgelaufen',
   expiredBody: 'Bitte antworten Sie auf die E-Mail oder rufen Sie {phone} an.',
   supersededTitle: 'Dieser Link ist nicht mehr aktuell',
   supersededBody:
-    '{operator} hat eine aktualisierte Anfrage gesendet — bitte verwenden Sie die neueste E-Mail oder rufen Sie {phone} an.',
+    '{operator} hat eine neue Anfrage geschickt. Bitte nutzen Sie die neueste E-Mail oder rufen Sie {phone} an.',
   closedConfirmedTitle: 'Bereits bestätigt',
   closedConfirmedBody:
-    'Danke — diese Buchung ist bei {operator} bereits bestätigt. Es ist nichts weiter nötig.',
+    'Danke, diese Buchung ist bei {operator} bereits bestätigt. Sie müssen nichts weiter tun.',
   closedCancelledTitle: 'Buchung storniert',
-  closedCancelledBody: 'Diese Buchung wurde storniert — keine Zimmer benötigt.',
+  closedCancelledBody: 'Diese Buchung wurde storniert. Es werden keine Zimmer benötigt.',
 
   successTitle: 'Vielen Dank',
   successBody: 'Wir haben Ihre Antwort gespeichert und {operator} informiert.',
   successAlreadyRecorded:
-    'Diese Antwort war bereits bei uns hinterlegt — es hat sich nichts geändert.',
+    'Diese Antwort lag uns bereits vor. Es hat sich nichts geändert.',
 
   languageSwitcherLabel: 'Sprache',
 }
@@ -196,7 +196,7 @@ const it: ApprovalReplyBundle = {
   loadingTitle: 'Caricamento…',
   errorTitle: 'Qualcosa è andato storto',
   errorBody:
-    'Non è stato possibile caricare questa richiesta. Il link potrebbe non essere valido oppure c\u2019è un problema temporaneo. Riprovi o risponda all\u2019e-mail originale.',
+    'Non siamo riusciti a caricare la richiesta. Il link potrebbe non essere valido o potrebbe esserci un problema temporaneo. Riprovi o risponda all\u2019e-mail originale.',
   tryAgain: 'Riprova',
 
   pageTitle: 'Richiesta di camere',
@@ -218,7 +218,7 @@ const it: ApprovalReplyBundle = {
   commentRequiredHint:
     'Descriva le modifiche: questo campo è obbligatorio.',
   reasonChipFullyBooked: 'Al completo',
-  reasonChipDatesNotPossible: 'Date non possibili',
+  reasonChipDatesNotPossible: 'Date non disponibili',
   reasonChipGroupTooLarge: 'Gruppo troppo grande',
   reasonChipOther: 'Altro',
 
@@ -227,10 +227,10 @@ const it: ApprovalReplyBundle = {
 
   confirmButton: 'Conferma',
   confirmButtonBusy: 'Conferma in corso…',
-  changeAnswerButton: 'Cambia la mia risposta',
+  changeAnswerButton: 'Modifica la risposta',
 
   answeredTitle: 'La sua risposta è stata registrata',
-  answeredBody: 'Ha risposto a {operator} "{decision}" il {date}.',
+  answeredBody: 'Il {date} ha risposto a {operator}: “{decision}”.',
 
   expiredTitle: 'Questo link è scaduto',
   expiredBody: 'Risponda all\u2019e-mail o chiami il {phone}.',
@@ -239,9 +239,9 @@ const it: ApprovalReplyBundle = {
     '{operator} ha inviato una richiesta aggiornata: usi l\u2019e-mail più recente oppure chiami il {phone}.',
   closedConfirmedTitle: 'Già confermata',
   closedConfirmedBody:
-    'Grazie: questa prenotazione è già confermata con {operator}. Non serve altro.',
-  closedCancelledTitle: 'Prenotazione annullata',
-  closedCancelledBody: 'Questa prenotazione è stata annullata: non servono camere.',
+    'Grazie, questa prenotazione è già confermata con {operator}. Non deve fare altro.',
+  closedCancelledTitle: 'Prenotazione cancellata',
+  closedCancelledBody: 'Questa prenotazione è stata cancellata: non servono camere.',
 
   successTitle: 'Grazie',
   successBody: 'Abbiamo registrato la sua risposta e avvisato {operator}.',
@@ -255,7 +255,7 @@ const es: ApprovalReplyBundle = {
   loadingTitle: 'Cargando…',
   errorTitle: 'Algo salió mal',
   errorBody:
-    'No pudimos cargar esta solicitud. El enlace podría no ser válido, o hubo un problema temporal. Inténtelo de nuevo o responda al correo original.',
+    'No hemos podido cargar esta solicitud. Puede que el enlace no sea válido o que haya habido un problema temporal. Inténtelo de nuevo o responda al correo original.',
   tryAgain: 'Intentar de nuevo',
 
   pageTitle: 'Solicitud de habitaciones',
@@ -275,9 +275,9 @@ const es: ApprovalReplyBundle = {
   commentPlaceholderChanges: 'Indique qué debe cambiar (obligatorio)…',
   commentPlaceholderDefault: 'Añadir un comentario (opcional)…',
   commentRequiredHint:
-    'Por favor describa los cambios — este campo es obligatorio.',
+    'Describa los cambios. Este campo es obligatorio.',
   reasonChipFullyBooked: 'Completo',
-  reasonChipDatesNotPossible: 'Fechas no posibles',
+  reasonChipDatesNotPossible: 'Fechas no disponibles',
   reasonChipGroupTooLarge: 'Grupo demasiado grande',
   reasonChipOther: 'Otro',
 
@@ -288,24 +288,24 @@ const es: ApprovalReplyBundle = {
   confirmButtonBusy: 'Confirmando…',
   changeAnswerButton: 'Cambiar mi respuesta',
 
-  answeredTitle: 'Su respuesta ha sido registrada',
-  answeredBody: 'Le dijo a {operator} "{decision}" el {date}.',
+  answeredTitle: 'Hemos registrado su respuesta',
+  answeredBody: 'El {date} respondió a {operator}: “{decision}”.',
 
   expiredTitle: 'Este enlace ha caducado',
   expiredBody: 'Responda al correo o llame al {phone}.',
   supersededTitle: 'Este enlace ya no es válido',
   supersededBody:
-    '{operator} envió una solicitud actualizada — use su correo más reciente, o llame al {phone}.',
-  closedConfirmedTitle: 'Ya confirmado',
+    '{operator} ha enviado una solicitud actualizada. Use el correo más reciente o llame al {phone}.',
+  closedConfirmedTitle: 'Ya confirmada',
   closedConfirmedBody:
-    'Gracias — esta reserva ya está confirmada con {operator}. No se necesita nada más.',
+    'Gracias, esta reserva ya está confirmada con {operator}. No tiene que hacer nada más.',
   closedCancelledTitle: 'Reserva cancelada',
-  closedCancelledBody: 'Esta reserva fue cancelada — no se necesitan habitaciones.',
+  closedCancelledBody: 'Esta reserva se ha cancelado, así que no se necesitan habitaciones.',
 
   successTitle: 'Gracias',
   successBody: 'Hemos registrado su respuesta y avisado a {operator}.',
   successAlreadyRecorded:
-    'Ya teníamos esta respuesta registrada — no ha cambiado nada.',
+    'Ya teníamos registrada esta respuesta. No ha cambiado nada.',
 
   languageSwitcherLabel: 'Idioma',
 }
@@ -314,7 +314,7 @@ const tr: ApprovalReplyBundle = {
   loadingTitle: 'Yükleniyor…',
   errorTitle: 'Bir şeyler ters gitti',
   errorBody:
-    'Bu yanıt sayfası yüklenemedi. Bağlantı geçersiz olabilir veya geçici bir sorun yaşanmış olabilir. Lütfen tekrar deneyin ya da ilk e-postayı yanıtlayın.',
+    'Bu sayfa yüklenemedi. Bağlantı geçersiz olabilir ya da geçici bir sorun yaşanıyor olabilir. Tekrar deneyin veya ilk e-postayı yanıtlayın.',
   tryAgain: 'Tekrar dene',
 
   pageTitle: 'Oda talebi',
@@ -328,12 +328,12 @@ const tr: ApprovalReplyBundle = {
 
   optionConfirmedTitle: 'Evet, odalar onaylandı',
   optionDeclinedTitle: 'Hayır, bu rezervasyonu alamıyoruz',
-  optionChangesTitle: 'Evet, ancak değişikliklerle',
+  optionChangesTitle: 'Evet, ama bazı değişikliklerle',
 
   commentLabel: 'Yorum',
   commentPlaceholderChanges: 'Nelerin değişmesi gerektiğini yazın (zorunlu)…',
   commentPlaceholderDefault: 'Yorum ekleyin (isteğe bağlı)…',
-  commentRequiredHint: 'Lütfen değişiklikleri açıklayın — bu alan zorunludur.',
+  commentRequiredHint: 'Lütfen değişiklikleri açıklayın. Bu alan zorunludur.',
   reasonChipFullyBooked: 'Tamamen dolu',
   reasonChipDatesNotPossible: 'Tarihler uygun değil',
   reasonChipGroupTooLarge: 'Grup çok büyük',
@@ -347,22 +347,22 @@ const tr: ApprovalReplyBundle = {
   changeAnswerButton: 'Yanıtımı değiştir',
 
   answeredTitle: 'Yanıtınız kaydedildi',
-  answeredBody: '{operator} firmasına {date} tarihinde şunu bildirdiniz: {decision}.',
+  answeredBody: '{date} tarihinde {operator} firmasına “{decision}” yanıtını verdiniz.',
 
   expiredTitle: 'Bu bağlantının süresi doldu',
   expiredBody: 'Lütfen e-postayı yanıtlayın veya {phone} numarasını arayın.',
   supersededTitle: 'Bu bağlantı artık güncel değil',
   supersededBody:
-    '{operator} güncellenmiş bir talep gönderdi — lütfen en son e-postayı kullanın veya {phone} numarasını arayın.',
+    '{operator} güncel bir talep gönderdi. Lütfen en son e-postayı kullanın veya {phone} numarasını arayın.',
   closedConfirmedTitle: 'Zaten onaylandı',
   closedConfirmedBody:
-    'Teşekkürler — bu rezervasyon {operator} ile zaten onaylandı. Başka bir işlem gerekmiyor.',
+    'Teşekkürler, bu rezervasyon {operator} ile zaten onaylandı. Başka bir şey yapmanıza gerek yok.',
   closedCancelledTitle: 'Rezervasyon iptal edildi',
-  closedCancelledBody: 'Bu rezervasyon iptal edildi — oda gerekmiyor.',
+  closedCancelledBody: 'Bu rezervasyon iptal edildi, oda gerekmiyor.',
 
   successTitle: 'Teşekkür ederiz',
   successBody: 'Yanıtınızı kaydettik ve {operator} firmasına bildirdik.',
-  successAlreadyRecorded: 'Bu yanıt zaten kayıtlıydı — hiçbir şey değişmedi.',
+  successAlreadyRecorded: 'Bu yanıt zaten kayıtlıydı, hiçbir şey değişmedi.',
 
   languageSwitcherLabel: 'Dil',
 }
@@ -391,7 +391,7 @@ const PARTNER_OVERRIDES: Record<ReplyLocale, Partial<ApprovalReplyBundle>> = {
     guestsLabel: 'People',
     hotelLabel: 'Partner',
     optionConfirmedTitle: 'Yes, confirmed',
-    closedCancelledBody: 'This booking was cancelled — nothing further needed.',
+    closedCancelledBody: "This booking was cancelled. You don't need to do anything else.",
   },
   de: {
     pageTitle: 'Buchungsanfrage',
@@ -400,7 +400,7 @@ const PARTNER_OVERRIDES: Record<ReplyLocale, Partial<ApprovalReplyBundle>> = {
     guestsLabel: 'Personen',
     hotelLabel: 'Partner',
     optionConfirmedTitle: 'Ja, bestätigt',
-    closedCancelledBody: 'Diese Buchung wurde storniert — es ist nichts weiter nötig.',
+    closedCancelledBody: 'Diese Buchung wurde storniert. Sie müssen nichts weiter tun.',
   },
   es: {
     pageTitle: 'Solicitud de reserva',
@@ -409,7 +409,7 @@ const PARTNER_OVERRIDES: Record<ReplyLocale, Partial<ApprovalReplyBundle>> = {
     guestsLabel: 'Personas',
     hotelLabel: 'Colaborador',
     optionConfirmedTitle: 'Sí, confirmado',
-    closedCancelledBody: 'Esta reserva fue cancelada — no se necesita nada más.',
+    closedCancelledBody: 'Esta reserva se ha cancelado. No tiene que hacer nada más.',
   },
   it: {
     pageTitle: 'Richiesta di prenotazione',
@@ -418,7 +418,7 @@ const PARTNER_OVERRIDES: Record<ReplyLocale, Partial<ApprovalReplyBundle>> = {
     guestsLabel: 'Persone',
     hotelLabel: 'Partner',
     optionConfirmedTitle: 'Sì, confermato',
-    closedCancelledBody: 'Questa prenotazione è stata annullata: non serve altro.',
+    closedCancelledBody: 'Questa prenotazione è stata cancellata: non deve fare altro.',
   },
   tr: {
     pageTitle: 'Rezervasyon talebi',
@@ -427,7 +427,7 @@ const PARTNER_OVERRIDES: Record<ReplyLocale, Partial<ApprovalReplyBundle>> = {
     guestsLabel: 'Kişi',
     hotelLabel: 'İş ortağı',
     optionConfirmedTitle: 'Evet, onaylandı',
-    closedCancelledBody: 'Bu rezervasyon iptal edildi — başka bir işlem gerekmiyor.',
+    closedCancelledBody: 'Bu rezervasyon iptal edildi, başka bir şey yapmanıza gerek yok.',
   },
 }
 

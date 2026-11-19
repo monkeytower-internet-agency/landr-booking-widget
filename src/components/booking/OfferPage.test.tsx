@@ -630,7 +630,7 @@ describe('OfferPage', () => {
       expect(screen.queryByTestId('offer-bank-details')).not.toBeInTheDocument()
     })
 
-    it('titles the browser tab "Payment site <operator>"', async () => {
+    it('titles the browser tab "Payment <operator>"', async () => {
       mocks.getBookingByToken.mockResolvedValue({
         ...payOffer,
         operator_name: 'Canary Tandem Co',
@@ -638,7 +638,7 @@ describe('OfferPage', () => {
       render(<OfferPage token={TOKEN} mode="pay" />)
 
       await waitFor(() => {
-        expect(document.title).toBe('Payment site Canary Tandem Co')
+        expect(document.title).toBe('Payment Canary Tandem Co')
       })
     })
 
@@ -1877,7 +1877,7 @@ describe('OfferPage — offer v3 flow: acceptance + hotel step (landr-bo0wd.5)',
       'Your offer becomes valid once the hotel confirms your dates.',
     )
     expect(screen.getByTestId('offer-hotel-note')).toHaveTextContent(
-      'You can accept now — we send your confirmation and payment link as soon as the hotel confirms.',
+      "You can accept now — we'll send your confirmation and payment link once the hotel confirms.",
     )
     expect(screen.queryByTestId('offer-hotel-confirmed')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /accept & pay|pay now/i })).not.toBeInTheDocument()
@@ -1890,7 +1890,7 @@ describe('OfferPage — offer v3 flow: acceptance + hotel step (landr-bo0wd.5)',
       expect(screen.queryByTestId('offer-accept-pay-btn')).not.toBeInTheDocument(),
     )
     expect(mocks.initiatePayment).not.toHaveBeenCalled()
-    expect(screen.getByTestId('offer-hotel-note')).toHaveTextContent('We are waiting for the hotel')
+    expect(screen.getByTestId('offer-hotel-note')).toHaveTextContent("We're waiting for the hotel")
     expect(screen.getByTestId('offer-description')).toHaveTextContent('You have accepted this offer.')
   })
 
@@ -1902,7 +1902,7 @@ describe('OfferPage — offer v3 flow: acceptance + hotel step (landr-bo0wd.5)',
     })
     await ready()
     expect(screen.queryByTestId('offer-accept-pay-btn')).not.toBeInTheDocument()
-    expect(screen.getByTestId('offer-hotel-note')).toHaveTextContent('We are waiting for the hotel')
+    expect(screen.getByTestId('offer-hotel-note')).toHaveTextContent("We're waiting for the hotel")
   })
 
   it('acceptance not required: confirmation wording, no accept button, Pay now when the hotel step is done', async () => {
@@ -1913,7 +1913,7 @@ describe('OfferPage — offer v3 flow: acceptance + hotel step (landr-bo0wd.5)',
     mocks.initiatePayment.mockResolvedValue(INITIATE_RESP)
     await ready()
     expect(screen.getByText('Your booking as agreed')).toBeInTheDocument()
-    expect(screen.getByTestId('offer-description')).toHaveTextContent(/nothing for you to accept/i)
+    expect(screen.getByTestId('offer-description')).toHaveTextContent(/nothing to accept/i)
     expect(screen.queryByRole('button', { name: /accept/i })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /pay now/i }))
     await waitFor(() => expect(mocks.initiatePayment).toHaveBeenCalledOnce())
@@ -2053,7 +2053,7 @@ describe('OfferPage — offer v3 flow: acceptance + hotel step (landr-bo0wd.5)',
     })
     await ready()
     expect(screen.getByTestId('offer-hotel-declined')).toHaveTextContent('We are updating your offer.')
-    expect(screen.getByTestId('offer-description')).toHaveTextContent(/could not confirm these rooms/i)
+    expect(screen.getByTestId('offer-description')).toHaveTextContent(/couldn't confirm these rooms/i)
     expect(screen.queryByTestId('offer-hotel-note')).not.toBeInTheDocument()
     expect(screen.queryByTestId('offer-accept-pay-btn')).not.toBeInTheDocument()
     expect(screen.queryByTestId('offer-bank-details')).not.toBeInTheDocument()

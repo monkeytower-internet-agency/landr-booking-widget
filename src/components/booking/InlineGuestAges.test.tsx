@@ -33,7 +33,7 @@ describe('InlineGuestAges bands (landr-zcb24.2)', () => {
     expect(screen.queryByTestId('inline-age-band-0')).not.toBeInTheDocument()
     expect(Array.from(screen.getByTestId('inline-age-band-1').querySelectorAll('option')).map((o) => o.textContent)).toEqual([
       'Adult',
-      ...Array.from({ length: 18 }, (_, a) => `Child, ${a} year${a === 1 ? '' : 's'}`),
+      ...Array.from({ length: 18 }, (_, a) => `Child, ${a} year${a === 1 ? '' : 's'} old`),
     ])
   })
 

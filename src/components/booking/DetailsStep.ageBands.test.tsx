@@ -47,7 +47,7 @@ function setup(bands: FlowAgeBand[], extra: Partial<Parameters<typeof DetailsSte
   return onConfirm
 }
 
-const CHILDREN = Array.from({ length: 18 }, (_, a) => `Child, ${a} year${a === 1 ? '' : 's'}`)
+const CHILDREN = Array.from({ length: 18 }, (_, a) => `Child, ${a} year${a === 1 ? '' : 's'} old`)
 const options = (testId: string) =>
   Array.from(screen.getByTestId(testId).querySelectorAll('option')).map((o) => o.textContent)
 
@@ -59,7 +59,7 @@ describe('DetailsStep age bands (landr-zcb24.2)', () => {
     // one adult band: the booker gets no select, only the confirmation
     expect(screen.queryByTestId('guest-age-band-booker')).not.toBeInTheDocument()
     expect(screen.queryByTestId('booker-adult-confirm')).not.toBeInTheDocument()
-    expect(screen.getByTestId('booker-adult-notice')).toHaveTextContent('By booking you confirm that you are 18 or older.')
+    expect(screen.getByTestId('booker-adult-notice')).toHaveTextContent("By booking, you confirm you're at least 18.")
 
     fireEvent.change(byName('participant_2_first_name'), { target: { value: 'Tim' } })
     fireEvent.change(byName('participant_2_last_name'), { target: { value: 'Lovelace' } })
