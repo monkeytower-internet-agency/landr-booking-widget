@@ -2277,7 +2277,7 @@ const en: Bundle = {
  * English is the source catalog and stays inline: it is the fallback for every
  * unsupported or not-yet-loaded language. Every other catalog is a dynamic
  * import (landr-8r6oc.18), so a visitor downloads only the one language they
- * read instead of all four (de/es/it/tr add ~150 kB raw to the main chunk).
+ * read instead of all five (de/es/it/tr/fr add ~150 kB raw to the main chunk).
  * `loadUiCatalog` fetches the resolved language ahead of the first render
  * (main.tsx) and again once the operator's language rules or an invite
  * resolve (App.tsx). Until a catalog is in, `pickBundle` hands out English:
@@ -2288,6 +2288,7 @@ const CATALOG_LOADERS: Record<string, () => Promise<Bundle>> = {
   es: () => import('./locales/es').then((m) => m.es),
   tr: () => import('./locales/tr').then((m) => m.tr),
   it: () => import('./locales/it').then((m) => m.it),
+  fr: () => import('./locales/fr').then((m) => m.fr),
 }
 
 /** Catalogs in memory; `en` is always present. */
@@ -2366,7 +2367,7 @@ export function loadAllUiCatalogs(): Promise<void> {
 
 /**
  * Resolve an arbitrary BCP-47-ish locale string ('de-AT', 'DE', 'es-ES',
- * 'tr-TR', …) to a supported bundle (en, de, es, it, tr); every other language,
+ * 'tr-TR', …) to a supported bundle (en, de, es, it, tr, fr); every other language,
  * including an absent locale, falls back to English, as does a supported
  * language whose catalog has not loaded (yet). Mirrors
  * approvalReplyStrings.ts's normalizeReplyLocale base/case-fold rule so the
@@ -2840,21 +2841,66 @@ export function languageStepGate(unassignedNames: string[], locale?: string): st
  * participant's main-language NAME as the widget shows it; `kind` picks which
  * sentence. The question and the opt-out sit mid-sentence, so they follow the
  * catalog's name case (German: "französischsprachiger"); the helper opens its
- * sentence with the name, so it always keeps the name as given.
+ * sentence with the name, so it always keeps the name as given. French
+ * composes its own forms ("guide francophone" / "guide parlant turc", "Le
+ * français" / "L’anglais"); `code` is the ISO code behind `language`, which
+ * picks the adjective.
  */
 export function secondLanguageText(
   kind: 'question' | 'helper' | 'only',
   language: string,
   locale?: string,
+  code?: string,
 ): string {
   const t = pickBundle(locale)
   const ui = resolveUiLanguage(locale)
   const cased = (c: 'lower' | 'keep') => (c === 'lower' ? language.toLocaleLowerCase(ui) : language)
+  if (ui === 'fr') {
+    const name = language.toLocaleLowerCase('fr')
+    if (kind === 'helper') return fmt(t.secondLanguageHelperTemplate, { language: frenchDefiniteName(name) })
+    if (kind === 'question') {
+      return fmt(t.secondLanguageQuestionTemplate, { language: frenchGuideAdjective(name, code) })
+    }
+    const only = fmt(t.secondLanguageOnlyTemplate, { language: name })
+    // "Je ne parle qu’anglais": que elides before a vowel or mute h.
+    return frenchElides(name) ? only.replace(` que ${name}`, ` qu’${name}`) : only
+  }
   if (kind === 'helper') return fmt(t.secondLanguageHelperTemplate, { language })
   if (kind === 'question') {
     return fmt(t.secondLanguageQuestionTemplate, { language: cased(t.secondLanguageQuestionCase) })
   }
   return fmt(t.secondLanguageOnlyTemplate, { language: cased(t.secondLanguageOnlyCase) })
+}
+
+/** French adjectives for "guide <adjective>"; any other language reads "guide parlant <langue>". */
+const FRENCH_GUIDE_ADJECTIVES: Record<string, string> = {
+  ar: 'arabophone',
+  de: 'germanophone',
+  en: 'anglophone',
+  es: 'hispanophone',
+  fr: 'francophone',
+  it: 'italophone',
+  ja: 'japonophone',
+  nl: 'néerlandophone',
+  pt: 'lusophone',
+  ru: 'russophone',
+  tr: 'turcophone',
+  zh: 'sinophone',
+}
+
+function frenchGuideAdjective(lowerName: string, code?: string): string {
+  const adjective = code ? FRENCH_GUIDE_ADJECTIVES[code.toLowerCase()] : undefined
+  return adjective ?? `parlant ${lowerName}`
+}
+
+/** "Le français" / "L’anglais": the capitalised sentence opener for a lower-case French language name. */
+function frenchDefiniteName(lowerName: string): string {
+  return frenchElides(lowerName) ? `L’${lowerName}` : `Le ${lowerName}`
+}
+
+/** True when a French article or "que" elides before this lower-case name (vowel or mute h; "hongrois" is an aspirated h). */
+function frenchElides(lowerName: string): boolean {
+  return /^[aeiouyàâéèêëîïôöûüh]/i.test(lowerName) && !lowerName.startsWith('hongrois')
 }
 
 /** landr-hdk4y.2: the gate line beside Continue while asked participants have not answered. */

@@ -5,7 +5,7 @@ import { validateField } from './customFormValidation'
 // landr-kcxx5.10: every validation message reads in the customer's language
 // (the widget's main table ships en + de; any other locale gets English).
 
-const LOCALES = ['en', 'de', 'de-AT', 'fr-FR', 'pt'] as const
+const LOCALES = ['en', 'de', 'de-AT', 'pt-PT', 'pt'] as const
 const german = (l: string) => l.startsWith('de')
 
 describe('validateField wording per locale', () => {

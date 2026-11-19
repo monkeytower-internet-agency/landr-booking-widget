@@ -34,6 +34,7 @@ describe('lazy UI catalogs', () => {
   it.each([
     ['de-DE', 'Buchung bestätigt'],
     ['tr-TR', 'Rezervasyon onaylandı'],
+    ['fr-FR', 'Réservation confirmée'],
   ])('loads %s on demand', async (locale, heading) => {
     const s = await freshStrings()
     await s.loadUiCatalog(locale)
@@ -44,9 +45,9 @@ describe('lazy UI catalogs', () => {
   it('is a no-op for English and unsupported languages', async () => {
     const s = await freshStrings()
     await expect(s.loadUiCatalog('en-US')).resolves.toBeUndefined()
-    await expect(s.loadUiCatalog('fr-FR')).resolves.toBeUndefined()
+    await expect(s.loadUiCatalog('pt-PT')).resolves.toBeUndefined()
     await expect(s.loadUiCatalog(undefined)).resolves.toBeUndefined()
-    expect(s.pickBundle('fr-FR')).toBe(s.pickBundle('en'))
+    expect(s.pickBundle('pt-PT')).toBe(s.pickBundle('en'))
   })
 
   it('shares one in-flight import between concurrent callers', async () => {
