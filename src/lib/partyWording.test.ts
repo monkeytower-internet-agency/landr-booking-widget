@@ -42,6 +42,7 @@ const PARTICIPANT_WORD: Record<string, RegExp> = {
   it: /partecipant/i,
   es: /participante/i,
   tr: /katılımcı/i,
+  fr: /participant/i,
 }
 
 describe('partyTr', () => {

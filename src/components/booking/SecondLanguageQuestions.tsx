@@ -44,7 +44,7 @@ export function SecondLanguageQuestions({ asked, onChange, onApplyToEveryone, lo
       data-testid="second-language-questions"
     >
       <p className="text-sm text-muted-foreground" data-testid="second-language-helper">
-        {secondLanguageText('helper', languageName(first.main, locale), locale)}
+        {secondLanguageText('helper', languageName(first.main, locale), locale, first.main)}
       </p>
       {asked.map((p, position) => {
         const mainName = languageName(p.main, locale)
@@ -64,7 +64,7 @@ export function SecondLanguageQuestions({ asked, onChange, onApplyToEveryone, lo
               </span>
             </div>
             <p id={legendId} className="text-sm font-semibold">
-              {secondLanguageText('question', mainName, locale)}
+              {secondLanguageText('question', mainName, locale, p.main)}
               <span aria-hidden="true"> *</span>
             </p>
             <div className="flex flex-wrap gap-2">
@@ -98,7 +98,7 @@ export function SecondLanguageQuestions({ asked, onChange, onApplyToEveryone, lo
                   data-testid={`second-language-${p.index}-only`}
                   onChange={() => onChange(p.index, toggleOnlyMainLanguage(p.answer))}
                 />
-                {secondLanguageText('only', mainName, locale)}
+                {secondLanguageText('only', mainName, locale, p.main)}
               </label>
             </div>
             {position === 0 && asked.length > 1 ? (

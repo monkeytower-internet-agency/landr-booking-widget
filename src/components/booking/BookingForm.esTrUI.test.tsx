@@ -96,6 +96,13 @@ const CASES = [
     contact: 'İletişim bilgileriniz',
     confirm: 'Rezervasyonu onayla',
   },
+  {
+    lang: 'fr',
+    browser: 'fr-FR',
+    title: 'Vérifiez votre réservation',
+    contact: 'Vos coordonnées',
+    confirm: 'Confirmer la réservation',
+  },
 ] as const
 
 describe.each(CASES)('BookingForm — $lang UI (landr-8r6oc.4)', ({ lang, browser, title, contact, confirm }) => {

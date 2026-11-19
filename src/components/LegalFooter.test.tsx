@@ -50,7 +50,7 @@ describe('LegalFooter', () => {
   })
 
   it('falls back to the English privacy policy for unsupported languages', () => {
-    vi.spyOn(navigator, 'language', 'get').mockReturnValue('fr-FR')
+    vi.spyOn(navigator, 'language', 'get').mockReturnValue('pt-PT')
     render(<LegalFooter />)
     expect(screen.getByTestId('legal-footer-imprint')).toHaveAttribute(
       'href',

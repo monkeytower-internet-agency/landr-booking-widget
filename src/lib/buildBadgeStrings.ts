@@ -32,6 +32,13 @@ const BUNDLES: Record<string, BuildBadgeBundle> = {
     updateAvailable: 'Hay una versión más nueva - clic para recargar',
     finishFirst: 'Hay una versión más nueva - termina primero tu reserva',
   },
+  fr: {
+    built: (a) => `compilé ${a}`,
+    checked: (a) => `vérifié ${a}`,
+    never: 'jamais',
+    updateAvailable: 'Une version plus récente est disponible - cliquez pour recharger',
+    finishFirst: 'Une version plus récente est disponible - terminez d’abord votre réservation',
+  },
   it: {
     built: (a) => `compilato ${a}`,
     checked: (a) => `verificato ${a}`,
