@@ -14314,6 +14314,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/power-ups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Power Ups
+         * @description Every active Power-up with its state for the caller's operator.
+         */
+        get: operations["list_power_ups"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/power-ups/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Switch Power Up
+         * @description Switch one Power-up on or off (owner / admin).
+         */
+        put: operations["switch_power_up"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/provider-assignments/{assignment_id}": {
         parameters: {
             query?: never;
@@ -18445,6 +18485,8 @@ export interface components {
         };
         /** DayManifestRow */
         DayManifestRow: {
+            /** Accepted Languages */
+            accepted_languages?: string[] | null;
             /** Assigned Unit Id */
             assigned_unit_id?: string | null;
             /** Assigned Unit Name */
@@ -24050,6 +24092,61 @@ export interface components {
             interval: "monthly" | "annual";
             /** Package Slug */
             package_slug: string;
+        };
+        /** PowerUpListOut */
+        PowerUpListOut: {
+            /** Can Switch */
+            can_switch: boolean;
+            /** Operator Id */
+            operator_id: string;
+            /** Power Ups */
+            power_ups: components["schemas"]["PowerUpOut"][];
+        };
+        /** PowerUpLiveItems */
+        PowerUpLiveItems: {
+            /** Count */
+            count: number;
+            /** Label */
+            label: string;
+        };
+        /** PowerUpOut */
+        PowerUpOut: {
+            /** Description */
+            description?: string | null;
+            /** Key */
+            key: string;
+            live_items?: components["schemas"]["PowerUpLiveItems"] | null;
+            /** Name */
+            name: string;
+            /** Required By */
+            required_by: string[];
+            /** Requires */
+            requires: string[];
+            /** Settings Route */
+            settings_route?: string | null;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "on" | "off" | "available" | "locked";
+            /** Switched On */
+            switched_on: boolean;
+            /** Unlocked By */
+            unlocked_by?: string | null;
+        };
+        /** PowerUpSwitchIn */
+        PowerUpSwitchIn: {
+            /** Enabled */
+            enabled: boolean;
+        };
+        /** PowerUpSwitchOut */
+        PowerUpSwitchOut: {
+            /** Enabled */
+            enabled: boolean;
+            /** Key */
+            key: string;
+            /** Switched */
+            switched: string[];
         };
         /**
          * PresetOut
@@ -55786,6 +55883,76 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_power_ups: {
+        parameters: {
+            query?: {
+                /** @description The operator to act on. Required when the caller belongs to more than one operator (400 operator_id_required); optional otherwise. */
+                operator_id?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PowerUpListOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    switch_power_up: {
+        parameters: {
+            query?: {
+                /** @description The operator to act on. Required when the caller belongs to more than one operator (400 operator_id_required); optional otherwise. */
+                operator_id?: string | null;
+            };
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PowerUpSwitchIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PowerUpSwitchOut"];
                 };
             };
             /** @description Validation Error */

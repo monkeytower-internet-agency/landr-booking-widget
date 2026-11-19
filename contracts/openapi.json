@@ -10258,6 +10258,20 @@
       },
       "DayManifestRow": {
         "properties": {
+          "accepted_languages": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accepted Languages"
+          },
           "assigned_unit_id": {
             "anyOf": [
               {
@@ -26636,6 +26650,183 @@
           "package_slug"
         ],
         "title": "PlanChangeIn",
+        "type": "object"
+      },
+      "PowerUpListOut": {
+        "properties": {
+          "can_switch": {
+            "title": "Can Switch",
+            "type": "boolean"
+          },
+          "operator_id": {
+            "title": "Operator Id",
+            "type": "string"
+          },
+          "power_ups": {
+            "items": {
+              "$ref": "#/components/schemas/PowerUpOut"
+            },
+            "title": "Power Ups",
+            "type": "array"
+          }
+        },
+        "required": [
+          "operator_id",
+          "can_switch",
+          "power_ups"
+        ],
+        "title": "PowerUpListOut",
+        "type": "object"
+      },
+      "PowerUpLiveItems": {
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "count",
+          "label"
+        ],
+        "title": "PowerUpLiveItems",
+        "type": "object"
+      },
+      "PowerUpOut": {
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "live_items": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PowerUpLiveItems"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "required_by": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Required By",
+            "type": "array"
+          },
+          "requires": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Requires",
+            "type": "array"
+          },
+          "settings_route": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Settings Route"
+          },
+          "state": {
+            "enum": [
+              "on",
+              "off",
+              "available",
+              "locked"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "switched_on": {
+            "title": "Switched On",
+            "type": "boolean"
+          },
+          "unlocked_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unlocked By"
+          }
+        },
+        "required": [
+          "key",
+          "name",
+          "state",
+          "switched_on",
+          "requires",
+          "required_by"
+        ],
+        "title": "PowerUpOut",
+        "type": "object"
+      },
+      "PowerUpSwitchIn": {
+        "additionalProperties": false,
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "title": "PowerUpSwitchIn",
+        "type": "object"
+      },
+      "PowerUpSwitchOut": {
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "switched": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Switched",
+            "type": "array"
+          }
+        },
+        "required": [
+          "key",
+          "enabled",
+          "switched"
+        ],
+        "title": "PowerUpSwitchOut",
         "type": "object"
       },
       "PresetOut": {
@@ -89325,6 +89516,139 @@
         "summary": "Rotate Operator Widget Token",
         "tags": [
           "staff-operator-widget-token"
+        ]
+      }
+    },
+    "/api/staff/power-ups": {
+      "get": {
+        "description": "Every active Power-up with its state for the caller's operator.",
+        "operationId": "list_power_ups",
+        "parameters": [
+          {
+            "description": "The operator to act on. Required when the caller belongs to more than one operator (400 operator_id_required); optional otherwise.",
+            "in": "query",
+            "name": "operator_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The operator to act on. Required when the caller belongs to more than one operator (400 operator_id_required); optional otherwise.",
+              "title": "Operator Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PowerUpListOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Power Ups",
+        "tags": [
+          "staff-power-ups"
+        ]
+      }
+    },
+    "/api/staff/power-ups/{key}": {
+      "put": {
+        "description": "Switch one Power-up on or off (owner / admin).",
+        "operationId": "switch_power_up",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "title": "Key",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The operator to act on. Required when the caller belongs to more than one operator (400 operator_id_required); optional otherwise.",
+            "in": "query",
+            "name": "operator_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The operator to act on. Required when the caller belongs to more than one operator (400 operator_id_required); optional otherwise.",
+              "title": "Operator Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PowerUpSwitchIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PowerUpSwitchOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Switch Power Up",
+        "tags": [
+          "staff-power-ups"
         ]
       }
     },
