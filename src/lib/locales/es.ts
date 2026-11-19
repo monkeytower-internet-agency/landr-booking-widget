@@ -326,6 +326,8 @@ export const es: Bundle = {
     'tiene menos desayunos que huéspedes, arrastra la etiqueta Desayuno a quien le toque.',
   adultOption: 'Adulto',
   childOption: 'Niño',
+  childYearOption: 'Niño, 1 año',
+  childYearsOption: 'Niño, {n} años',
   ageBandAria: 'Grupo de edad',
   childAgeAria: 'Edad del niño',
   occupancyIncludedOne: 'incl. 1 adulto',

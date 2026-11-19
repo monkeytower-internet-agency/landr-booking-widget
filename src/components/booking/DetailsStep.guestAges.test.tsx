@@ -31,13 +31,10 @@ describe('DetailsStep guest ages (landr-hfvyc.2)', () => {
   it('shows controls for added guests and reports child ages live', () => {
     const onLive = setup(true)
     expect(screen.getByTestId('guest-age-controls-2')).toBeInTheDocument()
-    fireEvent.change(screen.getByTestId('guest-age-band-2'), { target: { value: 'child' } })
-    // child without age: priced as adult until chosen, and flagged
-    expect(onLive).toHaveBeenLastCalledWith(2, [], 0, [])
-    expect(screen.getByRole('alert')).toBeInTheDocument()
-    fireEvent.change(screen.getByTestId('guest-age-2'), { target: { value: '7' } })
+    fireEvent.change(screen.getByTestId('guest-age-band-2'), { target: { value: 'c:7' } })
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     expect(onLive).toHaveBeenLastCalledWith(2, [], 0, [7])
-    fireEvent.change(screen.getByTestId('guest-age-band-2'), { target: { value: 'adult' } })
+    fireEvent.change(screen.getByTestId('guest-age-band-2'), { target: { value: 'a:adult' } })
     expect(onLive).toHaveBeenLastCalledWith(2, [], 0, [])
   })
 })

@@ -330,6 +330,8 @@ export const tr: Bundle = {
     'az kahvaltı varsa, Kahvaltı etiketini kahvaltıyı alacak kişinin üzerine sürükleyin.',
   adultOption: 'Yetişkin',
   childOption: 'Çocuk',
+  childYearOption: 'Çocuk, 1 yaş',
+  childYearsOption: 'Çocuk, {n} yaş',
   ageBandAria: 'Yaş grubu',
   childAgeAria: 'Çocuğun yaşı',
   occupancyIncludedOne: '1 yetişkin dahil',

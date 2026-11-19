@@ -1,5 +1,5 @@
 /**
- * landr-hfvyc.2: Adult / Child + age per guest, rendered inline on the review
+ * landr-hfvyc.2: one age select per guest (Adult or Child, N years), rendered inline on the review
  * step's added stay line when the guest step never collected ages (no stay with
  * occupancy pricing was in the cart then). The first guest stays an adult.
  *
@@ -14,8 +14,8 @@
  */
 import type { FlowAgeBand } from '@/api/flowTypes'
 import { tr } from '@/lib/strings'
-import { ADULT_FROM, adultBandsOf, bandLabel, DEFAULT_AGE_BANDS, isAdultBand, orderedBands } from './ageBands'
-import { ExactAgeControl } from './AgeBandControls'
+import { ADULT_FROM, adultBandsOf, bandLabel, DEFAULT_AGE_BANDS } from './ageBands'
+import { GuestAgeSelect } from './GuestAgeSelect'
 import type { GuestAgeEntry } from './crossSell'
 
 interface Props {
@@ -75,6 +75,7 @@ export function InlineGuestAges({ labels, value, onChange, locale, ageBands, exa
       </div>
     )
   }
+  const adultOptions = adults.map((b) => ({ key: b.key, label: bandLabel(b, bands, locale) }))
   return (
     <ul className="space-y-2" data-testid="inline-guest-ages">
       {labels.map((label, i) => {
@@ -82,76 +83,57 @@ export function InlineGuestAges({ labels, value, onChange, locale, ageBands, exa
           return (
             <li key={i} className="flex flex-wrap items-center gap-2 text-sm">
               <span className="min-w-24">{label}</span>
-              <ExactAgeControl
-                id={`inline-${i}`}
-                booker={i === 0}
-                age={value[i]?.age ?? null}
-                locale={locale}
-                onChange={(age) =>
-                  set(i, {
-                    band: age !== null && age < ADULT_FROM ? 'child' : 'adult',
-                    age,
-                  })
-                }
-              />
+              {i === 0 ? null : (
+                <GuestAgeSelect
+                  testId={`inline-age-band-${i}`}
+                  adults={[{ key: 'adult', label: tr('adultOption', locale) }]}
+                  locale={locale}
+                  value={
+                    value[i]?.age != null && value[i].age! < ADULT_FROM
+                      ? { kind: 'child', age: value[i].age! }
+                      : { kind: 'adult', key: 'adult' }
+                  }
+                  onChange={(v) =>
+                    set(i, v.kind === 'child' ? { band: 'child', age: v.age } : { band: 'adult', age: null })
+                  }
+                />
+              )}
             </li>
           )
         }
         if (i === 0 && !storeFloor) return null
+        // The booker stays an adult: nothing to pick unless several adult bands.
+        if (i === 0 && adults.length <= 1) {
+          return (
+            <li key={i} className="flex flex-wrap items-center gap-2 text-sm">
+              <span className="min-w-24">{label}</span>
+            </li>
+          )
+        }
         const entry: GuestAgeEntry = value[i] ?? { band: 'adult', age: null }
         const adultKey = (floor: number | undefined) =>
           (adults.find((b) => b.min_age === floor) ?? adults[0]).key
-        const selectedKey = entry.band === 'child' ? 'child' : adultKey(entry.floor)
-        const pick = (key: string) => {
-          const band = bands.find((b) => b.key === key)
-          if (band && !isAdultBand(band)) {
-            set(i, { ...entry, band: 'child', age: entry.band === 'child' ? entry.age : null, floor: undefined })
-          } else {
-            set(i, { ...entry, band: 'adult', age: null, floor: storeFloor ? (band ?? adults[0]).min_age : undefined })
-          }
-        }
         return (
           <li key={i} className="flex flex-wrap items-center gap-2 text-sm">
             <span className="min-w-24">{label}</span>
-            {i > 0 || adults.length > 1 ? (
-              <select
-                data-testid={`inline-age-band-${i}`}
-                aria-label={tr('ageBandAria', locale)}
-                value={selectedKey}
-                onChange={(e) => pick(e.target.value)}
-                className={SELECT}
-              >
-                {(i === 0 ? adults : orderedBands(bands)).map((b) => (
-                  <option key={b.key} value={b.key}>
-                    {bandLabel(b, bands, locale)}
-                  </option>
-                ))}
-              </select>
-            ) : null}
-            {i > 0 && entry.band === 'child' ? (
-              <select
-                data-testid={`inline-age-${i}`}
-                aria-label={tr('childAgeAria', locale)}
-                value={entry.age ?? ''}
-                aria-invalid={entry.age == null ? true : undefined}
-                onChange={(e) =>
-                  set(i, { band: 'child', age: e.target.value === '' ? null : Number(e.target.value) })
+            <GuestAgeSelect
+              testId={`inline-age-band-${i}`}
+              adults={adultOptions}
+              adultOnly={i === 0}
+              locale={locale}
+              value={
+                entry.band === 'child' && entry.age != null
+                  ? { kind: 'child', age: entry.age }
+                  : { kind: 'adult', key: adultKey(entry.floor) }
+              }
+              onChange={(v) => {
+                if (v.kind === 'child') set(i, { band: 'child', age: v.age })
+                else {
+                  const band = adults.find((b) => b.key === v.key) ?? adults[0]
+                  set(i, { band: 'adult', age: null, floor: storeFloor ? band.min_age : undefined })
                 }
-                className={SELECT}
-              >
-                <option value="">{tr('agePlaceholder', locale)}</option>
-                {Array.from({ length: 18 }, (_, a) => (
-                  <option key={a} value={a}>
-                    {a}
-                  </option>
-                ))}
-              </select>
-            ) : null}
-            {i > 0 && entry.band === 'child' && entry.age == null ? (
-              <span className="text-xs text-destructive" role="alert">
-                {tr('guestAgeRequired', locale)}
-              </span>
-            ) : null}
+              }}
+            />
           </li>
         )
       })}

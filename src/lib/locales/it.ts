@@ -326,6 +326,8 @@ export const it: Bundle = {
     'ha meno colazioni che ospiti, trascina l’etichetta Colazione su chi la deve avere.',
   adultOption: 'Adulto',
   childOption: 'Bambino',
+  childYearOption: 'Bambino, 1 anno',
+  childYearsOption: 'Bambino, {n} anni',
   ageBandAria: 'Fascia d’età',
   childAgeAria: 'Età del bambino',
   occupancyIncludedOne: 'incl. 1 adulto',

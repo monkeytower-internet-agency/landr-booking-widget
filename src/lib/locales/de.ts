@@ -332,6 +332,8 @@ export const de: Bundle = {
     'den Frühstücks-Chip auf die Person, die es bekommt.',
   adultOption: 'Erwachsener',
   childOption: 'Kind',
+  childYearOption: 'Kind, 1 Jahr',
+  childYearsOption: 'Kind, {n} Jahre',
   ageBandAria: 'Altersgruppe',
   childAgeAria: 'Alter des Kindes',
   occupancyIncludedOne: 'inkl. 1 Erwachsener',
