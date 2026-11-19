@@ -329,6 +329,8 @@ export const fr: Bundle = {
     'Petit-déjeuner sur la personne qui en bénéficie.',
   adultOption: 'Adulte',
   childOption: 'Enfant',
+  childYearOption: 'Enfant, 1 an',
+  childYearsOption: 'Enfant, {n} ans',
   ageBandAria: 'Tranche d’âge',
   childAgeAria: 'Âge de l’enfant',
   occupancyIncludedOne: 'dont 1 adulte inclus',

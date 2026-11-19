@@ -356,6 +356,8 @@ export type Bundle = {
   roomAssignmentHelp: string
   adultOption: string
   childOption: string
+  childYearOption: string
+  childYearsOption: string
   ageBandAria: string
   childAgeAria: string
   occupancyIncludedOne: string
@@ -1494,6 +1496,8 @@ const en: Bundle = {
     'guests, drag the Breakfast chip onto whoever gets it.',
   adultOption: 'Adult',
   childOption: 'Child',
+  childYearOption: 'Child, 1 year',
+  childYearsOption: 'Child, {n} years',
   ageBandAria: 'Age band',
   childAgeAria: 'Child age',
   occupancyIncludedOne: 'incl. 1 adult',

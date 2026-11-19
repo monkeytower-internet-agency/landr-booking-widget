@@ -48,9 +48,10 @@ describe('cross-sell inline exact ages (landr-zcb24.7)', () => {
   const product = { ...mockOccupancyStay, occupancy_pricing: undefined }
   const line = inheritLine(product, ['2026-12-01'], 'l1', { ...FLOW, age_bands: [], age_collect_as: 'exact' })
 
-  it('an exact-age flow asks a number per guest, the booker 18+', () => {
+  it('an exact-age flow asks one select per guest, a booker minor still blocks', () => {
     expect(lineNeeds([line], CTX).l1.ageExact).toBe(true)
-    expect(inlineModulesPending([line], CTX, NONE)).toBe(true)
+    // every choice is complete: an untouched guest is an adult
+    expect(inlineModulesPending([line], CTX, NONE)).toBe(false)
     const kidOnly = { ...NONE, ages: { 0: { band: 'child' as const, age: 17 }, 1: { band: 'child' as const, age: 9 } } }
     expect(inlineModulesPending([line], CTX, kidOnly)).toBe(true)
     const done = { ...NONE, ages: { 0: { band: 'adult' as const, age: 40 }, 1: { band: 'child' as const, age: 9 } } }
