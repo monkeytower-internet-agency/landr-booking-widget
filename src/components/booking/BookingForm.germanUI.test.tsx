@@ -149,29 +149,21 @@ describe('BookingForm — German UI (landr-5aih0.9)', () => {
   })
 })
 
-describe('DetailsStep billing address — German UI (landr-uuntm.3)', () => {
+// The billing address lives on the review step now.
+describe('BookingForm review billing address — German UI (landr-uuntm.3)', () => {
+  beforeEach(() => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response(JSON.stringify({ country: null }), { status: 200 }))
+  })
   afterEach(() => {
     vi.restoreAllMocks()
     vi.unstubAllGlobals()
     configureCustomerLocale(null, null)
   })
 
-  function renderDetails() {
-    vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response(JSON.stringify({ country: null }), { status: 200 }))
-    render(
-      <DetailsStep
-        product={makeServiceProduct()}
-        selection={SELECTION}
-        onBack={vi.fn()}
-        onConfirm={vi.fn()}
-      />,
-    )
-  }
-
-  it('shows the billing group, toggle and tax id in German', () => {
+  it('shows the billing group, toggle, tax id and "Rechnung an:" cue in German', () => {
     setBrowserLanguage('de-DE')
     configureCustomerLocale(['en', 'de'], 'en')
-    renderDetails()
+    renderForm()
 
     expect(screen.getByRole('group', { name: 'Rechnungsadresse' })).toBeInTheDocument()
     expect(screen.getByText('Diese Angaben benötigen wir für Ihre Rechnung.')).toBeInTheDocument()
@@ -180,6 +172,8 @@ describe('DetailsStep billing address — German UI (landr-uuntm.3)', () => {
     expect(screen.getByLabelText('Postleitzahl')).toBeInTheDocument()
     expect(screen.getByLabelText('Ort')).toBeInTheDocument()
     expect(screen.getByLabelText('Land')).toBeInTheDocument()
+    expect(screen.getByTestId('invoice-to')).toHaveTextContent('Rechnung an:')
+    expect(screen.getByTestId('invoice-to')).toHaveTextContent('Ada Lovelace')
 
     fireEvent.click(screen.getByRole('checkbox', { name: 'Rechnung an ein Unternehmen?' }))
     expect(screen.getByLabelText('Unternehmen')).toBeInTheDocument()
@@ -187,12 +181,34 @@ describe('DetailsStep billing address — German UI (landr-uuntm.3)', () => {
     // English strings must not leak through.
     expect(screen.queryByText('Billing address')).not.toBeInTheDocument()
     expect(screen.queryByText('We need this for your invoice.')).not.toBeInTheDocument()
+    expect(screen.queryByText('Invoice to:')).not.toBeInTheDocument()
+  })
+
+  it('says in German why Buchen waits when the address is missing', () => {
+    setBrowserLanguage('de-DE')
+    configureCustomerLocale(['en', 'de'], 'en')
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct()}
+        selection={SELECTION}
+        booker={{ ...BOOKER, billing: { ...BOOKER.billing, city: '' } }}
+        participants={PARTICIPANTS}
+        pickupLocationId={null}
+        accommodationRooms={[]}
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    expect(document.getElementById('review-step-gate')).toHaveTextContent(
+      'Bitte geben Sie Ihre Rechnungsadresse ein, um zu buchen.',
+    )
   })
 
   it('keeps the English labels on an English browser', () => {
     setBrowserLanguage('en-US')
     configureCustomerLocale(['en', 'de'], 'en')
-    renderDetails()
+    renderForm()
     expect(screen.getByRole('group', { name: 'Billing address' })).toBeInTheDocument()
     expect(screen.getByLabelText('Street and number')).toBeInTheDocument()
   })
@@ -206,7 +222,7 @@ describe('Booking for someone else — German UI (landr-jiagg.2)', () => {
     configureCustomerLocale(null, null)
   })
 
-  it('DetailsStep: toggle, helper, Participant 1 placeholder and "Rechnung an:" in German', () => {
+  it('DetailsStep: toggle, helper and Participant 1 placeholder in German', () => {
     setBrowserLanguage('de-DE')
     configureCustomerLocale(['en', 'de'], 'en')
     vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response(JSON.stringify({ country: null }), { status: 200 }))
@@ -220,28 +236,19 @@ describe('Booking for someone else — German UI (landr-jiagg.2)', () => {
     )
     fireEvent.click(
       screen.getByRole('checkbox', {
-        name: 'Ich buche für jemand anderen und nehme selbst nicht teil',
+        name: 'Ich buche für andere und bin selbst nicht dabei.',
       }),
     )
     expect(
-      screen.getByText('Tragen Sie unten die Personen ein, die teilnehmen.'),
+      screen.getByText('Tragen Sie unten die Personen ein, die dabei sind.'),
     ).toBeInTheDocument()
     expect(screen.getByText(/Teilnehmer \(1 insgesamt\)/)).toBeInTheDocument()
     expect(
       document.querySelector<HTMLInputElement>('[name="participant_1_email"]')!.placeholder,
     ).toBe('wie Ihre')
 
-    fireEvent.change(document.querySelector('[name="booker_first_name"]')!, {
-      target: { value: 'Olaf' },
-    })
-    fireEvent.change(document.querySelector('[name="booker_last_name"]')!, {
-      target: { value: 'Klein' },
-    })
-    expect(screen.getByTestId('invoice-to')).toHaveTextContent('Rechnung an:')
-    expect(screen.getByTestId('invoice-to')).toHaveTextContent('Olaf Klein')
     // English strings must not leak through.
-    expect(screen.queryByText("I'm booking for someone else and won't take part")).not.toBeInTheDocument()
-    expect(screen.queryByText('Invoice to:')).not.toBeInTheDocument()
+    expect(screen.queryByText("I'm booking for others and won't be there myself.")).not.toBeInTheDocument()
   })
 
   it('BookingForm review: "Nimmt nicht teil · zahlt die Rechnung" in German', () => {
@@ -289,7 +296,7 @@ describe('Booking for someone else — German UI (landr-jiagg.2)', () => {
       />,
     )
     const toggle = screen.getByRole('checkbox', {
-      name: 'Ich buche für jemand anderen und nehme selbst nicht teil',
+      name: 'Ich buche für andere und bin selbst nicht dabei.',
     })
     fireEvent.click(toggle)
     expect(screen.getByTestId('participants-max-notice')).toHaveTextContent(

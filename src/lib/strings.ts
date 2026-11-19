@@ -10,6 +10,9 @@
 // components/booking/approvalReplyStrings.ts and cancelStrings.ts) so a
 // language review is one file.
 
+import type { ProductKind } from '@/api/types'
+import { isStayKind } from '@/flowPlan'
+
 export type Bundle = {
   multiDayPickerHelp: string
   multiDayPickerHelpRange: string
@@ -251,7 +254,8 @@ export type Bundle = {
   addParticipantButton: string
   addGuestButton: string
   enterYourNameEmailPhoneCue: string
-  enterYourNameEmailPhoneBillingCue: string
+  enterYourBillingAddressCue: string
+  billingRequiredBeforeConfirm: string
   fillInEveryRequiredField: string
   roleLabel: string
   includeYourCountryCode: string
@@ -357,6 +361,13 @@ export type Bundle = {
   occupancyIncludedOne: string
   occupancyIncludedMany: string
   occupancyExtraAdult: string
+  occupancyExtraGuest: string
+  taxedGuestsOne: string
+  taxedGuestsMany: string
+  taxedRangeFrom: string
+  taxedRangeBetween: string
+  taxedRangeUpTo: string
+  taxedAdult: string
   occupancyChildBand: string
   occupancyChildBandFree: string
   guestAgeRequired: string
@@ -414,6 +425,15 @@ export type Bundle = {
   stayMaxAdditionalGuestsTemplate: string
   stayMaxGuestsReachedOne: string
   stayMaxGuestsReachedTemplate: string
+  stayCrumbGuests: string
+  stayGuestsTitle: string
+  stayYouWillBeListedAsGuest1: string
+  stayGuestsYouPayForHint: string
+  stayPartyIncludedHeading: string
+  stayGuestCountSingular: string
+  stayGuestCountPlural: string
+  stayRemoveGuestAriaTemplate: string
+  stayAddAnyoneElseUpToTemplate: string
   otherParticipantsTotalTemplate: string
   addAnyoneElseUpToTemplate: string
   participantOrdinalTemplate: string
@@ -851,6 +871,8 @@ export type Bundle = {
   savesVsStandardRate: string
   participantSuffixSingular: string
   participantSuffixPlural: string
+  stayGuestSuffixSingular: string
+  stayGuestSuffixPlural: string
   multiDayDiscountLabel: string
   streakDiscountLabel: string
   voucherAppliedLabel: string
@@ -960,6 +982,18 @@ export type Bundle = {
   namesAndOthersTemplate: string
   languageStepGateDone: string
   languageStepGateWaitingTemplate: string
+  // landr-hdk4y.2: the second-guiding-language question (language step).
+  /** Whether the language name inside the question / the opt-out keeps its catalog case ('keep') or is lower-cased ('lower'): German builds "{language}sprachiger" (lower) but says "nur Französisch" (keep). */
+  secondLanguageQuestionCase: 'lower' | 'keep'
+  secondLanguageOnlyCase: 'lower' | 'keep'
+  secondLanguageQuestionTemplate: string
+  secondLanguageHelperTemplate: string
+  secondLanguageOnlyTemplate: string
+  secondLanguageApplyAll: string
+  secondLanguageGateWaitingTemplate: string
+  /** Submit 422s `participant_accepted_languages_missing` / `_invalid`. */
+  secondLanguageErrorMissing: string
+  secondLanguageErrorInvalid: string
   singleDateGateSelected: string
   singleDateGateEmpty: string
   multiDayGateNone: string
@@ -1121,6 +1155,9 @@ export type Bundle = {
   addMoreModuleSave: string
   addMoreModuleDone: string
   addMoreModuleChange: string
+  // landr-a5i49.3: visitor light/dark switcher (operator widget_color_switcher).
+  switchToDark: string
+  switchToLight: string
 }
 
 const en: Bundle = {
@@ -1349,7 +1386,8 @@ const en: Bundle = {
   addParticipantButton: '+ Add participant',
   addGuestButton: '+ Add guest',
   enterYourNameEmailPhoneCue: 'enter your name, email and phone',
-  enterYourNameEmailPhoneBillingCue: 'enter your name, email, phone and billing address',
+  enterYourBillingAddressCue: 'enter your billing address',
+  billingRequiredBeforeConfirm: 'Enter your billing address to confirm.',
   fillInEveryRequiredField: 'Fill in every required field to continue.',
   roleLabel: 'Role',
   includeYourCountryCode: 'Include your country code',
@@ -1461,6 +1499,13 @@ const en: Bundle = {
   occupancyIncludedOne: 'incl. 1 adult',
   occupancyIncludedMany: 'incl. {count} adults',
   occupancyExtraAdult: 'additional adults +{price}/night',
+  occupancyExtraGuest: 'additional guests +{price}/night',
+  taxedGuestsOne: '{count} guest {range}',
+  taxedGuestsMany: '{count} guests {range}',
+  taxedRangeFrom: 'from {min}',
+  taxedRangeBetween: '{min} to {max}',
+  taxedRangeUpTo: 'up to {max}',
+  taxedAdult: 'adult',
   occupancyChildBand: 'children {from}-{to} +{price}/night',
   occupancyChildBandFree: 'children {from}-{to} free',
   guestAgeRequired: 'Please select the age of each child.',
@@ -1516,6 +1561,15 @@ const en: Bundle = {
   stayMaxAdditionalGuestsTemplate: 'Maximum of {n} additional guests reached',
   stayMaxGuestsReachedOne: 'Maximum of 1 guest reached',
   stayMaxGuestsReachedTemplate: 'Maximum of {n} guests reached',
+  stayCrumbGuests: 'Guests',
+  stayGuestsTitle: 'Guests',
+  stayYouWillBeListedAsGuest1: "You'll be listed as guest 1. Add more people below if others are joining.",
+  stayGuestsYouPayForHint: "People you're booking and paying for.",
+  stayPartyIncludedHeading: 'Guests (included in this booking)',
+  stayGuestCountSingular: '{n} guest',
+  stayGuestCountPlural: '{n} guests',
+  stayRemoveGuestAriaTemplate: 'Remove guest {n}',
+  stayAddAnyoneElseUpToTemplate: "Add anyone else staying. You can add up to {n} more.",
   otherParticipantsTotalTemplate: 'Other participants ({n} total)',
   addAnyoneElseUpToTemplate: 'Add anyone else taking part. You can add up to {n} more.',
   participantOrdinalTemplate: 'Participant {n}',
@@ -1532,8 +1586,8 @@ const en: Bundle = {
   themFallback: 'them',
   youWillBeListedAsParticipant1:
     "You'll be listed as participant 1. Add more people below if others are joining.",
-  bookingForSomeoneElseLabel: "I'm booking for someone else and won't take part",
-  addPeopleJoiningBelow: 'Add the people who are joining below.',
+  bookingForSomeoneElseLabel: "I'm booking for others and won't be there myself.",
+  addPeopleJoiningBelow: 'Add the people who will be there below.',
   participantsTotalTemplate: 'Participants ({n} total)',
   sameAsYoursPlaceholder: 'same as yours',
   invoiceToLabel: 'Invoice to:',
@@ -1544,7 +1598,7 @@ const en: Bundle = {
   tooManyPeopleRemoveSomeone:
     'There are more people than this activity allows — remove someone to continue.',
   sharedDoubleRequiresBookerMessage:
-    'A shared double room covers your own bed, so you can only pick it when you take part yourself. Please go back to accommodation and choose another option.',
+    'A shared double room covers your own bed, so you can only pick it when you are there yourself. Please go back to accommodation and choose another option.',
   notAMemberOrNoCode:
     "Not a member, or don't have a code? Leave this blank — it won't affect your booking.",
   participantsYouPayForHint: "People you're booking and paying for.",
@@ -1933,6 +1987,8 @@ const en: Bundle = {
   savesVsStandardRate: 'saves {amount} vs standard rate',
   participantSuffixSingular: '× {n} participant',
   participantSuffixPlural: '× {n} participants',
+  stayGuestSuffixSingular: '× {n} guest',
+  stayGuestSuffixPlural: '× {n} guests',
   multiDayDiscountLabel: 'Multi-day discount',
   streakDiscountLabel: 'Streak discount',
   voucherAppliedLabel: 'Voucher applied',
@@ -2038,6 +2094,18 @@ const en: Bundle = {
   namesAndOthersTemplate: '{first} and {n} others',
   languageStepGateDone: 'Everyone has a language.',
   languageStepGateWaitingTemplate: 'Assign every participant to a language — still waiting on {names}.',
+  secondLanguageQuestionCase: 'keep',
+  secondLanguageOnlyCase: 'keep',
+  secondLanguageQuestionTemplate: 'If no {language} guide is available, which language would also work?',
+  secondLanguageHelperTemplate:
+    '{language} stays your first choice. The more languages you tick, the more likely we can confirm your booking.',
+  secondLanguageOnlyTemplate: 'I only speak {language}',
+  secondLanguageApplyAll: 'Apply to everyone',
+  secondLanguageGateWaitingTemplate: 'Tick at least one option for each person — still open: {names}.',
+  secondLanguageErrorMissing:
+    'Please go back to the language step and say which other guiding languages each person would accept.',
+  secondLanguageErrorInvalid:
+    'The other guiding languages on offer have changed. Please go back to the language step and choose again.',
   singleDateGateSelected: 'Date selected.',
   singleDateGateEmpty: 'Choose a date to continue.',
   multiDayGateNone: 'Choose at least one date to continue.',
@@ -2155,7 +2223,7 @@ const en: Bundle = {
   offerCheckFailed: 'We could not re-check extras for your party; they will be checked when you confirm.',
   offerMainIneligible: 'This cannot be booked for your party: {reason}',
   offerAnswerGuestQuestions: 'Answer the guest questions',
-  eligNoGuestsUnder: 'No guests under {n}',
+  eligNoGuestsUnder: "This accommodation doesn't accept guests under {n}.",
   eligGuestsUpTo: 'Only for guests up to {n}',
   eligGuestsBetween: 'Only for guests aged {min} to {max}',
   eligNeedsGuestAtLeast: 'At least one guest must be {n} or older',
@@ -2197,6 +2265,8 @@ const en: Bundle = {
   addMoreModuleSave: 'Save',
   addMoreModuleDone: '{title} saved',
   addMoreModuleChange: 'Change',
+  switchToDark: 'Switch to dark mode',
+  switchToLight: 'Switch to light mode',
 }
 
 /**
@@ -2207,7 +2277,7 @@ const en: Bundle = {
  * English is the source catalog and stays inline: it is the fallback for every
  * unsupported or not-yet-loaded language. Every other catalog is a dynamic
  * import (landr-8r6oc.18), so a visitor downloads only the one language they
- * read instead of all four (de/es/it/tr add ~150 kB raw to the main chunk).
+ * read instead of all five (de/es/it/tr/fr add ~150 kB raw to the main chunk).
  * `loadUiCatalog` fetches the resolved language ahead of the first render
  * (main.tsx) and again once the operator's language rules or an invite
  * resolve (App.tsx). Until a catalog is in, `pickBundle` hands out English:
@@ -2218,6 +2288,7 @@ const CATALOG_LOADERS: Record<string, () => Promise<Bundle>> = {
   es: () => import('./locales/es').then((m) => m.es),
   tr: () => import('./locales/tr').then((m) => m.tr),
   it: () => import('./locales/it').then((m) => m.it),
+  fr: () => import('./locales/fr').then((m) => m.fr),
 }
 
 /** Catalogs in memory; `en` is always present. */
@@ -2296,7 +2367,7 @@ export function loadAllUiCatalogs(): Promise<void> {
 
 /**
  * Resolve an arbitrary BCP-47-ish locale string ('de-AT', 'DE', 'es-ES',
- * 'tr-TR', …) to a supported bundle (en, de, es, it, tr); every other language,
+ * 'tr-TR', …) to a supported bundle (en, de, es, it, tr, fr); every other language,
  * including an absent locale, falls back to English, as does a supported
  * language whose catalog has not loaded (yet). Mirrors
  * approvalReplyStrings.ts's normalizeReplyLocale base/case-fold rule so the
@@ -2308,6 +2379,60 @@ export function pickBundle(locale?: string): Bundle {
 
 export function tr(key: keyof Bundle, locale?: string): string {
   return pickBundle(locale)[key]
+}
+
+/**
+ * landr-3knn9: stay products (apartments sold per night) say "guests", every
+ * other product kind keeps "participants". This table is the ONE place that
+ * knows which participant-wording keys have a guest variant; call sites go
+ * through partyTr/partyKey with the product kind instead of branching on it.
+ * Add a key here (plus its stay* strings in every catalog) to extend it.
+ */
+const STAY_PARTY_VARIANT = {
+  crumbParticipants: 'stayCrumbGuests',
+  formPersonParticipantTag: 'formPersonGuestTag',
+  participantsTitle: 'stayGuestsTitle',
+  offerParticipantsTitle: 'stayGuestsTitle',
+  participantSuffixSingular: 'stayGuestSuffixSingular',
+  participantSuffixPlural: 'stayGuestSuffixPlural',
+  addParticipantAria: 'stayAddGuestAria',
+  addParticipantButton: 'stayAddGuestButton',
+  maxAdditionalParticipantsTemplate: 'stayMaxAdditionalGuestsTemplate',
+  otherParticipantsTotalTemplate: 'stayOtherGuestsTotalTemplate',
+  participantsTotalTemplate: 'stayGuestsTotalTemplate',
+  maxParticipantsReachedOne: 'stayMaxGuestsReachedOne',
+  maxParticipantsReachedTemplate: 'stayMaxGuestsReachedTemplate',
+  participantOrdinalTemplate: 'companionOrdinalTemplate',
+  addAnyoneElseUpToTemplate: 'stayAddAnyoneElseUpToTemplate',
+  youWillBeListedAsParticipant1: 'stayYouWillBeListedAsGuest1',
+  participantsYouPayForHint: 'stayGuestsYouPayForHint',
+  partyIncludedHeading: 'stayPartyIncludedHeading',
+  participantCountSingular: 'stayGuestCountSingular',
+  participantCountPlural: 'stayGuestCountPlural',
+  removeParticipantAriaTemplate: 'stayRemoveGuestAriaTemplate',
+} as const satisfies Partial<Record<keyof Bundle, keyof Bundle>>
+
+/** A participant-wording key that has a stay (guest) variant. */
+export type PartyKey = keyof typeof STAY_PARTY_VARIANT
+
+/** Narrowing guard for tables that mix participant-wording keys with others (breadcrumb crumbs). */
+export function isPartyKey(key: keyof Bundle): key is PartyKey {
+  return Object.prototype.hasOwnProperty.call(STAY_PARTY_VARIANT, key)
+}
+
+/**
+ * The catalog key to use for a participant-wording string: the guest variant
+ * for a stay product, the participant key for everything else — including an
+ * unknown / missing kind, so this can never throw (the widget has no error
+ * boundary). In a mixed cart pass the MAIN product's kind.
+ */
+export function partyKey(key: PartyKey, productKind?: ProductKind | null): keyof Bundle {
+  return productKind && isStayKind(productKind) ? STAY_PARTY_VARIANT[key] : key
+}
+
+/** `tr` for a participant-wording key, worded by product kind (see partyKey). */
+export function partyTr(key: PartyKey, locale?: string, productKind?: ProductKind | null): string {
+  return tr(partyKey(key, productKind), locale)
 }
 
 /** Fill `{name}` placeholders in a bundle template; unknown names are left as-is. */
@@ -2618,9 +2743,12 @@ export function addonDeviationMessage(
 }
 
 /** "1 participant" / "N participants" (Confirmation summary). */
-export function participantCountLabel(n: number, locale?: string): string {
-  const t = pickBundle(locale)
-  const template = plural(n, t.participantCountSingular, t.participantCountPlural)
+export function participantCountLabel(n: number, locale?: string, productKind?: ProductKind | null): string {
+  const template = plural(
+    n,
+    partyTr('participantCountSingular', locale, productKind),
+    partyTr('participantCountPlural', locale, productKind),
+  )
   return template.replace('{n}', String(n))
 }
 
@@ -2706,6 +2834,78 @@ export function languageStepGate(unassignedNames: string[], locale?: string): st
   const t = pickBundle(locale)
   if (unassignedNames.length === 0) return t.languageStepGateDone
   return fmt(t.languageStepGateWaitingTemplate, { names: unassignedNames.join(', ') })
+}
+
+/**
+ * landr-hdk4y.2: the second-guiding-language question wording. `language` is the
+ * participant's main-language NAME as the widget shows it; `kind` picks which
+ * sentence. The question and the opt-out sit mid-sentence, so they follow the
+ * catalog's name case (German: "französischsprachiger"); the helper opens its
+ * sentence with the name, so it always keeps the name as given. French
+ * composes its own forms ("guide francophone" / "guide parlant turc", "Le
+ * français" / "L’anglais"); `code` is the ISO code behind `language`, which
+ * picks the adjective.
+ */
+export function secondLanguageText(
+  kind: 'question' | 'helper' | 'only',
+  language: string,
+  locale?: string,
+  code?: string,
+): string {
+  const t = pickBundle(locale)
+  const ui = resolveUiLanguage(locale)
+  const cased = (c: 'lower' | 'keep') => (c === 'lower' ? language.toLocaleLowerCase(ui) : language)
+  if (ui === 'fr') {
+    const name = language.toLocaleLowerCase('fr')
+    if (kind === 'helper') return fmt(t.secondLanguageHelperTemplate, { language: frenchDefiniteName(name) })
+    if (kind === 'question') {
+      return fmt(t.secondLanguageQuestionTemplate, { language: frenchGuideAdjective(name, code) })
+    }
+    const only = fmt(t.secondLanguageOnlyTemplate, { language: name })
+    // "Je ne parle qu’anglais": que elides before a vowel or mute h.
+    return frenchElides(name) ? only.replace(` que ${name}`, ` qu’${name}`) : only
+  }
+  if (kind === 'helper') return fmt(t.secondLanguageHelperTemplate, { language })
+  if (kind === 'question') {
+    return fmt(t.secondLanguageQuestionTemplate, { language: cased(t.secondLanguageQuestionCase) })
+  }
+  return fmt(t.secondLanguageOnlyTemplate, { language: cased(t.secondLanguageOnlyCase) })
+}
+
+/** French adjectives for "guide <adjective>"; any other language reads "guide parlant <langue>". */
+const FRENCH_GUIDE_ADJECTIVES: Record<string, string> = {
+  ar: 'arabophone',
+  de: 'germanophone',
+  en: 'anglophone',
+  es: 'hispanophone',
+  fr: 'francophone',
+  it: 'italophone',
+  ja: 'japonophone',
+  nl: 'néerlandophone',
+  pt: 'lusophone',
+  ru: 'russophone',
+  tr: 'turcophone',
+  zh: 'sinophone',
+}
+
+function frenchGuideAdjective(lowerName: string, code?: string): string {
+  const adjective = code ? FRENCH_GUIDE_ADJECTIVES[code.toLowerCase()] : undefined
+  return adjective ?? `parlant ${lowerName}`
+}
+
+/** "Le français" / "L’anglais": the capitalised sentence opener for a lower-case French language name. */
+function frenchDefiniteName(lowerName: string): string {
+  return frenchElides(lowerName) ? `L’${lowerName}` : `Le ${lowerName}`
+}
+
+/** True when a French article or "que" elides before this lower-case name (vowel or mute h; "hongrois" is an aspirated h). */
+function frenchElides(lowerName: string): boolean {
+  return /^[aeiouyàâéèêëîïôöûüh]/i.test(lowerName) && !lowerName.startsWith('hongrois')
+}
+
+/** landr-hdk4y.2: the gate line beside Continue while asked participants have not answered. */
+export function secondLanguageGate(unansweredNames: string[], locale?: string): string {
+  return fmt(pickBundle(locale).secondLanguageGateWaitingTemplate, { names: unansweredNames.join(', ') })
 }
 
 /**
@@ -2989,21 +3189,21 @@ export function nextStepSendGroupLabel(inviteCount: number, locale?: string): st
 }
 
 /** DetailsStep: "Other participants ({n} total)". */
-export function otherParticipantsHeading(n: number, locale?: string, stay = false): string {
-  return tr(stay ? 'stayOtherGuestsTotalTemplate' : 'otherParticipantsTotalTemplate', locale).replace('{n}', String(n))
+export function otherParticipantsHeading(n: number, locale?: string, productKind?: ProductKind | null): string {
+  return partyTr('otherParticipantsTotalTemplate', locale, productKind).replace('{n}', String(n))
 }
 
 /** landr-jiagg.2 DetailsStep max notice when the booker does not take part:
  *  "Maximum of {n} participants reached" ("1 participant" singular). */
-export function maxParticipantsReachedMessage(n: number, locale?: string, stay = false): string {
+export function maxParticipantsReachedMessage(n: number, locale?: string, productKind?: ProductKind | null): string {
   return n === 1
-    ? tr(stay ? 'stayMaxGuestsReachedOne' : 'maxParticipantsReachedOne', locale)
-    : tr(stay ? 'stayMaxGuestsReachedTemplate' : 'maxParticipantsReachedTemplate', locale).replace('{n}', String(n))
+    ? partyTr('maxParticipantsReachedOne', locale, productKind)
+    : partyTr('maxParticipantsReachedTemplate', locale, productKind).replace('{n}', String(n))
 }
 
 /** landr-jiagg.2 DetailsStep (booker not taking part): "Participants ({n} total)". */
-export function participantsTotalHeading(n: number, locale?: string, stay = false): string {
-  return tr(stay ? 'stayGuestsTotalTemplate' : 'participantsTotalTemplate', locale).replace('{n}', String(n))
+export function participantsTotalHeading(n: number, locale?: string, productKind?: ProductKind | null): string {
+  return partyTr('participantsTotalTemplate', locale, productKind).replace('{n}', String(n))
 }
 
 /** Product switch note: "{name} takes up to {n} people, so the group was reduced to {n}." */
@@ -3014,13 +3214,13 @@ export function alternativePartyClampedMessage(name: string, n: number, locale?:
 }
 
 /** DetailsStep: "Add anyone else taking part. You can add up to {n} more." */
-export function addAnyoneElseUpTo(n: number, locale?: string): string {
-  return tr('addAnyoneElseUpToTemplate', locale).replace('{n}', String(n))
+export function addAnyoneElseUpTo(n: number, locale?: string, productKind?: ProductKind | null): string {
+  return partyTr('addAnyoneElseUpToTemplate', locale, productKind).replace('{n}', String(n))
 }
 
 /** DetailsStep per-row heading: "Participant {n}". */
-export function participantOrdinalLabel(n: number, locale?: string, stay = false): string {
-  return tr(stay ? 'companionOrdinalTemplate' : 'participantOrdinalTemplate', locale).replace('{n}', String(n))
+export function participantOrdinalLabel(n: number, locale?: string, productKind?: ProductKind | null): string {
+  return partyTr('participantOrdinalTemplate', locale, productKind).replace('{n}', String(n))
 }
 
 /** DetailsStep per-row companion fallback name: "Guest {n}". */
@@ -3164,8 +3364,8 @@ export function reorderLanguageAriaLabel(languageDisplayName: string, locale?: s
 }
 
 /** DetailsStep's per-row remove-participant button aria-label: "Remove participant {n}". */
-export function removeParticipantAriaLabel(n: number, locale?: string): string {
-  return tr('removeParticipantAriaTemplate', locale).replace('{n}', String(n))
+export function removeParticipantAriaLabel(n: number, locale?: string, productKind?: ProductKind | null): string {
+  return partyTr('removeParticipantAriaTemplate', locale, productKind).replace('{n}', String(n))
 }
 
 /** DetailsStep's per-row remove-companion button aria-label: "Remove companion {n}". */

@@ -53,7 +53,11 @@ import {
   billingAddressComplete,
   billingToPayload,
   bookerJoins,
+  BILLING_REQUIRED_FIELDS,
+  firstMissingBillingField,
   participantsForSubmit,
+  withBilling,
+  type BillingDetails,
   type BookerDetails,
   type CompanionDetails,
   type ParticipantDetails,
@@ -62,6 +66,8 @@ import { ADULT_FROM, DEFAULT_AGE_BANDS, adultAgeWire, adultFloorOf, resolveBands
 import { ContinueAction } from './ContinueAction'
 import { isOwnAccommodation, ownAccommodationWire } from './ownAccommodation'
 import { CustomerCommentField } from './CustomerCommentField'
+import { BillingAddressBlock } from './BillingAddressBlock'
+import { NextAction } from './NextAction'
 import { AddMoreProducts } from './AddMoreProducts'
 import {
   bookingLanguageOffer,
@@ -83,8 +89,10 @@ import {
   forceBookReasonMessage,
   pastStartText,
   nightsWord,
+  partyTr,
   seatsShortMessage,
   seatsShortDaysMessage,
+  secondLanguageGate,
   tr,
   type ForceReason,
 } from '@/lib/strings'
@@ -95,6 +103,15 @@ import {
   type ParticipantLanguageMap,
 } from './participantLanguages'
 import { withFallbackGuestLanguage } from './stayFlow'
+import { SecondLanguageQuestions, type AskedParticipant } from './SecondLanguageQuestions'
+import {
+  applyAnswerToEveryone,
+  askedParticipants,
+  pruneAcceptedAnswers,
+  secondLanguageCartFor,
+  unansweredIndices,
+  type AcceptedLanguagesMap,
+} from './secondLanguage'
 import { isStayKind } from '@/flowPlan'
 
 /** Answers given inline on added lines (language board, forms, pickup). */
@@ -210,6 +227,17 @@ interface Props {
    */
   booker: BookerDetails
   /**
+   * The billing address is entered on this step (not on
+   * DetailsStep). Fires with every edit so App keeps `booker.billing` in the
+   * persistent draft + step, and Back / a reload restore what was typed.
+   */
+  onBillingChange?: (billing: BillingDetails) => void
+  /**
+   * landr-uuntm.3: the operator's ISO country, last link of the billing
+   * country guess chain (geo -> browser locale -> this). Absent/null = skip.
+   */
+  operatorCountry?: string | null
+  /**
    * Full participant roster captured by DetailsStep (landr-8c03) —
    * includes the booker as participant 1 plus any additional people.
    * Threaded through into the submit payload's participants[] array.
@@ -323,6 +351,14 @@ interface Props {
    * was driven past the step, and the submit will be rejected.
    */
   participantLanguages?: Record<number, string>
+  /**
+   * landr-hdk4y.2: the language step's answers to "which other guiding
+   * languages would also work?" (party index → codes, `[]` = only the main
+   * language). Never trusted as-is: who is asked, and which values are valid, is
+   * re-derived here from the WHOLE cart (an added product can change both), and
+   * an asked participant without an answer is asked again on this screen.
+   */
+  participantAcceptedLanguages?: Record<number, string[]>
   /**
    * landr-ffyg.2: "second pilot in a shared double room" mode. When true
    * the submit carries the top-level is_shared_double=true (landr-ffyg.1)
@@ -803,6 +839,22 @@ const formatHttpError = (
     const languageError = readLanguageError(err.detail, participantCount)
     if (languageError) return languageErrorMessage(languageError, memberLabels)
   }
+  // The second-guiding-language question (typed 422s): a friendly line in the
+  // customer's language instead of the generic rejection.
+  if (
+    err.status === 422 &&
+    err.detail !== null &&
+    typeof err.detail === 'object' &&
+    !Array.isArray(err.detail)
+  ) {
+    const code = (err.detail as { error?: unknown }).error
+    if (code === 'participant_accepted_languages_missing') {
+      return tr('secondLanguageErrorMissing', browserLocale())
+    }
+    if (code === 'participant_accepted_languages_invalid') {
+      return tr('secondLanguageErrorInvalid', browserLocale())
+    }
+  }
   // landr-t869m.1: the submit endpoint hard-rejects a booking that falls
   // inside the product's preparation window, or (separately) a stay whose
   // derived check-in day no longer satisfies its own lead time. Both raise
@@ -1084,6 +1136,8 @@ export function BookingForm({
   product,
   selection,
   booker,
+  onBillingChange,
+  operatorCountry,
   participants,
   companions = [],
   pickupLocationId: mainPickupLocationId,
@@ -1100,6 +1154,7 @@ export function BookingForm({
   customerComment,
   onCustomerCommentChange = () => {},
   participantLanguages: mainParticipantLanguages = {},
+  participantAcceptedLanguages: mainAcceptedLanguages,
   isSharedDouble: isSharedDoubleProp = false,
   roomAssignment,
   occupantAgeMap = {},
@@ -1146,6 +1201,37 @@ export function BookingForm({
   // landr-aoak.2 [S3]: staff/operator mode. When inactive, none of the staff
   // branches below render and the submit body is byte-identical to today.
   const staff = useStaffMode()
+  // The billing address is entered here, right above Confirm. Held
+  // locally (so the block works wherever BookingForm is mounted) and mirrored
+  // up through onBillingChange, which keeps booker.billing in the draft so Back
+  // and a reload restore it. Staff-entered bookings (phone walk-ins) may not
+  // have the customer's address to hand: optional there, required publicly.
+  const [billing, setBilling] = useState<BillingDetails>(() => withBilling(booker).billing)
+  const requireBilling = !staff.active
+  const missingBilling = requireBilling ? firstMissingBillingField(billing) : undefined
+  const [billingTouched, setBillingTouched] = useState<ReadonlySet<string>>(() => new Set())
+  const touchBilling = (key: string) =>
+    setBillingTouched((prev) => (prev.has(key) ? prev : new Set(prev).add(key)))
+  const changeBilling = (next: BillingDetails) => {
+    setBilling(next)
+    onBillingChange?.(next)
+  }
+  // A Confirm tap with the address incomplete reveals every missing field and
+  // takes the customer to the first one (same recipe as the details step).
+  const revealMissingBilling = () => {
+    setBillingTouched((prev) => {
+      const next = new Set(prev)
+      for (const f of BILLING_REQUIRED_FIELDS) next.add(f.key)
+      return next
+    })
+    if (!missingBilling || typeof document === 'undefined') return
+    const el = document.getElementById(missingBilling.id)
+    if (!el) return
+    el.focus()
+    if (typeof el.scrollIntoView === 'function') {
+      el.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    }
+  }
   // "Add more to this booking" is the public funnel's; a staff booking keeps
   // its single product (staff add lines on the booking afterwards).
   const setExtraLines = staff.active ? undefined : onExtraLinesChange
@@ -1240,6 +1326,64 @@ export function BookingForm({
     bookingLanguageOffer(mainOfferedLanguages, crossSellLines),
     participants.length + companions.length,
   )
+  // landr-hdk4y.2: the second-guiding-language question over the WHOLE cart —
+  // the same rule the API validates the submit against. The language step asked
+  // the main product's version of it; an added product can ask more or fewer
+  // people and offer other options, so the answers are re-checked here and the
+  // missing ones asked inline (only when a product was added: otherwise the
+  // language step already covered it).
+  const [acceptedAnswers, setAcceptedAnswers] = useState<AcceptedLanguagesMap>(
+    () => mainAcceptedLanguages ?? {},
+  )
+  const secondLanguageCart = useMemo(
+    () => secondLanguageCartFor(product, crossSellLines),
+    [product, crossSellLines],
+  )
+  // An answer belongs to the main language it was given for: when a participant's
+  // main language changes (the added product's own language module can do it),
+  // their answer is dropped and asked again. Adjusted during render (the React
+  // "derived state" pattern) so no stale answer is ever sent or shown.
+  const mainsKey = JSON.stringify(participantLanguages)
+  const [seenMains, setSeenMains] = useState({
+    key: JSON.stringify(mainParticipantLanguages),
+    map: mainParticipantLanguages as Readonly<Record<number, string>>,
+  })
+  if (seenMains.key !== mainsKey) {
+    setSeenMains({ key: mainsKey, map: participantLanguages })
+    setAcceptedAnswers((prev) => {
+      const next: AcceptedLanguagesMap = {}
+      for (const [k, v] of Object.entries(prev)) {
+        const i = Number(k)
+        if (seenMains.map[i] === participantLanguages[i]) next[i] = v
+      }
+      return next
+    })
+  }
+  const submitParticipantCount = participantsForSubmit(booker, participants).length
+  const askedSecondLanguage = askedParticipants(
+    secondLanguageCart,
+    participantLanguages,
+    submitParticipantCount,
+  )
+  const acceptedLanguages = pruneAcceptedAnswers(acceptedAnswers, askedSecondLanguage)
+  const unansweredSecondLanguage = unansweredIndices(askedSecondLanguage, acceptedLanguages)
+  const secondLanguageBlocked = unansweredSecondLanguage.length > 0
+  const secondLanguageNames = disambiguatePartyLabels(
+    participantsForSubmit(booker, participants).map((p) => ({
+      first: p.first_name,
+      last: p.last_name,
+    })),
+  )
+  const askedSecondLanguageList: AskedParticipant[] = Object.keys(askedSecondLanguage)
+    .map(Number)
+    .sort((a, b) => a - b)
+    .map((index) => ({
+      index,
+      name: secondLanguageNames[index] || tr('guestFallbackTemplate', locale).replace('{n}', String(index + 1)),
+      main: participantLanguages[index]!,
+      options: askedSecondLanguage[index]!,
+      answer: acceptedLanguages[index],
+    }))
   const pickupLocationId =
     mainPickupLocationId ?? (addedNeeds.some((n) => n.pickup) ? inlinePickupId : null)
   // Only the forms a CURRENT line still needs are sent (a removed line's
@@ -1648,8 +1792,22 @@ export function BookingForm({
       setServerError(tr('voucherFixBeforeConfirm', locale))
       return
     }
+    // the public booking needs the invoice address before Buchen.
+    if (missingBilling) {
+      revealMissingBilling()
+      return
+    }
     if (extrasBlocked) {
       setServerError(tr('addMoreIncomplete', locale))
+      return
+    }
+    if (secondLanguageBlocked) {
+      setServerError(
+        secondLanguageGate(
+          unansweredSecondLanguage.map((i) => secondLanguageNames[i] || String(i + 1)),
+          locale,
+        ),
+      )
       return
     }
     if (mainIneligible) return
@@ -1812,15 +1970,18 @@ export function BookingForm({
         customer_email: booker.email,
         customer_phone: booker.phone || null,
         // landr-uuntm.3: invoice recipient's billing address. The public
-        // widget requires it (DetailsStep gate); a staff-entered booking may
+        // widget requires it (review-step gate); a staff-entered booking may
         // legitimately leave it out, in which case the key is omitted rather
         // than sent half-filled (the API 422s an incomplete address).
-        ...(billingAddressComplete(booker.billing)
-          ? { customer_billing: billingToPayload(booker.billing) }
+        ...(billingAddressComplete(billing)
+          ? { customer_billing: billingToPayload(billing) }
           : {}),
         customer_preferred_locale: locale,
         cancellation_deadline: cancellationDeadline(firstSelectionDate(selection)),
         booking_channel: 'public_website',
+        // landr-hdk4y.2: this widget can ask the second-guiding-language
+        // question; the API enforces the required answer only when told so.
+        accepted_languages_supported: true,
         products: productLines,
         // landr-jiagg.2: no booker row when the booker does not take part
         // (DetailsStep already left it out); "Participant 1"'s blank
@@ -1896,6 +2057,9 @@ export function BookingForm({
             ...(participantLanguages[idx]
               ? { language: participantLanguages[idx] }
               : {}),
+            // landr-hdk4y.2: the accepted other guiding languages — only for a
+            // participant the cart asks (the API rejects an answer otherwise).
+            ...(acceptedLanguages[idx] ? { accepted_languages: acceptedLanguages[idx] } : {}),
           }
         }),
         // landr-87n9.3: non-guiding companions as the top-level companions[]
@@ -2316,7 +2480,7 @@ export function BookingForm({
           className="rounded-lg border bg-surface-raised p-3 shadow-elev-1"
         >
           <h3 className="mb-2 text-sm font-semibold">
-            {tr('participantsTitle', locale)} ({participants.length})
+            {partyTr('participantsTitle', locale, product.product_kind)} ({participants.length})
           </h3>
           <ol className="space-y-1 text-sm">
             {participants.map((p, idx) => (
@@ -2713,6 +2877,47 @@ export function BookingForm({
           collapsible
         />
 
+        {/* The invoice address belongs at checkout, last thing
+            before Confirm. Pending required control while incomplete, so it
+            owns the next-action ring (ContinueAction below stands down). */}
+        <NextAction
+          active={missingBilling !== undefined}
+          cue={tr('enterYourBillingAddressCue', locale)}
+        >
+          <BillingAddressBlock
+            booker={{ ...booker, billing }}
+            onChange={changeBilling}
+            required={requireBilling}
+            touched={billingTouched}
+            onTouch={touchBilling}
+            operatorCountry={operatorCountry}
+          />
+        </NextAction>
+
+        {/* landr-hdk4y.2: an added product changed the second-language question
+            (who is asked, or which options): ask it here, in the same wording
+            the language step uses. Without an added product the language step
+            has already asked it, unless an answer is still missing. */}
+        {(crossSellLines.length > 0 || secondLanguageBlocked) && askedSecondLanguageList.length > 0 ? (
+          <SecondLanguageQuestions
+            asked={askedSecondLanguageList}
+            locale={locale}
+            onChange={(index, answer) =>
+              setAcceptedAnswers((prev) => {
+                const next = { ...prev }
+                if (answer === undefined) delete next[index]
+                else next[index] = answer
+                return next
+              })
+            }
+            onApplyToEveryone={(source) =>
+              setAcceptedAnswers(
+                applyAnswerToEveryone(acceptedLanguages, askedSecondLanguage, source),
+              )
+            }
+          />
+        ) : null}
+
         {/* landr-xpbt2: every control that finishes the booking sits in this
             one box — above Confirm, the operator price-override
             (landr-aoak.2 [S3].3: sets override_gross_total + override_reason
@@ -2722,9 +2927,10 @@ export function BookingForm({
             with the fixed price at creation, so disabled while an amount is
             entered). Both are hidden entirely for normal customers. */}
         <ContinueAction
+          active={missingBilling === undefined && !submitting && !unPriceable && !voucherBlocked && !overrideBlocked && !verificationBlocked && !extrasBlocked && !secondLanguageBlocked && !mainIneligible}
           ready={
             !submitting && !unPriceable && !voucherBlocked && !overrideBlocked && !verificationBlocked && !extrasBlocked &&
-            !mainIneligible
+            !secondLanguageBlocked && !mainIneligible
           }
           reason={
             mainIneligible && mainVerdict
@@ -2737,8 +2943,15 @@ export function BookingForm({
               ? tr('voucherFixBeforeConfirm', locale)
               : extrasBlocked
               ? tr('addMoreIncomplete', locale)
+              : secondLanguageBlocked
+              ? secondLanguageGate(
+                  unansweredSecondLanguage.map((i) => secondLanguageNames[i] || String(i + 1)),
+                  locale,
+                )
               : verificationBlocked
               ? verificationStrings(locale).missingHint
+              : missingBilling
+              ? tr('billingRequiredBeforeConfirm', locale)
               : overrideAmountInvalid
               ? 'Enter a valid price'
               : overrideReasonMissing

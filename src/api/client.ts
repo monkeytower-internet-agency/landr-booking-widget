@@ -1084,6 +1084,14 @@ export interface OfferProductLine {
   date_range_end: string | null
   selected_days: string[] | null
   quantity: number
+  /**
+   * The product's kind ('service', 'stay', …) and whether it is an add-on-only
+   * line. Absent from an older API response, so both are optional: the offer
+   * page words its party by the main line's kind and reads a missing kind as a
+   * service.
+   */
+  product_kind?: string | null
+  is_addon_only?: boolean | null
 }
 
 /**

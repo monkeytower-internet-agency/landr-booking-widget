@@ -251,12 +251,25 @@ const LANGUAGE_NAMES_TR: Record<string, string> = {
   zh: 'Çince',
 }
 
+/** landr-hdk4y.10: French fallback table (same codes/order as LANGUAGE_NAMES). */
+const LANGUAGE_NAMES_FR: Record<string, string> = {
+  ar: 'Arabe', bg: 'Bulgare', bs: 'Bosniaque', ca: 'Catalan', cs: 'Tchèque', da: 'Danois',
+  de: 'Allemand', el: 'Grec', en: 'Anglais', es: 'Espagnol', et: 'Estonien', eu: 'Basque',
+  fi: 'Finnois', fr: 'Français', ga: 'Irlandais', gl: 'Galicien', he: 'Hébreu', hi: 'Hindi',
+  hr: 'Croate', hu: 'Hongrois', id: 'Indonésien', is: 'Islandais', it: 'Italien',
+  ja: 'Japonais', ko: 'Coréen', lt: 'Lituanien', lv: 'Letton', mk: 'Macédonien',
+  nl: 'Néerlandais', no: 'Norvégien', pl: 'Polonais', pt: 'Portugais', ro: 'Roumain', ru: 'Russe',
+  sk: 'Slovaque', sl: 'Slovène', sq: 'Albanais', sr: 'Serbe', sv: 'Suédois', th: 'Thaï',
+  tr: 'Turc', uk: 'Ukrainien', vi: 'Vietnamien', zh: 'Chinois',
+}
+
 /** Fallback tables for the `Intl.DisplayNames` path, by UI language (English uses LANGUAGE_NAMES). */
 const LANGUAGE_NAMES_BY_UI: Record<string, Record<string, string>> = {
   de: LANGUAGE_NAMES_DE,
   es: LANGUAGE_NAMES_ES,
   it: LANGUAGE_NAMES_IT,
   tr: LANGUAGE_NAMES_TR,
+  fr: LANGUAGE_NAMES_FR,
 }
 
 // landr-5aih0.17 / landr-8r6oc.4: one shared Intl.DisplayNames instance per UI

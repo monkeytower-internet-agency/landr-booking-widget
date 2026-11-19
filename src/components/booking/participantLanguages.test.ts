@@ -257,6 +257,14 @@ describe('display — German UI (landr-5aih0.27)', () => {
     )
   })
 
+  it('languageName(code, "fr") names the common codes in French (landr-hdk4y.10)', () => {
+    expect(languageName('fr', 'fr')).toBe('Français')
+    expect(languageName('de', 'fr-FR')).toBe('Allemand')
+    expect(languageName('en', 'fr')).toBe('Anglais')
+    expect(languageName('zz', 'fr')).toBe('ZZ')
+    expect(joinLanguageNames(['fr', 'en', 'de'], 'fr')).toBe('Français, Anglais et Allemand')
+  })
+
   it('a regional German tag (de-AT) resolves the same as bare "de"', () => {
     expect(languageName('fr', 'de-AT')).toBe('Französisch')
   })
@@ -288,8 +296,8 @@ describe('display — Spanish and Turkish UI (landr-8r6oc.4)', () => {
     expect(joinLanguageNames(['en', 'es', 'de'], 'tr')).toBe('İngilizce, İspanyolca ve Almanca')
   })
 
-  it('English stays English for other locales (fr)', () => {
-    expect(languageName('de', 'fr')).toBe('German')
+  it('English stays English for other locales (pt)', () => {
+    expect(languageName('de', 'pt')).toBe('German')
   })
 })
 

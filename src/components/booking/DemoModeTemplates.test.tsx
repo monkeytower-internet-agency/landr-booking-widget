@@ -5,7 +5,6 @@
  * stubbed — with the template catalogue as the API serves it — so the real
  * client, demo router and widget screens run; every call must be a GET.
  */
-import { fillBillingFields } from '@/test/fillBilling'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -106,7 +105,6 @@ function fillBooker() {
   setInput('booker_last_name', 'Lovelace')
   setInput('booker_email', 'ada@example.com')
   setInput('booker_phone', '+34 600000000')
-  fillBillingFields()
 }
 
 async function clickDay(iso: string) {

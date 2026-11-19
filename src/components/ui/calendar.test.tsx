@@ -1,7 +1,7 @@
 import { render } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { de as dayPickerDe, es as dayPickerEs, tr as dayPickerTr } from 'react-day-picker/locale'
+import { de as dayPickerDe, es as dayPickerEs, fr as dayPickerFr, tr as dayPickerTr } from 'react-day-picker/locale'
 
 import { configureCustomerLocale } from '@/lib/locale'
 import { pickBundle } from '@/lib/strings'
@@ -87,6 +87,7 @@ describe('Calendar locale', () => {
     ['de-DE', /Juni 2026/, 'Mo'],
     ['es-ES', /junio 2026/i, 'lu'],
     ['tr-TR', /Haziran 2026/, 'Pt'],
+    ['fr-FR', /juin 2026/i, 'lu'],
   ])('%s renders the month caption in its own language', (language, caption, weekday) => {
     vi.stubGlobal('navigator', { ...navigator, language })
     const { container } = render(<Calendar mode="single" month={month} />)
@@ -101,6 +102,7 @@ describe('Calendar locale', () => {
     ['de-DE', 'Zum nächsten Monat', 'Zum vorherigen Monat'],
     ['es-ES', 'Ir al mes siguiente', 'Ir al mes anterior'],
     ['tr-TR', 'Sonraki aya git', 'Önceki aya git'],
+    ['fr-FR', 'Aller au mois suivant', 'Aller au mois précédent'],
   ])('%s localises the month-navigation aria labels', (language, next, previous) => {
     vi.stubGlobal('navigator', { ...navigator, language })
     const { container } = render(<Calendar mode="single" month={month} />)
@@ -126,6 +128,7 @@ describe('Calendar diff-state aria labels', () => {
     ['de-DE', 'hinzugefügt', 'entfernt'],
     ['es-ES', 'añadido', 'quitado'],
     ['tr-TR', 'eklendi', 'kaldırıldı'],
+    ['fr-FR', 'ajouté', 'retiré'],
   ])('%s names the diff state in its own language', (language, added, removed) => {
     vi.stubGlobal('navigator', { ...navigator, language })
     const { container } = render(
@@ -142,7 +145,7 @@ describe('Calendar diff-state aria labels', () => {
     expect(eleven.endsWith(`, ${removed}`)).toBe(true)
     // The "selected" word react-day-picker added is gone, not doubled up.
     for (const label of [ten, eleven]) {
-      expect(label).not.toMatch(/, (selected|ausgewählt|seleccionado|seçili)\b/)
+      expect(label).not.toMatch(/, (selected|ausgewählt|seleccionado|seçili|sélectionné)\b/)
     }
   })
 
@@ -150,6 +153,7 @@ describe('Calendar diff-state aria labels', () => {
     ['de', dayPickerDe],
     ['es', dayPickerEs],
     ['tr', dayPickerTr],
+    ['fr', dayPickerFr],
   ])('%s: the catalog "selected" word is the one react-day-picker appends', (lang, locale) => {
     const labelDayButton = locale.labels?.labelDayButton
     const label =

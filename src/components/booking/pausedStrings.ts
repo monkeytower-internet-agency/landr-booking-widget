@@ -1,6 +1,6 @@
-/** Page-scoped de/en/es/it/tr strings for the off-season pause screen. */
+/** Page-scoped de/en/es/fr/it/tr strings for the off-season pause screen. */
 
-export type PausedLocale = 'de' | 'en' | 'es' | 'it' | 'tr'
+export type PausedLocale = 'de' | 'en' | 'es' | 'fr' | 'it' | 'tr'
 
 export interface PausedBundle {
   title: string
@@ -25,6 +25,11 @@ const BUNDLES: Record<PausedLocale, PausedBundle> = {
     bodyWithDate: 'Las reservas están en pausa por ahora. Volvemos en temporada el {date}.',
     bodyNoDate: 'Las reservas están en pausa por ahora. Vuelve a visitarnos pronto.',
   },
+  fr: {
+    title: 'Bientôt de retour pour la saison',
+    bodyWithDate: 'Les réservations sont suspendues pour le moment. Nous reprenons la saison le {date}.',
+    bodyNoDate: 'Les réservations sont suspendues pour le moment. Repassez nous voir bientôt.',
+  },
   it: {
     title: 'Presto di nuovo in stagione',
     bodyWithDate: 'Le prenotazioni sono momentaneamente sospese. Torniamo in stagione dal {date}.',
@@ -39,7 +44,7 @@ const BUNDLES: Record<PausedLocale, PausedBundle> = {
 
 export function normalizePausedLocale(code: string | null | undefined): PausedLocale {
   const base = (code ?? '').split('-')[0].trim().toLowerCase()
-  return base === 'de' || base === 'es' || base === 'it' || base === 'tr' ? base : 'en'
+  return base === 'de' || base === 'es' || base === 'fr' || base === 'it' || base === 'tr' ? base : 'en'
 }
 
 export function pausedCopy(

@@ -36,7 +36,8 @@ import { useStaffMode } from '@/lib/staffMode'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { pickLocalized, browserLocale } from '@/lib/locale'
-import { productFormSubtitle, tr, unsupportedFieldTypeLabel } from '@/lib/strings'
+import type { ProductKind } from '@/api/types'
+import { partyTr, productFormSubtitle, tr, unsupportedFieldTypeLabel } from '@/lib/strings'
 import { getProductFlow } from '@/api/client'
 import type {
   FlowFieldDef,
@@ -74,6 +75,8 @@ export interface CustomFormStepProps {
   formKey: string
   /** Display name for the product (used in the card description). */
   productName: string
+  /** The main product's kind: a stay words its people as guests, not participants. */
+  productKind?: ProductKind | null
   /** Initial answers for back-nav restoration from draft.customFormAnswers[formKey]. */
   initialAnswers?: Record<string, unknown>
   /**
@@ -518,6 +521,7 @@ export function CustomFormStep({
   productId,
   formKey,
   productName,
+  productKind,
   initialAnswers,
   flow,
   participants,
@@ -871,12 +875,9 @@ export function CustomFormStep({
                       {person.name}
                     </h3>
                     <p className="text-xs text-muted-foreground">
-                      {tr(
-                        person.kind === 'participant'
-                          ? 'formPersonParticipantTag'
-                          : 'formPersonGuestTag',
-                        uiLocale,
-                      )}
+                      {person.kind === 'participant'
+                        ? partyTr('formPersonParticipantTag', uiLocale, productKind)
+                        : tr('formPersonGuestTag', uiLocale)}
                     </p>
                   </header>
                   {visible.map((field) => (

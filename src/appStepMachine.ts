@@ -14,6 +14,7 @@ import type { RoomSelection } from '@/components/booking/accommodationCalc'
 import type {
   PartyAssignmentMap,
   PartyBreakfastMap,
+  PartyAcceptedLanguagesMap,
   PartyLanguageMap,
   PartyOccupantAgeMap,
 } from '@/components/booking/partyIdentity'
@@ -27,7 +28,7 @@ import type {
 } from '@/components/booking/detailsTypes'
 import { hasFixedStartTimes } from '@/components/booking/slotKey'
 import { maxPartySize, seatsNeeded } from '@/lib/seatHold'
-import type { Product, ProductGroup, SubmitBookingResponse } from '@/api/types'
+import type { Product, ProductGroup, ProductKind, SubmitBookingResponse } from '@/api/types'
 import type {
   FlowGuestAttribute,
   FormResponseEntry,
@@ -142,6 +143,14 @@ export interface BookingDraft {
    * at the seam with toIdentityKeyed / toIndexKeyedOrUndefined.
    */
   participantLanguages?: PartyLanguageMap
+  /**
+   * landr-hdk4y.2: each guided participant's answer to "which other guiding
+   * languages would also work?" (identity-keyed like `participantLanguages`).
+   * Written by the language step, read back at review. `[]` = only the main
+   * language. Never trusted as-is: the submit re-derives who is asked and which
+   * values are valid from the current cart (see secondLanguage.ts).
+   */
+  participantAcceptedLanguages?: PartyAcceptedLanguagesMap
 }
 
 /**
@@ -458,6 +467,9 @@ export type Step =
       // landr-h0opd.3: the booked product's share_reference_enabled flag,
       // captured at submit time (the confirmed step carries no product).
       shareReferenceEnabled?: boolean
+      // landr-3knn9: the main product's kind, captured at submit time, so the
+      // confirmation words a stay's people as guests (the response has none).
+      productKind?: ProductKind | null
     }
 
 /**

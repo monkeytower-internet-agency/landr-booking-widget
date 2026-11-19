@@ -14,9 +14,11 @@ permissions:
 
 # landr-uzb1o.5: serialize prod deploys (never cancel one mid-flight); every
 # other ref/PR gets its own group so previews are not queued behind prod.
+# landr-k82g0: only a pull_request run is cancelled by a newer push to the same
+# PR (its group is per PR ref); pushes to main/staging/dev never cancel.
 concurrency:
   group: ${{ github.ref == 'refs/heads/main' && 'deploy-prod-landr-booking-widget' || format('deploy-landr-booking-widget-{0}', github.ref) }}
-  cancel-in-progress: false
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   # landr-r6e5x.1 (2026-09-11): NOT gated behind ALLOW_GITHUB_RUNNERS, unlike

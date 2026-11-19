@@ -78,6 +78,7 @@ import {
   productAcceptsAnyLanguage,
   singleLanguageAssignment,
 } from '@/components/booking/participantLanguages'
+import { buildSecondLanguageCart } from '@/components/booking/secondLanguage'
 import { FixedDateWindowPicker } from '@/components/booking/FixedDateWindowPicker'
 import { expandWindowDays } from '@/components/booking/expandWindowDays'
 import { MembershipCheckoutStep } from '@/components/booking/MembershipCheckoutStep'
@@ -185,6 +186,8 @@ import { isBookingInProgress, useStaffDirtySignal } from '@/lib/staffDirty'
 import { loadTileFont } from '@/lib/tileFont'
 import type { TileFontKey } from '@/lib/tileFont'
 import { widgetThemeStyle } from '@/lib/widgetTheme'
+import { setOperatorColorMode, useIsDark } from '@/lib/colorMode'
+import { ColorModeSwitch } from '@/components/booking/ColorModeSwitch'
 import { StepTransition } from '@/components/booking/StepTransition'
 import { applyBootLogo, dismissBootSplash, isBootReady } from '@/lib/bootSplash'
 
@@ -492,6 +495,8 @@ function BookingFlowApp() {
   // gate further down owns. Showing the landing page here would be the very
   // bug this ticket fixes.
   const [showLanding, setShowLanding] = useState<boolean>(!token && !invite)
+  // landr-a5i49.3: light / dark (lib/colorMode.ts) — picks the dark brand theme.
+  const isDark = useIsDark()
   // landr-2mgl: restore funnel progress persisted to sessionStorage on the
   // previous render (survives an accidental mobile pull-to-refresh OR an
   // intentional reload, which both remount this component from scratch).
@@ -1252,6 +1257,9 @@ function BookingFlowApp() {
         if (!cancelled) {
           setOperatorSettings(settings)
           setShowLanding(false)
+          // landr-a5i49.3: operator light/dark/auto (cached per token so the
+          // next visit's first paint is already dark).
+          setOperatorColorMode(settings.widget_color_mode, token)
           // landr-tkgx8.1: operator logo on the boot splash (and cached for
           // the next visit's first paint). widget_show_logo only hides the
           // in-widget header logo; the loading splash always shows the
@@ -1663,8 +1671,12 @@ function BookingFlowApp() {
     // than in an effect: react-hooks/set-state-in-effect.)
     if (productAcceptsAnyLanguage(product.guide_languages)) {
       setBookingDraft((prev) =>
-        prev.participantLanguages
-          ? { ...prev, participantLanguages: undefined }
+        prev.participantLanguages || prev.participantAcceptedLanguages
+          ? {
+              ...prev,
+              participantLanguages: undefined,
+              participantAcceptedLanguages: undefined,
+            }
           : prev,
       )
     }
@@ -2037,9 +2049,11 @@ function BookingFlowApp() {
     languageStepForProduct,
     opensOnDates,
   ])
+  // landr-3knn9: the funnel's main product decides participant vs guest wording.
+  const productKind = 'product' in step ? step.product.product_kind : null
   const breadcrumbNav = useMemo(
-    () => ({ items: breadcrumbItems, onNavigate: navigateTo }),
-    [breadcrumbItems, navigateTo],
+    () => ({ items: breadcrumbItems, onNavigate: navigateTo, productKind }),
+    [breadcrumbItems, navigateTo, productKind],
   )
 
   // landr-tkgx8.1: drop the boot splash once the step the customer lands on
@@ -2083,10 +2097,9 @@ function BookingFlowApp() {
   // The operator's 3-colour theme (brand/accent/background) wins when
   // present; otherwise the legacy single primary_color → --primary path
   // is preserved; otherwise no inline vars and index.css defaults stand.
-  // (See lib/widgetTheme.ts for the mapping + contrast safety. Dark mode
-  // is carried on the type but not applied — the widget has no active
-  // dark mode today.)
-  const brandStyle: CSSProperties = widgetThemeStyle(operatorSettings)
+  // (See lib/widgetTheme.ts for the mapping + contrast safety; in dark mode
+  // — `?theme=dark|auto`, lib/colorMode.ts — the theme's dark variant.)
+  const brandStyle: CSSProperties = widgetThemeStyle(operatorSettings, isDark)
 
   // landr-rjda — "first step" = the product/category selection screen.
   // pick-category only appears when the operator has >1 product group; both
@@ -2281,6 +2294,12 @@ function BookingFlowApp() {
         gives the sidebar breathing room without squeezing the step content.
       */}
       <div className="mx-auto flex max-w-5xl flex-col gap-6 p-2 sm:p-6">
+        {/* landr-a5i49.3: visitor light/dark switch, when the operator offers it. */}
+        {operatorSettings.widget_color_switcher ? (
+          <div className="-mb-4 flex justify-end">
+            <ColorModeSwitch />
+          </div>
+        ) : null}
         {/*
           landr-yp8x / landr-nils — operator brand + intro header. The
           widget is embedded inside the operator's own page, so they own
@@ -2735,6 +2754,7 @@ function BookingFlowApp() {
                 email,
                 isSharedDouble: false,
                 shareReferenceEnabled: false,
+                productKind: step.product.product_kind,
               })
             }}
           />
@@ -2973,8 +2993,6 @@ function BookingFlowApp() {
             // predate the key) the field stays hidden rather than flashing in
             // and then vanishing.
             hasMemberPerks={operatorSettings.has_member_perks ?? false}
-            // landr-uuntm.3: last link of the billing-country guess chain.
-            operatorCountry={operatorSettings.country ?? null}
             // landr-ehye: token passed to GroupInquiryForm for the POST.
             operatorToken={token!}
             // landr-jiagg.2: an invitee takes the seat themselves — no
@@ -3427,6 +3445,17 @@ function BookingFlowApp() {
                   bookingDraft.participantLanguages,
                   roster,
                 ),
+                // landr-hdk4y.2: the second-guiding-language question for this
+                // product (nobody is asked unless the operator switched it on),
+                // and the answers restored on back-nav.
+                secondLanguage: buildSecondLanguageCart(
+                  [step.product],
+                  [offeredLanguagesForProduct(step.product)],
+                ),
+                initialAccepted: toIndexKeyed(
+                  bookingDraft.participantAcceptedLanguages,
+                  roster,
+                ),
               }
             })()}
             // landr-n6ii3: editable "Anything we should know?" field on
@@ -3460,15 +3489,14 @@ function BookingFlowApp() {
                 }),
               )
             }
-            onConfirm={(assignment) => {
+            onConfirm={(assignment, accepted) => {
               // THE OUTBOUND SEAM: the board reports party indices, the draft
               // stores stable ids so a later roster edit cannot hand one person
               // another person's language (landr-uwvl).
+              const roster = buildPartyRoster(step.participants, step.companions)
               mergeDraft({
-                participantLanguages: toIdentityKeyed(
-                  assignment,
-                  buildPartyRoster(step.participants, step.companions),
-                ),
+                participantLanguages: toIdentityKeyed(assignment, roster),
+                participantAcceptedLanguages: toIdentityKeyed(accepted, roster),
               })
               setStep(
                 stepAfterLanguages(
@@ -3508,6 +3536,7 @@ function BookingFlowApp() {
             productId={step.product.product_id}
             formKey={step.formKey}
             productName={step.product.name}
+            productKind={step.product.product_kind}
             // Restore answers from draft on back-nav re-entry.
             initialAnswers={step.initialAnswers as Record<string, unknown> | undefined}
             // landr-db45: thread the already-resolved flow down so this step
@@ -3667,6 +3696,21 @@ function BookingFlowApp() {
             product={step.product}
             selection={step.selection}
             booker={step.booker}
+            // The billing address is entered on the review step;
+            // keep it on booker.billing in both the step and the persistent
+            // draft so Back / a reload restore what was typed.
+            onBillingChange={(billing) => {
+              setStep((cur) =>
+                cur.name === 'fill-form'
+                  ? { ...cur, booker: { ...cur.booker, billing } }
+                  : cur,
+              )
+              setBookingDraft((prev) =>
+                prev.booker ? { ...prev, booker: { ...prev.booker, billing } } : prev,
+              )
+            }}
+            // landr-uuntm.3: last link of the billing-country guess chain.
+            operatorCountry={operatorSettings.country ?? null}
             viaAlternativeOf={
               alternativeOrigin && alternativeOrigin.to === step.product.product_id
                 ? alternativeOrigin.from
@@ -3733,6 +3777,12 @@ function BookingFlowApp() {
                 // companions — the whole roster) is auto-filled with that
                 // one language here, overriding anything an earlier
                 // product left in the draft.
+                // landr-hdk4y.2: the language step's second-language answers;
+                // BookingForm re-derives who is asked from the whole cart.
+                participantAcceptedLanguages: toIndexKeyed(
+                  bookingDraft.participantAcceptedLanguages,
+                  roster,
+                ),
                 participantLanguages:
                   singleLanguageAssignment(
                     offeredLanguagesForProduct(step.product),
@@ -3857,6 +3907,7 @@ function BookingFlowApp() {
                 // landr-h0opd.3: gates the share-reference hint; absent on
                 // an older API → false.
                 shareReferenceEnabled: step.product.share_reference_enabled === true,
+                productKind: step.product.product_kind,
               })
             }}
           />
@@ -3886,6 +3937,7 @@ function BookingFlowApp() {
               }}
               isSharedDouble={step.isSharedDouble}
               shareReferenceEnabled={step.shareReferenceEnabled}
+              productKind={step.productKind}
               operatorName={operatorSettings.name ?? null}
               contactEmail={operatorSettings.contact_email ?? null}
             />

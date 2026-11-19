@@ -9,6 +9,7 @@ import type {
   InviteSummary,
   JoinError,
   PostBookingContent,
+  ProductKind,
   SubmitBookingResponse,
 } from '@/api/types'
 import { Button } from '@/components/ui/button'
@@ -46,6 +47,7 @@ import {
   nextStepSendGroupLabel,
   nightsWord,
   participantCountLabel,
+  partyTr,
   pickBundle,
   plural,
   ownAccommodationNoRoomLabel,
@@ -90,6 +92,12 @@ interface Props {
    * blank hides the line.
    */
   contactEmail?: string | null
+  /**
+   * landr-3knn9: the MAIN product's kind, captured at submit time (the
+   * response carries none). A stay words its people as guests; absent →
+   * participant wording.
+   */
+  productKind?: ProductKind | null
 }
 
 /**
@@ -580,17 +588,19 @@ const POST_BOOKING_PROSE_CLASSES =
  */
 function PartyBlock({
   locale,
+  productKind,
   included,
   separateGuiding,
   guests,
 }: {
   locale?: string
+  productKind?: ProductKind | null
   included: BookingSummary['participants']
   separateGuiding: BookingSummary['participants']
   guests: BookingSummary['participants']
 }) {
   const groups = [
-    { key: 'included', heading: tr('partyIncludedHeading', locale), people: included },
+    { key: 'included', heading: partyTr('partyIncludedHeading', locale, productKind), people: included },
     {
       key: 'separate-guiding',
       heading: tr('partySeparateGuidingHeading', locale),
@@ -625,7 +635,13 @@ function PartyBlock({
  * from `response.summary` (the same builder that feeds the confirmation
  * email, so this never drifts from what the customer's inbox says).
  */
-function BookingDetailsCard({ summary }: { summary: BookingSummary }) {
+function BookingDetailsCard({
+  summary,
+  productKind,
+}: {
+  summary: BookingSummary
+  productKind?: ProductKind | null
+}) {
   const locale = browserLocale()
   const hasParticipantNames = summary.participants.length > 0
   // landr-jsu3n.1: same three groups as the confirmation email — included
@@ -706,10 +722,11 @@ function BookingDetailsCard({ summary }: { summary: BookingSummary }) {
           </p>
         ) : null}
         <div data-testid="confirmation-participants" className="space-y-1">
-          <p>{participantCountLabel(summary.participant_count, locale)}</p>
+          <p>{participantCountLabel(summary.participant_count, locale, productKind)}</p>
           {hasParticipantNames ? (
             <PartyBlock
               locale={locale}
+              productKind={productKind}
               included={partyIncluded}
               separateGuiding={partySeparateGuiding}
               guests={partyGuests}
@@ -1040,6 +1057,7 @@ export function Confirmation({
   shareReferenceEnabled = false,
   operatorName = null,
   contactEmail = null,
+  productKind = null,
 }: Props) {
   const locale = browserLocale()
   /**
@@ -1360,7 +1378,7 @@ export function Confirmation({
 
         {/* landr-nva1a.4 step 3: "Your booking" — graceful degrade when
             summary is absent (older API deploy). */}
-        {summary ? <BookingDetailsCard summary={summary} /> : null}
+        {summary ? <BookingDetailsCard summary={summary} productKind={productKind} /> : null}
 
         {/* landr-nva1a.4 step 4: savings congrats — skipped for staff
             bookings, a price override, or no multi-day saving at all. */}

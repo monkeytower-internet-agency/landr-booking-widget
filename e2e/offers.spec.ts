@@ -186,8 +186,8 @@ test('the demo apartment shows its offers and submits offer lines', async ({ pag
   const first = seen.evaluate[0]!
   expect(first.guests.map((g) => g.id)).toEqual(['g1', 'g2', 'g3'])
   expect(first.guests[2]!.attributes.age).toBe(8)
-  expect(first.guests[0]!.attributes.age).toBeUndefined()
-  expect(first.guests[1]!.attributes.age).toBeUndefined()
+  expect(first.guests[0]!.attributes.age).toBe(18) // landr-zorj8: an adult without an age is 18+
+  expect(first.guests[1]!.attributes.age).toBe(18) // landr-zorj8: an adult without an age is 18+
 
   // Air conditioning on three of the four nights; a cot for the child.
   await page.getByTestId(`offer-toggle-${MOCK_OFFER_IDS.airCon}`).click()
@@ -250,7 +250,7 @@ test('an ineligible main product stays visible, says why, and cannot be confirme
     },
   })
   await page.goto(`/?w=${TOKEN}`)
-  await expect(page.getByTestId('main-ineligible')).toContainText('No guests under 10')
+  await expect(page.getByTestId('main-ineligible')).toContainText("doesn't accept guests under 10")
   await expect(page.getByRole('button', { name: /Confirm booking/i })).toBeDisabled()
 })
 

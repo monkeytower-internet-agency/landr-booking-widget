@@ -2,7 +2,6 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import type { FlowAgeBand } from '@/api/flowTypes'
 import { mockOccupancyStay } from '@/api/mocks'
-import { fillBillingFields } from '@/test/fillBilling'
 import type { BookingSelection } from './BookingForm'
 import { DetailsStep } from './DetailsStep'
 
@@ -45,7 +44,6 @@ function setup(bands: FlowAgeBand[], extra: Partial<Parameters<typeof DetailsSte
   fireEvent.change(byName('booker_last_name'), { target: { value: 'Lovelace' } })
   fireEvent.change(byName('booker_email'), { target: { value: 'ada@example.com' } })
   fireEvent.change(byName('booker_phone'), { target: { value: '+34 600 000 000' } })
-  fillBillingFields()
   return onConfirm
 }
 

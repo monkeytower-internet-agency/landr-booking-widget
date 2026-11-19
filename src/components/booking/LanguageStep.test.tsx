@@ -10,6 +10,8 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { LanguageStep } from './LanguageStep'
+import { buildSecondLanguageCart } from './secondLanguage'
+import { loadUiCatalog } from '@/lib/strings'
 
 const NAMES = ['Ada', 'Grace', 'Kay']
 const GUESTS = [false, false, true]
@@ -106,7 +108,7 @@ describe('LanguageStep', () => {
       expect(screen.getByTestId('language-step-submit')).toBeEnabled(),
     )
     fireEvent.click(screen.getByTestId('language-step-submit'))
-    expect(onConfirm).toHaveBeenCalledWith({ 0: 'de', 1: 'de', 2: 'de' })
+    expect(onConfirm).toHaveBeenCalledWith({ 0: 'de', 1: 'de', 2: 'de' }, {})
   })
 
   it('a second (or third...) flag tap just opens an empty column, nobody moves', () => {
@@ -242,7 +244,7 @@ describe('LanguageStep', () => {
       expect(screen.getByTestId('language-step-submit')).toBeEnabled(),
     )
     fireEvent.click(screen.getByTestId('language-step-submit'))
-    expect(onConfirm).toHaveBeenCalledWith({ 0: 'de', 1: 'de', 2: 'de' })
+    expect(onConfirm).toHaveBeenCalledWith({ 0: 'de', 1: 'de', 2: 'de' }, {})
   })
 
   it('seeds everyone into the only offered language, making the step a confirmation', () => {
@@ -254,7 +256,7 @@ describe('LanguageStep', () => {
     expect(screen.getByTestId('lang-everyone-assigned')).toBeTruthy()
     expect(screen.getByTestId('language-step-submit')).toBeEnabled()
     fireEvent.click(screen.getByTestId('language-step-submit'))
-    expect(onConfirm).toHaveBeenCalledWith({ 0: 'en', 1: 'en', 2: 'en' })
+    expect(onConfirm).toHaveBeenCalledWith({ 0: 'en', 1: 'en', 2: 'en' }, {})
   })
 
   it('blocks Continue until every member — companions included — has a language', async () => {
@@ -272,7 +274,7 @@ describe('LanguageStep', () => {
       expect(screen.getByTestId('language-step-submit')).toBeEnabled(),
     )
     fireEvent.click(screen.getByTestId('language-step-submit'))
-    expect(onConfirm).toHaveBeenCalledWith({ 0: 'en', 1: 'en', 2: 'de' })
+    expect(onConfirm).toHaveBeenCalledWith({ 0: 'en', 1: 'en', 2: 'de' }, {})
   })
 
   it('announces the gate and points the disabled Continue at it', () => {
@@ -379,3 +381,202 @@ describe('LanguageStep — next action + zen (landr-80ubl.1)', () => {
   })
 })
 
+// ── landr-hdk4y.2: the second-guiding-language question ─────────────────────
+
+const askingCart = (
+  mode: 'off' | 'not_preferred' | 'always' = 'not_preferred',
+  options: 'all' | 'preferred' = 'all',
+) =>
+  buildSecondLanguageCart(
+    [
+      {
+        second_language_mode: mode,
+        preferred_guide_languages: ['en', 'de'],
+        second_language_options: options,
+      },
+    ],
+    [['en', 'de', 'es', 'fr']],
+  )
+
+function renderAsking(
+  secondLanguage = askingCart(),
+  onConfirm: (a: Record<number, string>, accepted: Record<number, string[]>) => void = vi.fn(),
+  props: Partial<React.ComponentProps<typeof LanguageStep>> = {},
+) {
+  render(
+    <LanguageStep
+      productName="Tandem"
+      participantNames={['Anna', 'Marc', 'Lena']}
+      offeredLanguages={['en', 'de', 'es', 'fr']}
+      secondLanguage={secondLanguage}
+      onBack={vi.fn()}
+      onConfirm={onConfirm}
+      {...props}
+    />,
+  )
+  return onConfirm
+}
+
+describe('LanguageStep — second guiding language (landr-hdk4y.2)', () => {
+  it('asks a French participant but not a German one (not_preferred, preferred EN/DE)', () => {
+    renderAsking()
+    assignVia(0, 'fr')
+    assignVia(2, 'de')
+    expect(screen.getByTestId('second-language-asked-0')).toBeTruthy()
+    expect(screen.queryByTestId('second-language-asked-2')).toBeNull()
+    // Marc has no main language yet: nothing to ask.
+    expect(screen.queryByTestId('second-language-asked-1')).toBeNull()
+    expect(screen.getByText(/If no French guide is available/)).toBeTruthy()
+    expect(screen.getByTestId('second-language-helper').textContent).toMatch(/French stays your first choice/)
+  })
+
+  it('offers every other guiding language plus the exclusive "only" option', () => {
+    renderAsking()
+    assignVia(0, 'fr')
+    expect(screen.getByTestId('second-language-0-en')).toBeTruthy()
+    expect(screen.getByTestId('second-language-0-de')).toBeTruthy()
+    expect(screen.getByTestId('second-language-0-es')).toBeTruthy()
+    expect(screen.queryByTestId('second-language-0-fr')).toBeNull()
+    expect(screen.getByText('I only speak French')).toBeTruthy()
+  })
+
+  it('options follow the all / preferred switch', () => {
+    renderAsking(askingCart('always', 'preferred'))
+    assignVia(0, 'fr')
+    expect(screen.getByTestId('second-language-0-en')).toBeTruthy()
+    expect(screen.getByTestId('second-language-0-de')).toBeTruthy()
+    expect(screen.queryByTestId('second-language-0-es')).toBeNull()
+  })
+
+  it('mode always asks everyone, including a German participant', () => {
+    renderAsking(askingCart('always'))
+    assignVia(0, 'fr')
+    assignVia(2, 'de')
+    expect(screen.getByTestId('second-language-asked-0')).toBeTruthy()
+    expect(screen.getByTestId('second-language-asked-2')).toBeTruthy()
+  })
+
+  it('mode off changes nothing: no question, Continue as before', () => {
+    const onConfirm = renderAsking(askingCart('off'))
+    assignVia(0, 'fr')
+    assignVia(1, 'de')
+    assignVia(2, 'en')
+    expect(screen.queryByTestId('second-language-questions')).toBeNull()
+    expect(screen.getByTestId('language-step-submit')).not.toBeDisabled()
+    fireEvent.click(screen.getByTestId('language-step-submit'))
+    expect(onConfirm).toHaveBeenCalledWith({ 0: 'fr', 1: 'de', 2: 'en' }, {})
+  })
+
+  it('Continue stays disabled with a clear message until every asked participant answered', () => {
+    const onConfirm = renderAsking()
+    assignVia(0, 'fr')
+    assignVia(1, 'es')
+    assignVia(2, 'de')
+    expect(screen.getByTestId('language-step-submit')).toBeDisabled()
+    expect(screen.getByTestId('language-step-gate').textContent).toMatch(/Tick at least one option.*Anna, Marc/)
+    fireEvent.click(screen.getByTestId('second-language-0-en'))
+    expect(screen.getByTestId('language-step-submit')).toBeDisabled()
+    expect(screen.getByTestId('language-step-gate').textContent).toMatch(/Marc/)
+    expect(screen.getByTestId('language-step-gate').textContent).not.toMatch(/Anna/)
+    fireEvent.click(screen.getByTestId('second-language-1-only'))
+    expect(screen.getByTestId('language-step-submit')).not.toBeDisabled()
+    fireEvent.click(screen.getByTestId('language-step-submit'))
+    expect(onConfirm).toHaveBeenCalledWith({ 0: 'fr', 1: 'es', 2: 'de' }, { 0: ['en'], 1: [] })
+  })
+
+  it('the exclusive option clears the others and ticking another clears it', () => {
+    renderAsking()
+    assignVia(0, 'fr')
+    fireEvent.click(screen.getByTestId('second-language-0-en'))
+    fireEvent.click(screen.getByTestId('second-language-0-de'))
+    expect(screen.getByTestId('second-language-0-en')).toBeChecked()
+    fireEvent.click(screen.getByTestId('second-language-0-only'))
+    expect(screen.getByTestId('second-language-0-only')).toBeChecked()
+    expect(screen.getByTestId('second-language-0-en')).not.toBeChecked()
+    expect(screen.getByTestId('second-language-0-de')).not.toBeChecked()
+    fireEvent.click(screen.getByTestId('second-language-0-es'))
+    expect(screen.getByTestId('second-language-0-only')).not.toBeChecked()
+    expect(screen.getByTestId('second-language-0-es')).toBeChecked()
+  })
+
+  it('"Apply to everyone" copies the first answer to the other asked participants, valid values only', () => {
+    renderAsking()
+    assignVia(0, 'fr')
+    assignVia(1, 'es')
+    assignVia(2, 'de')
+    // Anna (fr) ticks es + en; Marc (es) cannot take es, so only en is copied.
+    fireEvent.click(screen.getByTestId('second-language-0-es'))
+    fireEvent.click(screen.getByTestId('second-language-0-en'))
+    fireEvent.click(screen.getByTestId('second-language-apply-all'))
+    expect(screen.getByTestId('second-language-1-en')).toBeChecked()
+    expect(screen.queryByTestId('second-language-1-es')).toBeNull()
+    expect(screen.getByTestId('second-language-1-de')).not.toBeChecked()
+  })
+
+  it('"Apply to everyone" is only on the first asked participant and needs an answer first', () => {
+    renderAsking()
+    assignVia(0, 'fr')
+    assignVia(1, 'es')
+    expect(screen.getAllByTestId('second-language-apply-all')).toHaveLength(1)
+    expect(screen.getByTestId('second-language-apply-all')).toBeDisabled()
+  })
+
+  it('changing a participant main language resets their answer', () => {
+    renderAsking()
+    assignVia(0, 'fr')
+    assignVia(1, 'de')
+    assignVia(2, 'de')
+    fireEvent.click(screen.getByTestId('second-language-0-en'))
+    expect(screen.getByTestId('language-step-submit')).not.toBeDisabled()
+    assignVia(0, 'es')
+    expect(screen.getByTestId('second-language-0-en')).not.toBeChecked()
+    expect(screen.getByTestId('language-step-gate').textContent).toMatch(/Tick at least one option/)
+  })
+
+  it('restores earlier answers on back-nav', () => {
+    renderAsking(askingCart(), vi.fn(), {
+      initialAssignment: { 0: 'fr', 1: 'de', 2: 'de' },
+      initialAccepted: { 0: ['en'] },
+    })
+    expect(screen.getByTestId('second-language-0-en')).toBeChecked()
+    expect(screen.getByTestId('language-step-submit')).not.toBeDisabled()
+  })
+
+  it('nobody is asked when the step is auto-filled with a single language', () => {
+    renderAsking(
+      buildSecondLanguageCart(
+        [
+          {
+            second_language_mode: 'always',
+            preferred_guide_languages: [],
+            second_language_options: 'all',
+          },
+        ],
+        [['fr']],
+      ),
+      vi.fn(),
+      { offeredLanguages: ['fr'] },
+    )
+    expect(screen.queryByTestId('second-language-questions')).toBeNull()
+  })
+
+  it('asks in the widget locale, naming the language in that locale (German)', async () => {
+    vi.stubGlobal('navigator', { ...navigator, language: 'de-DE' })
+    try {
+      await loadUiCatalog('de')
+      renderAsking()
+      assignVia(0, 'fr')
+      expect(
+        screen.getByText(
+          'Falls kein französischsprachiger Guide verfügbar ist: Welche Sprache wäre auch in Ordnung?',
+        ),
+      ).toBeTruthy()
+      expect(screen.getByTestId('second-language-helper').textContent).toBe(
+        'Französisch bleibt deine erste Wahl. Je mehr Sprachen du ankreuzt, desto eher können wir deine Buchung bestätigen.',
+      )
+      expect(screen.getByText('Ich spreche nur Französisch')).toBeTruthy()
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+})

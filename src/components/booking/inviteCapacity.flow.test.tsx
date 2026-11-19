@@ -128,7 +128,6 @@ async function driveToConfirm() {
   setInput('booker_last_name', 'Klein')
   setInput('booker_email', 'olaf@example.com')
   setInput('booker_phone', '+34 600000000')
-  fillBillingFields()
   fireEvent.click(screen.getByRole('button', { name: /continue/i }))
   await screen.findByTestId('participant-language-board', undefined, SLOW_FLOW)
   const submit = screen.getByTestId('language-step-submit') as HTMLButtonElement
@@ -138,6 +137,7 @@ async function driveToConfirm() {
   }
   fireEvent.click(screen.getByTestId('language-step-submit'))
   await waitFor(() => expect(screen.getByText(/review your booking/i)).toBeInTheDocument(), SLOW_FLOW)
+  fillBillingFields()
   fireEvent.click(screen.getByRole('button', { name: /confirm booking/i }))
 }
 
