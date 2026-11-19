@@ -307,7 +307,7 @@ describe('Booking for someone else — German UI (landr-jiagg.2)', () => {
     })
     fireEvent.click(toggle)
     expect(screen.getByTestId('details-step-gate')).toHaveTextContent(
-      'entfernen Sie jemanden, um fortzufahren',
+      'Entfernen Sie jemanden, um fortzufahren',
     )
   })
 })

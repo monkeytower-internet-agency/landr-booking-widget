@@ -12,18 +12,18 @@ export interface PausedBundle {
 const BUNDLES: Record<PausedLocale, PausedBundle> = {
   en: {
     title: 'Back in season soon',
-    bodyWithDate: 'Bookings are paused for now. We are back in season from {date}.',
-    bodyNoDate: 'Bookings are paused for now. Please check back soon.',
+    bodyWithDate: "We're not taking bookings right now. We're back from {date}.",
+    bodyNoDate: "We're not taking bookings right now. Check back soon.",
   },
   de: {
-    title: 'Bald wieder in der Saison',
-    bodyWithDate: 'Buchungen sind derzeit pausiert. Ab dem {date} sind wir wieder für dich da.',
-    bodyNoDate: 'Buchungen sind derzeit pausiert. Schau bald wieder vorbei.',
+    title: 'Bald geht die Saison wieder los',
+    bodyWithDate: 'Derzeit nehmen wir keine Buchungen an. Ab dem {date} sind wir wieder für Sie da.',
+    bodyNoDate: 'Derzeit nehmen wir keine Buchungen an. Schauen Sie bald wieder vorbei.',
   },
   es: {
-    title: 'Pronto de vuelta en temporada',
-    bodyWithDate: 'Las reservas están en pausa por ahora. Volvemos en temporada el {date}.',
-    bodyNoDate: 'Las reservas están en pausa por ahora. Vuelve a visitarnos pronto.',
+    title: 'Volvemos pronto',
+    bodyWithDate: 'Ahora mismo no aceptamos reservas. Volvemos el {date}.',
+    bodyNoDate: 'Ahora mismo no aceptamos reservas. Vuelve a visitarnos pronto.',
   },
   fr: {
     title: 'Bientôt de retour pour la saison',
@@ -31,14 +31,14 @@ const BUNDLES: Record<PausedLocale, PausedBundle> = {
     bodyNoDate: 'Les réservations sont suspendues pour le moment. Repassez nous voir bientôt.',
   },
   it: {
-    title: 'Presto di nuovo in stagione',
-    bodyWithDate: 'Le prenotazioni sono momentaneamente sospese. Torniamo in stagione dal {date}.',
-    bodyNoDate: 'Le prenotazioni sono momentaneamente sospese. Ripassa presto a trovarci.',
+    title: 'Torniamo presto',
+    bodyWithDate: 'Al momento non accettiamo prenotazioni. Torniamo dal {date}.',
+    bodyNoDate: 'Al momento non accettiamo prenotazioni. Torna a trovarci presto.',
   },
   tr: {
-    title: 'Yakında sezon yeniden başlıyor',
-    bodyWithDate: 'Rezervasyonlar şu anda durduruldu. {date} tarihinde sezona geri dönüyoruz.',
-    bodyNoDate: 'Rezervasyonlar şu anda durduruldu. Lütfen kısa süre sonra tekrar bakın.',
+    title: 'Sezon yakında başlıyor',
+    bodyWithDate: 'Şu anda rezervasyon almıyoruz. {date} itibarıyla yeniden hizmetinizdeyiz.',
+    bodyNoDate: 'Şu anda rezervasyon almıyoruz. Kısa süre sonra tekrar göz atın.',
   },
 }
 

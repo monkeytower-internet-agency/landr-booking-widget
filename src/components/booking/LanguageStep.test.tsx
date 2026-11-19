@@ -184,7 +184,7 @@ describe('LanguageStep', () => {
     renderStep()
     expect(screen.queryByText(/Tap a language/)).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: /how this works/i }))
-    expect(screen.getByText(/Tap a language to put everyone in it/)).toBeInTheDocument()
+    expect(screen.getByText(/Tap a language to assign everyone to it/)).toBeInTheDocument()
     expect(screen.getByText(/who speaks what/)).toBeInTheDocument()
   })
 
@@ -572,7 +572,7 @@ describe('LanguageStep — second guiding language (landr-hdk4y.2)', () => {
         ),
       ).toBeTruthy()
       expect(screen.getByTestId('second-language-helper').textContent).toBe(
-        'Französisch bleibt deine erste Wahl. Je mehr Sprachen du ankreuzt, desto eher können wir deine Buchung bestätigen.',
+        'Französisch bleibt Ihre erste Wahl. Je mehr Sprachen Sie ankreuzen, desto eher können wir Ihre Buchung bestätigen.',
       )
       expect(screen.getByText('Ich spreche nur Französisch')).toBeTruthy()
     } finally {

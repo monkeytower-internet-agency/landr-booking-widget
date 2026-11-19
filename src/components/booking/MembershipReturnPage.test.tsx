@@ -35,7 +35,7 @@ describe('MembershipReturnPage', () => {
     render(<MembershipReturnPage status="cancelled" />)
     expect(screen.getByTestId('membership-return-cancelled')).toBeInTheDocument()
     expect(screen.getByText(/checkout cancelled/i)).toBeInTheDocument()
-    expect(screen.getByText(/have not been charged/i)).toBeInTheDocument()
+    expect(screen.getByText(/haven't been charged/i)).toBeInTheDocument()
   })
 
   it('"Continue browsing" strips the member param and reloads', () => {

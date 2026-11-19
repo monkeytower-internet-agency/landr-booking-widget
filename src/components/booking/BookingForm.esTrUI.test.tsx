@@ -86,7 +86,7 @@ const CASES = [
     lang: 'es',
     browser: 'es-ES',
     title: 'Revisa tu reserva',
-    contact: 'Tu contacto',
+    contact: 'Tus datos de contacto',
     confirm: 'Confirmar reserva',
   },
   {

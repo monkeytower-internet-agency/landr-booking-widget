@@ -265,11 +265,11 @@ describe('Confirmation — German UI (landr-5aih0.9)', () => {
 
     expect(
       screen.getByText(
-        /Wir konnten keine Buchung mit dieser Referenz finden, daher wurde Ihre Buchung nicht damit verknüpft\./,
+        /Zu dieser Referenz haben wir keine Buchung gefunden, daher ist Ihre Buchung nicht damit verknüpft\./,
       ),
     ).toBeInTheDocument()
     expect(screen.getByTestId('confirmation-join-error')).toHaveTextContent(
-      'Ihre Buchung selbst ist wie gewohnt bestätigt',
+      'Ihre Buchung selbst ist trotzdem bestätigt',
     )
     expect(screen.queryByText(/We couldn't find a booking/)).not.toBeInTheDocument()
   })
@@ -310,7 +310,7 @@ describe('Confirmation — German UI (landr-5aih0.9)', () => {
     render(<Confirmation response={response} onRestart={vi.fn()} />)
 
     const block = screen.getByTestId('confirmation-performer-section')
-    expect(block).toHaveTextContent('Zahlung an: Tandempilot · am Tag selbst')
+    expect(block).toHaveTextContent('Zahlung an Tandempilot · am Tag selbst')
     expect(block).toHaveTextContent('Wird direkt vor Ort an Tandempilot bezahlt')
     const breakdown = screen.getByTestId('confirmation-price-breakdown')
     expect(breakdown.textContent).not.toMatch(/Hotel|Nacht/)

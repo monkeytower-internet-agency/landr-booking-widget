@@ -111,6 +111,6 @@ describe('ShopComingSoonStub kind label per language (landr-8r6oc.18)', () => {
         onBack={() => {}}
       />,
     )
-    expect(screen.getByText(/^Este producto se vende/)).toBeInTheDocument()
+    expect(screen.getByText(/^Vendemos este tipo de producto/)).toBeInTheDocument()
   })
 })

@@ -101,7 +101,7 @@ describe('Stay products say Gäste — details step', () => {
     renderDetails('stay')
     expect(screen.getByText('Gäste')).toBeInTheDocument()
     expect(screen.getByTestId('booker-participant-helper')).toHaveTextContent(
-      'Sie werden als Gast 1 aufgeführt.',
+      'Sie stehen als Gast 1 in der Buchung.',
     )
     expect(screen.getByTestId('add-participant')).toHaveTextContent('+ Gast hinzufügen')
 
@@ -117,7 +117,7 @@ describe('Stay products say Gäste — details step', () => {
     renderDetails('service')
     expect(screen.getByText('Teilnehmer')).toBeInTheDocument()
     expect(screen.getByTestId('booker-participant-helper')).toHaveTextContent(
-      'Sie werden als Teilnehmer 1 aufgeführt.',
+      'Sie stehen als Teilnehmer 1 in der Buchung.',
     )
     expect(screen.getByTestId('add-participant')).toHaveTextContent('+ Teilnehmer hinzufügen')
   })

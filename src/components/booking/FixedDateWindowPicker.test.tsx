@@ -125,7 +125,7 @@ describe('FixedDateWindowPicker', () => {
       />,
     )
     await waitFor(() =>
-      expect(screen.getByText(/Could not load course windows/i)).toBeInTheDocument(),
+      expect(screen.getByText(/couldn't load the course dates/i)).toBeInTheDocument(),
     )
   })
 

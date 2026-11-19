@@ -66,7 +66,7 @@ describe('CancelPage — German UI (landr-5aih0.9)', () => {
     setBrowserLanguage('de-DE')
     mocks.getCancelPreview.mockReturnValue(new Promise(() => {}))
     render(<CancelPage token={TOKEN} />)
-    expect(screen.getByText('Deine Buchung wird geladen …')).toBeInTheDocument()
+    expect(screen.getByText('Ihre Buchung wird geladen …')).toBeInTheDocument()
   })
 
   it('shows a dead link in German on a German browser', async () => {

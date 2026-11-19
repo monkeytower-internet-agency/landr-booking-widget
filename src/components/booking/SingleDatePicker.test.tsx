@@ -185,7 +185,7 @@ describe('SingleDatePicker (landr-y9k)', () => {
       />,
     )
     await waitFor(() =>
-      expect(screen.getByText(/Could not load availability/i)).toBeInTheDocument(),
+      expect(screen.getByText(/couldn't load availability/i)).toBeInTheDocument(),
     )
   })
 })

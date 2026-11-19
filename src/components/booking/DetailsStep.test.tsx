@@ -1743,7 +1743,7 @@ describe('DetailsStep customer comment (landr-de6ej)', () => {
     const textarea = screen.getByTestId('customer-comment')
     expect(textarea).toHaveValue('')
     expect(
-      screen.getByText(/a person will read your request/i),
+      screen.getByText(/someone from our team reads it before confirming/i),
     ).toBeInTheDocument()
     expect(screen.getByTestId('customer-comment-counter')).toHaveTextContent(
       '0/2000',
@@ -2544,7 +2544,7 @@ describe('DetailsStep — booking for someone else (landr-jiagg.2)', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: TOGGLE }))
 
     expect(screen.getByTestId('booker-participant-helper')).toHaveTextContent(
-      'Add the people who will be there below.',
+      'Add the people taking part below.',
     )
     const row = screen.getByTestId('participant-row-1')
     expect(row).toHaveTextContent('Participant 1')
@@ -2859,7 +2859,7 @@ describe('DetailsStep — companion arranges own accommodation (landr-qw2v8.2)',
     expect(screen.queryByTestId('companion-own-accommodation-0')).not.toBeInTheDocument()
     fireEvent.click(screen.getByTestId('companion-kind-0-separate_guiding'))
     expect(screen.getByTestId('companion-own-accommodation-0')).toHaveTextContent(
-      'Arranges own accommodation (no room booked through us)',
+      'Has their own accommodation (no room booked through us)',
     )
   })
 
@@ -2867,7 +2867,7 @@ describe('DetailsStep — companion arranges own accommodation (landr-qw2v8.2)',
     const onConfirm = addSeparateGuiding()
     fireEvent.click(screen.getByTestId('companion-kind-0-separate_guiding'))
     fireEvent.click(
-      screen.getByRole('checkbox', { name: /arranges own accommodation/i }),
+      screen.getByRole('checkbox', { name: /has their own accommodation/i }),
     )
     expect(screen.getByTestId('companion-own-accommodation-hint-0')).toBeInTheDocument()
     fireEvent.change(byName('companion_1_email'), { target: { value: 't@example.com' } })
@@ -2883,7 +2883,7 @@ describe('DetailsStep — companion arranges own accommodation (landr-qw2v8.2)',
     const onConfirm = addSeparateGuiding()
     fireEvent.click(screen.getByTestId('companion-kind-0-separate_guiding'))
     fireEvent.click(
-      screen.getByRole('checkbox', { name: /arranges own accommodation/i }),
+      screen.getByRole('checkbox', { name: /has their own accommodation/i }),
     )
     fireEvent.click(screen.getByTestId('companion-kind-0-guest'))
     expect(screen.queryByTestId('companion-own-accommodation-0')).not.toBeInTheDocument()

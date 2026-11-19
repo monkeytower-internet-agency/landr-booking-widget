@@ -444,7 +444,7 @@ describe('display', () => {
       'At least one guest must be aged 3 to 11',
     )
     expect(reasonText('guest_attr_all.age', null, 'en')).toBe('Not available for the ages in your party')
-    expect(reasonText('attribute_missing.age', null, 'en')).toBe('Please answer the guest questions first')
+    expect(reasonText('attribute_missing.age', null, 'en')).toBe('Answer the guest questions first')
     expect(reasonText('date_window', null, 'en')).toBe('Not available on your dates')
     expect(reasonText('stay_nights', null, 'en')).toBe('Not available for this number of nights')
     expect(reasonText('parent_unavailable', null, 'en')).toBe('Sold out for your dates')

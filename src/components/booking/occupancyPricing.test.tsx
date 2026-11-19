@@ -62,10 +62,10 @@ describe('hasOccupancyPricing', () => {
 describe('occupancyBlurb', () => {
   it('describes the model in German', () => {
     const t = occupancyBlurb(rule, 'EUR', 'de')
-    expect(t).toContain('inkl. 2 Erwachsene')
+    expect(t).toContain('2 Erwachsene inklusive')
     expect(t).toContain('weitere Erwachsene +25')
     expect(t).toContain('Kinder 3-11 +12')
-    expect(t).toContain('Kinder 0-2 gratis')
+    expect(t).toContain('Kinder 0-2 kostenlos')
   })
   it('describes the model in English', () => {
     expect(occupancyBlurb({ ...rule, included_adults: 1 }, 'EUR', 'en')).toContain('incl. 1 adult')
