@@ -1,3 +1,5 @@
+import { getAddressForm } from '@/lib/addressForm'
+
 /** Page-scoped de/en/es/fr/it/tr strings for the off-season pause screen. */
 
 export type PausedLocale = 'de' | 'en' | 'es' | 'fr' | 'it' | 'tr'
@@ -42,6 +44,20 @@ const BUNDLES: Record<PausedLocale, PausedBundle> = {
   },
 }
 
+/** landr-wm0jv: casual (du / sen) variants, served unless the operator picked formal. */
+const INFORMAL: Partial<Record<PausedLocale, PausedBundle>> = {
+  de: {
+    title: 'Bald geht die Saison wieder los',
+    bodyWithDate: 'Derzeit nehmen wir keine Buchungen an. Ab dem {date} sind wir wieder für dich da.',
+    bodyNoDate: 'Derzeit nehmen wir keine Buchungen an. Schau bald wieder vorbei.',
+  },
+  tr: {
+    title: 'Sezon yakında başlıyor',
+    bodyWithDate: 'Şu anda rezervasyon almıyoruz. {date} tarihinden itibaren yeniden buradayız.',
+    bodyNoDate: 'Şu anda rezervasyon almıyoruz. Kısa süre sonra tekrar göz at.',
+  },
+}
+
 export function normalizePausedLocale(code: string | null | undefined): PausedLocale {
   const base = (code ?? '').split('-')[0].trim().toLowerCase()
   return base === 'de' || base === 'es' || base === 'fr' || base === 'it' || base === 'tr' ? base : 'en'
@@ -52,7 +68,7 @@ export function pausedCopy(
   localeCode: string | null | undefined,
 ): { title: string; body: string } {
   const locale = normalizePausedLocale(localeCode)
-  const b = BUNDLES[locale]
+  const b = (getAddressForm() === 'informal' ? INFORMAL[locale] : undefined) ?? BUNDLES[locale]
   if (!resumeOn) return { title: b.title, body: b.bodyNoDate }
   let date = resumeOn
   const d = new Date(`${resumeOn}T00:00:00Z`)

@@ -12,6 +12,7 @@
 
 import type { ProductKind } from '@/api/types'
 import { isStayKind } from '@/flowPlan'
+import { getAddressForm } from '@/lib/addressForm'
 
 export type Bundle = {
   multiDayPickerHelp: string
@@ -2234,14 +2235,26 @@ const en: Bundle = {
  * never blank, never a throw (the widget has no error boundary).
  */
 const CATALOG_LOADERS: Record<string, () => Promise<Bundle>> = {
-  de: () => import('./locales/de').then((m) => m.de),
+  // landr-wm0jv: German and Turkish ship two registers; the operator's
+  // address_form (lib/addressForm.ts) picks which one loads and is served.
+  'de:informal': () => import('./locales/de.informal').then((m) => m.deInformal),
+  'de:formal': () => import('./locales/de').then((m) => m.de),
   es: () => import('./locales/es').then((m) => m.es),
-  tr: () => import('./locales/tr').then((m) => m.tr),
+  'tr:informal': () => import('./locales/tr.informal').then((m) => m.trInformal),
+  'tr:formal': () => import('./locales/tr').then((m) => m.tr),
   it: () => import('./locales/it').then((m) => m.it),
   fr: () => import('./locales/fr').then((m) => m.fr),
 }
 
-/** Catalogs in memory; `en` is always present. */
+/** Languages whose catalog depends on the operator's address form. */
+const FORM_AWARE_LANGUAGES: readonly string[] = ['de', 'tr']
+
+/** Catalog registry key for a UI language under the current address form. */
+function catalogKey(lang: string): string {
+  return FORM_AWARE_LANGUAGES.includes(lang) ? `${lang}:${getAddressForm()}` : lang
+}
+
+/** Catalogs in memory, by registry key; `en` is always present. */
 const LOADED: Record<string, Bundle> = { en }
 const IN_FLIGHT = new Map<string, Promise<void>>()
 
@@ -2266,7 +2279,7 @@ export function subscribeUiCatalogs(listener: () => void): () => void {
 }
 
 /** Languages that have a real bundle; everything else falls back to English. */
-export const SUPPORTED_UI_LANGUAGES: readonly string[] = ['en', ...Object.keys(CATALOG_LOADERS)]
+export const SUPPORTED_UI_LANGUAGES: readonly string[] = ['en', 'de', 'es', 'tr', 'it', 'fr']
 
 /** The bundle's language code for any BCP-47-ish tag ('de-AT', 'ES', 'tr_TR', …); 'en' when unsupported. */
 export function resolveUiLanguage(locale?: string): string {
@@ -2285,13 +2298,14 @@ export function resolveUiLanguage(locale?: string): string {
  */
 export function loadUiCatalog(locale?: string, maxWaitMs = 3000): Promise<void> {
   const lang = resolveUiLanguage(locale)
-  const loader = CATALOG_LOADERS[lang]
-  if (!loader || LOADED[lang]) return Promise.resolve()
-  let pending = IN_FLIGHT.get(lang)
+  const key = catalogKey(lang)
+  const loader = CATALOG_LOADERS[key]
+  if (!loader || LOADED[key]) return Promise.resolve()
+  let pending = IN_FLIGHT.get(key)
   if (!pending) {
     pending = loader()
       .then((bundle) => {
-        LOADED[lang] = bundle
+        LOADED[key] = bundle
         catalogVersion += 1
         CATALOG_LISTENERS.forEach((listener) => listener())
       })
@@ -2299,9 +2313,9 @@ export function loadUiCatalog(locale?: string, maxWaitMs = 3000): Promise<void> 
         // Offline / chunk 404 after a deploy: stay on English.
       })
       .finally(() => {
-        IN_FLIGHT.delete(lang)
+        IN_FLIGHT.delete(key)
       })
-    IN_FLIGHT.set(lang, pending)
+    IN_FLIGHT.set(key, pending)
   }
   let timer: ReturnType<typeof setTimeout> | undefined
   const deadline = new Promise<void>((resolve) => {
@@ -2310,9 +2324,16 @@ export function loadUiCatalog(locale?: string, maxWaitMs = 3000): Promise<void> 
   return Promise.race([pending, deadline]).finally(() => clearTimeout(timer))
 }
 
-/** Load every registered catalog (tests that exercise several languages). */
+/** Load every registered catalog, both address forms (tests that exercise several languages). */
 export function loadAllUiCatalogs(): Promise<void> {
-  return Promise.all(SUPPORTED_UI_LANGUAGES.map((l) => loadUiCatalog(l))).then(() => undefined)
+  return Promise.all(
+    Object.entries(CATALOG_LOADERS).map(async ([key, loader]) => {
+      if (LOADED[key]) return
+      LOADED[key] = await loader()
+      catalogVersion += 1
+      CATALOG_LISTENERS.forEach((listener) => listener())
+    }),
+  ).then(() => undefined)
 }
 
 /**
@@ -2324,7 +2345,7 @@ export function loadAllUiCatalogs(): Promise<void> {
  * two locale layers agree on how a tag is read.
  */
 export function pickBundle(locale?: string): Bundle {
-  return LOADED[resolveUiLanguage(locale)] ?? en
+  return LOADED[catalogKey(resolveUiLanguage(locale))] ?? en
 }
 
 export function tr(key: keyof Bundle, locale?: string): string {

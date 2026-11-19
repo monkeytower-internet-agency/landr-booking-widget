@@ -4,6 +4,8 @@
  * confirmation screen). English is the fallback for every other language.
  */
 
+import { getAddressForm } from '@/lib/addressForm'
+
 export interface VerificationBundle {
   heading: string
   intro: string
@@ -100,6 +102,41 @@ const de: VerificationBundle = {
   uploadedLabel: 'Erhalten',
   missingLabel: 'Fehlt noch',
   needFilesBody: 'Bitte laden Sie die fehlenden Unterlagen hoch, damit der Veranstalter sie prüfen kann.',
+}
+
+const deInformal: VerificationBundle = {
+  heading: 'Deine Unterlagen',
+  intro:
+    'Der Veranstalter prüft deine Lizenz und Versicherung, bevor er deine Anmeldung bestätigt.',
+  licenceLabel: 'Pilotenlizenz',
+  insuranceLabel: 'Versicherungsnachweis',
+  fileHint: 'Foto aufnehmen, aus der Galerie wählen oder PDF hochladen (max. 10 MB).',
+  chooseFile: 'Datei wählen',
+  replaceFile: 'Datei ersetzen',
+  takePhoto: 'Foto aufnehmen',
+  fileTooLarge: 'Diese Datei ist größer als 10 MB.',
+  fileWrongType: 'Bitte wähle ein Foto (JPG, PNG, WebP, HEIC) oder eine PDF-Datei.',
+  waiverHeading: 'Haftungsverzicht',
+  waiverFallback:
+    'Ich bestätige, dass meine Unterlagen gültig sind und ich auf eigenes Risiko teilnehme.',
+  signatureLabel: 'Gib zum Unterschreiben deinen vollständigen Namen ein',
+  signaturePlaceholder: 'Vollständiger Name',
+  acceptLabel: 'Ich habe den Haftungsverzicht gelesen und stimme zu.',
+  missingHint:
+    'Lade beide Unterlagen hoch, gib deinen Namen ein und stimme dem Haftungsverzicht zu, um fortzufahren.',
+  uploadFailed:
+    'Deine Anmeldung ist eingegangen, aber eine Datei ließ sich nicht hochladen. Bitte versuche es unten erneut.',
+  retryUpload: 'Hochladen',
+  uploading: 'Wird hochgeladen…',
+  pendingTitle: 'Wir bestätigen, sobald deine Unterlagen geprüft sind',
+  pendingBody:
+    'Deine Anmeldung ist eingegangen. Du erhältst eine E-Mail, sobald der Veranstalter deine Unterlagen geprüft hat.',
+  approvedBody: 'Deine Unterlagen sind geprüft und deine Anmeldung ist bestätigt.',
+  rejectedTitle: 'Deine Anmeldung konnte nicht bestätigt werden',
+  rejectedNoteLabel: 'Begründung des Veranstalters:',
+  uploadedLabel: 'Erhalten',
+  missingLabel: 'Fehlt noch',
+  needFilesBody: 'Bitte lade die fehlenden Unterlagen hoch, damit der Veranstalter sie prüfen kann.',
 }
 
 const it: VerificationBundle = {
@@ -209,12 +246,49 @@ const tr: VerificationBundle = {
   needFilesBody: 'Organizatörün belgelerinizi kontrol edebilmesi için eksik belgeleri yükleyin.',
 }
 
+const trInformal: VerificationBundle = {
+  heading: 'Belgelerin',
+  intro:
+    'Organizatör, kaydını onaylamadan önce lisansını ve sigortanı kontrol eder.',
+  licenceLabel: 'Pilot lisansı',
+  insuranceLabel: 'Sigorta belgesi',
+  fileHint: 'Fotoğraf veya PDF, en fazla 10 MB.',
+  chooseFile: 'Dosya seç',
+  replaceFile: 'Dosyayı değiştir',
+  takePhoto: 'Fotoğraf çek',
+  fileTooLarge: 'Bu dosya 10 MB’tan büyük.',
+  fileWrongType: 'Lütfen bir fotoğraf (JPG, PNG, WebP, HEIC) veya PDF seç.',
+  waiverHeading: 'Sorumluluk feragatnamesi',
+  // Kept in English on purpose: see the es bundle — waiver_locale is 'en' for tr too.
+  waiverFallback: 'I confirm that my documents are valid and that I take part at my own risk.',
+  signatureLabel: 'İmzalamak için adını ve soyadını yaz',
+  signaturePlaceholder: 'Ad Soyad',
+  acceptLabel: 'Feragatnameyi okudum ve kabul ediyorum.',
+  missingHint:
+    'Devam etmek için iki belgeyi de ekle, adını yaz ve feragatnameyi kabul et.',
+  uploadFailed:
+    'Kaydın alındı ancak bir belge yüklenemedi. Aşağıdan tekrar dene.',
+  retryUpload: 'Yükle',
+  uploading: 'Yükleniyor…',
+  pendingTitle: 'Belgelerin doğrulanınca kaydını onaylayacağız',
+  pendingBody:
+    'Kaydın alındı. Organizatör belgelerini kontrol eder etmez bir e-posta alacaksın.',
+  approvedBody: 'Belgelerin doğrulandı. Kaydın onaylandı.',
+  rejectedTitle: 'Kaydın onaylanamadı',
+  rejectedNoteLabel: 'Organizatörün gerekçesi:',
+  uploadedLabel: 'Alındı',
+  missingLabel: 'Hâlâ eksik',
+  needFilesBody: 'Organizatörün belgelerini kontrol edebilmesi için eksik belgeleri yükle.',
+}
+
 export function verificationStrings(locale?: string): VerificationBundle {
   const base = (locale ?? '').toLowerCase()
-  if (base.startsWith('de')) return de
+  // landr-wm0jv: de/tr follow the operator's address form (default informal).
+  const informal = getAddressForm() === 'informal'
+  if (base.startsWith('de')) return informal ? deInformal : de
   if (base.startsWith('es')) return es
   if (base.startsWith('it')) return it
-  if (base.startsWith('tr')) return tr
+  if (base.startsWith('tr')) return informal ? trInformal : tr
   return en
 }
 

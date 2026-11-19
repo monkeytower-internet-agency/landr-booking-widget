@@ -11,6 +11,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { HttpError } from '@/api/client'
+import { setAddressForm } from '@/lib/addressForm'
 
 import { CancelPage } from './CancelPage'
 
@@ -67,6 +68,15 @@ describe('CancelPage — German UI (landr-5aih0.9)', () => {
     mocks.getCancelPreview.mockReturnValue(new Promise(() => {}))
     render(<CancelPage token={TOKEN} />)
     expect(screen.getByText('Ihre Buchung wird geladen …')).toBeInTheDocument()
+  })
+
+  // landr-wm0jv: the same page in the informal (du) register, the product default.
+  it('speaks du when the operator address form is informal', () => {
+    setAddressForm('informal')
+    setBrowserLanguage('de-DE')
+    mocks.getCancelPreview.mockReturnValue(new Promise(() => {}))
+    render(<CancelPage token={TOKEN} />)
+    expect(screen.getByText('Deine Buchung wird geladen …')).toBeInTheDocument()
   })
 
   it('shows a dead link in German on a German browser', async () => {

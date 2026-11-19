@@ -4,11 +4,13 @@
  * Same reasoning as approvalReplyStrings.ts: the customer arrives from a
  * booking email that was sent in de/en/es, so the page speaks the email's
  * language — the preview response's `locale` — rather than the widget's
- * browser-locale chrome. German uses formal "Sie" like the main catalog (de.ts); es/it use informal "tú"/"tu";
- * Turkish uses the polite "siz" form.
+ * browser-locale chrome. German and Turkish follow the operator's address form (landr-wm0jv): informal
+ * du / sen by default, formal "Sie" / "siz" on request; es/it use informal "tú"/"tu".
  *
  * `{name}` placeholders are filled by `fmtCancel`.
  */
+
+import { getAddressForm } from '@/lib/addressForm'
 
 export type CancelLocale = 'de' | 'en' | 'es' | 'it' | 'tr'
 
@@ -118,6 +120,46 @@ const de: CancelBundle = {
   errorTitle: 'Stornierung fehlgeschlagen',
   errorBody:
     'Wir konnten diese Buchung nicht stornieren. Bitte versuchen Sie es erneut oder wenden Sie sich an {operator}.',
+  tryAgain: 'Erneut versuchen',
+}
+
+const deInformal: CancelBundle = {
+  loadingTitle: 'Deine Buchung wird geladen …',
+  invalidTitle: 'Dieser Link ist nicht mehr gültig',
+  invalidBody:
+    'Der Stornierungslink ist abgelaufen oder wurde ersetzt. Bitte wende dich an den Anbieter, bei dem du gebucht hast.',
+  title: 'Buchung stornieren?',
+  bookingRef: 'Buchung {ref}',
+  freeUntil: 'Kostenlose Stornierung bis {deadline}.',
+  refundStripe:
+    'Du erhältst {amount} auf dein ursprüngliches Zahlungsmittel zurück.',
+  refundManual: '{operator} erstattet dir {amount} direkt.',
+  refundNone: 'Dir wurde nichts berechnet, es gibt also nichts zu erstatten.',
+  depositKept: 'Die Anzahlung von {amount} wird nicht erstattet.',
+  confirmBody:
+    'Deine Buchung wird sofort storniert. Das lässt sich nicht rückgängig machen.',
+  yes: 'Ja, Buchung stornieren',
+  busy: 'Wird storniert …',
+  no: 'Nein, Buchung behalten',
+  tooLateTitle: 'Diese Buchung kann nicht mehr online storniert werden',
+  tooLateBody:
+    'Eine kostenlose Stornierung war bis {deadline} möglich. Wende dich an {operator}, um deine Buchung zu ändern oder zu stornieren.',
+  tooLateBodyNoDeadline:
+    'Wende dich an {operator}, um deine Buchung zu ändern oder zu stornieren.',
+  contactCall: 'Anrufen: {phone}',
+  contactEmail: 'E-Mail: {email}',
+  changeActivityHint: 'Lieber eine andere Aktivität? Wende dich an {operator}, um sie zu ändern.',
+  changeActivityHintNoOperator: 'Lieber eine andere Aktivität? Wende dich an den Anbieter, um sie zu ändern.',
+  alreadyTitle: 'Diese Buchung ist bereits storniert',
+  successTitle: 'Buchung storniert',
+  successBody:
+    'Deine Buchung wurde storniert. Wir haben dir eine Bestätigung per E-Mail geschickt.',
+  successRefunded:
+    'Die Erstattung geht an dein ursprüngliches Zahlungsmittel.',
+  successManual: '{operator} meldet sich wegen der Erstattung bei dir.',
+  errorTitle: 'Stornierung fehlgeschlagen',
+  errorBody:
+    'Wir konnten diese Buchung nicht stornieren. Bitte versuche es erneut oder wende dich an {operator}.',
   tryAgain: 'Erneut versuchen',
 }
 
@@ -232,6 +274,43 @@ const tr: CancelBundle = {
   tryAgain: 'Tekrar dene',
 }
 
+const trInformal: CancelBundle = {
+  loadingTitle: 'Rezervasyonun yükleniyor…',
+  invalidTitle: 'Bu bağlantı artık geçerli değil',
+  invalidBody:
+    'İptal bağlantısının süresi dolmuş veya yenisiyle değiştirilmiş olabilir. Lütfen rezervasyon yaptığın firmayla iletişime geç.',
+  title: 'Rezervasyon iptal edilsin mi?',
+  bookingRef: 'Rezervasyon {ref}',
+  freeUntil: '{deadline} tarihine kadar ücretsiz iptal.',
+  refundStripe: '{amount}, ödeme yaptığın yönteme iade edilecek.',
+  refundManual: '{operator}, {amount} tutarını sana doğrudan iade edecek.',
+  refundNone: 'Senden ücret alınmadı, bu yüzden iade edilecek bir tutar yok.',
+  depositKept: '{amount} tutarındaki ön ödeme iade edilmez.',
+  confirmBody: 'Rezervasyonun hemen iptal edilecek. Bu işlem geri alınamaz.',
+  yes: 'Evet, rezervasyonu iptal et',
+  busy: 'İptal ediliyor…',
+  no: 'Hayır, rezervasyonu koru',
+  tooLateTitle: 'Bu rezervasyon artık çevrimiçi iptal edilemez',
+  tooLateBody:
+    'Ücretsiz iptal {deadline} tarihine kadar mümkündü. Rezervasyonunu değiştirmek veya iptal etmek için {operator} ile iletişime geç.',
+  tooLateBodyNoDeadline:
+    'Rezervasyonunu değiştirmek veya iptal etmek için {operator} ile iletişime geç.',
+  contactCall: 'Ara: {phone}',
+  contactEmail: 'E-posta: {email}',
+  changeActivityHint: 'Farklı bir etkinlik mi istiyorsun? Değiştirmek için {operator} ile iletişime geç.',
+  changeActivityHintNoOperator: 'Farklı bir etkinlik mi istiyorsun? Değiştirmek için işletmeyle iletişime geç.',
+  alreadyTitle: 'Bu rezervasyon zaten iptal edildi',
+  successTitle: 'Rezervasyon iptal edildi',
+  successBody:
+    'Rezervasyonun iptal edildi. Sana bir onay e-postası gönderdik.',
+  successRefunded: 'İaden, ödeme yaptığın yönteme gönderiliyor.',
+  successManual: '{operator}, iaden için seninle iletişime geçecek.',
+  errorTitle: 'İptal edilemedi',
+  errorBody:
+    'Bu rezervasyonu iptal edemedik. Tekrar dene veya {operator} ile iletişime geç.',
+  tryAgain: 'Tekrar dene',
+}
+
 const BUNDLES: Record<CancelLocale, CancelBundle> = { de, en, es, it, tr }
 
 /** Map any BCP-47-ish code to a supported page locale; English otherwise. */
@@ -241,6 +320,11 @@ export function normalizeCancelLocale(code: string | null | undefined): CancelLo
 }
 
 export function pickCancelBundle(locale: CancelLocale): CancelBundle {
+  // landr-wm0jv: de/tr follow the operator's address form (default informal).
+  if (getAddressForm() === 'informal') {
+    if (locale === 'de') return deInformal
+    if (locale === 'tr') return trInformal
+  }
   return BUNDLES[locale]
 }
 
