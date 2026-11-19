@@ -939,6 +939,10 @@ export const tr: Bundle = {
   secondLanguageOnlyTemplate: 'Yalnızca {language} konuşuyorum',
   secondLanguageApplyAll: 'Herkese uygula',
   secondLanguageGateWaitingTemplate: 'Her kişi için en az bir seçenek işaretleyin — hâlâ bekleyenler: {names}.',
+  secondLanguageErrorMissing:
+    'Lütfen dil adımına dönün ve her kişinin başka hangi rehber dillerini kabul edeceğini belirtin.',
+  secondLanguageErrorInvalid:
+    'Sunulan diğer rehber dilleri değişti. Lütfen dil adımına dönün ve yeniden seçin.',
   singleDateGateSelected: 'Tarih seçildi.',
   singleDateGateEmpty: 'Devam etmek için bir tarih seçin.',
   multiDayGateNone: 'Devam etmek için en az bir tarih seçin.',

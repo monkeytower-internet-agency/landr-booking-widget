@@ -934,6 +934,10 @@ export const it: Bundle = {
   secondLanguageOnlyTemplate: 'Parlo solo {language}',
   secondLanguageApplyAll: 'Applica a tutti',
   secondLanguageGateWaitingTemplate: 'Seleziona almeno un’opzione per ogni persona; manca: {names}.',
+  secondLanguageErrorMissing:
+    'Torna al passaggio della lingua e indica quali altre lingue della guida accetterebbe ogni persona.',
+  secondLanguageErrorInvalid:
+    'Le altre lingue della guida disponibili sono cambiate. Torna al passaggio della lingua e scegli di nuovo.',
   singleDateGateSelected: 'Data selezionata.',
   singleDateGateEmpty: 'Scegli una data per continuare.',
   multiDayGateNone: 'Scegli almeno una data per continuare.',

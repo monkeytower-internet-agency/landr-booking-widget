@@ -944,6 +944,10 @@ export const de: Bundle = {
   secondLanguageOnlyTemplate: 'Ich spreche nur {language}',
   secondLanguageApplyAll: 'Für alle übernehmen',
   secondLanguageGateWaitingTemplate: 'Kreuze für jede Person mindestens eine Option an — noch offen: {names}.',
+  secondLanguageErrorMissing:
+    'Bitte gehe zurück zum Sprachschritt und gib für jede Person an, welche anderen Guide-Sprachen in Ordnung wären.',
+  secondLanguageErrorInvalid:
+    'Die angebotenen weiteren Guide-Sprachen haben sich geändert. Bitte gehe zurück zum Sprachschritt und wähle erneut.',
   singleDateGateSelected: 'Datum ausgewählt.',
   singleDateGateEmpty: 'Wählen Sie ein Datum, um fortzufahren.',
   multiDayGateNone: 'Wählen Sie mindestens einen Termin, um fortzufahren.',

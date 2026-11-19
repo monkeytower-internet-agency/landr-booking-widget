@@ -13,6 +13,12 @@
  * language"; a participant who has not answered has no entry. That is the same
  * encoding the wire uses (`participants[].accepted_languages`).
  *
+ * Nobody is asked when the language step does not run: the cart's guide
+ * languages are empty (any language), resolve to a single language (it is
+ * auto-filled), or the participant has no main language; a product open to any
+ * or one language is read as `off`. The API stores NULL for those and never
+ * refuses them, so both sides must keep this rule identical.
+ *
  * NEVER throws: the widget has no React error boundary (bd memory landr-9ut4).
  */
 import type { Product } from '@/api/types'
@@ -38,6 +44,16 @@ export interface SecondLanguageCart {
 
 /** Party-member index → accepted other languages (`[]` = only the main language). */
 export type AcceptedLanguagesMap = Record<number, string[]>
+
+/** The question needs a choice to make: at least this many guiding languages. */
+export const MIN_GUIDE_LANGUAGES_TO_ASK = 2
+
+/** Whether the language step runs for these guide languages (null / empty = any language). */
+export function languageStepRuns(languages: readonly string[] | null): boolean {
+  return languages !== null && new Set(languages).size >= MIN_GUIDE_LANGUAGES_TO_ASK
+}
+
+const OFF_LINE: SecondLanguageLine = { mode: 'off', preferred: [], options: 'all' }
 
 const clean = (code: unknown): string => (typeof code === 'string' ? code.trim().toLowerCase() : '')
 
@@ -73,6 +89,9 @@ function lineAsks(line: SecondLanguageLine, main: string | null): boolean {
 /**
  * The languages a participant is asked to tick; `[]` = not asked.
  *
+ * Not asked at all when the language step does not run (an any-language or
+ * single-language cart) or the participant has no main language.
+ *
  * Asked when ANY line asks (mode `always`, or `not_preferred` with the main
  * language outside that line's preferred list). Per asking line the options are
  * the cart's guide languages minus the main language (`all`; an unrestricted cart
@@ -86,19 +105,20 @@ export function secondLanguageOptions(
   mainLanguage: string | null | undefined,
 ): string[] {
   const main = clean(mainLanguage) || null
+  if (main === null || !languageStepRuns(cart.cartLanguages)) return []
   const options = new Set<string>()
   for (const line of cart.lines) {
     if (!lineAsks(line, main)) continue
     let pool: string[]
     if (line.options === 'preferred') {
       pool = [...line.preferred]
-      if (cart.cartLanguages !== null) pool = pool.filter((c) => cart.cartLanguages!.includes(c))
+      pool = pool.filter((c) => cart.cartLanguages!.includes(c))
     } else {
-      pool = cart.cartLanguages !== null ? [...cart.cartLanguages] : []
+      pool = [...cart.cartLanguages!]
     }
     for (const code of pool) options.add(code)
   }
-  if (main !== null) options.delete(main)
+  options.delete(main)
   return [...options].sort()
 }
 
@@ -116,7 +136,12 @@ export function buildSecondLanguageCart(
     restricted.length === 0
       ? null
       : restricted[0]!.filter((code) => restricted.every((s) => s.includes(code)))
-  return { lines: products.map(secondLanguageLine), cartLanguages }
+  // A product open to any language, or to a single one, never runs the language
+  // step: its question is read as off (the API serves it that way too).
+  const lines = products.map((p, i) =>
+    languageStepRuns(languageSets[i] ?? []) ? secondLanguageLine(p) : OFF_LINE,
+  )
+  return { lines, cartLanguages }
 }
 
 /**

@@ -3,7 +3,7 @@
  * always sent, an answer only for a participant the cart's rule asks, and an
  * asked participant without an answer is asked again on the review screen.
  */
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { Product } from '@/api/types'
@@ -240,6 +240,39 @@ describe('BookingForm — second guiding language (landr-hdk4y.2)', () => {
     expect(screen.getByRole('button', { name: /Confirm booking/i })).toBeDisabled()
     expect(screen.getByTestId('second-language-asked-0')).toBeTruthy()
     expect(screen.getByTestId('second-language-0-only')).not.toBeChecked()
+  })
+
+  it('a product open to any or one language is never asked and sends no answer', async () => {
+    for (const guide of [[], ['en']]) {
+      fetchSpy.mockClear()
+      renderForm({
+        product: makeServiceProduct({ ...ASKING, second_language_mode: 'always', guide_languages: guide }),
+        participantLanguages: guide.length ? { 0: 'en', 1: 'en' } : {},
+      })
+      expect(screen.queryByTestId('second-language-questions')).toBeNull()
+      expect(screen.getByRole('button', { name: /Confirm booking/i })).not.toBeDisabled()
+      await confirm()
+      const body = await submitted()
+      expect(body.participants.every((p) => !('accepted_languages' in p))).toBe(true)
+      cleanup()
+    }
+  })
+
+  it.each([
+    ['participant_accepted_languages_missing', /say which other guiding languages/i],
+    ['participant_accepted_languages_invalid', /other guiding languages on offer have changed/i],
+  ])('maps the typed 422 %s to a friendly message', async (code, message) => {
+    fetchSpy.mockImplementation(
+      async () =>
+        new Response(JSON.stringify({ detail: { error: code, offered: ['de'] } }), {
+          status: 422,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+    )
+    renderForm()
+    await confirm()
+    expect(await screen.findByText(message)).toBeTruthy()
+    expect(screen.queryByText(/Booking rejected|422/)).toBeNull()
   })
 
   it('an add-on line with a mode set does not ask a participant the main product would not', async () => {

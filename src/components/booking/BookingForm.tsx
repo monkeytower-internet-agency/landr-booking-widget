@@ -839,6 +839,22 @@ const formatHttpError = (
     const languageError = readLanguageError(err.detail, participantCount)
     if (languageError) return languageErrorMessage(languageError, memberLabels)
   }
+  // The second-guiding-language question (typed 422s): a friendly line in the
+  // customer's language instead of the generic rejection.
+  if (
+    err.status === 422 &&
+    err.detail !== null &&
+    typeof err.detail === 'object' &&
+    !Array.isArray(err.detail)
+  ) {
+    const code = (err.detail as { error?: unknown }).error
+    if (code === 'participant_accepted_languages_missing') {
+      return tr('secondLanguageErrorMissing', browserLocale())
+    }
+    if (code === 'participant_accepted_languages_invalid') {
+      return tr('secondLanguageErrorInvalid', browserLocale())
+    }
+  }
   // landr-t869m.1: the submit endpoint hard-rejects a booking that falls
   // inside the product's preparation window, or (separately) a stay whose
   // derived check-in day no longer satisfies its own lead time. Both raise
