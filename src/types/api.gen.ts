@@ -2402,6 +2402,44 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/landr-staff/templates/{slug}/power-ups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Landr Staff Template Power Ups */
+        get: operations["landr_staff_template_power_ups"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/landr-staff/templates/{slug}/power-ups/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Landr Staff Switch Template Power Up
+         * @description Edit the template's set. Staging (and local development) only: production
+         *     receives templates through the export migrations, set included.
+         */
+        put: operations["landr_staff_switch_template_power_up"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/landr-staff/templates/{slug}/publish": {
         parameters: {
             query?: never;
@@ -15238,6 +15276,7 @@ export interface components {
             plan_gated: {
                 [key: string]: string[];
             };
+            power_ups?: components["schemas"]["PowerUpsApplied"] | null;
             /**
              * Status
              * @enum {string}
@@ -23435,6 +23474,11 @@ export interface components {
             pitch: {
                 [key: string]: components["schemas"]["TemplatePitchLocale"];
             } | null;
+            /**
+             * Power Ups
+             * @default []
+             */
+            power_ups: string[];
             /** Product Count */
             product_count: number;
             /** Product Kind */
@@ -24164,6 +24208,19 @@ export interface components {
             key: string;
             /** Switched */
             switched: string[];
+        };
+        /** PowerUpsApplied */
+        PowerUpsApplied: {
+            /**
+             * Enabled
+             * @default []
+             */
+            enabled: string[];
+            /**
+             * Plan Locked
+             * @default []
+             */
+            plan_locked: string[];
         };
         /**
          * PresetOut
@@ -28671,6 +28728,11 @@ export interface components {
             pitch: {
                 [key: string]: components["schemas"]["TemplatePitchLocale"];
             } | null;
+            /**
+             * Power Ups
+             * @default []
+             */
+            power_ups: string[];
             /** Product Count */
             product_count: number;
             /** Product Kind */
@@ -29450,6 +29512,11 @@ export interface components {
             pitch: {
                 [key: string]: components["schemas"]["TemplatePitchLocale"];
             } | null;
+            /**
+             * Power Ups
+             * @default []
+             */
+            power_ups: string[];
             /** Product Count */
             product_count: number;
             /** Product Kind */
@@ -29490,6 +29557,44 @@ export interface components {
             headline?: string | null;
             /** Hero Url */
             hero_url?: string | null;
+        };
+        /** TemplatePowerUpIn */
+        TemplatePowerUpIn: {
+            /** Enabled */
+            enabled: boolean;
+        };
+        /** TemplatePowerUpOut */
+        TemplatePowerUpOut: {
+            /** Description */
+            description?: string | null;
+            /** Enabled */
+            enabled: boolean;
+            /** Key */
+            key: string;
+            /** Name */
+            name: string;
+            /**
+             * Required By
+             * @default []
+             */
+            required_by: string[];
+            /**
+             * Requires
+             * @default []
+             */
+            requires: string[];
+        };
+        /** TemplatePowerUpsOut */
+        TemplatePowerUpsOut: {
+            /** Power Ups */
+            power_ups: components["schemas"]["TemplatePowerUpOut"][];
+            /** Slug */
+            slug: string;
+            /**
+             * Switched
+             * @default []
+             */
+            switched: string[];
         };
         /** TemplatePublishIn */
         TemplatePublishIn: {
@@ -34603,6 +34708,73 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HeroOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    landr_staff_template_power_ups: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TemplatePowerUpsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    landr_staff_switch_template_power_up: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TemplatePowerUpIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TemplatePowerUpsOut"];
                 };
             };
             /** @description Validation Error */
