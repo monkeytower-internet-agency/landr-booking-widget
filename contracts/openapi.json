@@ -1406,6 +1406,16 @@
             "title": "Plan Gated",
             "type": "object"
           },
+          "power_ups": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PowerUpsApplied"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "status": {
             "enum": [
               "applied",
@@ -24607,6 +24617,14 @@
             ],
             "title": "Pitch"
           },
+          "power_ups": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Power Ups",
+            "type": "array"
+          },
           "product_count": {
             "title": "Product Count",
             "type": "integer"
@@ -26827,6 +26845,28 @@
           "switched"
         ],
         "title": "PowerUpSwitchOut",
+        "type": "object"
+      },
+      "PowerUpsApplied": {
+        "properties": {
+          "enabled": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Enabled",
+            "type": "array"
+          },
+          "plan_locked": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Plan Locked",
+            "type": "array"
+          }
+        },
+        "title": "PowerUpsApplied",
         "type": "object"
       },
       "PresetOut": {
@@ -40100,6 +40140,14 @@
             ],
             "title": "Pitch"
           },
+          "power_ups": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Power Ups",
+            "type": "array"
+          },
           "product_count": {
             "title": "Product Count",
             "type": "integer"
@@ -42172,6 +42220,14 @@
             ],
             "title": "Pitch"
           },
+          "power_ups": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Power Ups",
+            "type": "array"
+          },
           "product_count": {
             "title": "Product Count",
             "type": "integer"
@@ -42285,6 +42341,99 @@
           }
         },
         "title": "TemplatePitchLocale",
+        "type": "object"
+      },
+      "TemplatePowerUpIn": {
+        "additionalProperties": false,
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "title": "TemplatePowerUpIn",
+        "type": "object"
+      },
+      "TemplatePowerUpOut": {
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "required_by": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Required By",
+            "type": "array"
+          },
+          "requires": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Requires",
+            "type": "array"
+          }
+        },
+        "required": [
+          "key",
+          "name",
+          "enabled"
+        ],
+        "title": "TemplatePowerUpOut",
+        "type": "object"
+      },
+      "TemplatePowerUpsOut": {
+        "properties": {
+          "power_ups": {
+            "items": {
+              "$ref": "#/components/schemas/TemplatePowerUpOut"
+            },
+            "title": "Power Ups",
+            "type": "array"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "switched": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Switched",
+            "type": "array"
+          }
+        },
+        "required": [
+          "slug",
+          "power_ups"
+        ],
+        "title": "TemplatePowerUpsOut",
         "type": "object"
       },
       "TemplatePublishIn": {
@@ -51775,6 +51924,120 @@
           }
         ],
         "summary": "Landr Staff Upload Template Hero",
+        "tags": [
+          "landr-staff-templates"
+        ]
+      }
+    },
+    "/api/landr-staff/templates/{slug}/power-ups": {
+      "get": {
+        "operationId": "landr_staff_template_power_ups",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "title": "Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TemplatePowerUpsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Landr Staff Template Power Ups",
+        "tags": [
+          "landr-staff-templates"
+        ]
+      }
+    },
+    "/api/landr-staff/templates/{slug}/power-ups/{key}": {
+      "put": {
+        "description": "Edit the template's set. Staging (and local development) only: production\nreceives templates through the export migrations, set included.",
+        "operationId": "landr_staff_switch_template_power_up",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "title": "Slug",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "title": "Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TemplatePowerUpIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TemplatePowerUpsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Landr Staff Switch Template Power Up",
         "tags": [
           "landr-staff-templates"
         ]
