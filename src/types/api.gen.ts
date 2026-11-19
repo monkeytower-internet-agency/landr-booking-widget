@@ -13392,6 +13392,23 @@ export interface paths {
         patch: operations["pricing_seasons_patch"];
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/second-language-breakdown": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Second Language Breakdown */
+        get: operations["staff_second_language_breakdown"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/service-roles": {
         parameters: {
             query?: never;
@@ -27989,6 +28006,28 @@ export interface components {
             id?: string | null;
             /** Name */
             name: string;
+        };
+        /** SecondLanguageBreakdownOut */
+        SecondLanguageBreakdownOut: {
+            /** Rows */
+            rows: components["schemas"]["SecondLanguageBreakdownRow"][];
+        };
+        /** SecondLanguageBreakdownRow */
+        SecondLanguageBreakdownRow: {
+            /** Accepted */
+            accepted: {
+                [key: string]: number;
+            };
+            /** Day */
+            day: string;
+            /** Main Language */
+            main_language?: string | null;
+            /** None */
+            none: number;
+            /** Product Id */
+            product_id: string;
+            /** Total */
+            total: number;
         };
         /**
          * SecondLanguageCopyIn
@@ -54149,6 +54188,42 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PricingSeasonOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_second_language_breakdown: {
+        parameters: {
+            query: {
+                from: string;
+                to: string;
+                approval?: "approved" | "unapproved" | "both";
+                language?: string | null;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SecondLanguageBreakdownOut"];
                 };
             };
             /** @description Validation Error */

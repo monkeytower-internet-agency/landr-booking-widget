@@ -38254,6 +38254,69 @@
         "title": "SeasonRef",
         "type": "object"
       },
+      "SecondLanguageBreakdownOut": {
+        "properties": {
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/SecondLanguageBreakdownRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          }
+        },
+        "required": [
+          "rows"
+        ],
+        "title": "SecondLanguageBreakdownOut",
+        "type": "object"
+      },
+      "SecondLanguageBreakdownRow": {
+        "properties": {
+          "accepted": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Accepted",
+            "type": "object"
+          },
+          "day": {
+            "title": "Day",
+            "type": "string"
+          },
+          "main_language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Main Language"
+          },
+          "none": {
+            "title": "None",
+            "type": "integer"
+          },
+          "product_id": {
+            "title": "Product Id",
+            "type": "string"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "day",
+          "product_id",
+          "total",
+          "accepted",
+          "none"
+        ],
+        "title": "SecondLanguageBreakdownRow",
+        "type": "object"
+      },
       "SecondLanguageCopyIn": {
         "description": "landr-hdk4y.1: copy one product's second-language settings to others.",
         "properties": {
@@ -86437,6 +86500,106 @@
         "summary": "Patch Season",
         "tags": [
           "staff-product-pricing"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/second-language-breakdown": {
+      "get": {
+        "operationId": "staff_second_language_breakdown",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "from",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "From",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "To",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "approval",
+            "required": false,
+            "schema": {
+              "default": "both",
+              "enum": [
+                "approved",
+                "unapproved",
+                "both"
+              ],
+              "title": "Approval",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "language",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 2,
+                  "minLength": 2,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Language"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SecondLanguageBreakdownOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Second Language Breakdown",
+        "tags": [
+          "staff-second-language"
         ]
       }
     },
