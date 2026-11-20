@@ -26690,6 +26690,20 @@
         "title": "PlanChangeIn",
         "type": "object"
       },
+      "PlaygroundInviteIn": {
+        "properties": {
+          "membership_id": {
+            "format": "uuid",
+            "title": "Membership Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "membership_id"
+        ],
+        "title": "PlaygroundInviteIn",
+        "type": "object"
+      },
       "PowerUpListOut": {
         "properties": {
           "can_switch": {
@@ -47554,6 +47568,28 @@
         "summary": "Drain Mail",
         "tags": [
           "mail-drain-internal"
+        ]
+      }
+    },
+    "/api/internal/playground/invites": {
+      "post": {
+        "description": "Create the invite on THIS (staging/dev) tier for a live owner's colleague.",
+        "operationId": "receive_invite",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Receive Invite"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Receive Invite",
+        "tags": [
+          "playground-invites-internal"
         ]
       }
     },
@@ -76722,6 +76758,65 @@
         "summary": "Get Plan Terms",
         "tags": [
           "plan-terms"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/playground-invites": {
+      "post": {
+        "operationId": "invite_to_playground",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlaygroundInviteIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Invite To Playground",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Invite To Playground",
+        "tags": [
+          "playground-invites"
         ]
       }
     },
