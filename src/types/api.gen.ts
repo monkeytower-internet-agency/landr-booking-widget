@@ -3737,6 +3737,31 @@ export interface paths {
         patch: operations["patch_product_eligibility_rules"];
         trace?: never;
     };
+    "/api/operators/{operator_id}/products/{product_id}/suggestions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Product Suggestions
+         * @description The product's suggestion links in order.
+         */
+        get: operations["list_product_suggestions"];
+        /**
+         * Put Product Suggestions
+         * @description Replace the product's suggestion links with ``suggested_product_ids``
+         *     (de-duplicated, first occurrence wins; the list order is the hint order).
+         */
+        put: operations["put_product_suggestions"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/platform-settings/onboarding-call": {
         parameters: {
             query?: never;
@@ -4894,6 +4919,27 @@ export interface paths {
         };
         /** Get Pass Tiers */
         get: operations["public_get_pass_tiers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/operators/{token}/products/{product_id}/suggestions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Product Suggestions
+         * @description The product's cross-sell hints; ``[]`` when the operator has them off or
+         *     the product is not the operator's. 404 only for an unknown widget token.
+         */
+        get: operations["public_get_product_suggestions"];
         put?: never;
         post?: never;
         delete?: never;
@@ -25691,6 +25737,35 @@ export interface components {
              */
             parent_id?: string | null;
         };
+        /** ProductHint */
+        ProductHint: {
+            /** Currency */
+            currency?: string | null;
+            /** Name */
+            name: string;
+            /** Name Localized */
+            name_localized?: {
+                [key: string]: unknown;
+            } | null;
+            /** Price From */
+            price_from?: number | null;
+            /** Product Id */
+            product_id: string;
+            /** Product Kind */
+            product_kind?: string | null;
+            /** Short Description */
+            short_description?: string | null;
+            /** Short Description Localized */
+            short_description_localized?: {
+                [key: string]: unknown;
+            } | null;
+            /** Slug */
+            slug?: string | null;
+            /** Source */
+            source: string;
+            /** Thumb Url */
+            thumb_url?: string | null;
+        };
         /**
          * ProductImage
          * @description One image rendition pair for a product gallery (epic landr-d8rg).
@@ -26232,6 +26307,22 @@ export interface components {
             units_required_per_booking?: number | null;
             /** Units Required Per Participant */
             units_required_per_participant?: number | null;
+        };
+        /** ProductSuggestion */
+        ProductSuggestion: {
+            /** Id */
+            id: string;
+            /** Product Id */
+            product_id: string;
+            /** Sort Order */
+            sort_order: number;
+            /** Suggested Product Id */
+            suggested_product_id: string;
+        };
+        /** ProductSuggestionsIn */
+        ProductSuggestionsIn: {
+            /** Suggested Product Ids */
+            suggested_product_ids: string[];
         };
         /**
          * ProductsCount
@@ -37041,6 +37132,74 @@ export interface operations {
             };
         };
     };
+    list_product_suggestions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductSuggestion"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_product_suggestions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProductSuggestionsIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductSuggestion"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_onboarding_call: {
         parameters: {
             query?: never;
@@ -38736,6 +38895,38 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_get_product_suggestions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductHint"][];
                 };
             };
             /** @description Validation Error */
