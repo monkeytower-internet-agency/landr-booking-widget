@@ -29446,6 +29446,36 @@
         "title": "ProdHotfixCandidatesResponse",
         "type": "object"
       },
+      "ProdHotfixCodeIn": {
+        "properties": {
+          "notes": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "picks": {
+            "items": {
+              "$ref": "#/components/schemas/HotfixPickIn"
+            },
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "Picks",
+            "type": "array"
+          }
+        },
+        "required": [
+          "picks"
+        ],
+        "title": "ProdHotfixCodeIn",
+        "type": "object"
+      },
       "ProdHotfixPr": {
         "properties": {
           "number": {
@@ -41202,6 +41232,12 @@
       },
       "StagingHotfixCodeIn": {
         "properties": {
+          "express": {
+            "default": false,
+            "description": "landr-i74li \u2014 express hotfix: after the staging hotfix merged, wait for the staging deploys + health, then have staging create AND approve a Hotfix to production of the same commits on the caller's behalf (held EXPRESS_HOTFIX_HOLD_SECONDS). Release approvers only.",
+            "title": "Express",
+            "type": "boolean"
+          },
           "notes": {
             "anyOf": [
               {
@@ -48396,7 +48432,7 @@
     },
     "/api/internal/release/express-chain": {
       "post": {
-        "description": "Create AND approve a staging_to_main run for a dev express chain.\n\nAuth: HMAC + nonce. 403 ``initiator_not_approver`` \u00b7 409\n``staging_signoff_pending`` / ``staging_to_main_in_flight`` /\n``no_changes`` / ``sha_not_on_staging`` \u00b7 200 ``relayed`` |\n``already_relayed`` (idempotent on source_run_id).",
+        "description": "Create AND approve a staging_to_main run for a dev express chain \u2014 or,\nwith ``kind='prod_hotfix_code'`` + ``picks`` (landr-i74li), a held\nprod_hotfix_code run for a dev express HOTFIX chain (409 ``run_in_flight``\nwhile any run is queued/executing on staging; 409 with the\nresolve_prod_picks code for a bad pick).\n\nAuth: HMAC + nonce. 403 ``initiator_not_approver`` \u00b7 409\n``staging_signoff_pending`` / ``staging_to_main_in_flight`` /\n``no_changes`` / ``sha_not_on_staging`` \u00b7 200 ``relayed`` |\n``already_relayed`` (idempotent on source_run_id).",
         "operationId": "express_chain_relay",
         "responses": {
           "200": {
@@ -51404,7 +51440,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/StagingHotfixCodeIn"
+                "$ref": "#/components/schemas/ProdHotfixCodeIn"
               }
             }
           },
@@ -51570,7 +51606,7 @@
     },
     "/api/landr-staff/promotions/staging-hotfix/code": {
       "post": {
-        "description": "Hotfix to staging (landr-g1d40). Promoter|approver, dev api only.\n\nCreates a queued run that cherry-picks the picked (merged) dev commits\nonto ``hotfix/<run-id>`` off each repo's staging tip (pinned now), merges\nit into ``staging`` \u2014 a conflict fails the run with nothing merged \u2014 and,\nif the landr-api picks touched supabase/migrations, applies them to the\nstaging DB pinned to the new staging SHA. No version/changelog/tag.",
+        "description": "Hotfix to staging (landr-g1d40). Promoter|approver, dev api only.\n\nCreates a queued run that cherry-picks the picked (merged) dev commits\nonto ``hotfix/<run-id>`` off each repo's staging tip (pinned now), merges\nit into ``staging`` \u2014 a conflict fails the run with nothing merged \u2014 and,\nif the landr-api picks touched supabase/migrations, applies them to the\nstaging DB pinned to the new staging SHA. No version/changelog/tag.\n\nlandr-i74li \u2014 ``express=true`` makes it an express hotfix chain\n(app/workers/express_chain.py): approver-only and refused up front by the\nsame gates as Ship to prod (``_enforce_express_allowed`` on the picked\nrepos); the run is created with ``chain_to_main`` and, once staging is\ndeployed and healthy, staging creates the held Hotfix to production.",
         "operationId": "create_staging_hotfix_code",
         "requestBody": {
           "content": {

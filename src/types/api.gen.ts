@@ -797,7 +797,11 @@ export interface paths {
         put?: never;
         /**
          * Express Chain Relay
-         * @description Create AND approve a staging_to_main run for a dev express chain.
+         * @description Create AND approve a staging_to_main run for a dev express chain — or,
+         *     with ``kind='prod_hotfix_code'`` + ``picks`` (landr-i74li), a held
+         *     prod_hotfix_code run for a dev express HOTFIX chain (409 ``run_in_flight``
+         *     while any run is queued/executing on staging; 409 with the
+         *     resolve_prod_picks code for a bad pick).
          *
          *     Auth: HMAC + nonce. 403 ``initiator_not_approver`` · 409
          *     ``staging_signoff_pending`` / ``staging_to_main_in_flight`` /
@@ -2043,6 +2047,12 @@ export interface paths {
          *     it into ``staging`` — a conflict fails the run with nothing merged — and,
          *     if the landr-api picks touched supabase/migrations, applies them to the
          *     staging DB pinned to the new staging SHA. No version/changelog/tag.
+         *
+         *     landr-i74li — ``express=true`` makes it an express hotfix chain
+         *     (app/workers/express_chain.py): approver-only and refused up front by the
+         *     same gates as Ship to prod (``_enforce_express_allowed`` on the picked
+         *     repos); the run is created with ``chain_to_main`` and, once staging is
+         *     deployed and healthy, staging creates the held Hotfix to production.
          */
         post: operations["create_staging_hotfix_code"];
         delete?: never;
@@ -25558,6 +25568,13 @@ export interface components {
             /** Repos */
             repos: components["schemas"]["ProdHotfixCandidateRepo"][];
         };
+        /** ProdHotfixCodeIn */
+        ProdHotfixCodeIn: {
+            /** Notes */
+            notes?: string | null;
+            /** Picks */
+            picks: components["schemas"]["HotfixPickIn"][];
+        };
         /** ProdHotfixPr */
         ProdHotfixPr: {
             /** Number */
@@ -29523,6 +29540,12 @@ export interface components {
         };
         /** StagingHotfixCodeIn */
         StagingHotfixCodeIn: {
+            /**
+             * Express
+             * @description landr-i74li — express hotfix: after the staging hotfix merged, wait for the staging deploys + health, then have staging create AND approve a Hotfix to production of the same commits on the caller's behalf (held EXPRESS_HOTFIX_HOLD_SECONDS). Release approvers only.
+             * @default false
+             */
+            express: boolean;
             /** Notes */
             notes?: string | null;
             /** Picks */
@@ -34636,7 +34659,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["StagingHotfixCodeIn"];
+                "application/json": components["schemas"]["ProdHotfixCodeIn"];
             };
         };
         responses: {
