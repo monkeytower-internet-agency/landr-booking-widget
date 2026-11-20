@@ -54887,6 +54887,56 @@
         ]
       }
     },
+    "/api/operators/{operator_id}/playground/diff": {
+      "get": {
+        "description": "Live against this playground as per-line groups (landr-tbzye.2).\n\nDirection comes from the stored per-row baseline of the live rows this\nplayground last took (``operator_playground_baselines``), never from a\nfingerprint: ``live`` / ``here`` / ``both``. A first look seeds the baseline with\nthe rows identical on both tiers; a row the baseline lacks that differs on both\ntiers is ``both`` + ``origin_unknown``, one only live has is ``live``, one only\nhere is ``here`` (proposable). Each group carries lines\n``{table, pk, kind (update|new|delete), live_value, playground_value,\ndirection, origin_unknown, label, area, group_id}`` and ``requires`` (group ids\nto take together). Values are data for escaped text\n(``app/services/playground_diff.py``).",
+        "operationId": "playground_diff_lines",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Playground Diff Lines",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Playground Diff Lines",
+        "tags": [
+          "operator-playground"
+        ]
+      }
+    },
     "/api/operators/{operator_id}/playground/live-bundle": {
       "get": {
         "description": "This operator's LIVE setup bundle, for a member of it on both tiers.",

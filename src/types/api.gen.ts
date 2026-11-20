@@ -3578,6 +3578,37 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/operators/{operator_id}/playground/diff": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Playground Diff Lines
+         * @description Live against this playground as per-line groups (landr-tbzye.2).
+         *
+         *     Direction comes from the stored per-row baseline of the live rows this
+         *     playground last took (``operator_playground_baselines``), never from a
+         *     fingerprint: ``live`` / ``here`` / ``both``. A first look seeds the baseline with
+         *     the rows identical on both tiers; a row the baseline lacks that differs on both
+         *     tiers is ``both`` + ``origin_unknown``, one only live has is ``live``, one only
+         *     here is ``here`` (proposable). Each group carries lines
+         *     ``{table, pk, kind (update|new|delete), live_value, playground_value,
+         *     direction, origin_unknown, label, area, group_id}`` and ``requires`` (group ids
+         *     to take together). Values are data for escaped text
+         *     (``app/services/playground_diff.py``).
+         */
+        get: operations["playground_diff_lines"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/operators/{operator_id}/playground/live-bundle": {
         parameters: {
             query?: never;
@@ -36565,6 +36596,39 @@ export interface operations {
         };
     };
     fill_demo_bookings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    playground_diff_lines: {
         parameters: {
             query?: never;
             header?: never;
