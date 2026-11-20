@@ -24346,6 +24346,11 @@
             ],
             "title": "Country"
           },
+          "cross_sell_hints_enabled": {
+            "default": false,
+            "title": "Cross Sell Hints Enabled",
+            "type": "boolean"
+          },
           "customer_languages": {
             "items": {
               "type": "string"
