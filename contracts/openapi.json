@@ -11406,6 +11406,27 @@
         "title": "DecisionOut",
         "type": "object"
       },
+      "DeclineIn": {
+        "additionalProperties": false,
+        "properties": {
+          "idempotency_key": {
+            "format": "uuid",
+            "title": "Idempotency Key",
+            "type": "string"
+          },
+          "proposal_id": {
+            "format": "uuid",
+            "title": "Proposal Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "proposal_id",
+          "idempotency_key"
+        ],
+        "title": "DeclineIn",
+        "type": "object"
+      },
       "DerivedCut": {
         "description": "A cut point a rule or a price adds on top of the operator's ``range_cuts``\n(landr-zcb24.18): read-only, computed like the ranges guests pick from.",
         "properties": {
@@ -37731,6 +37752,21 @@
         "title": "RevertBody",
         "type": "object"
       },
+      "ReviewStartedIn": {
+        "additionalProperties": false,
+        "properties": {
+          "proposal_id": {
+            "format": "uuid",
+            "title": "Proposal Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "proposal_id"
+        ],
+        "title": "ReviewStartedIn",
+        "type": "object"
+      },
       "RoleCapabilityLevel": {
         "properties": {
           "level": {
@@ -42403,6 +42439,36 @@
           }
         },
         "title": "TagPatch",
+        "type": "object"
+      },
+      "TakeIn": {
+        "additionalProperties": false,
+        "properties": {
+          "group_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 500,
+            "title": "Group Ids",
+            "type": "array"
+          },
+          "idempotency_key": {
+            "format": "uuid",
+            "title": "Idempotency Key",
+            "type": "string"
+          },
+          "proposal_id": {
+            "format": "uuid",
+            "title": "Proposal Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "proposal_id",
+          "group_ids",
+          "idempotency_key"
+        ],
+        "title": "TakeIn",
         "type": "object"
       },
       "TaxRateCheck": {
@@ -48010,6 +48076,26 @@
         "summary": "Drain Mail",
         "tags": [
           "mail-drain-internal"
+        ]
+      }
+    },
+    "/api/internal/playground/history": {
+      "post": {
+        "description": "Live's proposal / take / decline timeline of one operator for a live member (signed).",
+        "operationId": "history",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "History",
+        "tags": [
+          "playground-tier-internal"
         ]
       }
     },
@@ -55300,6 +55386,286 @@
         ]
       }
     },
+    "/api/operators/{operator_id}/playground-proposal": {
+      "get": {
+        "description": "The open proposal from the playground, judged against live now (or ``null``).",
+        "operationId": "get_proposal",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Proposal",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Proposal",
+        "tags": [
+          "operator-playground-review"
+        ]
+      }
+    },
+    "/api/operators/{operator_id}/playground-proposal/decline": {
+      "post": {
+        "description": "Decline the whole proposal; nothing in live changes.",
+        "operationId": "decline_proposal",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeclineIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Decline Proposal",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Decline Proposal",
+        "tags": [
+          "operator-playground-review"
+        ]
+      }
+    },
+    "/api/operators/{operator_id}/playground-proposal/history": {
+      "get": {
+        "description": "Who proposed / took / declined which lines of the playground, and when.",
+        "operationId": "proposal_history",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Proposal History",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Proposal History",
+        "tags": [
+          "operator-playground-review"
+        ]
+      }
+    },
+    "/api/operators/{operator_id}/playground-proposal/review-started": {
+      "post": {
+        "description": "An owner / admin opened the review (first opener recorded; idempotent).",
+        "operationId": "review_started",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewStartedIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Review Started",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Review Started",
+        "tags": [
+          "operator-playground-review"
+        ]
+      }
+    },
+    "/api/operators/{operator_id}/playground-proposal/take": {
+      "post": {
+        "description": "Take the ticked groups (and only those) into live.",
+        "operationId": "take_proposal",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TakeIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Take Proposal",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Take Proposal",
+        "tags": [
+          "operator-playground-review"
+        ]
+      }
+    },
     "/api/operators/{operator_id}/playground/demo-bookings": {
       "delete": {
         "description": "Remove this operator's marked demo bookings (and their payments and demo\nguests). Unmarked bookings are never touched.",
@@ -55502,6 +55868,56 @@
           }
         ],
         "summary": "Playground Fetch",
+        "tags": [
+          "operator-playground"
+        ]
+      }
+    },
+    "/api/operators/{operator_id}/playground/history": {
+      "get": {
+        "description": "The Playground history: fetches here + live's proposals / takes / declines.\n\n``{events, live: {connected, reason}}``; each event is\n``{id, kind: fetch|proposal|take|decline, direction: to_playground|to_live, at,\nactor_name, proposal_id, proposal_status, group_count, line_count, groups}``\n(labels and counts, never a value). Same members as the rest of the panel.",
+        "operationId": "playground_history_timeline",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Playground History Timeline",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Playground History Timeline",
         "tags": [
           "operator-playground"
         ]
