@@ -8,6 +8,7 @@ import {
   getOffers,
   getProductFlow,
   listPickupLocationsForOperator,
+  getProductSuggestions,
   listProducts,
   submitBooking,
 } from '@/api/client'
@@ -28,6 +29,7 @@ vi.mock('@/api/client', async (importOriginal) => {
     getProductFlow: vi.fn(),
     getOffers: vi.fn(),
     listPickupLocationsForOperator: vi.fn(),
+    getProductSuggestions: vi.fn(),
   }
 })
 
@@ -110,10 +112,14 @@ function Harness({
   main = MAIN,
   participantLanguages,
   off,
+  hints,
+  onOpenHint,
 }: {
   main?: Product
   participantLanguages?: Record<number, string>
   off?: boolean
+  hints?: boolean
+  onOpenHint?: React.ComponentProps<typeof BookingForm>['onOpenCrossSellHint']
 }) {
   const [lines, setLines] = useState<ExtraLine[]>([])
   return (
@@ -128,6 +134,8 @@ function Harness({
       extraLines={lines}
       onExtraLinesChange={setLines}
       crossSellEnabled={!off}
+      crossSellHintsEnabled={hints}
+      onOpenCrossSellHint={onOpenHint}
       onBack={vi.fn()}
       onConfirmed={vi.fn()}
     />
@@ -725,5 +733,66 @@ describe('Add more to this booking (review step)', () => {
     render(<Harness off />)
     expect(await screen.findByTestId('offer-row-offer-towel')).toBeInTheDocument()
     expect(screen.queryByTestId('add-more-candidate-camping')).toBeNull()
+  })
+})
+
+describe('cross-sell hint cards (landr-f210e.5)', () => {
+  const hint = {
+    product_id: 'camping',
+    slug: 'camping',
+    name: 'Camping',
+    thumb_url: 'https://img.example/camping.jpg',
+    price_from: '45.00',
+    currency: 'EUR',
+    source: 'product',
+  }
+
+  beforeEach(() => {
+    vi.mocked(getAvailability).mockReset()
+    vi.mocked(getAvailability).mockResolvedValue([])
+    vi.mocked(listProducts).mockReset()
+    vi.mocked(listProducts).mockResolvedValue([MAIN, CAMPING])
+    vi.mocked(getOffers).mockReset()
+    vi.mocked(getProductFlow).mockReset()
+    vi.mocked(getProductFlow).mockResolvedValue({ modules: null })
+    vi.mocked(listPickupLocationsForOperator).mockReset()
+    vi.mocked(listPickupLocationsForOperator).mockResolvedValue([])
+    vi.mocked(getProductSuggestions).mockReset()
+  })
+
+  it('shows a card after the step and hands the tap to the app with the dates and party', async () => {
+    offerOnMain(offer('camping'))
+    vi.mocked(getProductSuggestions).mockResolvedValue([hint])
+    const onOpenHint = vi.fn()
+    render(<Harness hints onOpenHint={onOpenHint} />)
+    // The review step is up before (and independently of) the suggestions.
+    await screen.findByRole('button', { name: /Confirm booking/i })
+    const card = await screen.findByTestId('cross-sell-hint-camping')
+    expect(card).toHaveTextContent('You might also like Camping')
+    expect(card).toHaveTextContent(/from/i)
+    expect(getProductSuggestions).toHaveBeenCalledWith('tok', 'main')
+    // The in-tree parent-less offer is gone while hints are on.
+    expect(screen.queryByTestId('add-more-candidate-camping')).toBeNull()
+    fireEvent.click(card)
+    expect(onOpenHint).toHaveBeenCalledWith(hint, {
+      days: ['2026-11-02', '2026-11-03'],
+      seats: 1,
+    })
+  })
+
+  it('shows no cards, and does not break the step, when the suggestions fail', async () => {
+    offerOnMain()
+    vi.mocked(getProductSuggestions).mockRejectedValue(new Error('down'))
+    render(<Harness hints onOpenHint={vi.fn()} />)
+    await screen.findByRole('button', { name: /Confirm booking/i })
+    await waitFor(() => expect(getProductSuggestions).toHaveBeenCalled())
+    expect(screen.queryByTestId('cross-sell-hints')).toBeNull()
+  })
+
+  it('fetches nothing with the hints off', async () => {
+    offerOnMain()
+    render(<Harness />)
+    await screen.findByRole('button', { name: /Confirm booking/i })
+    expect(getProductSuggestions).not.toHaveBeenCalled()
   })
 })

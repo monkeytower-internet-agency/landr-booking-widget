@@ -716,6 +716,8 @@ export const de: Bundle = {
   alternativesStartsTemplate: 'Start: {date}',
   alternativeBackTemplate: 'Zurück zu {name}',
   alternativeBackKeepsDates: 'Ihre Termine bleiben ausgewählt',
+  crossSellHintTitle: 'Vielleicht gefällt Ihnen auch {name}',
+  crossSellHintFullyBooked: 'Leider ist {product} an diesen Tagen ebenfalls ausgebucht.',
   altDayAria: 'ausgebucht, andere Aktivitäten verfügbar',
   altDayNotOfferedAria: 'nicht im Angebot, andere Aktivitäten verfügbar',
   altDayShortAria: 'nicht genug Plätze für {n} Personen, andere Aktivitäten verfügbar',

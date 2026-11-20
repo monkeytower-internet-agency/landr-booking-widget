@@ -14,6 +14,7 @@ import type {
   AvailabilitySlot,
   Companion,
   Product,
+  ProductHint,
   ProductLine,
   SubmitBookingBody,
   SubmitBookingResponse,
@@ -69,6 +70,7 @@ import { CustomerCommentField } from './CustomerCommentField'
 import { BillingAddressBlock } from './BillingAddressBlock'
 import { NextAction } from './NextAction'
 import { AddMoreProducts } from './AddMoreProducts'
+import { CrossSellHintCards } from './CrossSellHintCards'
 import {
   bookingLanguageOffer,
   effectiveLanguages,
@@ -281,6 +283,17 @@ interface Props {
    * the offers every booking gets (parent-less) and the products they add.
    */
   crossSellEnabled?: boolean
+  /**
+   * landr-f210e.5: the operator shows cross-sell as hint cards (settings
+   * `cross_sell_hints_enabled`): the cards render under "Add more" and the
+   * in-tree parent-less offers are hidden.
+   */
+  crossSellHintsEnabled?: boolean
+  /** A hint card was tapped: open that product as its own booking. */
+  onOpenCrossSellHint?: (
+    hint: ProductHint,
+    carry: { days: string[]; seats: number },
+  ) => void
   /**
    * landr-sbhz.3: pre-booking customer declarations. When present,
    * both fields are included in the submit body. Omitted for operators
@@ -1148,6 +1161,8 @@ export function BookingForm({
   onOfferMembersChange,
   estimateItems = null,
   crossSellEnabled = true,
+  crossSellHintsEnabled = false,
+  onOpenCrossSellHint,
   customerDeclarations,
   customerLanguages,
   customerOtherLanguages,
@@ -2835,7 +2850,7 @@ export function BookingForm({
             partySize={seatsNeeded(participants.length, companions, product.invite_hold_hours)}
             lines={crossSellLines}
             onLinesChange={crossSellEnabled ? setExtraLines : undefined}
-            crossSellEnabled={crossSellEnabled}
+            crossSellEnabled={crossSellEnabled && !crossSellHintsEnabled}
             offers={{
               verdicts: offers.byLine,
               picks: offerPicks,
@@ -2868,6 +2883,19 @@ export function BookingForm({
             }}
           />
         )}
+
+        {crossSellHintsEnabled && onOpenCrossSellHint ? (
+          <CrossSellHintCards
+            operatorToken={widgetToken}
+            productId={product.product_id}
+            onOpen={(hint) =>
+              onOpenCrossSellHint(hint, {
+                days: mainDays,
+                seats: seatsNeeded(participants.length, companions, product.invite_hold_hours),
+              })
+            }
+          />
+        ) : null}
 
         {/* landr-n6ii3: same field DetailsStep collects, editable here too —
             last field before Confirm booking. */}

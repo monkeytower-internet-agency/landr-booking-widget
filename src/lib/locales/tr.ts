@@ -722,6 +722,8 @@ export const tr: Bundle = {
   alternativesStartsTemplate: 'Başlangıç: {date}',
   alternativeBackTemplate: 'Geri dön: {name}',
   alternativeBackKeepsDates: 'Seçtiğiniz tarihler korunur',
+  crossSellHintTitle: '{name} de hoşunuza gidebilir',
+  crossSellHintFullyBooked: 'Üzgünüz, {product} bu günlerde de dolu.',
   altDayAria: 'dolu, diğer aktiviteler müsait',
   altDayNotOfferedAria: 'sunulmuyor, diğer aktiviteler müsait',
   altDayShortAria: '{n} kişi için yeterli yer yok, diğer aktiviteler müsait',

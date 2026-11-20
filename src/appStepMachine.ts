@@ -222,7 +222,12 @@ export type Step =
   // nothing to book. Only reachable via a deep link; the catalogue overview
   // hides sold-out products (or shows them as inline cards when the embed
   // opts in via show_sold_out), never as this standalone step.
-  | { name: 'fully-booked'; product: Product }
+  | {
+      name: 'fully-booked'
+      product: Product
+      /** landr-f210e.5: reached from a cross-sell hint card -- the notice names the carried days. */
+      fromHint?: boolean
+    }
   // landr-8c03 (was 'participants' / landr-mbge): collects full booker
   // + participant details right after dates. The booker fields and the
   // participants array thread through every downstream step + the
@@ -1766,7 +1771,10 @@ export function stepForAlternativeSwitch(args: AlternativeSwitchArgs): Step {
  */
 export interface AlternativeBack {
   /** The step the row was tapped on (the origin's date step or fully-booked notice). */
-  from: Extract<Step, { name: 'pick-selection' } | { name: 'fully-booked' }>
+  from: Extract<
+    Step,
+    { name: 'pick-selection' } | { name: 'fully-booked' } | { name: 'fill-form' }
+  >
   /** Product switched to; the way back is offered only while on its date step. */
   toProductId: string
   /** Live day(s) picked on the origin at tap time. */

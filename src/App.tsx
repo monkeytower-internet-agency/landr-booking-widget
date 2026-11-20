@@ -88,7 +88,7 @@ import { MultiDayStep } from '@/components/booking/MultiDayStep'
 import { PickupLocationPicker } from '@/components/booking/PickupLocationPicker'
 import { childAgesFromRoster, hasOccupancyPricing } from '@/components/booking/occupancyPricing'
 import PriceSidebar, { type CalculatedTotal } from '@/components/booking/PriceSidebar'
-import type { ExtraLine } from '@/components/booking/crossSell'
+import { unavailableDaysFor, type ExtraLine } from '@/components/booking/crossSell'
 import { ProductList } from '@/components/booking/ProductList'
 import {
   alternativePartyClampedMessage,
@@ -111,6 +111,7 @@ import {
   getProductFlow,
   HttpError,
   listProductGroups,
+  getAvailability,
   listProducts,
 } from '@/api/client'
 import { CustomFormStep } from '@/components/booking/CustomFormStep'
@@ -121,6 +122,7 @@ import type {
   OperatorSettings,
   Product,
   ProductGroup,
+  ProductHint,
   ServiceRole,
   VoucherStatus,
   EstimateLineItem,
@@ -1382,6 +1384,8 @@ function BookingFlowApp() {
   // landr-p2du5: the way back to the product the guest switched away from,
   // with the picks it had. Offered on the target's date step only.
   const [alternativeBack, setAlternativeBack] = useState<AlternativeBack | null>(null)
+  // landr-f210e.5: the review's cart (extra lines, offers) while a hint detour is open.
+  const [hintReturnCart, setHintReturnCart] = useState<typeof crossSell | null>(null)
   // The course window last picked live, per product (FixedDateWindowPicker
   // reports it with the days); read when a switch snapshots a course origin.
   const liveWindowRef = useRef<{ productId: string; windowId?: string } | null>(null)
@@ -2193,6 +2197,82 @@ function BookingFlowApp() {
       }),
     )
   }
+  // landr-f210e.5: a tapped cross-sell hint card. The airline model: the
+  // suggested product opens as its OWN booking with the dates and party carried
+  // over and its own availability check; the review the guest left stays as it
+  // was (snapshot below) and the back button returns to it. Fully booked on
+  // those days -> the notice plus the existing "Also available" panel.
+  const onOpenCrossSellHint = async (
+    hint: ProductHint,
+    carry: { days: string[]; seats: number },
+  ) => {
+    if (!token || step.name !== 'fill-form') return
+    const from = step
+    const seq = ++switchSeqRef.current
+    let target: Product | undefined
+    try {
+      const products = await listProducts(token)
+      target = products.find((p) => p.product_id === hint.product_id)
+    } catch {
+      return
+    }
+    if (seq !== switchSeqRef.current || stepRef.current.name !== 'fill-form') return
+    if (!target) return
+    // A course takes its own windows, not carried days: its date step opens empty.
+    const takesDays = target.service_time_shape !== 'fixed_window'
+    const checkDays = !takesDays
+      ? []
+      : target.service_time_shape === 'days_range'
+        ? carry.days
+        : carry.days.slice(0, 1)
+    let soldOut = !isBookable(target)
+    if (!soldOut && checkDays.length > 0) {
+      try {
+        const sorted = [...checkDays].sort()
+        const slots = await getAvailability(
+          target.product_id,
+          sorted[0] as string,
+          sorted[sorted.length - 1] as string,
+        )
+        if (seq !== switchSeqRef.current) return
+        soldOut = unavailableDaysFor(slots, checkDays, carry.seats).length > 0
+      } catch {
+        // The product's own date step re-checks; a failed read must not block the tap.
+      }
+    }
+    alternativeSwitchRef.current = true
+    setAlternativeOrigin(null)
+    setAlternativeBack({
+      from,
+      toProductId: target.product_id,
+      days: takesDays ? carry.days : [],
+      draft: bookingDraft,
+    })
+    setHintReturnCart(crossSell)
+    setLiveSelectionDays([])
+    setLiveSlot(null)
+    setJoinRef(null)
+    clearLiveAccommodation()
+    const clampedTo = partyClampForSwitch(bookingDraft, target)
+    setPartyClampNote(
+      clampedTo === null
+        ? null
+        : {
+            productId: target.product_id,
+            text: alternativePartyClampedMessage(
+              pickLocalized(target.name, target.name_localized, browserLocale()),
+              clampedTo,
+              browserLocale(),
+            ),
+          },
+    )
+    setBookingDraft((prev) => draftForProductSwitch(prev, target))
+    setStep(
+      soldOut
+        ? { name: 'fully-booked', product: target, fromHint: true }
+        : stepForAlternativeSwitch({ target, days: takesDays ? carry.days : [] }),
+    )
+  }
   // landr-p2du5: return from an alternative to the product the guest left,
   // its day(s)/window/start time and the pre-switch draft restored.
   const goBackFromAlternative = () => {
@@ -2208,11 +2288,17 @@ function BookingFlowApp() {
     setJoinRef(null)
     clearLiveAccommodation()
     setBookingDraft(back.draft)
+    // landr-f210e.5: a hint detour leaves the review's cart (extra lines,
+    // offers) behind; the way back puts it exactly as it was.
+    if (hintReturnCart !== null) {
+      setCrossSell(hintReturnCart)
+      setHintReturnCart(null)
+    }
     setStep(stepForAlternativeBack(back))
   }
   const showAlternativeBack =
     alternativeBack !== null &&
-    step.name === 'pick-selection' &&
+    (step.name === 'pick-selection' || step.name === 'fully-booked') &&
     step.product.product_id === alternativeBack.toProductId
 
   // An invite's hold counts for the product it was minted for only.
@@ -2704,6 +2790,7 @@ function BookingFlowApp() {
             }
             operatorTimezone={operatorSettings.timezone}
             onSelectAlternative={onSelectAlternative}
+            hintNotice={step.fromHint === true}
           />
         ) : null}
 
@@ -3849,6 +3936,8 @@ function BookingFlowApp() {
             // The operator's cross-sell switch now only hides the offers
             // every booking gets (parent-less) and the products they add.
             crossSellEnabled={operatorSettings.widget_cross_sell_enabled !== false}
+            crossSellHintsEnabled={operatorSettings.cross_sell_hints_enabled === true}
+            onOpenCrossSellHint={onOpenCrossSellHint}
             inlineAnswers={inlineAnswers}
             onInlineAnswersChange={setInlineAnswers}
             // landr-rmcsu.5: keep the committed dates (like Back does) so the
