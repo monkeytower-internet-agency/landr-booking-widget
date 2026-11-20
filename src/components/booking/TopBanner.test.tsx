@@ -7,12 +7,12 @@ import { getTier } from '@/lib/tier'
 const mockGetTier = vi.mocked(getTier)
 
 describe('TopBanner', () => {
-  it.each(['dev', 'staging'] as const)('reserves badge clearance on %s', (t) => {
-    mockGetTier.mockReturnValue(t)
+  it('reserves badge clearance on dev (fixed overlay)', () => {
+    mockGetTier.mockReturnValue('dev')
     render(<TopBanner>x</TopBanner>)
     expect(screen.getByTestId('top-banner').className).toContain('pt-20')
   })
-  it.each(['prod', undefined] as const)('adds no clearance on %s', (t) => {
+  it.each(['staging', 'prod', undefined] as const)('adds no clearance on %s', (t) => {
     mockGetTier.mockReturnValue(t)
     render(<TopBanner>x</TopBanner>)
     expect(screen.getByTestId('top-banner').className).not.toContain('pt-')

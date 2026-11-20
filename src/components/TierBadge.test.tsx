@@ -4,7 +4,7 @@
  * Verifies:
  *  - prod → null (no badge in the DOM)
  *  - undefined → null (no badge when VITE_DEPLOY_TIER is unset)
- *  - staging → renders 'STAGING' pill
+ *  - staging → renders the in-flow 'Playground' ribbon with the build chip inside
  *  - dev     → renders 'DEV' pill
  */
 
@@ -35,13 +35,24 @@ describe('TierBadge', () => {
     expect(container).toBeEmptyDOMElement()
   })
 
-  it('renders STAGING badge for staging tier', () => {
+  it('renders the Playground ribbon, with the build chip inside it, for staging', () => {
     mockGetTier.mockReturnValue('staging')
     render(<TierBadge />)
     const badge = screen.getByTestId('tier-badge')
     expect(badge).toBeInTheDocument()
-    expect(badge).toHaveTextContent('STAGING')
-    expect(badge).toHaveAttribute('aria-label', 'Environment: STAGING')
+    expect(badge).toHaveTextContent('Playground')
+    expect(badge).toHaveAttribute('aria-label', 'Environment: PLAYGROUND')
+    // Folded in: no fixed overlay, so nothing can overlap the page content.
+    expect(badge.className).not.toContain('fixed')
+    const chip = screen.getByTestId('build-chip')
+    expect(badge).toContainElement(chip)
+    expect(chip.className).not.toContain('fixed')
+  })
+
+  it('keeps the fixed overlay chip on dev', () => {
+    mockGetTier.mockReturnValue('dev')
+    render(<TierBadge />)
+    expect(screen.getByTestId('build-chip').className).toContain('fixed')
   })
 
   it('renders DEV badge for dev tier', () => {
