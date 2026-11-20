@@ -23779,6 +23779,11 @@ export interface components {
             contact_email?: string | null;
             /** Country */
             country?: string | null;
+            /**
+             * Cross Sell Hints Enabled
+             * @default false
+             */
+            cross_sell_hints_enabled: boolean;
             /** Customer Languages */
             customer_languages?: string[];
             /**
