@@ -54838,6 +54838,55 @@
         ]
       }
     },
+    "/api/operators/{operator_id}/playground/demo-bookings": {
+      "post": {
+        "operationId": "fill_demo_bookings",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Fill Demo Bookings",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Fill Demo Bookings",
+        "tags": [
+          "operator-playground"
+        ]
+      }
+    },
     "/api/operators/{operator_id}/playground/live-bundle": {
       "get": {
         "description": "This operator's LIVE setup bundle, for a member of it on both tiers.",
