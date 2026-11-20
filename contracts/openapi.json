@@ -130,6 +130,30 @@
         "title": "AcceptedItem",
         "type": "object"
       },
+      "AcceptedLanguagesPatchIn": {
+        "description": "PATCH participant accepted-languages body (landr-hdk4y.1).\n\nThe key is REQUIRED and ``null`` is meaningful, like ``LanguagePatchIn``:\n``null`` = \"not asked\", ``[]`` = \"only the main language\", otherwise the\nother guiding languages the participant accepts.",
+        "properties": {
+          "accepted_languages": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accepted Languages"
+          }
+        },
+        "required": [
+          "accepted_languages"
+        ],
+        "title": "AcceptedLanguagesPatchIn",
+        "type": "object"
+      },
       "AccountLinkRequest": {
         "properties": {
           "email": {
@@ -300,6 +324,563 @@
           "addon_product_id"
         ],
         "title": "AddonDayStock",
+        "type": "object"
+      },
+      "AgentChannelTermsOut": {
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "level": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Level"
+          },
+          "terms": {
+            "items": {
+              "$ref": "#/components/schemas/AgentEffectiveTermOut"
+            },
+            "title": "Terms",
+            "type": "array"
+          }
+        },
+        "required": [
+          "enabled",
+          "terms"
+        ],
+        "title": "AgentChannelTermsOut",
+        "type": "object"
+      },
+      "AgentEffectiveTermOut": {
+        "properties": {
+          "currency": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Currency"
+          },
+          "product_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Id"
+          },
+          "rate_kind": {
+            "title": "Rate Kind",
+            "type": "string"
+          },
+          "term_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Term Id"
+          },
+          "value": {
+            "title": "Value",
+            "type": "number"
+          }
+        },
+        "required": [
+          "rate_kind",
+          "value"
+        ],
+        "title": "AgentEffectiveTermOut",
+        "type": "object"
+      },
+      "AgentEffectiveTermsOut": {
+        "properties": {
+          "assisted": {
+            "$ref": "#/components/schemas/AgentChannelTermsOut"
+          },
+          "self_serve": {
+            "$ref": "#/components/schemas/AgentChannelTermsOut"
+          }
+        },
+        "required": [
+          "assisted",
+          "self_serve"
+        ],
+        "title": "AgentEffectiveTermsOut",
+        "type": "object"
+      },
+      "AgentGroupIn": {
+        "additionalProperties": false,
+        "properties": {
+          "books_for_clients": {
+            "default": true,
+            "title": "Books For Clients",
+            "type": "boolean"
+          },
+          "has_link": {
+            "default": true,
+            "title": "Has Link",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "AgentGroupIn",
+        "type": "object"
+      },
+      "AgentGroupOut": {
+        "properties": {
+          "agent_count": {
+            "default": 0,
+            "title": "Agent Count",
+            "type": "integer"
+          },
+          "books_for_clients": {
+            "title": "Books For Clients",
+            "type": "boolean"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "has_link": {
+            "title": "Has Link",
+            "type": "boolean"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "operator_id": {
+            "title": "Operator Id",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "operator_id",
+          "name",
+          "books_for_clients",
+          "has_link",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "AgentGroupOut",
+        "type": "object"
+      },
+      "AgentGroupPatch": {
+        "additionalProperties": false,
+        "properties": {
+          "books_for_clients": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Books For Clients"
+          },
+          "has_link": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Has Link"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "title": "AgentGroupPatch",
+        "type": "object"
+      },
+      "AgentInviteBody": {
+        "description": "Add Sales agent (landr-xnbfe.27): who, which group, how they sell.",
+        "properties": {
+          "can_book_for_clients": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Can Book For Clients"
+          },
+          "contact_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contact Id"
+          },
+          "email": {
+            "maxLength": 320,
+            "minLength": 3,
+            "pattern": "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$",
+            "title": "Email",
+            "type": "string"
+          },
+          "group_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Group Id"
+          },
+          "has_link": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Has Link"
+          },
+          "locale": {
+            "anyOf": [
+              {
+                "maxLength": 16,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Locale"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone"
+          }
+        },
+        "required": [
+          "name",
+          "email"
+        ],
+        "title": "AgentInviteBody",
+        "type": "object"
+      },
+      "AgentRateDefaultsIn": {
+        "additionalProperties": false,
+        "properties": {
+          "books_for_clients": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Books For Clients"
+          },
+          "has_link": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Has Link"
+          },
+          "terms": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/AgentRateTermIn"
+                },
+                "maxItems": 500,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Terms"
+          }
+        },
+        "title": "AgentRateDefaultsIn",
+        "type": "object"
+      },
+      "AgentRateDefaultsOut": {
+        "properties": {
+          "books_for_clients": {
+            "title": "Books For Clients",
+            "type": "boolean"
+          },
+          "has_link": {
+            "title": "Has Link",
+            "type": "boolean"
+          },
+          "terms": {
+            "items": {
+              "$ref": "#/components/schemas/AgentRateTermOut"
+            },
+            "title": "Terms",
+            "type": "array"
+          }
+        },
+        "required": [
+          "books_for_clients",
+          "has_link",
+          "terms"
+        ],
+        "title": "AgentRateDefaultsOut",
+        "type": "object"
+      },
+      "AgentRateTermIn": {
+        "additionalProperties": false,
+        "properties": {
+          "channel": {
+            "enum": [
+              "assisted",
+              "self_serve"
+            ],
+            "title": "Channel",
+            "type": "string"
+          },
+          "currency": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Currency"
+          },
+          "product_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Id"
+          },
+          "rate_kind": {
+            "enum": [
+              "percent",
+              "flat_per_booking",
+              "flat_per_person"
+            ],
+            "title": "Rate Kind",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "channel",
+          "rate_kind",
+          "value"
+        ],
+        "title": "AgentRateTermIn",
+        "type": "object"
+      },
+      "AgentRateTermOut": {
+        "properties": {
+          "channel": {
+            "enum": [
+              "assisted",
+              "self_serve"
+            ],
+            "title": "Channel",
+            "type": "string"
+          },
+          "currency": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Currency"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "product_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Id"
+          },
+          "rate_kind": {
+            "enum": [
+              "percent",
+              "flat_per_booking",
+              "flat_per_person"
+            ],
+            "title": "Rate Kind",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "channel",
+          "rate_kind",
+          "value"
+        ],
+        "title": "AgentRateTermOut",
+        "type": "object"
+      },
+      "AgentRateTermsIn": {
+        "additionalProperties": false,
+        "properties": {
+          "terms": {
+            "items": {
+              "$ref": "#/components/schemas/AgentRateTermIn"
+            },
+            "maxItems": 500,
+            "title": "Terms",
+            "type": "array"
+          }
+        },
+        "required": [
+          "terms"
+        ],
+        "title": "AgentRateTermsIn",
+        "type": "object"
+      },
+      "AgentRateTermsOut": {
+        "properties": {
+          "terms": {
+            "items": {
+              "$ref": "#/components/schemas/AgentRateTermOut"
+            },
+            "title": "Terms",
+            "type": "array"
+          }
+        },
+        "required": [
+          "terms"
+        ],
+        "title": "AgentRateTermsOut",
+        "type": "object"
+      },
+      "AgentRatesOut": {
+        "properties": {
+          "contract_id": {
+            "title": "Contract Id",
+            "type": "string"
+          },
+          "effective": {
+            "$ref": "#/components/schemas/AgentEffectiveTermsOut"
+          },
+          "own": {
+            "items": {
+              "$ref": "#/components/schemas/AgentRateTermOut"
+            },
+            "title": "Own",
+            "type": "array"
+          }
+        },
+        "required": [
+          "contract_id",
+          "own",
+          "effective"
+        ],
+        "title": "AgentRatesOut",
         "type": "object"
       },
       "AiSettingsOut": {
@@ -824,6 +1405,16 @@
             "default": {},
             "title": "Plan Gated",
             "type": "object"
+          },
+          "power_ups": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PowerUpsApplied"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "status": {
             "enum": [
@@ -7456,6 +8047,17 @@
             ],
             "title": "Accepted At"
           },
+          "can_book_for_clients": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Can Book For Clients"
+          },
           "commission_scheme_id": {
             "anyOf": [
               {
@@ -7495,6 +8097,28 @@
             ],
             "title": "Ended At"
           },
+          "group_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Group Id"
+          },
+          "has_link": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Has Link"
+          },
           "id": {
             "title": "Id",
             "type": "string"
@@ -7517,6 +8141,17 @@
             ],
             "title": "Kind",
             "type": "string"
+          },
+          "mute_link_bookings": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mute Link Bookings"
           },
           "notes": {
             "anyOf": [
@@ -7624,6 +8259,17 @@
       "ContractPatch": {
         "additionalProperties": false,
         "properties": {
+          "can_book_for_clients": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Can Book For Clients"
+          },
           "commission_scheme_id": {
             "anyOf": [
               {
@@ -7646,6 +8292,28 @@
               }
             ],
             "title": "Currency"
+          },
+          "group_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Group Id"
+          },
+          "has_link": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Has Link"
           },
           "notes": {
             "anyOf": [
@@ -9600,6 +10268,20 @@
       },
       "DayManifestRow": {
         "properties": {
+          "accepted_languages": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accepted Languages"
+          },
           "assigned_unit_id": {
             "anyOf": [
               {
@@ -10623,6 +11305,126 @@
           "participant_id"
         ],
         "title": "DayUnitSortItem",
+        "type": "object"
+      },
+      "DecisionIn": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "enum": [
+              "reactivate",
+              "pay_once",
+              "no_commission",
+              "mute",
+              "unmute"
+            ],
+            "title": "Action",
+            "type": "string"
+          },
+          "commission_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Commission Id"
+          }
+        },
+        "required": [
+          "action"
+        ],
+        "title": "DecisionIn",
+        "type": "object"
+      },
+      "DecisionOut": {
+        "properties": {
+          "action": {
+            "enum": [
+              "reactivate",
+              "pay_once",
+              "no_commission",
+              "mute",
+              "unmute"
+            ],
+            "title": "Action",
+            "type": "string"
+          },
+          "agent_paused": {
+            "title": "Agent Paused",
+            "type": "boolean"
+          },
+          "applied": {
+            "title": "Applied",
+            "type": "boolean"
+          },
+          "commission_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Commission Id"
+          },
+          "commission_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Commission Status"
+          },
+          "has_link": {
+            "title": "Has Link",
+            "type": "boolean"
+          },
+          "mute_link_bookings": {
+            "title": "Mute Link Bookings",
+            "type": "boolean"
+          },
+          "resolved_count": {
+            "default": 0,
+            "title": "Resolved Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "action",
+          "applied",
+          "mute_link_bookings",
+          "agent_paused",
+          "has_link"
+        ],
+        "title": "DecisionOut",
+        "type": "object"
+      },
+      "DeclineIn": {
+        "additionalProperties": false,
+        "properties": {
+          "idempotency_key": {
+            "format": "uuid",
+            "title": "Idempotency Key",
+            "type": "string"
+          },
+          "proposal_id": {
+            "format": "uuid",
+            "title": "Proposal Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "proposal_id",
+          "idempotency_key"
+        ],
+        "title": "DeclineIn",
         "type": "object"
       },
       "DerivedCut": {
@@ -11675,6 +12477,18 @@
         "additionalProperties": true,
         "description": "One row in the PriceSidebar breakdown (landr-qez0). Mirrors the\nwidget's ``EstimateLineItem`` TypeScript interface (src/api/types.ts)\nand the dashboard's ``SimulateLineItem`` (src/lib/pricing-simulator.ts)\nfield-for-field. ``unit_price``/``line_total`` are decimal strings\n(e.g. \"60.00\"), matching ``_compute_line``'s wire format exactly.",
         "properties": {
+          "attribute_bands": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attribute Bands"
+          },
           "attribute_missing": {
             "anyOf": [
               {
@@ -12916,6 +13730,38 @@
           "resource_ids"
         ],
         "title": "FanOutRow",
+        "type": "object"
+      },
+      "FetchRequest": {
+        "properties": {
+          "group_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 1000,
+            "minItems": 1,
+            "title": "Group Ids",
+            "type": "array"
+          },
+          "live_fingerprint": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Live Fingerprint",
+            "type": "string"
+          },
+          "playground_fingerprint": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Playground Fingerprint",
+            "type": "string"
+          }
+        },
+        "required": [
+          "live_fingerprint",
+          "playground_fingerprint",
+          "group_ids"
+        ],
+        "title": "FetchRequest",
         "type": "object"
       },
       "FieldSchemaIn": {
@@ -15172,6 +16018,46 @@
           }
         },
         "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "HeldLinkBookingOut": {
+        "properties": {
+          "booking_id": {
+            "title": "Booking Id",
+            "type": "string"
+          },
+          "commission_amount": {
+            "title": "Commission Amount",
+            "type": "number"
+          },
+          "commission_id": {
+            "title": "Commission Id",
+            "type": "string"
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "held_at": {
+            "format": "date-time",
+            "title": "Held At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "commission_id",
+          "booking_id",
+          "commission_amount",
+          "currency",
+          "held_at",
+          "expires_at"
+        ],
+        "title": "HeldLinkBookingOut",
         "type": "object"
       },
       "HeldSeatRow": {
@@ -18891,6 +19777,23 @@
         "title": "MultiDaySavingsOut",
         "type": "object"
       },
+      "MyAgentRatesOut": {
+        "properties": {
+          "contract_id": {
+            "title": "Contract Id",
+            "type": "string"
+          },
+          "effective": {
+            "$ref": "#/components/schemas/AgentEffectiveTermsOut"
+          }
+        },
+        "required": [
+          "contract_id",
+          "effective"
+        ],
+        "title": "MyAgentRatesOut",
+        "type": "object"
+      },
       "MyLanguageIn": {
         "additionalProperties": false,
         "properties": {
@@ -20809,6 +21712,17 @@
             ],
             "title": "Date Range Start"
           },
+          "is_addon_only": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Addon Only"
+          },
           "name": {
             "title": "Name",
             "type": "string"
@@ -20830,6 +21744,17 @@
           "product_id": {
             "title": "Product Id",
             "type": "string"
+          },
+          "product_kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Kind"
           },
           "quantity": {
             "title": "Quantity",
@@ -21931,6 +22856,21 @@
       "OperatorPatch": {
         "description": "Partial update payload \u2014 every field is optional.",
         "properties": {
+          "address_form": {
+            "anyOf": [
+              {
+                "enum": [
+                  "informal",
+                  "formal"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address Form"
+          },
           "balance_due_days_before_arrival": {
             "anyOf": [
               {
@@ -22592,6 +23532,33 @@
             ],
             "title": "Widget Category Columns"
           },
+          "widget_color_mode": {
+            "anyOf": [
+              {
+                "enum": [
+                  "light",
+                  "dark",
+                  "auto"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Widget Color Mode"
+          },
+          "widget_color_switcher": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Widget Color Switcher"
+          },
           "widget_cross_sell_enabled": {
             "anyOf": [
               {
@@ -22948,6 +23915,13 @@
               }
             ]
           },
+          "preferred_guide_languages": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Preferred Guide Languages",
+            "type": "array"
+          },
           "price_base": {
             "anyOf": [
               {
@@ -22987,6 +23961,16 @@
             "default": false,
             "title": "Requires Verification",
             "type": "boolean"
+          },
+          "second_language_mode": {
+            "default": "off",
+            "title": "Second Language Mode",
+            "type": "string"
+          },
+          "second_language_options": {
+            "default": "all",
+            "title": "Second Language Options",
+            "type": "string"
           },
           "share_reference_enabled": {
             "default": false,
@@ -23313,6 +24297,11 @@
         "additionalProperties": true,
         "description": "Operator-level rendering/behaviour flags for the public booking widget.\n\nReturned by GET /api/public/operators/{token}/settings. Fields mirror the\npublic_get_operator_settings RPC projection exactly; extra=allow keeps the\nmodel forward-compatible so new RPC columns pass through without forcing a\nresponse-model bump on every migration.\n\nlandr-jb1k: widget_variant and widget_category_columns added.",
         "properties": {
+          "address_form": {
+            "default": "informal",
+            "title": "Address Form",
+            "type": "string"
+          },
           "balance_due_days_before_arrival": {
             "anyOf": [
               {
@@ -23356,6 +24345,11 @@
               }
             ],
             "title": "Country"
+          },
+          "cross_sell_hints_enabled": {
+            "default": false,
+            "title": "Cross Sell Hints Enabled",
+            "type": "boolean"
           },
           "customer_languages": {
             "items": {
@@ -23505,6 +24499,16 @@
               }
             ],
             "title": "Widget Category Columns"
+          },
+          "widget_color_mode": {
+            "default": "light",
+            "title": "Widget Color Mode",
+            "type": "string"
+          },
+          "widget_color_switcher": {
+            "default": false,
+            "title": "Widget Color Switcher",
+            "type": "boolean"
           },
           "widget_cross_sell_enabled": {
             "default": true,
@@ -23690,6 +24694,14 @@
               }
             ],
             "title": "Pitch"
+          },
+          "power_ups": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Power Ups",
+            "type": "array"
           },
           "product_count": {
             "title": "Product Count",
@@ -24193,6 +25205,20 @@
       },
       "ParticipantIn": {
         "properties": {
+          "accepted_languages": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accepted Languages"
+          },
           "email": {
             "anyOf": [
               {
@@ -25020,6 +26046,51 @@
         "title": "PaymentMethodIn",
         "type": "object"
       },
+      "PayoutMarkPaidIn": {
+        "properties": {
+          "currency": {
+            "maxLength": 3,
+            "minLength": 3,
+            "title": "Currency",
+            "type": "string"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "period": {
+            "pattern": "^\\d{4}-(0[1-9]|1[0-2])$",
+            "title": "Period",
+            "type": "string"
+          },
+          "recipient_kind": {
+            "const": "agent",
+            "title": "Recipient Kind",
+            "type": "string"
+          },
+          "recipient_user_id": {
+            "format": "uuid",
+            "title": "Recipient User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "recipient_kind",
+          "recipient_user_id",
+          "period",
+          "currency"
+        ],
+        "title": "PayoutMarkPaidIn",
+        "type": "object"
+      },
       "PendingDecisionDetail": {
         "description": "Full detail including landr_snapshot and candidates jsonb.",
         "properties": {
@@ -25675,6 +26746,469 @@
           "package_slug"
         ],
         "title": "PlanChangeIn",
+        "type": "object"
+      },
+      "PlaygroundInviteIn": {
+        "properties": {
+          "membership_id": {
+            "format": "uuid",
+            "title": "Membership Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "membership_id"
+        ],
+        "title": "PlaygroundInviteIn",
+        "type": "object"
+      },
+      "PlaygroundLeftOut": {
+        "properties": {
+          "columns": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Columns",
+            "type": "array"
+          },
+          "group_id": {
+            "title": "Group Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "pk": {
+            "title": "Pk",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "table": {
+            "title": "Table",
+            "type": "string"
+          }
+        },
+        "required": [
+          "group_id",
+          "table",
+          "pk",
+          "label",
+          "columns",
+          "reason"
+        ],
+        "title": "PlaygroundLeftOut",
+        "type": "object"
+      },
+      "PlaygroundProposeIn": {
+        "additionalProperties": false,
+        "properties": {
+          "group_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 500,
+            "minItems": 1,
+            "title": "Group Ids",
+            "type": "array"
+          },
+          "idempotency_key": {
+            "format": "uuid",
+            "title": "Idempotency Key",
+            "type": "string"
+          },
+          "live_fingerprint_seen": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Live Fingerprint Seen"
+          },
+          "replaces_proposal_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Replaces Proposal Id"
+          },
+          "seen": {
+            "additionalProperties": {
+              "items": {
+                "$ref": "#/components/schemas/PlaygroundSeenLine"
+              },
+              "type": "array"
+            },
+            "title": "Seen",
+            "type": "object"
+          }
+        },
+        "required": [
+          "group_ids",
+          "idempotency_key",
+          "seen"
+        ],
+        "title": "PlaygroundProposeIn",
+        "type": "object"
+      },
+      "PlaygroundProposeOut": {
+        "properties": {
+          "created": {
+            "title": "Created",
+            "type": "boolean"
+          },
+          "left_out": {
+            "items": {
+              "$ref": "#/components/schemas/PlaygroundLeftOut"
+            },
+            "title": "Left Out",
+            "type": "array"
+          },
+          "live_fingerprint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Live Fingerprint"
+          },
+          "proposal_id": {
+            "title": "Proposal Id",
+            "type": "string"
+          },
+          "proposed_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Proposed At"
+          },
+          "proposed_group_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Proposed Group Ids",
+            "type": "array"
+          },
+          "proposed_lines": {
+            "title": "Proposed Lines",
+            "type": "integer"
+          },
+          "replaced_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Replaced At"
+          },
+          "replaced_proposal_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Replaced Proposal Id"
+          },
+          "replaced_proposed_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Replaced Proposed At"
+          }
+        },
+        "required": [
+          "proposal_id",
+          "created",
+          "proposed_group_ids",
+          "proposed_lines",
+          "left_out"
+        ],
+        "title": "PlaygroundProposeOut",
+        "type": "object"
+      },
+      "PlaygroundSeenLine": {
+        "description": "A line as the panel showed it (only to notice a change since; never sent on).",
+        "properties": {
+          "kind": {
+            "enum": [
+              "update",
+              "new",
+              "delete"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "live_value": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Live Value"
+          },
+          "pk": {
+            "maxLength": 400,
+            "title": "Pk",
+            "type": "string"
+          },
+          "playground_value": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Playground Value"
+          },
+          "table": {
+            "maxLength": 64,
+            "title": "Table",
+            "type": "string"
+          }
+        },
+        "required": [
+          "table",
+          "pk",
+          "kind"
+        ],
+        "title": "PlaygroundSeenLine",
+        "type": "object"
+      },
+      "PowerUpListOut": {
+        "properties": {
+          "can_switch": {
+            "title": "Can Switch",
+            "type": "boolean"
+          },
+          "operator_id": {
+            "title": "Operator Id",
+            "type": "string"
+          },
+          "power_ups": {
+            "items": {
+              "$ref": "#/components/schemas/PowerUpOut"
+            },
+            "title": "Power Ups",
+            "type": "array"
+          }
+        },
+        "required": [
+          "operator_id",
+          "can_switch",
+          "power_ups"
+        ],
+        "title": "PowerUpListOut",
+        "type": "object"
+      },
+      "PowerUpLiveItems": {
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "count",
+          "label"
+        ],
+        "title": "PowerUpLiveItems",
+        "type": "object"
+      },
+      "PowerUpOut": {
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "live_items": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PowerUpLiveItems"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "required_by": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Required By",
+            "type": "array"
+          },
+          "requires": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Requires",
+            "type": "array"
+          },
+          "settings_route": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Settings Route"
+          },
+          "state": {
+            "enum": [
+              "on",
+              "off",
+              "available",
+              "locked"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "switched_on": {
+            "title": "Switched On",
+            "type": "boolean"
+          },
+          "unlocked_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unlocked By"
+          }
+        },
+        "required": [
+          "key",
+          "name",
+          "state",
+          "switched_on",
+          "requires",
+          "required_by"
+        ],
+        "title": "PowerUpOut",
+        "type": "object"
+      },
+      "PowerUpSwitchIn": {
+        "additionalProperties": false,
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "title": "PowerUpSwitchIn",
+        "type": "object"
+      },
+      "PowerUpSwitchOut": {
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "switched": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Switched",
+            "type": "array"
+          }
+        },
+        "required": [
+          "key",
+          "enabled",
+          "switched"
+        ],
+        "title": "PowerUpSwitchOut",
+        "type": "object"
+      },
+      "PowerUpsApplied": {
+        "properties": {
+          "enabled": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Enabled",
+            "type": "array"
+          },
+          "plan_locked": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Plan Locked",
+            "type": "array"
+          }
+        },
+        "title": "PowerUpsApplied",
         "type": "object"
       },
       "PresetOut": {
@@ -27917,6 +29451,36 @@
         "title": "ProdHotfixCandidatesResponse",
         "type": "object"
       },
+      "ProdHotfixCodeIn": {
+        "properties": {
+          "notes": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "picks": {
+            "items": {
+              "$ref": "#/components/schemas/HotfixPickIn"
+            },
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "Picks",
+            "type": "array"
+          }
+        },
+        "required": [
+          "picks"
+        ],
+        "title": "ProdHotfixCodeIn",
+        "type": "object"
+      },
       "ProdHotfixPr": {
         "properties": {
           "number": {
@@ -28944,6 +30508,119 @@
         "title": "ProductGroupReparent",
         "type": "object"
       },
+      "ProductHint": {
+        "properties": {
+          "currency": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Currency"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "name_localized": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name Localized"
+          },
+          "price_from": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price From"
+          },
+          "product_id": {
+            "title": "Product Id",
+            "type": "string"
+          },
+          "product_kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Kind"
+          },
+          "short_description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Short Description"
+          },
+          "short_description_localized": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Short Description Localized"
+          },
+          "slug": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slug"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "thumb_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thumb Url"
+          }
+        },
+        "required": [
+          "product_id",
+          "name",
+          "source"
+        ],
+        "title": "ProductHint",
+        "type": "object"
+      },
       "ProductImage": {
         "description": "One image rendition pair for a product gallery (epic landr-d8rg).",
         "properties": {
@@ -29429,6 +31106,20 @@
             ],
             "title": "Payment Note Localized"
           },
+          "preferred_guide_languages": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preferred Guide Languages"
+          },
           "price_unit": {
             "anyOf": [
               {
@@ -29494,6 +31185,37 @@
               }
             ],
             "title": "Revenue Flows Through Operator"
+          },
+          "second_language_mode": {
+            "anyOf": [
+              {
+                "enum": [
+                  "off",
+                  "not_preferred",
+                  "always"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Second Language Mode"
+          },
+          "second_language_options": {
+            "anyOf": [
+              {
+                "enum": [
+                  "all",
+                  "preferred"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Second Language Options"
           },
           "service_time_shape": {
             "anyOf": [
@@ -30429,6 +32151,20 @@
             ],
             "title": "Payment Note Localized"
           },
+          "preferred_guide_languages": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preferred Guide Languages"
+          },
           "price_unit": {
             "anyOf": [
               {
@@ -30500,6 +32236,37 @@
               }
             ],
             "title": "Revenue Flows Through Operator"
+          },
+          "second_language_mode": {
+            "anyOf": [
+              {
+                "enum": [
+                  "off",
+                  "not_preferred",
+                  "always"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Second Language Mode"
+          },
+          "second_language_options": {
+            "anyOf": [
+              {
+                "enum": [
+                  "all",
+                  "preferred"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Second Language Options"
           },
           "service_time_shape": {
             "anyOf": [
@@ -30895,6 +32662,53 @@
           }
         },
         "title": "ProductRequirementPatch",
+        "type": "object"
+      },
+      "ProductSuggestion": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "product_id": {
+            "title": "Product Id",
+            "type": "string"
+          },
+          "sort_order": {
+            "title": "Sort Order",
+            "type": "integer"
+          },
+          "suggested_product_id": {
+            "title": "Suggested Product Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "product_id",
+          "suggested_product_id",
+          "sort_order"
+        ],
+        "title": "ProductSuggestion",
+        "type": "object"
+      },
+      "ProductSuggestionsIn": {
+        "additionalProperties": false,
+        "properties": {
+          "suggested_product_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 20,
+            "title": "Suggested Product Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "suggested_product_ids"
+        ],
+        "title": "ProductSuggestionsIn",
         "type": "object"
       },
       "ProductsCount": {
@@ -31634,6 +33448,11 @@
       },
       "PublicSubmitBookingIn": {
         "properties": {
+          "accepted_languages_supported": {
+            "default": false,
+            "title": "Accepted Languages Supported",
+            "type": "boolean"
+          },
           "agent_token": {
             "anyOf": [
               {
@@ -31906,6 +33725,7 @@
           "voucher_code": {
             "anyOf": [
               {
+                "maxLength": 64,
                 "type": "string"
               },
               {
@@ -35967,6 +37787,21 @@
         "title": "RevertBody",
         "type": "object"
       },
+      "ReviewStartedIn": {
+        "additionalProperties": false,
+        "properties": {
+          "proposal_id": {
+            "format": "uuid",
+            "title": "Proposal Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "proposal_id"
+        ],
+        "title": "ReviewStartedIn",
+        "type": "object"
+      },
       "RoleCapabilityLevel": {
         "properties": {
           "level": {
@@ -37004,6 +38839,134 @@
           "name"
         ],
         "title": "SeasonRef",
+        "type": "object"
+      },
+      "SecondLanguageBreakdownOut": {
+        "properties": {
+          "combos": {
+            "items": {
+              "$ref": "#/components/schemas/SecondLanguageComboRow"
+            },
+            "title": "Combos",
+            "type": "array"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/SecondLanguageBreakdownRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          }
+        },
+        "required": [
+          "rows",
+          "combos"
+        ],
+        "title": "SecondLanguageBreakdownOut",
+        "type": "object"
+      },
+      "SecondLanguageBreakdownRow": {
+        "properties": {
+          "accepted": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Accepted",
+            "type": "object"
+          },
+          "day": {
+            "title": "Day",
+            "type": "string"
+          },
+          "main_language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Main Language"
+          },
+          "none": {
+            "title": "None",
+            "type": "integer"
+          },
+          "product_id": {
+            "title": "Product Id",
+            "type": "string"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "day",
+          "product_id",
+          "total",
+          "accepted",
+          "none"
+        ],
+        "title": "SecondLanguageBreakdownRow",
+        "type": "object"
+      },
+      "SecondLanguageComboRow": {
+        "description": "``count`` distinct participants of ``main_language`` who were on exactly\n``product_ids`` that ``day``: sum the combos touching a set of products to\ncount each guest once.",
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "day": {
+            "title": "Day",
+            "type": "string"
+          },
+          "main_language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Main Language"
+          },
+          "product_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Product Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "day",
+          "product_ids",
+          "count"
+        ],
+        "title": "SecondLanguageComboRow",
+        "type": "object"
+      },
+      "SecondLanguageCopyIn": {
+        "description": "landr-hdk4y.1: copy one product's second-language settings to others.",
+        "properties": {
+          "target_product_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 200,
+            "minItems": 1,
+            "title": "Target Product Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "target_product_ids"
+        ],
+        "title": "SecondLanguageCopyIn",
         "type": "object"
       },
       "SendConfirmationBody": {
@@ -38724,6 +40687,14 @@
             ],
             "title": "Pitch"
           },
+          "power_ups": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Power Ups",
+            "type": "array"
+          },
           "product_count": {
             "title": "Product Count",
             "type": "integer"
@@ -39266,6 +41237,12 @@
       },
       "StagingHotfixCodeIn": {
         "properties": {
+          "express": {
+            "default": false,
+            "description": "landr-i74li \u2014 express hotfix: after the staging hotfix merged, wait for the staging deploys + health, then have staging create AND approve a Hotfix to production of the same commits on the caller's behalf (held EXPRESS_HOTFIX_HOLD_SECONDS). Release approvers only.",
+            "title": "Express",
+            "type": "boolean"
+          },
           "notes": {
             "anyOf": [
               {
@@ -40505,6 +42482,36 @@
         "title": "TagPatch",
         "type": "object"
       },
+      "TakeIn": {
+        "additionalProperties": false,
+        "properties": {
+          "group_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 500,
+            "title": "Group Ids",
+            "type": "array"
+          },
+          "idempotency_key": {
+            "format": "uuid",
+            "title": "Idempotency Key",
+            "type": "string"
+          },
+          "proposal_id": {
+            "format": "uuid",
+            "title": "Proposal Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "proposal_id",
+          "group_ids",
+          "idempotency_key"
+        ],
+        "title": "TakeIn",
+        "type": "object"
+      },
       "TaxRateCheck": {
         "description": "Is the operator's configured sales-tax rate actually usable against\nthe Holded account this credential belongs to? \u2014 landr-g71ua.1.\n\nA mismatch here used to be undiscoverable until a background sync worker\nhard-failed an invoice days later with an opaque\n``holded_tax_key_unresolved``. The full catalogue is already fetched by\n``preflight()``'s ``accounting:taxes.read`` probe, so answering it at\nconfiguration time \u2014 while the operator is standing in front of the\nIntegrations screen \u2014 costs nothing extra.\n\n``matched=False`` is a WARNING, not an error: the key works, the\ninvoices just cannot be taxed. Holded's v2 API is GET-only for taxes\n(there is no create-tax endpoint), so the resolution is always human \u2014\ncreate the rate in Holded's web UI, or set ``holded_sales_tax_key``.",
         "properties": {
@@ -40796,6 +42803,14 @@
             ],
             "title": "Pitch"
           },
+          "power_ups": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Power Ups",
+            "type": "array"
+          },
           "product_count": {
             "title": "Product Count",
             "type": "integer"
@@ -40909,6 +42924,99 @@
           }
         },
         "title": "TemplatePitchLocale",
+        "type": "object"
+      },
+      "TemplatePowerUpIn": {
+        "additionalProperties": false,
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "title": "TemplatePowerUpIn",
+        "type": "object"
+      },
+      "TemplatePowerUpOut": {
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "required_by": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Required By",
+            "type": "array"
+          },
+          "requires": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Requires",
+            "type": "array"
+          }
+        },
+        "required": [
+          "key",
+          "name",
+          "enabled"
+        ],
+        "title": "TemplatePowerUpOut",
+        "type": "object"
+      },
+      "TemplatePowerUpsOut": {
+        "properties": {
+          "power_ups": {
+            "items": {
+              "$ref": "#/components/schemas/TemplatePowerUpOut"
+            },
+            "title": "Power Ups",
+            "type": "array"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "switched": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Switched",
+            "type": "array"
+          }
+        },
+        "required": [
+          "slug",
+          "power_ups"
+        ],
+        "title": "TemplatePowerUpsOut",
         "type": "object"
       },
       "TemplatePublishIn": {
@@ -46012,6 +48120,88 @@
         ]
       }
     },
+    "/api/internal/playground/history": {
+      "post": {
+        "description": "Live's proposal / take / decline timeline of one operator for a live member (signed).",
+        "operationId": "history",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "History",
+        "tags": [
+          "playground-tier-internal"
+        ]
+      }
+    },
+    "/api/internal/playground/invites": {
+      "post": {
+        "description": "Create the invite on THIS (staging/dev) tier for a live owner's colleague.",
+        "operationId": "receive_invite",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Receive Invite"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Receive Invite",
+        "tags": [
+          "playground-invites-internal"
+        ]
+      }
+    },
+    "/api/internal/playground/proposals": {
+      "post": {
+        "description": "Store a live member's playground proposal for that operator (signed).",
+        "operationId": "proposals",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Proposals",
+        "tags": [
+          "playground-tier-internal"
+        ]
+      }
+    },
+    "/api/internal/playground/setup-bundle": {
+      "post": {
+        "description": "The live setup bundle of one operator for a live member of it (signed).",
+        "operationId": "setup_bundle",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Setup Bundle",
+        "tags": [
+          "playground-tier-internal"
+        ]
+      }
+    },
     "/api/internal/release/changelog": {
       "get": {
         "description": "The control-plane-side implementation of operator_release.get_changelog.\n\nAuth: X-Release-Relay-Token. Returns the FULL entry shape (category,\ndescription, sha, author, url, repo) \u2014 operator_release.py trims to\ncategory/description before handing the untrusted end-user response\nback (``ChangelogEntryOut``); this internal, service-to-service boundary\ncarries the richer data so it isn't lost if a future internal consumer\nneeds it. Also carries ``partial`` straight through (landr-zxgs) \u2014 always\nFalse for the staging/prod tiers this relay is actually ever called with\nin practice (see operator_release.py's module docstring: tier='dev'\nnever relays), but correct if a future internal consumer ever asks this\nendpoint for tier='dev' directly.",
@@ -46247,7 +48437,7 @@
     },
     "/api/internal/release/express-chain": {
       "post": {
-        "description": "Create AND approve a staging_to_main run for a dev express chain.\n\nAuth: HMAC + nonce. 403 ``initiator_not_approver`` \u00b7 409\n``staging_signoff_pending`` / ``staging_to_main_in_flight`` /\n``no_changes`` / ``sha_not_on_staging`` \u00b7 200 ``relayed`` |\n``already_relayed`` (idempotent on source_run_id).",
+        "description": "Create AND approve a staging_to_main run for a dev express chain \u2014 or,\nwith ``kind='prod_hotfix_code'`` + ``picks`` (landr-i74li), a held\nprod_hotfix_code run for a dev express HOTFIX chain (409 ``run_in_flight``\nwhile any run is queued/executing on staging; 409 with the\nresolve_prod_picks code for a bad pick).\n\nAuth: HMAC + nonce. 403 ``initiator_not_approver`` \u00b7 409\n``staging_signoff_pending`` / ``staging_to_main_in_flight`` /\n``no_changes`` / ``sha_not_on_staging`` \u00b7 200 ``relayed`` |\n``already_relayed`` (idempotent on source_run_id).",
         "operationId": "express_chain_relay",
         "responses": {
           "200": {
@@ -46264,6 +48454,30 @@
           }
         },
         "summary": "Express Chain Relay",
+        "tags": [
+          "release-internal"
+        ]
+      }
+    },
+    "/api/internal/release/express-chain/continue": {
+      "post": {
+        "description": "End the hold of the express run now (landr-ijc0o). Auth: HMAC + approver.",
+        "operationId": "express_chain_continue",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Express Chain Continue",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Express Chain Continue",
         "tags": [
           "release-internal"
         ]
@@ -48935,6 +51149,35 @@
         ]
       }
     },
+    "/api/landr-staff/promotions/express-chain/continue": {
+      "post": {
+        "description": "landr-ijc0o \u2014 \"Continue now\": end the hold of the live express chain's\nstaging run. Dev api only, release approvers only; relayed to staging (the\nHMAC authenticates this service, staging re-checks the human is an approver).\n409 unless the chain is relayed and staging's run is still queued.",
+        "operationId": "express_continue_now",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Express Continue Now",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Express Continue Now",
+        "tags": [
+          "landr-staff-promotions"
+        ]
+      }
+    },
     "/api/landr-staff/promotions/local-worktree": {
       "get": {
         "description": "Local working-tree status of the deployable repos \u2014 DEV/Trillian ONLY.\n\nThe env matrix (``/status``) reports against GitHub branch tips, so it shows\na repo \"up to date\" even when Trillian's local checkout has uncommitted or\nunpushed work. This surfaces that gap: per repo, current branch +\nuncommitted/untracked counts + ahead/behind vs ``origin/<branch>`` (read\nfrom LOCAL refs \u2014 no fetch).\n\nHARD GATING (landr local-worktree): this NEVER runs on Cloud Run. It is\nenabled only when ``LANDR_DEV_LOCAL_WORKTREE=1`` is set AND the repos base\ndir exists on disk. When not enabled (every staging/prod service) it returns\n200 ``{\"enabled\": false, \"repos\": []}`` so the dashboard hides the section\ncleanly \u2014 no 404 noise, no error toast. Still staff-gated: a non-staff\nbearer gets the usual 403 even on dev.\n\n``stale`` flags that ahead/behind come from local refs without a fetch, so\nthe numbers may lag the true remote state.",
@@ -49202,7 +51445,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/StagingHotfixCodeIn"
+                "$ref": "#/components/schemas/ProdHotfixCodeIn"
               }
             }
           },
@@ -49368,7 +51611,7 @@
     },
     "/api/landr-staff/promotions/staging-hotfix/code": {
       "post": {
-        "description": "Hotfix to staging (landr-g1d40). Promoter|approver, dev api only.\n\nCreates a queued run that cherry-picks the picked (merged) dev commits\nonto ``hotfix/<run-id>`` off each repo's staging tip (pinned now), merges\nit into ``staging`` \u2014 a conflict fails the run with nothing merged \u2014 and,\nif the landr-api picks touched supabase/migrations, applies them to the\nstaging DB pinned to the new staging SHA. No version/changelog/tag.",
+        "description": "Hotfix to staging (landr-g1d40). Promoter|approver, dev api only.\n\nCreates a queued run that cherry-picks the picked (merged) dev commits\nonto ``hotfix/<run-id>`` off each repo's staging tip (pinned now), merges\nit into ``staging`` \u2014 a conflict fails the run with nothing merged \u2014 and,\nif the landr-api picks touched supabase/migrations, applies them to the\nstaging DB pinned to the new staging SHA. No version/changelog/tag.\n\nlandr-i74li \u2014 ``express=true`` makes it an express hotfix chain\n(app/workers/express_chain.py): approver-only and refused up front by the\nsame gates as Ship to prod (``_enforce_express_allowed`` on the picked\nrepos); the run is created with ``chain_to_main`` and, once staging is\ndeployed and healthy, staging creates the held Hotfix to production.",
         "operationId": "create_staging_hotfix_code",
         "requestBody": {
           "content": {
@@ -50346,6 +52589,120 @@
           }
         ],
         "summary": "Landr Staff Upload Template Hero",
+        "tags": [
+          "landr-staff-templates"
+        ]
+      }
+    },
+    "/api/landr-staff/templates/{slug}/power-ups": {
+      "get": {
+        "operationId": "landr_staff_template_power_ups",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "title": "Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TemplatePowerUpsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Landr Staff Template Power Ups",
+        "tags": [
+          "landr-staff-templates"
+        ]
+      }
+    },
+    "/api/landr-staff/templates/{slug}/power-ups/{key}": {
+      "put": {
+        "description": "Edit the template's set. Staging (and local development) only: production\nreceives templates through the export migrations, set included.",
+        "operationId": "landr_staff_switch_template_power_up",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "title": "Slug",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "title": "Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TemplatePowerUpIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TemplatePowerUpsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Landr Staff Switch Template Power Up",
         "tags": [
           "landr-staff-templates"
         ]
@@ -53070,6 +55427,701 @@
         ]
       }
     },
+    "/api/operators/{operator_id}/playground-proposal": {
+      "get": {
+        "description": "The open proposal from the playground, judged against live now (or ``null``).",
+        "operationId": "get_proposal",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Proposal",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Proposal",
+        "tags": [
+          "operator-playground-review"
+        ]
+      }
+    },
+    "/api/operators/{operator_id}/playground-proposal/decline": {
+      "post": {
+        "description": "Decline the whole proposal; nothing in live changes.",
+        "operationId": "decline_proposal",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeclineIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Decline Proposal",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Decline Proposal",
+        "tags": [
+          "operator-playground-review"
+        ]
+      }
+    },
+    "/api/operators/{operator_id}/playground-proposal/history": {
+      "get": {
+        "description": "Who proposed / took / declined which lines of the playground, and when.",
+        "operationId": "proposal_history",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Proposal History",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Proposal History",
+        "tags": [
+          "operator-playground-review"
+        ]
+      }
+    },
+    "/api/operators/{operator_id}/playground-proposal/review-started": {
+      "post": {
+        "description": "An owner / admin opened the review (first opener recorded; idempotent).",
+        "operationId": "review_started",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewStartedIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Review Started",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Review Started",
+        "tags": [
+          "operator-playground-review"
+        ]
+      }
+    },
+    "/api/operators/{operator_id}/playground-proposal/take": {
+      "post": {
+        "description": "Take the ticked groups (and only those) into live.",
+        "operationId": "take_proposal",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TakeIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Take Proposal",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Take Proposal",
+        "tags": [
+          "operator-playground-review"
+        ]
+      }
+    },
+    "/api/operators/{operator_id}/playground/demo-bookings": {
+      "delete": {
+        "description": "Remove this operator's marked demo bookings (and their payments and demo\nguests). Unmarked bookings are never touched.",
+        "operationId": "remove_demo_bookings",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Remove Demo Bookings",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Remove Demo Bookings",
+        "tags": [
+          "operator-playground"
+        ]
+      },
+      "post": {
+        "operationId": "fill_demo_bookings",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Fill Demo Bookings",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Fill Demo Bookings",
+        "tags": [
+          "operator-playground"
+        ]
+      }
+    },
+    "/api/operators/{operator_id}/playground/diff": {
+      "get": {
+        "description": "Live against this playground as per-line groups (landr-tbzye.2).\n\nDirection comes from the stored per-row baseline of the live rows this\nplayground last took (``operator_playground_baselines``), never from a\nfingerprint: ``live`` / ``here`` / ``both``. A first look seeds the baseline with\nthe rows identical on both tiers; a row the baseline lacks that differs on both\ntiers is ``both`` + ``origin_unknown``, one only live has is ``live``, one only\nhere is ``here`` (proposable). Each group carries lines\n``{table, pk, kind (update|new|delete), live_value, playground_value,\ndirection, origin_unknown, label, area, group_id}`` and ``requires`` (group ids\nto take together). Values are data for escaped text\n(``app/services/playground_diff.py``).",
+        "operationId": "playground_diff_lines",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Playground Diff Lines",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Playground Diff Lines",
+        "tags": [
+          "operator-playground"
+        ]
+      }
+    },
+    "/api/operators/{operator_id}/playground/fetch": {
+      "post": {
+        "description": "Apply the ticked \"Changed in live\" groups to this playground (module doc).",
+        "operationId": "playground_fetch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FetchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Playground Fetch",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Playground Fetch",
+        "tags": [
+          "operator-playground"
+        ]
+      }
+    },
+    "/api/operators/{operator_id}/playground/history": {
+      "get": {
+        "description": "The Playground history: fetches here + live's proposals / takes / declines.\n\n``{events, live: {connected, reason}}``; each event is\n``{id, kind: fetch|proposal|take|decline, direction: to_playground|to_live, at,\nactor_name, proposal_id, proposal_status, group_count, line_count, groups}``\n(labels and counts, never a value). Same members as the rest of the panel.",
+        "operationId": "playground_history_timeline",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Playground History Timeline",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Playground History Timeline",
+        "tags": [
+          "operator-playground"
+        ]
+      }
+    },
+    "/api/operators/{operator_id}/playground/live-bundle": {
+      "get": {
+        "description": "This operator's LIVE setup bundle, for a member of it on both tiers.",
+        "operationId": "live_bundle",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Live Bundle",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Live Bundle",
+        "tags": [
+          "operator-playground"
+        ]
+      }
+    },
+    "/api/operators/{operator_id}/playground/proposals": {
+      "post": {
+        "description": "Send the ticked \"Changed here, not in live\" groups to live as a proposal.",
+        "operationId": "propose_for_live",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlaygroundProposeIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaygroundProposeOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Propose For Live",
+        "tags": [
+          "operator-playground"
+        ]
+      }
+    },
+    "/api/operators/{operator_id}/playground/status": {
+      "get": {
+        "description": "Whether this caller can use the channel right now (no call to live).",
+        "operationId": "playground_status",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Playground Status",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Playground Status",
+        "tags": [
+          "operator-playground"
+        ]
+      }
+    },
     "/api/operators/{operator_id}/products/{product_id}/eligibility-rules": {
       "patch": {
         "description": "Set \"who can book\" (``products.eligibility_rules``; null = everyone). 404\n``referenced_row_not_found`` for a product that is not this operator's, or\n(field ``rules``) a guest-attribute key outside the operator's catalogue or a\nproduct / season of another operator.",
@@ -53135,6 +56187,138 @@
         "summary": "Patch Product Eligibility Rules",
         "tags": [
           "staff-product-offers"
+        ]
+      }
+    },
+    "/api/operators/{operator_id}/products/{product_id}/suggestions": {
+      "get": {
+        "description": "The product's suggestion links in order.",
+        "operationId": "list_product_suggestions",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Product Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProductSuggestion"
+                  },
+                  "title": "Response List Product Suggestions",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Product Suggestions",
+        "tags": [
+          "staff-product-suggestions"
+        ]
+      },
+      "put": {
+        "description": "Replace the product's suggestion links with ``suggested_product_ids``\n(de-duplicated, first occurrence wins; the list order is the hint order).",
+        "operationId": "put_product_suggestions",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Product Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductSuggestionsIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProductSuggestion"
+                  },
+                  "title": "Response Put Product Suggestions",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Put Product Suggestions",
+        "tags": [
+          "staff-product-suggestions"
         ]
       }
     },
@@ -55718,6 +58902,63 @@
         "summary": "Get Pass Tiers",
         "tags": [
           "public-passes"
+        ]
+      }
+    },
+    "/api/public/operators/{token}/products/{product_id}/suggestions": {
+      "get": {
+        "description": "The product's cross-sell hints; ``[]`` when the operator has them off or\nthe product is not the operator's. 404 only for an unknown widget token.",
+        "operationId": "public_get_product_suggestions",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Product Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProductHint"
+                  },
+                  "title": "Response Public Get Product Suggestions",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Product Suggestions",
+        "tags": [
+          "public-product-suggestions"
         ]
       }
     },
@@ -59224,7 +62465,7 @@
     },
     "/api/staff/operators/{operator_id}/agent-earnings": {
       "get": {
-        "description": "List the operator's agent commission rows, newest first.\n\nSource: ``commissions WHERE recipient_kind='agent'`` (landr-xnbfe.4).\nOptional filters: agent_user_id, status_filter (accrued|paid|reversed).\nRead-only \u2014 earnings accrue via recipient_commission_drain, not this API.",
+        "description": "List the operator's agent commission rows, newest first.\n\nSource: ``commissions WHERE recipient_kind='agent'`` (landr-xnbfe.4).\nOptional filters: agent_user_id, status_filter (projected|earned|paid|\nreversed|held|no_commission). Each row also carries ``status_label``\n(projected|held|earned|paid|dropped|reversed|no_commission; ``reversed``\nrows split into dropped / reversed by the last lifecycle entry) and its\n``open_adjustments`` (not yet netted into a payout) with their total\n(landr-xnbfe.39).\nRead-only \u2014 earnings accrue via recipient_commission_drain, not this API.",
         "operationId": "list_agent_earnings",
         "parameters": [
           {
@@ -59260,9 +62501,13 @@
               "anyOf": [
                 {
                   "enum": [
+                    "projected",
+                    "earned",
                     "accrued",
                     "paid",
-                    "reversed"
+                    "reversed",
+                    "held",
+                    "no_commission"
                   ],
                   "type": "string"
                 },
@@ -59324,7 +62569,7 @@
     },
     "/api/staff/operators/{operator_id}/agent-earnings/summary": {
       "get": {
-        "description": "Per-agent accrued/paid/reversed commission totals for the operator.\n\nAggregates the agent commissions rows (``commissions WHERE\nrecipient_kind='agent'``, landr-xnbfe.4) by recipient_user_id\nand status. Returns one row per agent with the three status buckets\n(+ currency, which is uniform per agent in practice). Read-only.\n\nDone in-Python over the operator's earning rows rather than via a\nSQL GROUP BY because the supabase REST client doesn't expose\naggregate grouping; the row volume per operator is small (one row\nper agent\u00d7booking) and bounded by the same row guard.",
+        "description": "Per-agent commission totals for the operator, by lifecycle status.\n\nOne row per Sales agent and currency, aggregated IN SQL\n(``agent_payout_summary``, landr-xnbfe.5) over ``commissions WHERE\nrecipient_kind='agent'`` of this operator, with the agent's ``display_name``\nand ``email``. ``earned_total`` is what the customer's payments have earned\nand is not yet paid out (earned_amount), ``projected_total`` the rest of the\nexpected commission, ``accrued_total`` the pre-lifecycle label,\n``paid_total`` what payouts paid. ``dropped_total`` is the part of\n``reversed_total`` cancelled before the customer paid; ``held_total`` /\n``held_count`` / ``no_commission_count`` keep paused-agent and zero-term\nbookings visible; ``open_adjustments_total`` the signed sum of the agent's\nadjustments not yet netted into a payout (negative = to be deducted);\n``payable_total`` = earned + open adjustments, what Mark paid would pay.\n\n``period=YYYY-MM`` narrows the rows to the bookings of that payout month\n(the month of the booking's cancellation_deadline in the operator's\ntimezone, the same predicate mark-paid claims by) and adds the month's\nlatest paid ``batch_id`` / ``batch_status`` (null when none). Read-only.",
         "operationId": "agent_earnings_summary",
         "parameters": [
           {
@@ -59334,6 +62579,23 @@
             "schema": {
               "title": "Operator Id",
               "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "period",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^\\d{4}-(0[1-9]|1[0-2])$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Period"
             }
           }
         ],
@@ -59372,6 +62634,668 @@
         "summary": "Agent Earnings Summary",
         "tags": [
           "staff-commission"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/agent-groups": {
+      "get": {
+        "operationId": "list_agent_groups",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AgentGroupOut"
+                  },
+                  "title": "Response List Agent Groups",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Agent Groups",
+        "tags": [
+          "staff-agent-rates"
+        ]
+      },
+      "post": {
+        "operationId": "create_agent_group",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentGroupIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentGroupOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Agent Group",
+        "tags": [
+          "staff-agent-rates"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/agent-groups/{group_id}": {
+      "delete": {
+        "operationId": "delete_agent_group",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "title": "Group Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Delete Agent Group",
+        "tags": [
+          "staff-agent-rates"
+        ]
+      },
+      "patch": {
+        "operationId": "patch_agent_group",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "title": "Group Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentGroupPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentGroupOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Patch Agent Group",
+        "tags": [
+          "staff-agent-rates"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/agent-groups/{group_id}/rates": {
+      "get": {
+        "operationId": "get_agent_group_rates",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "title": "Group Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentRateTermsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Agent Group Rates",
+        "tags": [
+          "staff-agent-rates"
+        ]
+      },
+      "put": {
+        "operationId": "put_agent_group_rates",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "title": "Group Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentRateTermsIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentRateTermsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Put Agent Group Rates",
+        "tags": [
+          "staff-agent-rates"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/agent-invites": {
+      "post": {
+        "description": "Add Sales agent (landr-xnbfe.27): invite + pending contract + referral\ntoken in one transaction; the response carries the link to print.",
+        "operationId": "create_agent_invite",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentInviteBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Create Agent Invite",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Agent Invite",
+        "tags": [
+          "staff-invites"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/agent-rate-defaults": {
+      "get": {
+        "operationId": "get_agent_rate_defaults",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentRateDefaultsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Agent Rate Defaults",
+        "tags": [
+          "staff-agent-rates"
+        ]
+      },
+      "put": {
+        "operationId": "put_agent_rate_defaults",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentRateDefaultsIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentRateDefaultsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Put Agent Rate Defaults",
+        "tags": [
+          "staff-agent-rates"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/agent/bookings": {
+      "get": {
+        "description": "The operator's bookings attributed to an agent, newest first.\n\nAn agent (alone or combined with another non-owner role) reads only their\nown; an owner/admin reads every agent's and may filter with ``agent_user_id``.",
+        "operationId": "staff_agent_bookings_list",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "agent_user_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Agent User Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 200,
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "title": "Response Staff Agent Bookings List",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Agent Bookings",
+        "tags": [
+          "staff-agent-portal"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/agent/earnings": {
+      "get": {
+        "description": "An agent's commission rows with the booking they came from, plus totals.\n\n``totals`` = projected (expected, customer not paid yet) / earned (the\ncustomer has paid) / paid (paid out) / held (a link booking through a paused\nagent), summed over the FULL scoped set; ``rows`` is the newest ``limit`` of\nit and ``truncated`` says the list is shorter than the set the totals\ncover. Rows on a soft-deleted booking are hidden like My bookings hides the\nbooking, except those still carrying money. The same scoping as the\nbookings list.",
+        "operationId": "staff_agent_earnings_list",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "agent_user_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Agent User Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 500,
+              "maximum": 1000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Staff Agent Earnings List",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Agent Earnings",
+        "tags": [
+          "staff-agent-portal"
         ]
       }
     },
@@ -62744,6 +66668,84 @@
         "summary": "Dismiss Offer Unsent",
         "tags": [
           "staff-bookings"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/participants/{participant_id}/accepted-languages": {
+      "patch": {
+        "description": "Set (or clear) the other guiding languages a participant accepts\n(``booking_participants.accepted_languages``, landr-hdk4y.1) \u2014 the\nstaff-side correction next to the language override above.\n\nNeeds the ``second_guiding_language`` feature (403 ``feature_disabled``).\nEvery value must be one of the booking's guide languages when the booking\nhas a restricted set (422 ``participant_accepted_languages_invalid``). The\nparticipant's effective main language is dropped from the list by the\ndatabase in the same statement, so it never contains it.",
+        "operationId": "staff_patch_participant_accepted_languages",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "title": "Booking Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "participant_id",
+            "required": true,
+            "schema": {
+              "title": "Participant Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AcceptedLanguagesPatchIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Staff Patch Participant Accepted Languages",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Patch Participant Accepted Languages",
+        "tags": [
+          "staff-participant-day-state"
         ]
       }
     },
@@ -66509,6 +70511,66 @@
         ]
       }
     },
+    "/api/staff/operators/{operator_id}/commissions/payouts/mark-paid": {
+      "post": {
+        "description": "Mark one Sales agent's earned commission for a month as paid.\n\nCreates a NEW paid batch (never reuses one) and claims the agent's EARNED,\nunbatched commissions of ``period`` plus their open adjustments, all in one\ntransaction. 404 ``agent_not_found`` when the user has no agent contract at\nthis operator, 409 ``nothing_to_pay`` when nothing is earned in the month\n(or open reversals outweigh it). Held, projected and reversed rows are\nnever payable. owner / admin / finance.",
+        "operationId": "commission_mark_payout_paid",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PayoutMarkPaidIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Commission Mark Payout Paid",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Mark Payout Paid",
+        "tags": [
+          "staff-commission"
+        ]
+      }
+    },
     "/api/staff/operators/{operator_id}/company-inquiry": {
       "get": {
         "operationId": "get_latest_company_inquiry",
@@ -67279,6 +71341,54 @@
         ]
       }
     },
+    "/api/staff/operators/{operator_id}/contracts/me/agent-rates": {
+      "get": {
+        "description": "landr-xnbfe.25: the caller's OWN effective Sales agent terms at this\noperator (their open agent contract, filtered by operator AND user) --\nthe only way an agent reads rates (agent_rate_terms RLS shows them none).",
+        "operationId": "my_agent_rates",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyAgentRatesOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "My Agent Rates",
+        "tags": [
+          "staff-contracts"
+        ]
+      }
+    },
     "/api/staff/operators/{operator_id}/contracts/{contract_id}": {
       "patch": {
         "operationId": "patch_contract",
@@ -67345,6 +71455,128 @@
         ]
       }
     },
+    "/api/staff/operators/{operator_id}/contracts/{contract_id}/agent-rates": {
+      "get": {
+        "description": "landr-xnbfe.25: an agent contract's own terms and what applies.",
+        "operationId": "get_contract_agent_rates",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contract_id",
+            "required": true,
+            "schema": {
+              "title": "Contract Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentRatesOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Contract Agent Rates",
+        "tags": [
+          "staff-contracts"
+        ]
+      },
+      "put": {
+        "description": "landr-xnbfe.25: replace an agent contract's own terms atomically; []\nremoves them so the group / default terms apply. Bookings already made\nkeep their frozen snapshot.",
+        "operationId": "put_contract_agent_rates",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contract_id",
+            "required": true,
+            "schema": {
+              "title": "Contract Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentRateTermsIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentRatesOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Put Contract Agent Rates",
+        "tags": [
+          "staff-contracts"
+        ]
+      }
+    },
     "/api/staff/operators/{operator_id}/contracts/{contract_id}/end": {
       "post": {
         "operationId": "end_contract",
@@ -67398,6 +71630,132 @@
         "summary": "End Contract",
         "tags": [
           "staff-contracts"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/contracts/{contract_id}/held-link-bookings": {
+      "get": {
+        "operationId": "list_held_link_bookings",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contract_id",
+            "required": true,
+            "schema": {
+              "title": "Contract Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/HeldLinkBookingOut"
+                  },
+                  "title": "Response List Held Link Bookings",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Held Link Bookings",
+        "tags": [
+          "staff-link-booking-decision"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/contracts/{contract_id}/link-booking-decision": {
+      "post": {
+        "operationId": "decide_link_booking",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contract_id",
+            "required": true,
+            "schema": {
+              "title": "Contract Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecisionIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Decide Link Booking",
+        "tags": [
+          "staff-link-booking-decision"
         ]
       }
     },
@@ -73776,6 +78134,65 @@
         ]
       }
     },
+    "/api/staff/operators/{operator_id}/playground-invites": {
+      "post": {
+        "operationId": "invite_to_playground",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlaygroundInviteIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Invite To Playground",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Invite To Playground",
+        "tags": [
+          "playground-invites"
+        ]
+      }
+    },
     "/api/staff/operators/{operator_id}/presets": {
       "get": {
         "deprecated": true,
@@ -77298,6 +81715,75 @@
         "summary": "Patch Product Requirement",
         "tags": [
           "staff-staffing"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/products/{product_id}/second-language-settings/copy": {
+      "post": {
+        "description": "landr-hdk4y.1: copy this product's mode / preferred list / options to\nother products of the SAME operator (\"Apply to other products\").\n\nNeeds the ``second_guiding_language`` feature (403 ``feature_disabled``).\nThe preferred list is intersected with each target's own guide languages\n(a restricted set; ``[]`` = any language keeps the whole list), so the\nsubset invariant holds. A target that is not one of this operator's live\nservice products is reported under ``skipped`` (never written, never\nrevealing another operator's rows). Idempotent.",
+        "operationId": "copy_second_language_settings",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "title": "Product Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SecondLanguageCopyIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Copy Second Language Settings",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Copy Second Language Settings",
+        "tags": [
+          "staff-products"
         ]
       }
     },
@@ -83934,6 +88420,106 @@
         ]
       }
     },
+    "/api/staff/operators/{operator_id}/second-language-breakdown": {
+      "get": {
+        "operationId": "staff_second_language_breakdown",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "from",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "From",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "To",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "approval",
+            "required": false,
+            "schema": {
+              "default": "both",
+              "enum": [
+                "approved",
+                "unapproved",
+                "both"
+              ],
+              "title": "Approval",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "language",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 2,
+                  "minLength": 2,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Language"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SecondLanguageBreakdownOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Second Language Breakdown",
+        "tags": [
+          "staff-second-language"
+        ]
+      }
+    },
     "/api/staff/operators/{operator_id}/service-roles": {
       "get": {
         "description": "List the operator's service roles ordered by sort_order.\n\nIncludes inactive roles (so the manager can re-activate them); only\nsoft-deleted rows are hidden.",
@@ -87010,6 +91596,139 @@
         "summary": "Rotate Operator Widget Token",
         "tags": [
           "staff-operator-widget-token"
+        ]
+      }
+    },
+    "/api/staff/power-ups": {
+      "get": {
+        "description": "Every active Power-up with its state for the caller's operator.",
+        "operationId": "list_power_ups",
+        "parameters": [
+          {
+            "description": "The operator to act on. Required when the caller belongs to more than one operator (400 operator_id_required); optional otherwise.",
+            "in": "query",
+            "name": "operator_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The operator to act on. Required when the caller belongs to more than one operator (400 operator_id_required); optional otherwise.",
+              "title": "Operator Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PowerUpListOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Power Ups",
+        "tags": [
+          "staff-power-ups"
+        ]
+      }
+    },
+    "/api/staff/power-ups/{key}": {
+      "put": {
+        "description": "Switch one Power-up on or off (owner / admin).",
+        "operationId": "switch_power_up",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "title": "Key",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The operator to act on. Required when the caller belongs to more than one operator (400 operator_id_required); optional otherwise.",
+            "in": "query",
+            "name": "operator_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The operator to act on. Required when the caller belongs to more than one operator (400 operator_id_required); optional otherwise.",
+              "title": "Operator Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PowerUpSwitchIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PowerUpSwitchOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Switch Power Up",
+        "tags": [
+          "staff-power-ups"
         ]
       }
     },
