@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { getProductSuggestions } from '@/api/client'
 import type { ProductHint } from '@/api/types'
+import { CROSS_SELL_HINTS_SLOT_ID } from './alternativesSlot'
 import { CrossSellHintCards, HINT_FLASH_MS, HINT_NONE_LEFT_MS } from './CrossSellHintCards'
 
 vi.mock('@/api/client', () => ({ getProductSuggestions: vi.fn() }))
@@ -93,5 +94,56 @@ describe('CrossSellHintCards', () => {
     expect(screen.queryByTestId('cross-sell-checked')).toBeNull()
     act(() => void vi.advanceTimersByTime(HINT_NONE_LEFT_MS))
     expect(screen.queryByTestId('cross-sell-hints')).toBeNull()
+  })
+
+  it('keeps the button when the check could not run', async () => {
+    vi.mocked(getProductSuggestions).mockResolvedValue([hint('a')])
+    render(
+      <CrossSellHintCards
+        operatorToken="tok"
+        productId="main"
+        onOpen={vi.fn()}
+        onCheckAvailability={async () => ({})}
+      />,
+    )
+    await act(async () => {})
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('cross-sell-check'))
+    })
+    expect(screen.queryByTestId('cross-sell-checked')).toBeNull()
+    expect(screen.getByTestId('cross-sell-check')).toHaveTextContent('Check availability')
+  })
+
+  it('ignores a second tap on a chip while its check runs', async () => {
+    vi.mocked(getProductSuggestions).mockResolvedValue([hint('a')])
+    let release: (v: Record<string, boolean>) => void = () => {}
+    const onCheck = vi.fn(() => new Promise<Record<string, boolean>>((r) => (release = r)))
+    const onOpen = vi.fn()
+    render(
+      <CrossSellHintCards
+        operatorToken="tok"
+        productId="main"
+        onOpen={onOpen}
+        onCheckAvailability={onCheck}
+      />,
+    )
+    await act(async () => {})
+    const chip = screen.getByTestId('cross-sell-hint-a')
+    fireEvent.click(chip)
+    fireEvent.click(chip)
+    expect(onCheck).toHaveBeenCalledTimes(1)
+    await act(async () => release({ a: true }))
+    expect(onOpen).toHaveBeenCalledTimes(1)
+  })
+
+  it('moves under the total when the price rail mounts after the block', async () => {
+    await setup([hint('a')], {})
+    const slot = document.createElement('div')
+    slot.id = CROSS_SELL_HINTS_SLOT_ID
+    await act(async () => {
+      document.body.appendChild(slot)
+    })
+    expect(slot.querySelector('[data-testid="cross-sell-hints"]')).not.toBeNull()
+    slot.remove()
   })
 })

@@ -70,6 +70,7 @@ export function CrossSellHintCards({
   const [slot, setSlot] = useState<HTMLElement | null>(null)
   const timers = useRef<number[]>([])
   const goneRef = useRef<string[]>([])
+  const inFlight = useRef<Set<string>>(new Set())
 
   useEffect(() => {
     let live = true
@@ -85,13 +86,17 @@ export function CrossSellHintCards({
     }
   }, [operatorToken, productId])
 
-  // The price rail renders after the step content, so its slot is looked up
-  // once mounted.
+  // The price rail may mount before or after this block (and remount), so
+  // its slot is tracked with an observer rather than looked up once.
   useEffect(() => {
-    const id = requestAnimationFrame(() =>
-      setSlot(document.getElementById(CROSS_SELL_HINTS_SLOT_ID)),
-    )
-    return () => cancelAnimationFrame(id)
+    const sync = () => {
+      const el = document.getElementById(CROSS_SELL_HINTS_SLOT_ID)
+      setSlot((prev) => (prev === el ? prev : el))
+    }
+    sync()
+    const observer = new MutationObserver(sync)
+    observer.observe(document.body, { childList: true, subtree: true })
+    return () => observer.disconnect()
   }, [])
 
   useEffect(() => {
@@ -134,17 +139,22 @@ export function CrossSellHintCards({
       result = {}
     }
     setChecking(false)
+    // No answer for a chip means no check ran: keep the button for a retry.
+    if (targets.some((h) => result[h.product_id] === undefined)) return
     setChecked(true)
     retire(targets.filter((h) => result[h.product_id] === false).map((h) => h.product_id))
   }
 
   const pick = async (hint: ProductHint) => {
-    if (flashing.includes(hint.product_id)) return
+    if (flashing.includes(hint.product_id) || inFlight.current.has(hint.product_id)) return
+    inFlight.current.add(hint.product_id)
     let result: Record<string, boolean>
     try {
       result = await onCheckAvailability([hint])
     } catch {
       result = {}
+    } finally {
+      inFlight.current.delete(hint.product_id)
     }
     if (result[hint.product_id] === false) retire([hint.product_id])
     else onOpen(hint)
