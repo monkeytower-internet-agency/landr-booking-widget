@@ -36,6 +36,7 @@ import { checkoutPaymentTermsNote, type CheckoutPaymentTerms } from '@/lib/payme
 import {
   ALTERNATIVE_BACK_SLOT_ID,
   ALTERNATIVES_SLOT_ID,
+  CROSS_SELL_HINTS_SLOT_ID,
 } from '@/components/booking/alternativesSlot'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronUp, RefreshCw } from 'lucide-react'
@@ -969,6 +970,7 @@ export default function PriceSidebar(props: Props) {
             top margin (on top of the rail's gap) keeps it clear of the total,
             so it never reads as part of the price (landr-p2du5). */}
         <div className="mt-4 flex flex-col gap-4">
+          <div id={CROSS_SELL_HINTS_SLOT_ID} data-testid="cross-sell-hints-desktop-slot" className="empty:hidden" />
           {/* landr-d9qs8: the way back after an alternative switch sits where
               the tapped row was, above the new product's own alternatives. */}
           <div id={ALTERNATIVE_BACK_SLOT_ID} data-testid="alternative-back-desktop-slot" className="empty:hidden" />

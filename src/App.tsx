@@ -2197,6 +2197,65 @@ function BookingFlowApp() {
       }),
     )
   }
+  // The product's own availability on the booking's dates and party: the one
+  // check behind both the hint chips' "Check availability" and the tap. null =
+  // superseded by a newer switch. A failed read counts as available (the
+  // product's own date step re-checks); a sold-out or unbookable product does not.
+  const hintSoldOut = async (
+    target: Product,
+    carry: { days: string[]; seats: number },
+    seq: number,
+  ): Promise<boolean | null> => {
+    const checkDays =
+      target.service_time_shape === 'fixed_window'
+        ? []
+        : target.service_time_shape === 'days_range'
+          ? carry.days
+          : carry.days.slice(0, 1)
+    let soldOut = !isBookable(target)
+    if (!soldOut && checkDays.length > 0) {
+      try {
+        const sorted = [...checkDays].sort()
+        const slots = await getAvailability(
+          target.product_id,
+          sorted[0] as string,
+          sorted[sorted.length - 1] as string,
+        )
+        if (seq !== switchSeqRef.current) return null
+        soldOut = unavailableDaysFor(slots, checkDays, carry.seats).length > 0
+      } catch {
+        // see above
+      }
+    }
+    return soldOut
+  }
+  const onCheckCrossSellHints = async (
+    hints: ProductHint[],
+    carry: { days: string[]; seats: number },
+  ): Promise<Record<string, boolean>> => {
+    if (!token) return {}
+    let products: Product[]
+    try {
+      products = await listProducts(token)
+    } catch {
+      return {}
+    }
+    const seq = switchSeqRef.current
+    const out: Record<string, boolean> = {}
+    await Promise.all(
+      hints.map(async (hint) => {
+        const target = products.find((p) => p.product_id === hint.product_id)
+        // A product the catalogue no longer lists cannot be opened: not available.
+        if (!target) {
+          out[hint.product_id] = false
+          return
+        }
+        const soldOut = await hintSoldOut(target, carry, seq)
+        out[hint.product_id] = soldOut === null ? true : !soldOut
+      }),
+    )
+    return out
+  }
   // landr-f210e.5: a tapped cross-sell hint card. The airline model: the
   // suggested product opens as its OWN booking with the dates and party carried
   // over and its own availability check; the review the guest left stays as it
@@ -2220,26 +2279,8 @@ function BookingFlowApp() {
     if (!target) return
     // A course takes its own windows, not carried days: its date step opens empty.
     const takesDays = target.service_time_shape !== 'fixed_window'
-    const checkDays = !takesDays
-      ? []
-      : target.service_time_shape === 'days_range'
-        ? carry.days
-        : carry.days.slice(0, 1)
-    let soldOut = !isBookable(target)
-    if (!soldOut && checkDays.length > 0) {
-      try {
-        const sorted = [...checkDays].sort()
-        const slots = await getAvailability(
-          target.product_id,
-          sorted[0] as string,
-          sorted[sorted.length - 1] as string,
-        )
-        if (seq !== switchSeqRef.current) return
-        soldOut = unavailableDaysFor(slots, checkDays, carry.seats).length > 0
-      } catch {
-        // The product's own date step re-checks; a failed read must not block the tap.
-      }
-    }
+    const soldOut = await hintSoldOut(target, carry, seq)
+    if (soldOut === null) return
     alternativeSwitchRef.current = true
     setAlternativeOrigin(null)
     setAlternativeBack({
@@ -2561,7 +2602,19 @@ function BookingFlowApp() {
           The "back to categories" link is part of the pick-product surface,
           so it lives inside.
         */}
-        <BreadcrumbNavContext.Provider value={breadcrumbNav}>
+        <BreadcrumbNavContext.Provider
+          value={
+            showAlternativeBack && hintReturnCart !== null
+              ? {
+                  ...breadcrumbNav,
+                  detourBack: {
+                    label: tr('crossSellBackToBooking', browserLocale()),
+                    onBack: goBackFromAlternative,
+                  },
+                }
+              : breadcrumbNav
+          }
+        >
         <StepTransition stepKey={step.name}>
         {/*
           landr-d8rg.4: category entrance — shown when the operator has >1
@@ -2748,7 +2801,7 @@ function BookingFlowApp() {
           pickedGroupSlug); a top-level ?product= deep link has no
           catalogue to go back to.
         */}
-        {showAlternativeBack && alternativeBack ? (
+        {showAlternativeBack && alternativeBack && hintReturnCart === null ? (
           <AlternativeBackButton
             productName={pickLocalized(
               alternativeBack.from.product.name,
@@ -3938,6 +3991,7 @@ function BookingFlowApp() {
             crossSellEnabled={operatorSettings.widget_cross_sell_enabled !== false}
             crossSellHintsEnabled={operatorSettings.cross_sell_hints_enabled === true}
             onOpenCrossSellHint={onOpenCrossSellHint}
+            onCheckCrossSellHints={onCheckCrossSellHints}
             inlineAnswers={inlineAnswers}
             onInlineAnswersChange={setInlineAnswers}
             // landr-rmcsu.5: keep the committed dates (like Back does) so the

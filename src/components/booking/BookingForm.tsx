@@ -295,6 +295,14 @@ interface Props {
     carry: { days: string[]; seats: number },
   ) => void
   /**
+   * The suggested products' own availability check on the booking's dates and
+   * party (product id -> available). Required for the hint block to render.
+   */
+  onCheckCrossSellHints?: (
+    hints: ProductHint[],
+    carry: { days: string[]; seats: number },
+  ) => Promise<Record<string, boolean>>
+  /**
    * landr-sbhz.3: pre-booking customer declarations. When present,
    * both fields are included in the submit body. Omitted for operators
    * that have not adopted the declarations feature.
@@ -1162,6 +1170,7 @@ export function BookingForm({
   estimateItems = null,
   crossSellEnabled = true,
   crossSellHintsEnabled = false,
+  onCheckCrossSellHints,
   onOpenCrossSellHint,
   customerDeclarations,
   customerLanguages,
@@ -2884,12 +2893,18 @@ export function BookingForm({
           />
         )}
 
-        {crossSellHintsEnabled && onOpenCrossSellHint ? (
+        {crossSellHintsEnabled && onOpenCrossSellHint && onCheckCrossSellHints ? (
           <CrossSellHintCards
             operatorToken={widgetToken}
             productId={product.product_id}
             onOpen={(hint) =>
               onOpenCrossSellHint(hint, {
+                days: mainDays,
+                seats: seatsNeeded(participants.length, companions, product.invite_hold_hours),
+              })
+            }
+            onCheckAvailability={(hints) =>
+              onCheckCrossSellHints(hints, {
                 days: mainDays,
                 seats: seatsNeeded(participants.length, companions, product.invite_hold_hours),
               })

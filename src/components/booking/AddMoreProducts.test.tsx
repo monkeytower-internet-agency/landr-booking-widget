@@ -114,12 +114,14 @@ function Harness({
   off,
   hints,
   onOpenHint,
+  onCheckHints,
 }: {
   main?: Product
   participantLanguages?: Record<number, string>
   off?: boolean
   hints?: boolean
   onOpenHint?: React.ComponentProps<typeof BookingForm>['onOpenCrossSellHint']
+  onCheckHints?: React.ComponentProps<typeof BookingForm>['onCheckCrossSellHints']
 }) {
   const [lines, setLines] = useState<ExtraLine[]>([])
   return (
@@ -136,6 +138,10 @@ function Harness({
       crossSellEnabled={!off}
       crossSellHintsEnabled={hints}
       onOpenCrossSellHint={onOpenHint}
+      onCheckCrossSellHints={
+        onCheckHints ??
+        (async (hs) => Object.fromEntries(hs.map((h) => [h.product_id, true])))
+      }
       onBack={vi.fn()}
       onConfirmed={vi.fn()}
     />
@@ -768,16 +774,18 @@ describe('cross-sell hint cards (landr-f210e.5)', () => {
     // The review step is up before (and independently of) the suggestions.
     await screen.findByRole('button', { name: /Confirm booking/i })
     const card = await screen.findByTestId('cross-sell-hint-camping')
-    expect(card).toHaveTextContent('You might also like Camping')
+    expect(card).toHaveTextContent('Camping')
     expect(card).toHaveTextContent(/from/i)
     expect(getProductSuggestions).toHaveBeenCalledWith('tok', 'main')
     // The in-tree parent-less offer is gone while hints are on.
     expect(screen.queryByTestId('add-more-candidate-camping')).toBeNull()
     fireEvent.click(card)
-    expect(onOpenHint).toHaveBeenCalledWith(hint, {
-      days: ['2026-11-02', '2026-11-03'],
-      seats: 1,
-    })
+    await waitFor(() =>
+      expect(onOpenHint).toHaveBeenCalledWith(hint, {
+        days: ['2026-11-02', '2026-11-03'],
+        seats: 1,
+      }),
+    )
   })
 
   it('shows no cards, and does not break the step, when the suggestions fail', async () => {

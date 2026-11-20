@@ -40,6 +40,23 @@ interface Props {
  */
 export function StepBackButton({ onBack, label = tr('backLabel', browserLocale()) }: Props) {
   const nav = useBreadcrumbNav()
+  if (nav?.detourBack) {
+    return (
+      <div className="mb-2 px-6 pt-2">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={nav.detourBack.onBack}
+          data-testid="step-back-button"
+          className="-ml-2 h-8 gap-1 px-2 text-muted-foreground hover:text-foreground"
+        >
+          <ChevronLeftIcon className="size-4" aria-hidden />
+          {nav.detourBack.label}
+        </Button>
+      </div>
+    )
+  }
   if (nav && nav.items.length > 1) {
     return (
       <StepBreadcrumb
