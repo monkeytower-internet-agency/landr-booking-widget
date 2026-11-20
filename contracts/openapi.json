@@ -26704,6 +26704,256 @@
         "title": "PlaygroundInviteIn",
         "type": "object"
       },
+      "PlaygroundLeftOut": {
+        "properties": {
+          "columns": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Columns",
+            "type": "array"
+          },
+          "group_id": {
+            "title": "Group Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "pk": {
+            "title": "Pk",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "table": {
+            "title": "Table",
+            "type": "string"
+          }
+        },
+        "required": [
+          "group_id",
+          "table",
+          "pk",
+          "label",
+          "columns",
+          "reason"
+        ],
+        "title": "PlaygroundLeftOut",
+        "type": "object"
+      },
+      "PlaygroundProposeIn": {
+        "additionalProperties": false,
+        "properties": {
+          "group_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 500,
+            "minItems": 1,
+            "title": "Group Ids",
+            "type": "array"
+          },
+          "idempotency_key": {
+            "format": "uuid",
+            "title": "Idempotency Key",
+            "type": "string"
+          },
+          "live_fingerprint_seen": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Live Fingerprint Seen"
+          },
+          "replaces_proposal_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Replaces Proposal Id"
+          },
+          "seen": {
+            "additionalProperties": {
+              "items": {
+                "$ref": "#/components/schemas/PlaygroundSeenLine"
+              },
+              "type": "array"
+            },
+            "title": "Seen",
+            "type": "object"
+          }
+        },
+        "required": [
+          "group_ids",
+          "idempotency_key",
+          "seen"
+        ],
+        "title": "PlaygroundProposeIn",
+        "type": "object"
+      },
+      "PlaygroundProposeOut": {
+        "properties": {
+          "created": {
+            "title": "Created",
+            "type": "boolean"
+          },
+          "left_out": {
+            "items": {
+              "$ref": "#/components/schemas/PlaygroundLeftOut"
+            },
+            "title": "Left Out",
+            "type": "array"
+          },
+          "live_fingerprint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Live Fingerprint"
+          },
+          "proposal_id": {
+            "title": "Proposal Id",
+            "type": "string"
+          },
+          "proposed_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Proposed At"
+          },
+          "proposed_group_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Proposed Group Ids",
+            "type": "array"
+          },
+          "proposed_lines": {
+            "title": "Proposed Lines",
+            "type": "integer"
+          },
+          "replaced_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Replaced At"
+          },
+          "replaced_proposal_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Replaced Proposal Id"
+          },
+          "replaced_proposed_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Replaced Proposed At"
+          }
+        },
+        "required": [
+          "proposal_id",
+          "created",
+          "proposed_group_ids",
+          "proposed_lines",
+          "left_out"
+        ],
+        "title": "PlaygroundProposeOut",
+        "type": "object"
+      },
+      "PlaygroundSeenLine": {
+        "description": "A line as the panel showed it (only to notice a change since; never sent on).",
+        "properties": {
+          "kind": {
+            "enum": [
+              "update",
+              "new",
+              "delete"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "live_value": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Live Value"
+          },
+          "pk": {
+            "maxLength": 400,
+            "title": "Pk",
+            "type": "string"
+          },
+          "playground_value": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Playground Value"
+          },
+          "table": {
+            "maxLength": 64,
+            "title": "Table",
+            "type": "string"
+          }
+        },
+        "required": [
+          "table",
+          "pk",
+          "kind"
+        ],
+        "title": "PlaygroundSeenLine",
+        "type": "object"
+      },
       "PowerUpListOut": {
         "properties": {
           "can_switch": {
@@ -47593,6 +47843,26 @@
         ]
       }
     },
+    "/api/internal/playground/proposals": {
+      "post": {
+        "description": "Store a live member's playground proposal for that operator (signed).",
+        "operationId": "proposals",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Proposals",
+        "tags": [
+          "playground-tier-internal"
+        ]
+      }
+    },
     "/api/internal/playground/setup-bundle": {
       "post": {
         "description": "The live setup bundle of one operator for a live member of it (signed).",
@@ -55030,6 +55300,64 @@
           }
         ],
         "summary": "Live Bundle",
+        "tags": [
+          "operator-playground"
+        ]
+      }
+    },
+    "/api/operators/{operator_id}/playground/proposals": {
+      "post": {
+        "description": "Send the ticked \"Changed here, not in live\" groups to live as a proposal.",
+        "operationId": "propose_for_live",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlaygroundProposeIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaygroundProposeOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Propose For Live",
         "tags": [
           "operator-playground"
         ]

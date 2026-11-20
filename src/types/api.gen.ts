@@ -642,6 +642,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/internal/playground/proposals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Proposals
+         * @description Store a live member's playground proposal for that operator (signed).
+         */
+        post: operations["proposals"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/internal/playground/setup-bundle": {
         parameters: {
             query?: never;
@@ -3628,6 +3648,26 @@ export interface paths {
         get: operations["live_bundle"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/operators/{operator_id}/playground/proposals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Propose For Live
+         * @description Send the ticked "Changed here, not in live" groups to live as a proposal.
+         */
+        post: operations["propose_for_live"];
         delete?: never;
         options?: never;
         head?: never;
@@ -24319,6 +24359,85 @@ export interface components {
              */
             membership_id: string;
         };
+        /** PlaygroundLeftOut */
+        PlaygroundLeftOut: {
+            /** Columns */
+            columns: string[];
+            /** Group Id */
+            group_id: string;
+            /** Label */
+            label: string;
+            /** Pk */
+            pk: string;
+            /** Reason */
+            reason: string;
+            /** Table */
+            table: string;
+        };
+        /** PlaygroundProposeIn */
+        PlaygroundProposeIn: {
+            /** Group Ids */
+            group_ids: string[];
+            /**
+             * Idempotency Key
+             * Format: uuid
+             */
+            idempotency_key: string;
+            /** Live Fingerprint Seen */
+            live_fingerprint_seen?: string | null;
+            /** Replaces Proposal Id */
+            replaces_proposal_id?: string | null;
+            /** Seen */
+            seen: {
+                [key: string]: components["schemas"]["PlaygroundSeenLine"][];
+            };
+        };
+        /** PlaygroundProposeOut */
+        PlaygroundProposeOut: {
+            /** Created */
+            created: boolean;
+            /** Left Out */
+            left_out: components["schemas"]["PlaygroundLeftOut"][];
+            /** Live Fingerprint */
+            live_fingerprint?: string | null;
+            /** Proposal Id */
+            proposal_id: string;
+            /** Proposed At */
+            proposed_at?: string | null;
+            /** Proposed Group Ids */
+            proposed_group_ids: string[];
+            /** Proposed Lines */
+            proposed_lines: number;
+            /** Replaced At */
+            replaced_at?: string | null;
+            /** Replaced Proposal Id */
+            replaced_proposal_id?: string | null;
+            /** Replaced Proposed At */
+            replaced_proposed_at?: string | null;
+        };
+        /**
+         * PlaygroundSeenLine
+         * @description A line as the panel showed it (only to notice a change since; never sent on).
+         */
+        PlaygroundSeenLine: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "update" | "new" | "delete";
+            /** Live Value */
+            live_value?: {
+                [key: string]: unknown;
+            } | null;
+            /** Pk */
+            pk: string;
+            /** Playground Value */
+            playground_value?: {
+                [key: string]: unknown;
+            } | null;
+            /** Table */
+            table: string;
+        };
         /** PowerUpListOut */
         PowerUpListOut: {
             /** Can Switch */
@@ -32172,6 +32291,26 @@ export interface operations {
             };
         };
     };
+    proposals: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
     setup_bundle: {
         parameters: {
             query?: never;
@@ -36719,6 +36858,41 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    propose_for_live: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlaygroundProposeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlaygroundProposeOut"];
                 };
             };
             /** @description Validation Error */
