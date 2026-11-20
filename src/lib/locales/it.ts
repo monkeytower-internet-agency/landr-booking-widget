@@ -807,6 +807,8 @@ export const it: Bundle = {
   alternativesStartsTemplate: 'Inizia il {date}',
   alternativeBackTemplate: 'Torna a {name}',
   alternativeBackKeepsDates: 'Le tue date restano selezionate',
+  crossSellHintTitle: 'Potrebbe piacerti anche {name}',
+  crossSellHintFullyBooked: 'Ci dispiace, anche {product} è al completo in questi giorni.',
   altDayAria: 'al completo, altre attività disponibili',
   altDayNotOfferedAria: 'non disponibile, altre attività disponibili',
   altDayShortAria: 'posti insufficienti per {n} persone, altre attività disponibili',

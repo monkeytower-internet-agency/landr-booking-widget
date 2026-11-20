@@ -24,6 +24,7 @@ import type {
   OfferEvaluateRequest,
   OfferEvaluateResponse,
   ProductAlternative,
+  ProductHint,
   ProductGroup,
   SavingLine,
   ServiceRole,
@@ -511,6 +512,21 @@ export async function getFixedDateWindows(
   if (mocksEnabled()) return mockFixedDateWindows()
   return http<FixedDateWindow[]>(
     `/api/public/products/${encodeURIComponent(productId)}/fixed-date-windows`,
+  )
+}
+
+/**
+ * landr-f210e.5: the cross-sell hints of a product (light read, no stock
+ * check). A separate request after the step has rendered; callers treat a
+ * failure as "no cards".
+ */
+export async function getProductSuggestions(
+  operatorToken: string,
+  productId: string,
+): Promise<ProductHint[]> {
+  if (mocksEnabled()) return []
+  return http<ProductHint[]>(
+    `/api/public/operators/${encodeURIComponent(operatorToken)}/products/${encodeURIComponent(productId)}/suggestions`,
   )
 }
 

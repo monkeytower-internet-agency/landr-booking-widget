@@ -96,6 +96,25 @@ export interface AlternativeWindow {
  * `available_dates` (ISO days with enough seats for the requested party);
  * `fixed_window` ones carry `windows`. The other field is null.
  */
+/**
+ * landr-f210e.5: one cross-sell hint from
+ * GET /api/public/operators/{token}/products/{product_id}/suggestions.
+ * A light read: no stock is checked until the guest taps the card.
+ */
+export interface ProductHint {
+  product_id: string
+  slug?: string | null
+  name: string
+  name_localized?: Record<string, string> | null
+  product_kind?: ProductKind | null
+  thumb_url?: string | null
+  /** Number or decimal string. */
+  price_from?: number | string | null
+  currency?: string | null
+  /** 'product' = linked to this product; 'every_product' = an every-booking suggestion. */
+  source: string
+}
+
 export interface ProductAlternative {
   product_id: string
   slug: string
@@ -708,6 +727,12 @@ export interface OperatorSettings {
    * Optional for rolling deploy: absent/undefined means on (today's behaviour).
    */
   widget_cross_sell_enabled?: boolean
+  /**
+   * landr-f210e.5: Cross-selling on AND the staff-only hints key on. The
+   * widget then shows hint cards after the step and hides the in-tree
+   * cross-sell offers. Absent (older API) = off.
+   */
+  cross_sell_hints_enabled?: boolean
   /**
    * Product ids the cross-sell may offer; empty or absent = every eligible
    * product.
