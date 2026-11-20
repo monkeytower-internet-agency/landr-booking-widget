@@ -47557,6 +47557,26 @@
         ]
       }
     },
+    "/api/internal/playground/setup-bundle": {
+      "post": {
+        "description": "The live setup bundle of one operator for a live member of it (signed).",
+        "operationId": "setup_bundle",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Setup Bundle",
+        "tags": [
+          "playground-tier-internal"
+        ]
+      }
+    },
     "/api/internal/release/changelog": {
       "get": {
         "description": "The control-plane-side implementation of operator_release.get_changelog.\n\nAuth: X-Release-Relay-Token. Returns the FULL entry shape (category,\ndescription, sha, author, url, repo) \u2014 operator_release.py trims to\ncategory/description before handing the untrusted end-user response\nback (``ChangelogEntryOut``); this internal, service-to-service boundary\ncarries the richer data so it isn't lost if a future internal consumer\nneeds it. Also carries ``partial`` straight through (landr-zxgs) \u2014 always\nFalse for the staging/prod tiers this relay is actually ever called with\nin practice (see operator_release.py's module docstring: tier='dev'\nnever relays), but correct if a future internal consumer ever asks this\nendpoint for tier='dev' directly.",
@@ -54779,6 +54799,106 @@
         "summary": "Patch Offer",
         "tags": [
           "staff-product-offers"
+        ]
+      }
+    },
+    "/api/operators/{operator_id}/playground/live-bundle": {
+      "get": {
+        "description": "This operator's LIVE setup bundle, for a member of it on both tiers.",
+        "operationId": "live_bundle",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Live Bundle",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Live Bundle",
+        "tags": [
+          "operator-playground"
+        ]
+      }
+    },
+    "/api/operators/{operator_id}/playground/status": {
+      "get": {
+        "description": "Whether this caller can use the channel right now (no call to live).",
+        "operationId": "playground_status",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Playground Status",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Playground Status",
+        "tags": [
+          "operator-playground"
         ]
       }
     },
