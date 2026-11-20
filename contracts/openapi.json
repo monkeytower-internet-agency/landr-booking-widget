@@ -30452,6 +30452,119 @@
         "title": "ProductGroupReparent",
         "type": "object"
       },
+      "ProductHint": {
+        "properties": {
+          "currency": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Currency"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "name_localized": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name Localized"
+          },
+          "price_from": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price From"
+          },
+          "product_id": {
+            "title": "Product Id",
+            "type": "string"
+          },
+          "product_kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Kind"
+          },
+          "short_description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Short Description"
+          },
+          "short_description_localized": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Short Description Localized"
+          },
+          "slug": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slug"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "thumb_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thumb Url"
+          }
+        },
+        "required": [
+          "product_id",
+          "name",
+          "source"
+        ],
+        "title": "ProductHint",
+        "type": "object"
+      },
       "ProductImage": {
         "description": "One image rendition pair for a product gallery (epic landr-d8rg).",
         "properties": {
@@ -32493,6 +32606,53 @@
           }
         },
         "title": "ProductRequirementPatch",
+        "type": "object"
+      },
+      "ProductSuggestion": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "product_id": {
+            "title": "Product Id",
+            "type": "string"
+          },
+          "sort_order": {
+            "title": "Sort Order",
+            "type": "integer"
+          },
+          "suggested_product_id": {
+            "title": "Suggested Product Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "product_id",
+          "suggested_product_id",
+          "sort_order"
+        ],
+        "title": "ProductSuggestion",
+        "type": "object"
+      },
+      "ProductSuggestionsIn": {
+        "additionalProperties": false,
+        "properties": {
+          "suggested_product_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 20,
+            "title": "Suggested Product Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "suggested_product_ids"
+        ],
+        "title": "ProductSuggestionsIn",
         "type": "object"
       },
       "ProductsCount": {
@@ -55573,6 +55733,138 @@
         ]
       }
     },
+    "/api/operators/{operator_id}/products/{product_id}/suggestions": {
+      "get": {
+        "description": "The product's suggestion links in order.",
+        "operationId": "list_product_suggestions",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Product Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProductSuggestion"
+                  },
+                  "title": "Response List Product Suggestions",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Product Suggestions",
+        "tags": [
+          "staff-product-suggestions"
+        ]
+      },
+      "put": {
+        "description": "Replace the product's suggestion links with ``suggested_product_ids``\n(de-duplicated, first occurrence wins; the list order is the hint order).",
+        "operationId": "put_product_suggestions",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Product Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductSuggestionsIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProductSuggestion"
+                  },
+                  "title": "Response Put Product Suggestions",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Put Product Suggestions",
+        "tags": [
+          "staff-product-suggestions"
+        ]
+      }
+    },
     "/api/platform-settings/onboarding-call": {
       "get": {
         "operationId": "get_onboarding_call",
@@ -58153,6 +58445,63 @@
         "summary": "Get Pass Tiers",
         "tags": [
           "public-passes"
+        ]
+      }
+    },
+    "/api/public/operators/{token}/products/{product_id}/suggestions": {
+      "get": {
+        "description": "The product's cross-sell hints; ``[]`` when the operator has them off or\nthe product is not the operator's. 404 only for an unknown widget token.",
+        "operationId": "public_get_product_suggestions",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Product Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProductHint"
+                  },
+                  "title": "Response Public Get Product Suggestions",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Product Suggestions",
+        "tags": [
+          "public-product-suggestions"
         ]
       }
     },
