@@ -13711,6 +13711,38 @@
         "title": "FanOutRow",
         "type": "object"
       },
+      "FetchRequest": {
+        "properties": {
+          "group_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 1000,
+            "minItems": 1,
+            "title": "Group Ids",
+            "type": "array"
+          },
+          "live_fingerprint": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Live Fingerprint",
+            "type": "string"
+          },
+          "playground_fingerprint": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Playground Fingerprint",
+            "type": "string"
+          }
+        },
+        "required": [
+          "live_fingerprint",
+          "playground_fingerprint",
+          "group_ids"
+        ],
+        "title": "FetchRequest",
+        "type": "object"
+      },
       "FieldSchemaIn": {
         "properties": {
           "fields": {
@@ -55250,6 +55282,66 @@
           }
         ],
         "summary": "Playground Diff Lines",
+        "tags": [
+          "operator-playground"
+        ]
+      }
+    },
+    "/api/operators/{operator_id}/playground/fetch": {
+      "post": {
+        "description": "Apply the ticked \"Changed in live\" groups to this playground (module doc).",
+        "operationId": "playground_fetch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FetchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Playground Fetch",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Playground Fetch",
         "tags": [
           "operator-playground"
         ]

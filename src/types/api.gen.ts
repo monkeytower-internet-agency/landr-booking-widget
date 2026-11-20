@@ -3634,6 +3634,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/operators/{operator_id}/playground/fetch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Playground Fetch
+         * @description Apply the ticked "Changed in live" groups to this playground (module doc).
+         */
+        post: operations["playground_fetch"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/operators/{operator_id}/playground/live-bundle": {
         parameters: {
             query?: never;
@@ -19921,6 +19941,15 @@ export interface components {
              * Format: date
              */
             start_date: string;
+        };
+        /** FetchRequest */
+        FetchRequest: {
+            /** Group Ids */
+            group_ids: string[];
+            /** Live Fingerprint */
+            live_fingerprint: string;
+            /** Playground Fingerprint */
+            playground_fingerprint: string;
         };
         /** FieldSchemaIn */
         FieldSchemaIn: {
@@ -36815,6 +36844,43 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    playground_fetch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FetchRequest"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
