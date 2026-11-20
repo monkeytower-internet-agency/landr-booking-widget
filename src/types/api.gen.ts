@@ -622,6 +622,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/internal/playground/invites": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Receive Invite
+         * @description Create the invite on THIS (staging/dev) tier for a live owner's colleague.
+         */
+        post: operations["receive_invite"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/internal/playground/setup-bundle": {
         parameters: {
             query?: never;
@@ -10746,6 +10766,23 @@ export interface paths {
         get: operations["get_plan_terms"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/playground-invites": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Invite To Playground */
+        post: operations["invite_to_playground"];
         delete?: never;
         options?: never;
         head?: never;
@@ -24221,6 +24258,14 @@ export interface components {
             /** Package Slug */
             package_slug: string;
         };
+        /** PlaygroundInviteIn */
+        PlaygroundInviteIn: {
+            /**
+             * Membership Id
+             * Format: uuid
+             */
+            membership_id: string;
+        };
         /** PowerUpListOut */
         PowerUpListOut: {
             /** Can Switch */
@@ -32050,6 +32095,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    receive_invite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
         };
@@ -49151,6 +49216,43 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    invite_to_playground: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlaygroundInviteIn"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
