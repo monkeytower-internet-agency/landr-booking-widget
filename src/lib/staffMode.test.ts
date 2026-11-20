@@ -190,10 +190,18 @@ describe('isAllowedStaffOrigin', () => {
     for (const origin of [
       'https://dashboard.dev.landr.de',
       'https://dashboard-staging.landr.de',
+      'https://playground.landr.de',
       'https://dashboard.landr.de',
     ]) {
       expect(isAllowedStaffOrigin(origin)).toBe(true)
     }
+  })
+
+  it('accepts the staging dashboard\'s second address, but not look-alikes', () => {
+    expect(isAllowedStaffOrigin('https://playground.landr.de')).toBe(true)
+    expect(isAllowedStaffOrigin('http://playground.landr.de')).toBe(false)
+    expect(isAllowedStaffOrigin('https://playground.landr.de.evil.example')).toBe(false)
+    expect(isAllowedStaffOrigin('https://evil-playground.landr.de')).toBe(false)
   })
 
   it('accepts localhost / 127.0.0.1 dev origins on any port', () => {

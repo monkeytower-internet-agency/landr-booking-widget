@@ -282,6 +282,9 @@ export const STAFF_ORIGIN_ALLOWLIST: readonly string[] = [
   // postMessage a silent no-op there — "Add booking" ran as a customer, so
   // lead-time/sold-out days were unselectable and force-book was gone.
   'https://dashboard-staging.landr.de',
+  // Second address of the staging dashboard (the Playground host): the same
+  // build, so it must be able to hand the widget a staff session too.
+  'https://playground.landr.de',
   'https://dashboard.landr.de',
   'https://app.landr.de',
 ]
