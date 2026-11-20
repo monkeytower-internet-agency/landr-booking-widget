@@ -27,6 +27,13 @@ export interface BreadcrumbNavValue {
    * guests in the crumbs. Absent/null → participant wording.
    */
   productKind?: ProductKind | null
+  /**
+   * A cross-sell detour: the product the guest opened from a suggestion has no
+   * trail of its own to walk back along, so the back slot (top-left of the
+   * step, where the step's back button always sits) returns to the booking
+   * they left instead.
+   */
+  detourBack?: { label: string; onBack: () => void }
 }
 
 export const BreadcrumbNavContext = createContext<BreadcrumbNavValue | null>(

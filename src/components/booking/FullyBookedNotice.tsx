@@ -6,6 +6,7 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { StepBackButton } from '@/components/booking/StepBackButton'
+import { useBreadcrumbNav } from '@/components/booking/breadcrumbNav'
 import {
   AlternativesSection,
   type AlternativeSelectHandler,
@@ -64,9 +65,10 @@ export function FullyBookedNotice({
   hintNotice,
 }: Props) {
   const locale = browserLocale()
+  const detour = useBreadcrumbNav()?.detourBack
   return (
     <Card className={compact ? 'flex flex-col opacity-75' : 'flex flex-col'}>
-      {onBack ? <StepBackButton onBack={onBack} /> : null}
+      {onBack || detour ? <StepBackButton onBack={onBack} /> : null}
       <CardHeader>
         <div className="flex items-start justify-between gap-2">
           <CardTitle>{name}</CardTitle>

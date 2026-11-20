@@ -835,8 +835,14 @@ export type Bundle = {
   alternativesStartsTemplate: string
   alternativeBackTemplate: string
   alternativeBackKeepsDates: string
-  crossSellHintTitle: string
   crossSellHintFullyBooked: string
+  crossSellHeading: string
+  crossSellCheck: string
+  crossSellChecking: string
+  crossSellAvailableOk: string
+  crossSellSorry: string
+  crossSellNoneLeft: string
+  crossSellBackToBooking: string
   altDayAria: string
   altDayNotOfferedAria: string
   altDayShortAria: string
@@ -1907,8 +1913,14 @@ const en: Bundle = {
   alternativesStartsTemplate: 'Starts {date}',
   alternativeBackTemplate: 'Back to {name}',
   alternativeBackKeepsDates: 'Your dates stay picked',
-  crossSellHintTitle: 'You might also like {name}',
   crossSellHintFullyBooked: 'We are sorry, {product} is also fully booked on these days.',
+  crossSellHeading: 'You might also like',
+  crossSellCheck: 'Check availability',
+  crossSellChecking: 'Checking…',
+  crossSellAvailableOk: '✓ Available on your dates',
+  crossSellSorry: 'Sorry, not available',
+  crossSellNoneLeft: 'Sorry, none of these are available on your dates.',
+  crossSellBackToBooking: 'Back to your booking',
   altDayAria: 'fully booked, other activities available',
   altDayNotOfferedAria: 'not offered, other activities available',
   altDayShortAria: 'not enough places for {n} people, other activities available',
