@@ -3572,7 +3572,12 @@ export interface paths {
         put?: never;
         /** Fill Demo Bookings */
         post: operations["fill_demo_bookings"];
-        delete?: never;
+        /**
+         * Remove Demo Bookings
+         * @description Remove this operator's marked demo bookings (and their payments and demo
+         *     guests). Unmarked bookings are never touched.
+         */
+        delete: operations["remove_demo_bookings"];
         options?: never;
         head?: never;
         patch?: never;
@@ -36596,6 +36601,39 @@ export interface operations {
         };
     };
     fill_demo_bookings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_demo_bookings: {
         parameters: {
             query?: never;
             header?: never;

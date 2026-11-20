@@ -54839,6 +54839,54 @@
       }
     },
     "/api/operators/{operator_id}/playground/demo-bookings": {
+      "delete": {
+        "description": "Remove this operator's marked demo bookings (and their payments and demo\nguests). Unmarked bookings are never touched.",
+        "operationId": "remove_demo_bookings",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Remove Demo Bookings",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Remove Demo Bookings",
+        "tags": [
+          "operator-playground"
+        ]
+      },
       "post": {
         "operationId": "fill_demo_bookings",
         "parameters": [
