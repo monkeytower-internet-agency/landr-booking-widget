@@ -203,13 +203,13 @@ describe('host confirmation — seat hold text', () => {
   it('held: names the invitee, hours and deadline', async () => {
     const line = await run({ seat_hold_expires_at: inSeventyTwoHours(), seat_hold_hours: 72 })
     expect(line).toHaveTextContent(
-      /When you booked, seats for Matthias were still free\. Held for 72 hours, until /,
+      /Seats for Matthias were free when you booked and are held for 72 hours, until /,
     )
   })
 
   it('not held: only when the operator holds nothing (hours === 0)', async () => {
     const line = await run({ seat_hold_expires_at: null, seat_hold_hours: 0 })
-    expect(line).toHaveTextContent('Seats for Matthias are not held')
+    expect(line).toHaveTextContent("Seats for Matthias aren't held — they can book while seats last.")
   })
 
   it('requested: seats were not free at booking time', async () => {
@@ -219,7 +219,7 @@ describe('host confirmation — seat hold text', () => {
       seats_were_free: false,
     })
     expect(line).toHaveTextContent(
-      /Seats for Matthias are requested and held for 72 hours, until .*The operator still has to confirm that everyone fits\./,
+      /Seats for Matthias are requested and held for 72 hours, until .*The operator still needs to confirm there's room for everyone\./,
     )
   })
 

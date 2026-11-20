@@ -324,7 +324,7 @@ describe('AccommodationStep', () => {
     // 2026-06-10 - 1 day = 2026-06-09).
     expect(
       screen.getByTestId('accommodation-too-late-warning'),
-    ).toHaveTextContent('still book this date')
+    ).toHaveTextContent('still book the activity on this date')
   })
 
   it('does NOT show the too-late warning when accommodation_bookable is true', async () => {
@@ -1480,7 +1480,7 @@ describe('AccommodationStep', () => {
     ).toBeInTheDocument()
     expect(
       screen.getByTestId('accommodation-payment-notice').textContent,
-    ).toMatch(/paid directly at check-in.*cash.*card/i)
+    ).toMatch(/pay the hotel directly at check-in.*cash.*card/i)
     expect(screen.queryByText(/Hotel total/i)).not.toBeInTheDocument()
   })
 
@@ -2716,7 +2716,7 @@ describe('AccommodationStep — invitee accommodation (landr-zeg4u.4)', () => {
     )
     await waitFor(() =>
       expect(screen.getByTestId('invite-room-booked-notice')).toHaveTextContent(
-        'Your room is already booked by Olaf. You will',
+        "Your room is already booked by Olaf. We'll pick you up at the hotel.",
       ),
     )
   })
@@ -3008,9 +3008,9 @@ describe('AccommodationStep — invitee accommodation (landr-zeg4u.4)', () => {
       ).toBeInTheDocument(),
     )
     const note = screen.getByTestId('shared-double-too-late-others')
-    expect(note).toHaveTextContent(/Only you share the host's room/)
+    expect(note).toHaveTextContent(/Only you can share the host's room/)
     expect(note).toHaveTextContent(/Anna/)
-    expect(note).toHaveTextContent(/remove them or contact the operator/)
+    expect(note).toHaveTextContent(/Remove them or contact the operator/)
     expect(screen.getByRole('button', { name: /Continue/i })).toBeDisabled()
     expect(onConfirm).not.toHaveBeenCalled()
   })
@@ -3177,7 +3177,7 @@ describe('AccommodationStep — invitee accommodation (landr-zeg4u.4)', () => {
       )
       const guidingOnly = screen.getByTestId('accommodation-mode-guiding-only')
       expect(guidingOnly).toHaveTextContent(
-        'Guiding only — I will take care of accommodation myself',
+        "Guiding only — I'll sort out my own accommodation",
       )
       expect(guidingOnly.querySelector('input')!).toBeChecked()
       expect(screen.getByTestId('accommodation-mode-package')).toHaveTextContent(

@@ -104,7 +104,8 @@ describe('age bands (landr-zcb24.2)', () => {
     expect(isValidExactAge(17, true)).toBe(false)
     expect(isValidExactAge(18, true)).toBe(true)
     expect(isValidExactAge(7)).toBe(true)
-    expect(isValidExactAge(null)).toBe(false)
+    expect(isValidExactAge(null)).toBe(true) // none = an adult (landr-ex4vy)
+    expect(isValidExactAge(121)).toBe(false)
 
     const floor = withAgeChoice<AgeCarrier>({}, SENIOR, 'age_65_plus', null, true)
     const exact = withExactAge(floor, 71)

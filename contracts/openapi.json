@@ -11406,6 +11406,27 @@
         "title": "DecisionOut",
         "type": "object"
       },
+      "DeclineIn": {
+        "additionalProperties": false,
+        "properties": {
+          "idempotency_key": {
+            "format": "uuid",
+            "title": "Idempotency Key",
+            "type": "string"
+          },
+          "proposal_id": {
+            "format": "uuid",
+            "title": "Proposal Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "proposal_id",
+          "idempotency_key"
+        ],
+        "title": "DeclineIn",
+        "type": "object"
+      },
       "DerivedCut": {
         "description": "A cut point a rule or a price adds on top of the operator's ``range_cuts``\n(landr-zcb24.18): read-only, computed like the ranges guests pick from.",
         "properties": {
@@ -13709,6 +13730,38 @@
           "resource_ids"
         ],
         "title": "FanOutRow",
+        "type": "object"
+      },
+      "FetchRequest": {
+        "properties": {
+          "group_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 1000,
+            "minItems": 1,
+            "title": "Group Ids",
+            "type": "array"
+          },
+          "live_fingerprint": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Live Fingerprint",
+            "type": "string"
+          },
+          "playground_fingerprint": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Playground Fingerprint",
+            "type": "string"
+          }
+        },
+        "required": [
+          "live_fingerprint",
+          "playground_fingerprint",
+          "group_ids"
+        ],
+        "title": "FetchRequest",
         "type": "object"
       },
       "FieldSchemaIn": {
@@ -22803,6 +22856,21 @@
       "OperatorPatch": {
         "description": "Partial update payload \u2014 every field is optional.",
         "properties": {
+          "address_form": {
+            "anyOf": [
+              {
+                "enum": [
+                  "informal",
+                  "formal"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address Form"
+          },
           "balance_due_days_before_arrival": {
             "anyOf": [
               {
@@ -24229,6 +24297,11 @@
         "additionalProperties": true,
         "description": "Operator-level rendering/behaviour flags for the public booking widget.\n\nReturned by GET /api/public/operators/{token}/settings. Fields mirror the\npublic_get_operator_settings RPC projection exactly; extra=allow keeps the\nmodel forward-compatible so new RPC columns pass through without forcing a\nresponse-model bump on every migration.\n\nlandr-jb1k: widget_variant and widget_category_columns added.",
         "properties": {
+          "address_form": {
+            "default": "informal",
+            "title": "Address Form",
+            "type": "string"
+          },
           "balance_due_days_before_arrival": {
             "anyOf": [
               {
@@ -24272,6 +24345,11 @@
               }
             ],
             "title": "Country"
+          },
+          "cross_sell_hints_enabled": {
+            "default": false,
+            "title": "Cross Sell Hints Enabled",
+            "type": "boolean"
           },
           "customer_languages": {
             "items": {
@@ -26668,6 +26746,270 @@
           "package_slug"
         ],
         "title": "PlanChangeIn",
+        "type": "object"
+      },
+      "PlaygroundInviteIn": {
+        "properties": {
+          "membership_id": {
+            "format": "uuid",
+            "title": "Membership Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "membership_id"
+        ],
+        "title": "PlaygroundInviteIn",
+        "type": "object"
+      },
+      "PlaygroundLeftOut": {
+        "properties": {
+          "columns": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Columns",
+            "type": "array"
+          },
+          "group_id": {
+            "title": "Group Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "pk": {
+            "title": "Pk",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "table": {
+            "title": "Table",
+            "type": "string"
+          }
+        },
+        "required": [
+          "group_id",
+          "table",
+          "pk",
+          "label",
+          "columns",
+          "reason"
+        ],
+        "title": "PlaygroundLeftOut",
+        "type": "object"
+      },
+      "PlaygroundProposeIn": {
+        "additionalProperties": false,
+        "properties": {
+          "group_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 500,
+            "minItems": 1,
+            "title": "Group Ids",
+            "type": "array"
+          },
+          "idempotency_key": {
+            "format": "uuid",
+            "title": "Idempotency Key",
+            "type": "string"
+          },
+          "live_fingerprint_seen": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Live Fingerprint Seen"
+          },
+          "replaces_proposal_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Replaces Proposal Id"
+          },
+          "seen": {
+            "additionalProperties": {
+              "items": {
+                "$ref": "#/components/schemas/PlaygroundSeenLine"
+              },
+              "type": "array"
+            },
+            "title": "Seen",
+            "type": "object"
+          }
+        },
+        "required": [
+          "group_ids",
+          "idempotency_key",
+          "seen"
+        ],
+        "title": "PlaygroundProposeIn",
+        "type": "object"
+      },
+      "PlaygroundProposeOut": {
+        "properties": {
+          "created": {
+            "title": "Created",
+            "type": "boolean"
+          },
+          "left_out": {
+            "items": {
+              "$ref": "#/components/schemas/PlaygroundLeftOut"
+            },
+            "title": "Left Out",
+            "type": "array"
+          },
+          "live_fingerprint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Live Fingerprint"
+          },
+          "proposal_id": {
+            "title": "Proposal Id",
+            "type": "string"
+          },
+          "proposed_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Proposed At"
+          },
+          "proposed_group_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Proposed Group Ids",
+            "type": "array"
+          },
+          "proposed_lines": {
+            "title": "Proposed Lines",
+            "type": "integer"
+          },
+          "replaced_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Replaced At"
+          },
+          "replaced_proposal_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Replaced Proposal Id"
+          },
+          "replaced_proposed_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Replaced Proposed At"
+          }
+        },
+        "required": [
+          "proposal_id",
+          "created",
+          "proposed_group_ids",
+          "proposed_lines",
+          "left_out"
+        ],
+        "title": "PlaygroundProposeOut",
+        "type": "object"
+      },
+      "PlaygroundSeenLine": {
+        "description": "A line as the panel showed it (only to notice a change since; never sent on).",
+        "properties": {
+          "kind": {
+            "enum": [
+              "update",
+              "new",
+              "delete"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "live_value": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Live Value"
+          },
+          "pk": {
+            "maxLength": 400,
+            "title": "Pk",
+            "type": "string"
+          },
+          "playground_value": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Playground Value"
+          },
+          "table": {
+            "maxLength": 64,
+            "title": "Table",
+            "type": "string"
+          }
+        },
+        "required": [
+          "table",
+          "pk",
+          "kind"
+        ],
+        "title": "PlaygroundSeenLine",
         "type": "object"
       },
       "PowerUpListOut": {
@@ -29109,6 +29451,36 @@
         "title": "ProdHotfixCandidatesResponse",
         "type": "object"
       },
+      "ProdHotfixCodeIn": {
+        "properties": {
+          "notes": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "picks": {
+            "items": {
+              "$ref": "#/components/schemas/HotfixPickIn"
+            },
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "Picks",
+            "type": "array"
+          }
+        },
+        "required": [
+          "picks"
+        ],
+        "title": "ProdHotfixCodeIn",
+        "type": "object"
+      },
       "ProdHotfixPr": {
         "properties": {
           "number": {
@@ -30134,6 +30506,119 @@
           }
         },
         "title": "ProductGroupReparent",
+        "type": "object"
+      },
+      "ProductHint": {
+        "properties": {
+          "currency": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Currency"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "name_localized": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name Localized"
+          },
+          "price_from": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price From"
+          },
+          "product_id": {
+            "title": "Product Id",
+            "type": "string"
+          },
+          "product_kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Kind"
+          },
+          "short_description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Short Description"
+          },
+          "short_description_localized": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Short Description Localized"
+          },
+          "slug": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slug"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "thumb_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thumb Url"
+          }
+        },
+        "required": [
+          "product_id",
+          "name",
+          "source"
+        ],
+        "title": "ProductHint",
         "type": "object"
       },
       "ProductImage": {
@@ -32177,6 +32662,53 @@
           }
         },
         "title": "ProductRequirementPatch",
+        "type": "object"
+      },
+      "ProductSuggestion": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "product_id": {
+            "title": "Product Id",
+            "type": "string"
+          },
+          "sort_order": {
+            "title": "Sort Order",
+            "type": "integer"
+          },
+          "suggested_product_id": {
+            "title": "Suggested Product Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "product_id",
+          "suggested_product_id",
+          "sort_order"
+        ],
+        "title": "ProductSuggestion",
+        "type": "object"
+      },
+      "ProductSuggestionsIn": {
+        "additionalProperties": false,
+        "properties": {
+          "suggested_product_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 20,
+            "title": "Suggested Product Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "suggested_product_ids"
+        ],
+        "title": "ProductSuggestionsIn",
         "type": "object"
       },
       "ProductsCount": {
@@ -37255,6 +37787,21 @@
         "title": "RevertBody",
         "type": "object"
       },
+      "ReviewStartedIn": {
+        "additionalProperties": false,
+        "properties": {
+          "proposal_id": {
+            "format": "uuid",
+            "title": "Proposal Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "proposal_id"
+        ],
+        "title": "ReviewStartedIn",
+        "type": "object"
+      },
       "RoleCapabilityLevel": {
         "properties": {
           "level": {
@@ -40690,6 +41237,12 @@
       },
       "StagingHotfixCodeIn": {
         "properties": {
+          "express": {
+            "default": false,
+            "description": "landr-i74li \u2014 express hotfix: after the staging hotfix merged, wait for the staging deploys + health, then have staging create AND approve a Hotfix to production of the same commits on the caller's behalf (held EXPRESS_HOTFIX_HOLD_SECONDS). Release approvers only.",
+            "title": "Express",
+            "type": "boolean"
+          },
           "notes": {
             "anyOf": [
               {
@@ -41927,6 +42480,36 @@
           }
         },
         "title": "TagPatch",
+        "type": "object"
+      },
+      "TakeIn": {
+        "additionalProperties": false,
+        "properties": {
+          "group_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 500,
+            "title": "Group Ids",
+            "type": "array"
+          },
+          "idempotency_key": {
+            "format": "uuid",
+            "title": "Idempotency Key",
+            "type": "string"
+          },
+          "proposal_id": {
+            "format": "uuid",
+            "title": "Proposal Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "proposal_id",
+          "group_ids",
+          "idempotency_key"
+        ],
+        "title": "TakeIn",
         "type": "object"
       },
       "TaxRateCheck": {
@@ -47537,6 +48120,88 @@
         ]
       }
     },
+    "/api/internal/playground/history": {
+      "post": {
+        "description": "Live's proposal / take / decline timeline of one operator for a live member (signed).",
+        "operationId": "history",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "History",
+        "tags": [
+          "playground-tier-internal"
+        ]
+      }
+    },
+    "/api/internal/playground/invites": {
+      "post": {
+        "description": "Create the invite on THIS (staging/dev) tier for a live owner's colleague.",
+        "operationId": "receive_invite",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Receive Invite"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Receive Invite",
+        "tags": [
+          "playground-invites-internal"
+        ]
+      }
+    },
+    "/api/internal/playground/proposals": {
+      "post": {
+        "description": "Store a live member's playground proposal for that operator (signed).",
+        "operationId": "proposals",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Proposals",
+        "tags": [
+          "playground-tier-internal"
+        ]
+      }
+    },
+    "/api/internal/playground/setup-bundle": {
+      "post": {
+        "description": "The live setup bundle of one operator for a live member of it (signed).",
+        "operationId": "setup_bundle",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Setup Bundle",
+        "tags": [
+          "playground-tier-internal"
+        ]
+      }
+    },
     "/api/internal/release/changelog": {
       "get": {
         "description": "The control-plane-side implementation of operator_release.get_changelog.\n\nAuth: X-Release-Relay-Token. Returns the FULL entry shape (category,\ndescription, sha, author, url, repo) \u2014 operator_release.py trims to\ncategory/description before handing the untrusted end-user response\nback (``ChangelogEntryOut``); this internal, service-to-service boundary\ncarries the richer data so it isn't lost if a future internal consumer\nneeds it. Also carries ``partial`` straight through (landr-zxgs) \u2014 always\nFalse for the staging/prod tiers this relay is actually ever called with\nin practice (see operator_release.py's module docstring: tier='dev'\nnever relays), but correct if a future internal consumer ever asks this\nendpoint for tier='dev' directly.",
@@ -47772,7 +48437,7 @@
     },
     "/api/internal/release/express-chain": {
       "post": {
-        "description": "Create AND approve a staging_to_main run for a dev express chain.\n\nAuth: HMAC + nonce. 403 ``initiator_not_approver`` \u00b7 409\n``staging_signoff_pending`` / ``staging_to_main_in_flight`` /\n``no_changes`` / ``sha_not_on_staging`` \u00b7 200 ``relayed`` |\n``already_relayed`` (idempotent on source_run_id).",
+        "description": "Create AND approve a staging_to_main run for a dev express chain \u2014 or,\nwith ``kind='prod_hotfix_code'`` + ``picks`` (landr-i74li), a held\nprod_hotfix_code run for a dev express HOTFIX chain (409 ``run_in_flight``\nwhile any run is queued/executing on staging; 409 with the\nresolve_prod_picks code for a bad pick).\n\nAuth: HMAC + nonce. 403 ``initiator_not_approver`` \u00b7 409\n``staging_signoff_pending`` / ``staging_to_main_in_flight`` /\n``no_changes`` / ``sha_not_on_staging`` \u00b7 200 ``relayed`` |\n``already_relayed`` (idempotent on source_run_id).",
         "operationId": "express_chain_relay",
         "responses": {
           "200": {
@@ -50780,7 +51445,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/StagingHotfixCodeIn"
+                "$ref": "#/components/schemas/ProdHotfixCodeIn"
               }
             }
           },
@@ -50946,7 +51611,7 @@
     },
     "/api/landr-staff/promotions/staging-hotfix/code": {
       "post": {
-        "description": "Hotfix to staging (landr-g1d40). Promoter|approver, dev api only.\n\nCreates a queued run that cherry-picks the picked (merged) dev commits\nonto ``hotfix/<run-id>`` off each repo's staging tip (pinned now), merges\nit into ``staging`` \u2014 a conflict fails the run with nothing merged \u2014 and,\nif the landr-api picks touched supabase/migrations, applies them to the\nstaging DB pinned to the new staging SHA. No version/changelog/tag.",
+        "description": "Hotfix to staging (landr-g1d40). Promoter|approver, dev api only.\n\nCreates a queued run that cherry-picks the picked (merged) dev commits\nonto ``hotfix/<run-id>`` off each repo's staging tip (pinned now), merges\nit into ``staging`` \u2014 a conflict fails the run with nothing merged \u2014 and,\nif the landr-api picks touched supabase/migrations, applies them to the\nstaging DB pinned to the new staging SHA. No version/changelog/tag.\n\nlandr-i74li \u2014 ``express=true`` makes it an express hotfix chain\n(app/workers/express_chain.py): approver-only and refused up front by the\nsame gates as Ship to prod (``_enforce_express_allowed`` on the picked\nrepos); the run is created with ``chain_to_main`` and, once staging is\ndeployed and healthy, staging creates the held Hotfix to production.",
         "operationId": "create_staging_hotfix_code",
         "requestBody": {
           "content": {
@@ -54762,6 +55427,701 @@
         ]
       }
     },
+    "/api/operators/{operator_id}/playground-proposal": {
+      "get": {
+        "description": "The open proposal from the playground, judged against live now (or ``null``).",
+        "operationId": "get_proposal",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Proposal",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Proposal",
+        "tags": [
+          "operator-playground-review"
+        ]
+      }
+    },
+    "/api/operators/{operator_id}/playground-proposal/decline": {
+      "post": {
+        "description": "Decline the whole proposal; nothing in live changes.",
+        "operationId": "decline_proposal",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeclineIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Decline Proposal",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Decline Proposal",
+        "tags": [
+          "operator-playground-review"
+        ]
+      }
+    },
+    "/api/operators/{operator_id}/playground-proposal/history": {
+      "get": {
+        "description": "Who proposed / took / declined which lines of the playground, and when.",
+        "operationId": "proposal_history",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Proposal History",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Proposal History",
+        "tags": [
+          "operator-playground-review"
+        ]
+      }
+    },
+    "/api/operators/{operator_id}/playground-proposal/review-started": {
+      "post": {
+        "description": "An owner / admin opened the review (first opener recorded; idempotent).",
+        "operationId": "review_started",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewStartedIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Review Started",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Review Started",
+        "tags": [
+          "operator-playground-review"
+        ]
+      }
+    },
+    "/api/operators/{operator_id}/playground-proposal/take": {
+      "post": {
+        "description": "Take the ticked groups (and only those) into live.",
+        "operationId": "take_proposal",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TakeIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Take Proposal",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Take Proposal",
+        "tags": [
+          "operator-playground-review"
+        ]
+      }
+    },
+    "/api/operators/{operator_id}/playground/demo-bookings": {
+      "delete": {
+        "description": "Remove this operator's marked demo bookings (and their payments and demo\nguests). Unmarked bookings are never touched.",
+        "operationId": "remove_demo_bookings",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Remove Demo Bookings",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Remove Demo Bookings",
+        "tags": [
+          "operator-playground"
+        ]
+      },
+      "post": {
+        "operationId": "fill_demo_bookings",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Fill Demo Bookings",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Fill Demo Bookings",
+        "tags": [
+          "operator-playground"
+        ]
+      }
+    },
+    "/api/operators/{operator_id}/playground/diff": {
+      "get": {
+        "description": "Live against this playground as per-line groups (landr-tbzye.2).\n\nDirection comes from the stored per-row baseline of the live rows this\nplayground last took (``operator_playground_baselines``), never from a\nfingerprint: ``live`` / ``here`` / ``both``. A first look seeds the baseline with\nthe rows identical on both tiers; a row the baseline lacks that differs on both\ntiers is ``both`` + ``origin_unknown``, one only live has is ``live``, one only\nhere is ``here`` (proposable). Each group carries lines\n``{table, pk, kind (update|new|delete), live_value, playground_value,\ndirection, origin_unknown, label, area, group_id}`` and ``requires`` (group ids\nto take together). Values are data for escaped text\n(``app/services/playground_diff.py``).",
+        "operationId": "playground_diff_lines",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Playground Diff Lines",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Playground Diff Lines",
+        "tags": [
+          "operator-playground"
+        ]
+      }
+    },
+    "/api/operators/{operator_id}/playground/fetch": {
+      "post": {
+        "description": "Apply the ticked \"Changed in live\" groups to this playground (module doc).",
+        "operationId": "playground_fetch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FetchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Playground Fetch",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Playground Fetch",
+        "tags": [
+          "operator-playground"
+        ]
+      }
+    },
+    "/api/operators/{operator_id}/playground/history": {
+      "get": {
+        "description": "The Playground history: fetches here + live's proposals / takes / declines.\n\n``{events, live: {connected, reason}}``; each event is\n``{id, kind: fetch|proposal|take|decline, direction: to_playground|to_live, at,\nactor_name, proposal_id, proposal_status, group_count, line_count, groups}``\n(labels and counts, never a value). Same members as the rest of the panel.",
+        "operationId": "playground_history_timeline",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Playground History Timeline",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Playground History Timeline",
+        "tags": [
+          "operator-playground"
+        ]
+      }
+    },
+    "/api/operators/{operator_id}/playground/live-bundle": {
+      "get": {
+        "description": "This operator's LIVE setup bundle, for a member of it on both tiers.",
+        "operationId": "live_bundle",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Live Bundle",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Live Bundle",
+        "tags": [
+          "operator-playground"
+        ]
+      }
+    },
+    "/api/operators/{operator_id}/playground/proposals": {
+      "post": {
+        "description": "Send the ticked \"Changed here, not in live\" groups to live as a proposal.",
+        "operationId": "propose_for_live",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlaygroundProposeIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaygroundProposeOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Propose For Live",
+        "tags": [
+          "operator-playground"
+        ]
+      }
+    },
+    "/api/operators/{operator_id}/playground/status": {
+      "get": {
+        "description": "Whether this caller can use the channel right now (no call to live).",
+        "operationId": "playground_status",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Playground Status",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Playground Status",
+        "tags": [
+          "operator-playground"
+        ]
+      }
+    },
     "/api/operators/{operator_id}/products/{product_id}/eligibility-rules": {
       "patch": {
         "description": "Set \"who can book\" (``products.eligibility_rules``; null = everyone). 404\n``referenced_row_not_found`` for a product that is not this operator's, or\n(field ``rules``) a guest-attribute key outside the operator's catalogue or a\nproduct / season of another operator.",
@@ -54827,6 +56187,138 @@
         "summary": "Patch Product Eligibility Rules",
         "tags": [
           "staff-product-offers"
+        ]
+      }
+    },
+    "/api/operators/{operator_id}/products/{product_id}/suggestions": {
+      "get": {
+        "description": "The product's suggestion links in order.",
+        "operationId": "list_product_suggestions",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Product Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProductSuggestion"
+                  },
+                  "title": "Response List Product Suggestions",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Product Suggestions",
+        "tags": [
+          "staff-product-suggestions"
+        ]
+      },
+      "put": {
+        "description": "Replace the product's suggestion links with ``suggested_product_ids``\n(de-duplicated, first occurrence wins; the list order is the hint order).",
+        "operationId": "put_product_suggestions",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Product Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductSuggestionsIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProductSuggestion"
+                  },
+                  "title": "Response Put Product Suggestions",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Put Product Suggestions",
+        "tags": [
+          "staff-product-suggestions"
         ]
       }
     },
@@ -57410,6 +58902,63 @@
         "summary": "Get Pass Tiers",
         "tags": [
           "public-passes"
+        ]
+      }
+    },
+    "/api/public/operators/{token}/products/{product_id}/suggestions": {
+      "get": {
+        "description": "The product's cross-sell hints; ``[]`` when the operator has them off or\nthe product is not the operator's. 404 only for an unknown widget token.",
+        "operationId": "public_get_product_suggestions",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Product Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProductHint"
+                  },
+                  "title": "Response Public Get Product Suggestions",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Product Suggestions",
+        "tags": [
+          "public-product-suggestions"
         ]
       }
     },
@@ -76582,6 +78131,65 @@
         "summary": "Get Plan Terms",
         "tags": [
           "plan-terms"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/playground-invites": {
+      "post": {
+        "operationId": "invite_to_playground",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlaygroundInviteIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Invite To Playground",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Invite To Playground",
+        "tags": [
+          "playground-invites"
         ]
       }
     },

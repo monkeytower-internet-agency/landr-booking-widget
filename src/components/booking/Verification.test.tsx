@@ -117,7 +117,7 @@ describe('VerificationStatusPanel', () => {
       status: 'pending', licence_uploaded: true, insurance_uploaded: true,
     })
     render(<VerificationStatusPanel initial={initial} locale="en" />)
-    expect(screen.getByTestId('verification-pending').textContent).toMatch(/confirm once your documents are verified/i)
+    expect(screen.getByTestId('verification-pending').textContent).toMatch(/confirm once your documents are checked/i)
     expect(screen.getByTestId('verification-status-licence').textContent).toMatch(/Received/)
     expect(screen.getByTestId('verification-status-insurance').textContent).toMatch(/Still missing/)
     fireEvent.change(screen.getByTestId('verification-retry-insurance'), {

@@ -1172,7 +1172,7 @@ beforeEach(() => {
       fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
     })
     await waitFor(() =>
-      expect(screen.getByTestId('review-error')).toHaveTextContent(/not enough space left/i),
+      expect(screen.getByTestId('review-error')).toHaveTextContent(/doesn't have enough space left/i),
     )
     const text = screen.getByTestId('review-error').textContent ?? ''
     expect(text).not.toMatch(/422|detail|\{/)

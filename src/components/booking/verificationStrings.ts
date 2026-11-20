@@ -4,6 +4,8 @@
  * confirmation screen). English is the fallback for every other language.
  */
 
+import { getAddressForm } from '@/lib/addressForm'
+
 export interface VerificationBundle {
   heading: string
   intro: string
@@ -37,43 +39,78 @@ export interface VerificationBundle {
 const en: VerificationBundle = {
   heading: 'Your documents',
   intro:
-    'The organizer checks your licence and insurance before your registration is confirmed.',
+    'The organizer checks your licence and insurance before confirming your registration.',
   licenceLabel: 'Pilot licence',
-  insuranceLabel: 'Insurance proof',
-  fileHint: 'Take a photo, pick one from your library, or a PDF, up to 10 MB.',
+  insuranceLabel: 'Proof of insurance',
+  fileHint: 'Take a photo, choose one from your library, or upload a PDF (max. 10 MB).',
   chooseFile: 'Choose file',
   replaceFile: 'Replace file',
   takePhoto: 'Take photo',
   fileTooLarge: 'This file is larger than 10 MB.',
-  fileWrongType: 'Please choose a photo (JPG, PNG, WebP, HEIC) or a PDF.',
+  fileWrongType: 'Choose a photo (JPG, PNG, WebP, HEIC) or a PDF.',
   waiverHeading: 'Waiver',
   waiverFallback: 'I confirm that my documents are valid and that I take part at my own risk.',
   signatureLabel: 'Type your full name to sign',
   signaturePlaceholder: 'Full name',
-  acceptLabel: 'I have read the waiver and agree.',
+  acceptLabel: "I've read and accept the waiver.",
   missingHint: 'Add both documents, type your name and accept the waiver to continue.',
   uploadFailed:
-    'Your registration is in, but a document could not be uploaded. Please try again below.',
+    "We've received your registration, but one document didn't upload. Try again below.",
   retryUpload: 'Upload',
   uploading: 'Uploading…',
-  pendingTitle: 'We will confirm once your documents are verified',
+  pendingTitle: "We'll confirm once your documents are checked",
   pendingBody:
-    'Your registration is in. You will get an email as soon as the organizer has checked your documents.',
-  approvedBody: 'Your documents were verified. Your registration is confirmed.',
-  rejectedTitle: 'Your registration could not be confirmed',
-  rejectedNoteLabel: 'Reason from the organizer:',
+    "We've received your registration. You'll get an email as soon as the organizer has checked your documents.",
+  approvedBody: 'Your documents are verified and your registration is confirmed.',
+  rejectedTitle: "We couldn't confirm your registration",
+  rejectedNoteLabel: "Organizer's reason:",
   uploadedLabel: 'Received',
   missingLabel: 'Still missing',
-  needFilesBody: 'Please upload the missing documents so the organizer can verify you.',
+  needFilesBody: 'Upload the missing documents so the organizer can check them.',
 }
 
 const de: VerificationBundle = {
-  heading: 'Deine Unterlagen',
+  heading: 'Ihre Unterlagen',
   intro:
-    'Der Veranstalter prüft Lizenz und Versicherung, bevor deine Anmeldung bestätigt wird.',
+    'Der Veranstalter prüft Ihre Lizenz und Versicherung, bevor er Ihre Anmeldung bestätigt.',
   licenceLabel: 'Pilotenlizenz',
   insuranceLabel: 'Versicherungsnachweis',
-  fileHint: 'Foto aufnehmen, aus der Galerie wählen oder PDF, bis 10 MB.',
+  fileHint: 'Foto aufnehmen, aus der Galerie wählen oder PDF hochladen (max. 10 MB).',
+  chooseFile: 'Datei wählen',
+  replaceFile: 'Datei ersetzen',
+  takePhoto: 'Foto aufnehmen',
+  fileTooLarge: 'Diese Datei ist größer als 10 MB.',
+  fileWrongType: 'Bitte wählen Sie ein Foto (JPG, PNG, WebP, HEIC) oder eine PDF-Datei.',
+  waiverHeading: 'Haftungsverzicht',
+  waiverFallback:
+    'Ich bestätige, dass meine Unterlagen gültig sind und ich auf eigenes Risiko teilnehme.',
+  signatureLabel: 'Geben Sie zum Unterschreiben Ihren vollständigen Namen ein',
+  signaturePlaceholder: 'Vollständiger Name',
+  acceptLabel: 'Ich habe den Haftungsverzicht gelesen und stimme zu.',
+  missingHint:
+    'Laden Sie beide Unterlagen hoch, geben Sie Ihren Namen ein und stimmen Sie dem Haftungsverzicht zu, um fortzufahren.',
+  uploadFailed:
+    'Ihre Anmeldung ist eingegangen, aber eine Datei ließ sich nicht hochladen. Bitte versuchen Sie es unten erneut.',
+  retryUpload: 'Hochladen',
+  uploading: 'Wird hochgeladen…',
+  pendingTitle: 'Wir bestätigen, sobald Ihre Unterlagen geprüft sind',
+  pendingBody:
+    'Ihre Anmeldung ist eingegangen. Sie erhalten eine E-Mail, sobald der Veranstalter Ihre Unterlagen geprüft hat.',
+  approvedBody: 'Ihre Unterlagen sind geprüft und Ihre Anmeldung ist bestätigt.',
+  rejectedTitle: 'Ihre Anmeldung konnte nicht bestätigt werden',
+  rejectedNoteLabel: 'Begründung des Veranstalters:',
+  uploadedLabel: 'Erhalten',
+  missingLabel: 'Fehlt noch',
+  needFilesBody: 'Bitte laden Sie die fehlenden Unterlagen hoch, damit der Veranstalter sie prüfen kann.',
+}
+
+const deInformal: VerificationBundle = {
+  heading: 'Deine Unterlagen',
+  intro:
+    'Der Veranstalter prüft deine Lizenz und Versicherung, bevor er deine Anmeldung bestätigt.',
+  licenceLabel: 'Pilotenlizenz',
+  insuranceLabel: 'Versicherungsnachweis',
+  fileHint: 'Foto aufnehmen, aus der Galerie wählen oder PDF hochladen (max. 10 MB).',
   chooseFile: 'Datei wählen',
   replaceFile: 'Datei ersetzen',
   takePhoto: 'Foto aufnehmen',
@@ -82,60 +119,60 @@ const de: VerificationBundle = {
   waiverHeading: 'Haftungsverzicht',
   waiverFallback:
     'Ich bestätige, dass meine Unterlagen gültig sind und ich auf eigenes Risiko teilnehme.',
-  signatureLabel: 'Zum Unterschreiben deinen vollen Namen eintippen',
+  signatureLabel: 'Gib zum Unterschreiben deinen vollständigen Namen ein',
   signaturePlaceholder: 'Vollständiger Name',
   acceptLabel: 'Ich habe den Haftungsverzicht gelesen und stimme zu.',
   missingHint:
-    'Lade beide Unterlagen hoch, tippe deinen Namen und stimme dem Haftungsverzicht zu, um fortzufahren.',
+    'Lade beide Unterlagen hoch, gib deinen Namen ein und stimme dem Haftungsverzicht zu, um fortzufahren.',
   uploadFailed:
-    'Deine Anmeldung ist eingegangen, aber eine Datei konnte nicht hochgeladen werden. Bitte versuche es unten erneut.',
+    'Deine Anmeldung ist eingegangen, aber eine Datei ließ sich nicht hochladen. Bitte versuche es unten erneut.',
   retryUpload: 'Hochladen',
   uploading: 'Wird hochgeladen…',
   pendingTitle: 'Wir bestätigen, sobald deine Unterlagen geprüft sind',
   pendingBody:
-    'Deine Anmeldung ist eingegangen. Du bekommst eine E-Mail, sobald der Veranstalter deine Unterlagen geprüft hat.',
-  approvedBody: 'Deine Unterlagen wurden geprüft. Deine Anmeldung ist bestätigt.',
+    'Deine Anmeldung ist eingegangen. Du erhältst eine E-Mail, sobald der Veranstalter deine Unterlagen geprüft hat.',
+  approvedBody: 'Deine Unterlagen sind geprüft und deine Anmeldung ist bestätigt.',
   rejectedTitle: 'Deine Anmeldung konnte nicht bestätigt werden',
   rejectedNoteLabel: 'Begründung des Veranstalters:',
   uploadedLabel: 'Erhalten',
   missingLabel: 'Fehlt noch',
-  needFilesBody: 'Bitte lade die fehlenden Unterlagen hoch, damit der Veranstalter dich prüfen kann.',
+  needFilesBody: 'Bitte lade die fehlenden Unterlagen hoch, damit der Veranstalter sie prüfen kann.',
 }
 
 const it: VerificationBundle = {
   heading: 'I tuoi documenti',
   intro:
-    'L\u2019organizzatore controlla la tua licenza e la tua assicurazione prima di confermare la tua iscrizione.',
+    'L\u2019organizzatore controlla licenza e assicurazione prima di confermare la tua iscrizione.',
   licenceLabel: 'Licenza di pilota',
-  insuranceLabel: 'Prova dell\u2019assicurazione',
+  insuranceLabel: 'Attestato di assicurazione',
   fileHint: 'Foto o PDF, fino a 10 MB.',
   chooseFile: 'Scegli file',
   takePhoto: 'Scatta una foto',
   replaceFile: 'Sostituisci file',
   fileTooLarge: 'Questo file supera i 10 MB.',
   fileWrongType: 'Scegli una foto (JPG, PNG, WebP, HEIC) o un PDF.',
-  waiverHeading: 'Liberatoria di responsabilità',
+  waiverHeading: 'Liberatoria',
   // Kept in English on purpose: the signature record stores waiver_locale 'en' for es/it/tr
   // (waiverLocale() only knows de/en), so the signed text must match that locale.
   waiverFallback: 'I confirm that my documents are valid and that I take part at my own risk.',
   signatureLabel: 'Scrivi il tuo nome completo per firmare',
   signaturePlaceholder: 'Nome completo',
-  acceptLabel: 'Ho letto la liberatoria di responsabilità e la accetto.',
+  acceptLabel: 'Ho letto e accetto la liberatoria.',
   missingHint:
-    'Aggiungi entrambi i documenti, scrivi il tuo nome e accetta la liberatoria di responsabilità per continuare.',
+    'Aggiungi entrambi i documenti, scrivi il tuo nome e accetta la liberatoria per continuare.',
   uploadFailed:
-    'La tua iscrizione è registrata, ma non è stato possibile caricare un documento. Riprova qui sotto.',
+    'Abbiamo ricevuto la tua iscrizione, ma un documento non è stato caricato. Riprova qui sotto.',
   retryUpload: 'Carica',
   uploading: 'Caricamento in corso…',
-  pendingTitle: 'Ti confermeremo quando i tuoi documenti saranno verificati',
+  pendingTitle: 'Confermeremo l\u2019iscrizione dopo aver verificato i documenti',
   pendingBody:
-    'La tua iscrizione è registrata. Riceverai un\u2019e-mail non appena l\u2019organizzatore avrà controllato i tuoi documenti.',
-  approvedBody: 'I tuoi documenti sono stati verificati. La tua iscrizione è confermata.',
-  rejectedTitle: 'Non è stato possibile confermare la tua iscrizione',
+    'Abbiamo ricevuto la tua iscrizione. Riceverai un\u2019e-mail appena l\u2019organizzatore avrà controllato i documenti.',
+  approvedBody: 'Documenti verificati: la tua iscrizione è confermata.',
+  rejectedTitle: 'Non abbiamo potuto confermare la tua iscrizione',
   rejectedNoteLabel: 'Motivo dell\u2019organizzatore:',
   uploadedLabel: 'Ricevuto',
   missingLabel: 'Manca ancora',
-  needFilesBody: 'Carica i documenti mancanti così l\u2019organizzatore può verificarti.',
+  needFilesBody: 'Carica i documenti mancanti, così l\u2019organizzatore potrà verificarli.',
 }
 
 const es: VerificationBundle = {
@@ -143,7 +180,7 @@ const es: VerificationBundle = {
   intro:
     'El organizador revisa tu licencia y tu seguro antes de confirmar tu inscripción.',
   licenceLabel: 'Licencia de piloto',
-  insuranceLabel: 'Comprobante del seguro',
+  insuranceLabel: 'Justificante del seguro',
   fileHint: 'Foto o PDF, hasta 10 MB.',
   chooseFile: 'Elegir archivo',
   replaceFile: 'Cambiar archivo',
@@ -160,18 +197,18 @@ const es: VerificationBundle = {
   missingHint:
     'Añade los dos documentos, escribe tu nombre y acepta la exención de responsabilidad para continuar.',
   uploadFailed:
-    'Tu inscripción está registrada, pero no se ha podido subir un documento. Inténtalo de nuevo más abajo.',
+    'Hemos recibido tu inscripción, pero un documento no se ha subido. Inténtalo de nuevo abajo.',
   retryUpload: 'Subir',
   uploading: 'Subiendo…',
   pendingTitle: 'Te confirmaremos cuando se verifiquen tus documentos',
   pendingBody:
-    'Tu inscripción está registrada. Recibirás un correo en cuanto el organizador haya revisado tus documentos.',
-  approvedBody: 'Tus documentos se han verificado. Tu inscripción está confirmada.',
+    'Hemos recibido tu inscripción. Te llegará un correo en cuanto el organizador revise tus documentos.',
+  approvedBody: 'Tus documentos están verificados y tu inscripción está confirmada.',
   rejectedTitle: 'No se ha podido confirmar tu inscripción',
   rejectedNoteLabel: 'Motivo del organizador:',
   uploadedLabel: 'Recibido',
-  missingLabel: 'Aún falta',
-  needFilesBody: 'Sube los documentos que faltan para que el organizador pueda verificarte.',
+  missingLabel: 'Falta',
+  needFilesBody: 'Sube los documentos que faltan para que el organizador pueda revisarlos.',
 }
 
 const tr: VerificationBundle = {
@@ -195,10 +232,10 @@ const tr: VerificationBundle = {
   missingHint:
     'Devam etmek için iki belgeyi de ekleyin, adınızı yazın ve feragatnameyi kabul edin.',
   uploadFailed:
-    'Kaydınız alındı, ancak bir belge yüklenemedi. Lütfen aşağıdan tekrar deneyin.',
+    'Kaydınız alındı ancak bir belge yüklenemedi. Aşağıdan tekrar deneyin.',
   retryUpload: 'Yükle',
   uploading: 'Yükleniyor…',
-  pendingTitle: 'Belgeleriniz doğrulandığında onaylayacağız',
+  pendingTitle: 'Belgeleriniz doğrulanınca kaydınızı onaylayacağız',
   pendingBody:
     'Kaydınız alındı. Organizatör belgelerinizi kontrol eder etmez bir e-posta alacaksınız.',
   approvedBody: 'Belgeleriniz doğrulandı. Kaydınız onaylandı.',
@@ -206,15 +243,52 @@ const tr: VerificationBundle = {
   rejectedNoteLabel: 'Organizatörün gerekçesi:',
   uploadedLabel: 'Alındı',
   missingLabel: 'Hâlâ eksik',
-  needFilesBody: 'Organizatörün sizi doğrulayabilmesi için lütfen eksik belgeleri yükleyin.',
+  needFilesBody: 'Organizatörün belgelerinizi kontrol edebilmesi için eksik belgeleri yükleyin.',
+}
+
+const trInformal: VerificationBundle = {
+  heading: 'Belgelerin',
+  intro:
+    'Organizatör, kaydını onaylamadan önce lisansını ve sigortanı kontrol eder.',
+  licenceLabel: 'Pilot lisansı',
+  insuranceLabel: 'Sigorta belgesi',
+  fileHint: 'Fotoğraf veya PDF, en fazla 10 MB.',
+  chooseFile: 'Dosya seç',
+  replaceFile: 'Dosyayı değiştir',
+  takePhoto: 'Fotoğraf çek',
+  fileTooLarge: 'Bu dosya 10 MB’tan büyük.',
+  fileWrongType: 'Lütfen bir fotoğraf (JPG, PNG, WebP, HEIC) veya PDF seç.',
+  waiverHeading: 'Sorumluluk feragatnamesi',
+  // Kept in English on purpose: see the es bundle — waiver_locale is 'en' for tr too.
+  waiverFallback: 'I confirm that my documents are valid and that I take part at my own risk.',
+  signatureLabel: 'İmzalamak için adını ve soyadını yaz',
+  signaturePlaceholder: 'Ad Soyad',
+  acceptLabel: 'Feragatnameyi okudum ve kabul ediyorum.',
+  missingHint:
+    'Devam etmek için iki belgeyi de ekle, adını yaz ve feragatnameyi kabul et.',
+  uploadFailed:
+    'Kaydın alındı ancak bir belge yüklenemedi. Aşağıdan tekrar dene.',
+  retryUpload: 'Yükle',
+  uploading: 'Yükleniyor…',
+  pendingTitle: 'Belgelerin doğrulanınca kaydını onaylayacağız',
+  pendingBody:
+    'Kaydın alındı. Organizatör belgelerini kontrol eder etmez bir e-posta alacaksın.',
+  approvedBody: 'Belgelerin doğrulandı. Kaydın onaylandı.',
+  rejectedTitle: 'Kaydın onaylanamadı',
+  rejectedNoteLabel: 'Organizatörün gerekçesi:',
+  uploadedLabel: 'Alındı',
+  missingLabel: 'Hâlâ eksik',
+  needFilesBody: 'Organizatörün belgelerini kontrol edebilmesi için eksik belgeleri yükle.',
 }
 
 export function verificationStrings(locale?: string): VerificationBundle {
   const base = (locale ?? '').toLowerCase()
-  if (base.startsWith('de')) return de
+  // landr-wm0jv: de/tr follow the operator's address form (default informal).
+  const informal = getAddressForm() === 'informal'
+  if (base.startsWith('de')) return informal ? deInformal : de
   if (base.startsWith('es')) return es
   if (base.startsWith('it')) return it
-  if (base.startsWith('tr')) return tr
+  if (base.startsWith('tr')) return informal ? trInformal : tr
   return en
 }
 

@@ -622,6 +622,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/internal/playground/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * History
+         * @description Live's proposal / take / decline timeline of one operator for a live member (signed).
+         */
+        post: operations["history"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/internal/playground/invites": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Receive Invite
+         * @description Create the invite on THIS (staging/dev) tier for a live owner's colleague.
+         */
+        post: operations["receive_invite"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/internal/playground/proposals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Proposals
+         * @description Store a live member's playground proposal for that operator (signed).
+         */
+        post: operations["proposals"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/internal/playground/setup-bundle": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Setup Bundle
+         * @description The live setup bundle of one operator for a live member of it (signed).
+         */
+        post: operations["setup_bundle"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/internal/release/changelog": {
         parameters: {
             query?: never;
@@ -717,7 +797,11 @@ export interface paths {
         put?: never;
         /**
          * Express Chain Relay
-         * @description Create AND approve a staging_to_main run for a dev express chain.
+         * @description Create AND approve a staging_to_main run for a dev express chain — or,
+         *     with ``kind='prod_hotfix_code'`` + ``picks`` (landr-i74li), a held
+         *     prod_hotfix_code run for a dev express HOTFIX chain (409 ``run_in_flight``
+         *     while any run is queued/executing on staging; 409 with the
+         *     resolve_prod_picks code for a bad pick).
          *
          *     Auth: HMAC + nonce. 403 ``initiator_not_approver`` · 409
          *     ``staging_signoff_pending`` / ``staging_to_main_in_flight`` /
@@ -1963,6 +2047,12 @@ export interface paths {
          *     it into ``staging`` — a conflict fails the run with nothing merged — and,
          *     if the landr-api picks touched supabase/migrations, applies them to the
          *     staging DB pinned to the new staging SHA. No version/changelog/tag.
+         *
+         *     landr-i74li — ``express=true`` makes it an express hotfix chain
+         *     (app/workers/express_chain.py): approver-only and refused up front by the
+         *     same gates as Ship to prod (``_enforce_express_allowed`` on the picked
+         *     repos); the run is created with ``chain_to_main`` and, once staging is
+         *     deployed and healthy, staging creates the held Hotfix to production.
          */
         post: operations["create_staging_hotfix_code"];
         delete?: never;
@@ -3521,6 +3611,264 @@ export interface paths {
         patch: operations["patch_product_offer"];
         trace?: never;
     };
+    "/api/operators/{operator_id}/playground-proposal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Proposal
+         * @description The open proposal from the playground, judged against live now (or ``null``).
+         */
+        get: operations["get_proposal"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/operators/{operator_id}/playground-proposal/decline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Decline Proposal
+         * @description Decline the whole proposal; nothing in live changes.
+         */
+        post: operations["decline_proposal"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/operators/{operator_id}/playground-proposal/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Proposal History
+         * @description Who proposed / took / declined which lines of the playground, and when.
+         */
+        get: operations["proposal_history"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/operators/{operator_id}/playground-proposal/review-started": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Review Started
+         * @description An owner / admin opened the review (first opener recorded; idempotent).
+         */
+        post: operations["review_started"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/operators/{operator_id}/playground-proposal/take": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Take Proposal
+         * @description Take the ticked groups (and only those) into live.
+         */
+        post: operations["take_proposal"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/operators/{operator_id}/playground/demo-bookings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Fill Demo Bookings */
+        post: operations["fill_demo_bookings"];
+        /**
+         * Remove Demo Bookings
+         * @description Remove this operator's marked demo bookings (and their payments and demo
+         *     guests). Unmarked bookings are never touched.
+         */
+        delete: operations["remove_demo_bookings"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/operators/{operator_id}/playground/diff": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Playground Diff Lines
+         * @description Live against this playground as per-line groups (landr-tbzye.2).
+         *
+         *     Direction comes from the stored per-row baseline of the live rows this
+         *     playground last took (``operator_playground_baselines``), never from a
+         *     fingerprint: ``live`` / ``here`` / ``both``. A first look seeds the baseline with
+         *     the rows identical on both tiers; a row the baseline lacks that differs on both
+         *     tiers is ``both`` + ``origin_unknown``, one only live has is ``live``, one only
+         *     here is ``here`` (proposable). Each group carries lines
+         *     ``{table, pk, kind (update|new|delete), live_value, playground_value,
+         *     direction, origin_unknown, label, area, group_id}`` and ``requires`` (group ids
+         *     to take together). Values are data for escaped text
+         *     (``app/services/playground_diff.py``).
+         */
+        get: operations["playground_diff_lines"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/operators/{operator_id}/playground/fetch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Playground Fetch
+         * @description Apply the ticked "Changed in live" groups to this playground (module doc).
+         */
+        post: operations["playground_fetch"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/operators/{operator_id}/playground/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Playground History Timeline
+         * @description The Playground history: fetches here + live's proposals / takes / declines.
+         *
+         *     ``{events, live: {connected, reason}}``; each event is
+         *     ``{id, kind: fetch|proposal|take|decline, direction: to_playground|to_live, at,
+         *     actor_name, proposal_id, proposal_status, group_count, line_count, groups}``
+         *     (labels and counts, never a value). Same members as the rest of the panel.
+         */
+        get: operations["playground_history_timeline"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/operators/{operator_id}/playground/live-bundle": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Live Bundle
+         * @description This operator's LIVE setup bundle, for a member of it on both tiers.
+         */
+        get: operations["live_bundle"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/operators/{operator_id}/playground/proposals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Propose For Live
+         * @description Send the ticked "Changed here, not in live" groups to live as a proposal.
+         */
+        post: operations["propose_for_live"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/operators/{operator_id}/playground/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Playground Status
+         * @description Whether this caller can use the channel right now (no call to live).
+         */
+        get: operations["playground_status"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/operators/{operator_id}/products/{product_id}/eligibility-rules": {
         parameters: {
             query?: never;
@@ -3542,6 +3890,31 @@ export interface paths {
          *     product / season of another operator.
          */
         patch: operations["patch_product_eligibility_rules"];
+        trace?: never;
+    };
+    "/api/operators/{operator_id}/products/{product_id}/suggestions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Product Suggestions
+         * @description The product's suggestion links in order.
+         */
+        get: operations["list_product_suggestions"];
+        /**
+         * Put Product Suggestions
+         * @description Replace the product's suggestion links with ``suggested_product_ids``
+         *     (de-duplicated, first occurrence wins; the list order is the hint order).
+         */
+        put: operations["put_product_suggestions"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/platform-settings/onboarding-call": {
@@ -4701,6 +5074,27 @@ export interface paths {
         };
         /** Get Pass Tiers */
         get: operations["public_get_pass_tiers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/operators/{token}/products/{product_id}/suggestions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Product Suggestions
+         * @description The product's cross-sell hints; ``[]`` when the operator has them off or
+         *     the product is not the operator's. 404 only for an unknown widget token.
+         */
+        get: operations["public_get_product_suggestions"];
         put?: never;
         post?: never;
         delete?: never;
@@ -10686,6 +11080,23 @@ export interface paths {
         get: operations["get_plan_terms"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/playground-invites": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Invite To Playground */
+        post: operations["invite_to_playground"];
         delete?: never;
         options?: never;
         head?: never;
@@ -18898,6 +19309,19 @@ export interface components {
              */
             resolved_count: number;
         };
+        /** DeclineIn */
+        DeclineIn: {
+            /**
+             * Idempotency Key
+             * Format: uuid
+             */
+            idempotency_key: string;
+            /**
+             * Proposal Id
+             * Format: uuid
+             */
+            proposal_id: string;
+        };
         /**
          * DerivedCut
          * @description A cut point a rule or a price adds on top of the operator's ``range_cuts``
@@ -19731,6 +20155,15 @@ export interface components {
              * Format: date
              */
             start_date: string;
+        };
+        /** FetchRequest */
+        FetchRequest: {
+            /** Group Ids */
+            group_ids: string[];
+            /** Live Fingerprint */
+            live_fingerprint: string;
+            /** Playground Fingerprint */
+            playground_fingerprint: string;
         };
         /** FieldSchemaIn */
         FieldSchemaIn: {
@@ -22974,6 +23407,8 @@ export interface components {
          * @description Partial update payload — every field is optional.
          */
         OperatorPatch: {
+            /** Address Form */
+            address_form?: ("informal" | "formal") | null;
             /** Balance Due Days Before Arrival */
             balance_due_days_before_arrival?: number | null;
             /** Booking Window Months */
@@ -23331,6 +23766,11 @@ export interface components {
          *     landr-jb1k: widget_variant and widget_category_columns added.
          */
         OperatorSettings: {
+            /**
+             * Address Form
+             * @default informal
+             */
+            address_form: string;
             /** Balance Due Days Before Arrival */
             balance_due_days_before_arrival?: number | null;
             /** Booking Window Months */
@@ -23339,6 +23779,11 @@ export interface components {
             contact_email?: string | null;
             /** Country */
             country?: string | null;
+            /**
+             * Cross Sell Hints Enabled
+             * @default false
+             */
+            cross_sell_hints_enabled: boolean;
             /** Customer Languages */
             customer_languages?: string[];
             /**
@@ -24153,6 +24598,93 @@ export interface components {
             interval: "monthly" | "annual";
             /** Package Slug */
             package_slug: string;
+        };
+        /** PlaygroundInviteIn */
+        PlaygroundInviteIn: {
+            /**
+             * Membership Id
+             * Format: uuid
+             */
+            membership_id: string;
+        };
+        /** PlaygroundLeftOut */
+        PlaygroundLeftOut: {
+            /** Columns */
+            columns: string[];
+            /** Group Id */
+            group_id: string;
+            /** Label */
+            label: string;
+            /** Pk */
+            pk: string;
+            /** Reason */
+            reason: string;
+            /** Table */
+            table: string;
+        };
+        /** PlaygroundProposeIn */
+        PlaygroundProposeIn: {
+            /** Group Ids */
+            group_ids: string[];
+            /**
+             * Idempotency Key
+             * Format: uuid
+             */
+            idempotency_key: string;
+            /** Live Fingerprint Seen */
+            live_fingerprint_seen?: string | null;
+            /** Replaces Proposal Id */
+            replaces_proposal_id?: string | null;
+            /** Seen */
+            seen: {
+                [key: string]: components["schemas"]["PlaygroundSeenLine"][];
+            };
+        };
+        /** PlaygroundProposeOut */
+        PlaygroundProposeOut: {
+            /** Created */
+            created: boolean;
+            /** Left Out */
+            left_out: components["schemas"]["PlaygroundLeftOut"][];
+            /** Live Fingerprint */
+            live_fingerprint?: string | null;
+            /** Proposal Id */
+            proposal_id: string;
+            /** Proposed At */
+            proposed_at?: string | null;
+            /** Proposed Group Ids */
+            proposed_group_ids: string[];
+            /** Proposed Lines */
+            proposed_lines: number;
+            /** Replaced At */
+            replaced_at?: string | null;
+            /** Replaced Proposal Id */
+            replaced_proposal_id?: string | null;
+            /** Replaced Proposed At */
+            replaced_proposed_at?: string | null;
+        };
+        /**
+         * PlaygroundSeenLine
+         * @description A line as the panel showed it (only to notice a change since; never sent on).
+         */
+        PlaygroundSeenLine: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "update" | "new" | "delete";
+            /** Live Value */
+            live_value?: {
+                [key: string]: unknown;
+            } | null;
+            /** Pk */
+            pk: string;
+            /** Playground Value */
+            playground_value?: {
+                [key: string]: unknown;
+            } | null;
+            /** Table */
+            table: string;
         };
         /** PowerUpListOut */
         PowerUpListOut: {
@@ -25041,6 +25573,13 @@ export interface components {
             /** Repos */
             repos: components["schemas"]["ProdHotfixCandidateRepo"][];
         };
+        /** ProdHotfixCodeIn */
+        ProdHotfixCodeIn: {
+            /** Notes */
+            notes?: string | null;
+            /** Picks */
+            picks: components["schemas"]["HotfixPickIn"][];
+        };
         /** ProdHotfixPr */
         ProdHotfixPr: {
             /** Number */
@@ -25377,6 +25916,35 @@ export interface components {
              * @description New parent group id, or null to move to the tree root.
              */
             parent_id?: string | null;
+        };
+        /** ProductHint */
+        ProductHint: {
+            /** Currency */
+            currency?: string | null;
+            /** Name */
+            name: string;
+            /** Name Localized */
+            name_localized?: {
+                [key: string]: unknown;
+            } | null;
+            /** Price From */
+            price_from?: number | null;
+            /** Product Id */
+            product_id: string;
+            /** Product Kind */
+            product_kind?: string | null;
+            /** Short Description */
+            short_description?: string | null;
+            /** Short Description Localized */
+            short_description_localized?: {
+                [key: string]: unknown;
+            } | null;
+            /** Slug */
+            slug?: string | null;
+            /** Source */
+            source: string;
+            /** Thumb Url */
+            thumb_url?: string | null;
         };
         /**
          * ProductImage
@@ -25919,6 +26487,22 @@ export interface components {
             units_required_per_booking?: number | null;
             /** Units Required Per Participant */
             units_required_per_participant?: number | null;
+        };
+        /** ProductSuggestion */
+        ProductSuggestion: {
+            /** Id */
+            id: string;
+            /** Product Id */
+            product_id: string;
+            /** Sort Order */
+            sort_order: number;
+            /** Suggested Product Id */
+            suggested_product_id: string;
+        };
+        /** ProductSuggestionsIn */
+        ProductSuggestionsIn: {
+            /** Suggested Product Ids */
+            suggested_product_ids: string[];
         };
         /**
          * ProductsCount
@@ -27595,6 +28179,14 @@ export interface components {
             /** Reason */
             reason: string;
         };
+        /** ReviewStartedIn */
+        ReviewStartedIn: {
+            /**
+             * Proposal Id
+             * Format: uuid
+             */
+            proposal_id: string;
+        };
         /** RoleCapabilityLevel */
         RoleCapabilityLevel: {
             /**
@@ -28953,6 +29545,12 @@ export interface components {
         };
         /** StagingHotfixCodeIn */
         StagingHotfixCodeIn: {
+            /**
+             * Express
+             * @description landr-i74li — express hotfix: after the staging hotfix merged, wait for the staging deploys + health, then have staging create AND approve a Hotfix to production of the same commits on the caller's behalf (held EXPRESS_HOTFIX_HOLD_SECONDS). Release approvers only.
+             * @default false
+             */
+            express: boolean;
             /** Notes */
             notes?: string | null;
             /** Picks */
@@ -29381,6 +29979,21 @@ export interface components {
             color?: string | null;
             /** Name */
             name?: string | null;
+        };
+        /** TakeIn */
+        TakeIn: {
+            /** Group Ids */
+            group_ids: string[];
+            /**
+             * Idempotency Key
+             * Format: uuid
+             */
+            idempotency_key: string;
+            /**
+             * Proposal Id
+             * Format: uuid
+             */
+            proposal_id: string;
         };
         /**
          * TaxRateCheck
@@ -31987,6 +32600,86 @@ export interface operations {
             };
         };
     };
+    history: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    receive_invite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    proposals: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    setup_bundle: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
     relay_changelog: {
         parameters: {
             query: {
@@ -33971,7 +34664,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["StagingHotfixCodeIn"];
+                "application/json": components["schemas"]["ProdHotfixCodeIn"];
             };
         };
         responses: {
@@ -36395,6 +37088,453 @@ export interface operations {
             };
         };
     };
+    get_proposal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    decline_proposal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeclineIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    proposal_history: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    review_started: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReviewStartedIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    take_proposal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TakeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    fill_demo_bookings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_demo_bookings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    playground_diff_lines: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    playground_fetch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FetchRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    playground_history_timeline: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    live_bundle: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    propose_for_live: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlaygroundProposeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlaygroundProposeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    playground_status: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     patch_product_eligibility_rules: {
         parameters: {
             query?: never;
@@ -36418,6 +37558,74 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EligibilityRulesBody-Output"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_product_suggestions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductSuggestion"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_product_suggestions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProductSuggestionsIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductSuggestion"][];
                 };
             };
             /** @description Validation Error */
@@ -38126,6 +39334,38 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_get_product_suggestions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductHint"][];
                 };
             };
             /** @description Validation Error */
@@ -48998,6 +50238,43 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    invite_to_playground: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlaygroundInviteIn"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {

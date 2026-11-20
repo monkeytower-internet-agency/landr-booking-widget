@@ -3,6 +3,22 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" href="/favicon.ico" sizes="any" />
+    <!-- landr-x8ze7: dev and staging get a green / blue round badge so their
+         tabs are told apart from live at a glance; live keeps favicon.ico. -->
+    <script>
+      ;(function () {
+        var h = location.hostname
+        var tier = /staging/.test(h)
+          ? 'staging'
+          : /(^|[.-])dev[.-]/.test(h) || h === 'localhost' || /^[0-9.]+$/.test(h)
+            ? 'dev'
+            : null
+        if (tier)
+          document
+            .querySelector('link[rel="icon"]')
+            .setAttribute('href', '/favicon-' + tier + '.ico')
+      })()
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <!-- landr-em0r.9: the /reply/{token}/{intent} hotel-reply page (and
          /cancel, /offer) must never be indexed, and outbound links from

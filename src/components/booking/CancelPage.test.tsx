@@ -132,7 +132,7 @@ describe('CancelPage', () => {
       norm(`You will get ${money('en', 52.5)} back to your original payment method.`),
     )
     expect(textOf('cancel-deposit-kept')).toBe(
-      norm(`The deposit of ${money('en', 22.5)} is not refunded.`),
+      norm(`The ${money('en', 22.5)} deposit is non-refundable.`),
     )
   })
 
@@ -144,7 +144,7 @@ describe('CancelPage', () => {
     )
     expect(screen.queryByTestId('cancel-refund')).toBeNull()
     expect(textOf('cancel-deposit-kept')).toBe(
-      norm(`The deposit of ${money('en', 22.5)} is not refunded.`),
+      norm(`The ${money('en', 22.5)} deposit is non-refundable.`),
     )
   })
 
@@ -189,7 +189,7 @@ describe('CancelPage', () => {
     await renderLoaded(preview({ allowed: false }))
     expect(screen.getByText(/can no longer be cancelled online/i)).toBeInTheDocument()
     expect(textOf('cancel-refusal')).toContain(norm(`until ${expectedDeadline('en')}`))
-    expect(textOf('cancel-refusal')).toContain('Please contact Sky Op')
+    expect(textOf('cancel-refusal')).toContain('Contact Sky Op to change or cancel your booking.')
     expect(screen.queryByRole('button', { name: /yes, cancel booking/i })).toBeNull()
     expect(screen.getByRole('link', { name: 'Call +34 600 000 000' })).toHaveAttribute(
       'href', 'tel:+34600000000',
@@ -303,7 +303,7 @@ describe('CancelPage change-activity hint', () => {
   it('speaks German for a German booking email', async () => {
     await renderLoaded(preview({ locale: 'de' }))
     expect(textOf('cancel-change-activity-hint')).toBe(
-      'Du möchtest eine andere Aktivität? Wende dich an Sky Op, um sie zu ändern.',
+      'Lieber eine andere Aktivität? Wenden Sie sich an Sky Op, um sie zu ändern.',
     )
   })
 

@@ -6,12 +6,13 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { StepBackButton } from '@/components/booking/StepBackButton'
+import { useBreadcrumbNav } from '@/components/booking/breadcrumbNav'
 import {
   AlternativesSection,
   type AlternativeSelectHandler,
 } from '@/components/booking/AlternativesPanel'
 import { browserLocale } from '@/lib/locale'
-import { tr } from '@/lib/strings'
+import { fmt, tr } from '@/lib/strings'
 
 /**
  * landr-7jgo: informational "Fully booked" state for a product that has no
@@ -38,6 +39,8 @@ interface Props {
   onSelectAlternative?: AlternativeSelectHandler
   /** Operator IANA zone; the alternatives range starts at the operator's today. */
   operatorTimezone?: string | null
+  /** landr-f210e.5: reached from a cross-sell hint -- say it is also booked on the carried days. */
+  hintNotice?: boolean
 }
 
 // Exported (landr-872c) so the Categories layout's disabled category tiles
@@ -59,11 +62,13 @@ export function FullyBookedNotice({
   productId,
   onSelectAlternative,
   operatorTimezone,
+  hintNotice,
 }: Props) {
   const locale = browserLocale()
+  const detour = useBreadcrumbNav()?.detourBack
   return (
     <Card className={compact ? 'flex flex-col opacity-75' : 'flex flex-col'}>
-      {onBack ? <StepBackButton onBack={onBack} /> : null}
+      {onBack || detour ? <StepBackButton onBack={onBack} /> : null}
       <CardHeader>
         <div className="flex items-start justify-between gap-2">
           <CardTitle>{name}</CardTitle>
@@ -77,7 +82,11 @@ export function FullyBookedNotice({
         {description ? <CardDescription>{description}</CardDescription> : null}
       </CardHeader>
       <CardContent className="text-sm text-muted-foreground">
-        <p>{tr('fullyBookedBlurb', locale)}</p>
+        <p data-testid="fully-booked-blurb">
+          {hintNotice
+            ? fmt(tr('crossSellHintFullyBooked', locale), { product: name })
+            : tr('fullyBookedBlurb', locale)}
+        </p>
         {productId && !compact ? (
           <div className="mt-4 text-foreground">
             <AlternativesSection

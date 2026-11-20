@@ -40,7 +40,7 @@ export const orderedBands = (bands: readonly FlowAgeBand[]): FlowAgeBand[] => [
   ...adultBandsOf(bands),
   ...bands.filter((b) => !isAdultBand(b)),
 ]
-const childKey = (bands: readonly FlowAgeBand[]): string => bands.find((b) => !isAdultBand(b))?.key ?? 'child'
+export const childKey = (bands: readonly FlowAgeBand[]): string => bands.find((b) => !isAdultBand(b))?.key ?? 'child'
 
 /** The option text of a band: translated Child / Adult, else the flow's own label. */
 export function bandLabel(band: FlowAgeBand, bands: readonly FlowAgeBand[], locale: string): string {
@@ -117,12 +117,10 @@ export function parseExactAge(raw: string): number | null {
   return n <= MAX_EXACT_AGE ? n : null
 }
 
-/** True when `age` is a usable exact age (the booker: 18 or older). */
+/** True when `age` is usable: none (an adult, landr-ex4vy) or a whole age 0-120 (the booker: 18+). */
 export const isValidExactAge = (age: number | null | undefined, booker = false): boolean =>
-  typeof age === 'number' &&
-  Number.isInteger(age) &&
-  age >= (booker ? ADULT_FROM : 0) &&
-  age <= MAX_EXACT_AGE
+  age == null ||
+  (Number.isInteger(age) && age >= (booker ? ADULT_FROM : 0) && age <= MAX_EXACT_AGE)
 
 /**
  * The guest with an exact age (`age_collect_as = exact`): the age is the roster

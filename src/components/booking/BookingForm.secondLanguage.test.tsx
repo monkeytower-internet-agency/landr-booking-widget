@@ -259,8 +259,8 @@ describe('BookingForm — second guiding language (landr-hdk4y.2)', () => {
   })
 
   it.each([
-    ['participant_accepted_languages_missing', /say which other guiding languages/i],
-    ['participant_accepted_languages_invalid', /other guiding languages on offer have changed/i],
+    ['participant_accepted_languages_missing', /choose which other guiding languages work/i],
+    ['participant_accepted_languages_invalid', /guiding languages on offer have changed/i],
   ])('maps the typed 422 %s to a friendly message', async (code, message) => {
     fetchSpy.mockImplementation(
       async () =>
