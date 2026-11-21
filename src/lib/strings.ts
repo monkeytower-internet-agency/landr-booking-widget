@@ -104,6 +104,7 @@ export type Bundle = {
   crumbPickup: string
   crumbDetails: string
   crumbLanguage: string
+  crumbAddress: string
   crumbReview: string
 
   // ---- StepBackButton / breadcrumb ----
@@ -256,7 +257,10 @@ export type Bundle = {
   addGuestButton: string
   enterYourNameEmailPhoneCue: string
   enterYourBillingAddressCue: string
-  billingRequiredBeforeConfirm: string
+  reviewAddressGate: string
+  addressStepTitle: string
+  addressStepGate: string
+  reviewEditLabel: string
   fillInEveryRequiredField: string
   roleLabel: string
   includeYourCountryCode: string
@@ -1245,6 +1249,7 @@ const en: Bundle = {
   crumbPickup: 'Pickup',
   crumbDetails: 'Details',
   crumbLanguage: 'Language',
+  crumbAddress: 'Address',
   crumbReview: 'Review',
 
   noTimesAvailable: 'No times available.',
@@ -1382,7 +1387,10 @@ const en: Bundle = {
   addGuestButton: '+ Add guest',
   enterYourNameEmailPhoneCue: 'enter your name, email and phone',
   enterYourBillingAddressCue: 'enter your billing address',
-  billingRequiredBeforeConfirm: 'Enter your billing address to confirm.',
+  reviewAddressGate: 'Add your billing address in the Address step to confirm.',
+  addressStepTitle: 'Where should the invoice go?',
+  addressStepGate: 'Fill in street, postal code, city and country to continue.',
+  reviewEditLabel: 'Edit',
   fillInEveryRequiredField: 'Complete the required fields to continue.',
   roleLabel: 'Role',
   includeYourCountryCode: 'Include your country code',

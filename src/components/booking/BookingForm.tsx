@@ -52,13 +52,12 @@ import { formatDayLabel, formatDayRange } from './dateLabel'
 import { hasFixedStartTimes, toHHMM } from './slotKey'
 import {
   billingAddressComplete,
+  billingHasAny,
   billingToPayload,
   bookerJoins,
-  BILLING_REQUIRED_FIELDS,
   firstMissingBillingField,
   participantsForSubmit,
   withBilling,
-  type BillingDetails,
   type BookerDetails,
   type CompanionDetails,
   type ParticipantDetails,
@@ -67,8 +66,7 @@ import { ADULT_FROM, DEFAULT_AGE_BANDS, adultAgeWire, adultFloorOf, resolveBands
 import { ContinueAction } from './ContinueAction'
 import { isOwnAccommodation, ownAccommodationWire } from './ownAccommodation'
 import { CustomerCommentField } from './CustomerCommentField'
-import { BillingAddressBlock } from './BillingAddressBlock'
-import { NextAction } from './NextAction'
+import { BillingSummaryCard } from './BillingSummaryCard'
 import { AddMoreProducts } from './AddMoreProducts'
 import { CrossSellHintCards } from './CrossSellHintCards'
 import {
@@ -229,16 +227,11 @@ interface Props {
    */
   booker: BookerDetails
   /**
-   * The billing address is entered on this step (not on
-   * DetailsStep). Fires with every edit so App keeps `booker.billing` in the
-   * persistent draft + step, and Back / a reload restore what was typed.
+   * landr-rw8i2: the billing address is entered on the Address step before
+   * this one; Review shows it as a summary card and this takes the customer
+   * back to edit it.
    */
-  onBillingChange?: (billing: BillingDetails) => void
-  /**
-   * landr-uuntm.3: the operator's ISO country, last link of the billing
-   * country guess chain (geo -> browser locale -> this). Absent/null = skip.
-   */
-  operatorCountry?: string | null
+  onEditBilling?: () => void
   /**
    * Full participant roster captured by DetailsStep (landr-8c03) —
    * includes the booker as participant 1 plus any additional people.
@@ -1157,8 +1150,7 @@ export function BookingForm({
   product,
   selection,
   booker,
-  onBillingChange,
-  operatorCountry,
+  onEditBilling,
   participants,
   companions = [],
   pickupLocationId: mainPickupLocationId,
@@ -1225,37 +1217,14 @@ export function BookingForm({
   // landr-aoak.2 [S3]: staff/operator mode. When inactive, none of the staff
   // branches below render and the submit body is byte-identical to today.
   const staff = useStaffMode()
-  // The billing address is entered here, right above Confirm. Held
-  // locally (so the block works wherever BookingForm is mounted) and mirrored
-  // up through onBillingChange, which keeps booker.billing in the draft so Back
-  // and a reload restore it. Staff-entered bookings (phone walk-ins) may not
+  // The billing address is collected on the Address step (landr-rw8i2) and
+  // read here off the booker. Staff-entered bookings (phone walk-ins) may not
   // have the customer's address to hand: optional there, required publicly.
-  const [billing, setBilling] = useState<BillingDetails>(() => withBilling(booker).billing)
+  // Confirm stays disabled without it (a deep link or Back-navigation can
+  // still land here with it empty).
+  const billing = withBilling(booker).billing
   const requireBilling = !staff.active
   const missingBilling = requireBilling ? firstMissingBillingField(billing) : undefined
-  const [billingTouched, setBillingTouched] = useState<ReadonlySet<string>>(() => new Set())
-  const touchBilling = (key: string) =>
-    setBillingTouched((prev) => (prev.has(key) ? prev : new Set(prev).add(key)))
-  const changeBilling = (next: BillingDetails) => {
-    setBilling(next)
-    onBillingChange?.(next)
-  }
-  // A Confirm tap with the address incomplete reveals every missing field and
-  // takes the customer to the first one (same recipe as the details step).
-  const revealMissingBilling = () => {
-    setBillingTouched((prev) => {
-      const next = new Set(prev)
-      for (const f of BILLING_REQUIRED_FIELDS) next.add(f.key)
-      return next
-    })
-    if (!missingBilling || typeof document === 'undefined') return
-    const el = document.getElementById(missingBilling.id)
-    if (!el) return
-    el.focus()
-    if (typeof el.scrollIntoView === 'function') {
-      el.scrollIntoView({ block: 'center', behavior: 'smooth' })
-    }
-  }
   // "Add more to this booking" is the public funnel's; a staff booking keeps
   // its single product (staff add lines on the booking afterwards).
   const setExtraLines = staff.active ? undefined : onExtraLinesChange
@@ -1818,7 +1787,7 @@ export function BookingForm({
     }
     // the public booking needs the invoice address before Buchen.
     if (missingBilling) {
-      revealMissingBilling()
+      setServerError(tr('reviewAddressGate', locale))
       return
     }
     if (extrasBlocked) {
@@ -2496,6 +2465,12 @@ export function BookingForm({
           ) : null}
         </section>
 
+        {/* landr-rw8i2: the billing address, entered on the Address step, as a
+            finished summary with an Edit way back. Staff may leave it empty. */}
+        {billingHasAny(billing) ? (
+          <BillingSummaryCard booker={booker} billing={billing} onEdit={onEditBilling} />
+        ) : null}
+
         {/* Participants summary. participants[0] mirrors the booker when they
             take part; when they book for someone else (landr-jiagg.2) it is
             the roster alone. Either way: heading + one row per person. */}
@@ -2912,31 +2887,6 @@ export function BookingForm({
           />
         ) : null}
 
-        {/* landr-n6ii3: same field DetailsStep collects, editable here too —
-            last field before Confirm booking. */}
-        <CustomerCommentField
-          value={customerComment ?? ''}
-          onChange={onCustomerCommentChange}
-          collapsible
-        />
-
-        {/* The invoice address belongs at checkout, last thing
-            before Confirm. Pending required control while incomplete, so it
-            owns the next-action ring (ContinueAction below stands down). */}
-        <NextAction
-          active={missingBilling !== undefined}
-          cue={tr('enterYourBillingAddressCue', locale)}
-        >
-          <BillingAddressBlock
-            booker={{ ...booker, billing }}
-            onChange={changeBilling}
-            required={requireBilling}
-            touched={billingTouched}
-            onTouch={touchBilling}
-            operatorCountry={operatorCountry}
-          />
-        </NextAction>
-
         {/* landr-hdk4y.2: an added product changed the second-language question
             (who is asked, or which options): ask it here, in the same wording
             the language step uses. Without an added product the language step
@@ -2961,6 +2911,14 @@ export function BookingForm({
           />
         ) : null}
 
+        {/* landr-n6ii3 / landr-rw8i2: same field DetailsStep collects, editable
+            here too. Always the LAST thing, directly above Confirm booking. */}
+        <CustomerCommentField
+          value={customerComment ?? ''}
+          onChange={onCustomerCommentChange}
+          collapsible
+        />
+
         {/* landr-xpbt2: every control that finishes the booking sits in this
             one box — above Confirm, the operator price-override
             (landr-aoak.2 [S3].3: sets override_gross_total + override_reason
@@ -2972,6 +2930,7 @@ export function BookingForm({
         <ContinueAction
           active={missingBilling === undefined && !submitting && !unPriceable && !voucherBlocked && !overrideBlocked && !verificationBlocked && !extrasBlocked && !secondLanguageBlocked && !mainIneligible}
           ready={
+            missingBilling === undefined &&
             !submitting && !unPriceable && !voucherBlocked && !overrideBlocked && !verificationBlocked && !extrasBlocked &&
             !secondLanguageBlocked && !mainIneligible
           }
@@ -2994,7 +2953,7 @@ export function BookingForm({
               : verificationBlocked
               ? verificationStrings(locale).missingHint
               : missingBilling
-              ? tr('billingRequiredBeforeConfirm', locale)
+              ? tr('reviewAddressGate', locale)
               : overrideAmountInvalid
               ? 'Enter a valid price'
               : overrideReasonMissing

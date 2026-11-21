@@ -97,6 +97,7 @@ const CRUMB_KEYS: Partial<Record<BreadcrumbItem['name'], keyof Bundle>> = {
   'pick-pickup': 'crumbPickup',
   'custom-form': 'crumbDetails',
   'assign-languages': 'crumbLanguage',
+  'billing-address': 'crumbAddress',
   'fill-form': 'crumbReview',
 }
 
