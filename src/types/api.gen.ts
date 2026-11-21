@@ -15534,6 +15534,17 @@ export interface components {
             /** Per Session Max Turns */
             per_session_max_turns?: number | null;
         };
+        /** AiStatusOut */
+        AiStatusOut: {
+            /** Available */
+            available: boolean;
+            /** Credentials */
+            credentials: string;
+            /** Model */
+            model: string;
+            /** Reason */
+            reason: string | null;
+        };
         /** AiUsageOut */
         AiUsageOut: {
             /** Current Month */
@@ -15545,6 +15556,7 @@ export interface components {
             /** Operators */
             operators: components["schemas"]["OperatorUsage"][];
             settings: components["schemas"]["AiSettingsOut"];
+            status: components["schemas"]["AiStatusOut"];
             totals: components["schemas"]["UsageTotals"];
         };
         /** AlertOut */
@@ -21636,6 +21648,10 @@ export interface components {
             failure_reason: string | null;
             /** Finalised At */
             finalised_at: string | null;
+            /** Holded Approve Error */
+            holded_approve_error?: string | null;
+            /** Holded Approve State */
+            holded_approve_state?: string | null;
             /** Holded Send State */
             holded_send_state?: string | null;
             /** Holded Sent At */
