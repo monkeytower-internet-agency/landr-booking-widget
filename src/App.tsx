@@ -79,7 +79,14 @@ import {
   productAcceptsAnyLanguage,
   singleLanguageAssignment,
 } from '@/components/booking/participantLanguages'
-import { buildSecondLanguageCart } from '@/components/booking/secondLanguage'
+import {
+  buildSecondLanguageCart,
+  secondLanguageCartFor,
+} from '@/components/booking/secondLanguage'
+import {
+  EMPTY_VERIFICATION,
+  type VerificationInput,
+} from '@/components/booking/verification'
 import { FixedDateWindowPicker } from '@/components/booking/FixedDateWindowPicker'
 import { expandWindowDays } from '@/components/booking/expandWindowDays'
 import { MembershipCheckoutStep } from '@/components/booking/MembershipCheckoutStep'
@@ -89,7 +96,13 @@ import { MultiDayStep } from '@/components/booking/MultiDayStep'
 import { PickupLocationPicker } from '@/components/booking/PickupLocationPicker'
 import { childAgesFromRoster, hasOccupancyPricing } from '@/components/booking/occupancyPricing'
 import PriceSidebar, { type CalculatedTotal } from '@/components/booking/PriceSidebar'
-import { unavailableDaysFor, type ExtraLine } from '@/components/booking/crossSell'
+import {
+  bookingLanguageOffer,
+  effectiveLanguages,
+  productOfferedLanguages,
+  unavailableDaysFor,
+  type ExtraLine,
+} from '@/components/booking/crossSell'
 import { ProductList } from '@/components/booking/ProductList'
 import {
   alternativePartyClampedMessage,
@@ -140,6 +153,7 @@ import {
   frameBackStep,
   participantsBeforeSelection,
   draftFromStep,
+  assignLanguagesStep,
   billingAddressStep,
   enterReviewOrCustomForm,
   mergeCapturedDraft,
@@ -922,6 +936,40 @@ function BookingFlowApp() {
       }),
     [crossSellSig, setCrossSell],
   )
+  // landr-kq0l4: the cart as the steps BEFORE Review see it. Products added on
+  // Review count towards the documents (Details step) and the second-language
+  // question (Language step), so an Edit from Review finds them there. The
+  // stored cart belongs to a product + dates; anything else reads as empty.
+  const cartSigHere =
+    'product' in step && 'selection' in step && step.selection
+      ? JSON.stringify([
+          step.product.product_id,
+          step.selection.kind === 'slot'
+            ? [step.selection.slot.date]
+            : step.selection.selectedDays,
+        ])
+      : ''
+  const cartHere = cartSigHere !== '' && crossSell.sig === cartSigHere ? crossSell : null
+  const cartLinesHere = cartHere?.lines ?? []
+  // landr-kq0l4: documents + signed waiver, entered on the Details step and
+  // only summarised on Review. Held here (files cannot live in the persisted
+  // draft); a new main product starts empty.
+  const [verification, setVerification] = useState<VerificationInput>(EMPTY_VERIFICATION)
+  const verificationProductId = 'product' in step ? step.product.product_id : null
+  const [verificationFor, setVerificationFor] = useState<string | null>(null)
+  if (verificationProductId !== null && verificationProductId !== verificationFor) {
+    setVerificationFor(verificationProductId)
+    setVerification(EMPTY_VERIFICATION)
+  }
+  // landr-kq0l4: "Edit" on a Review summary opens the step that owns the data;
+  // Continue there returns straight to the Review it came from (the Review step
+  // is kept whole), unless the party changed — then the normal forward walk runs.
+  const [reviewReturn, setReviewReturn] = useState<{
+    from: 'details' | 'assign-languages'
+    step: Extract<Step, { name: 'fill-form' }>
+  } | null>(null)
+  if (reviewReturn && step.name !== reviewReturn.from) setReviewReturn(null)
+
   // Staff mode: the operator hands a filled-in form back to the customer —
   // drop its response. Which forms the customer completes is derived at render
   // time (the product's forms minus those with a response), never kept here.
@@ -3178,6 +3226,10 @@ function BookingFlowApp() {
             // from the persistent draft (it round-trips through
             // sessionStorage), unlike memberPerkOtp above.
             initialCustomerComment={bookingDraft.customerComment}
+            // landr-kq0l4: documents + waiver are entered here, not on Review.
+            verificationProducts={[step.product, ...cartLinesHere.map((l) => l.product)]}
+            verification={verification}
+            onVerificationChange={setVerification}
             // landr-otml0.3 review fix (MINOR 6): set only on the one mount
             // that follows a companion_contact_required rejection; cleared
             // by DetailsStep itself once applied.
@@ -3208,6 +3260,20 @@ function BookingFlowApp() {
               // of their own to share — drop any shared-double reference
               // confirmed on an earlier pass through accommodation.
               if (!bookerJoins(booker)) setJoinRef(null)
+              // landr-kq0l4: an Edit from Review comes straight back to it when
+              // the party is the same (documents / contact details only).
+              if (
+                reviewReturn?.from === 'details' &&
+                reviewReturn.step.product.product_id === step.product.product_id &&
+                JSON.stringify(reviewReturn.step.participants) ===
+                  JSON.stringify(participants) &&
+                JSON.stringify(reviewReturn.step.companions) === JSON.stringify(companions)
+              ) {
+                commitDetails(step.product, booker, participants, companions, comment)
+                setStep({ ...reviewReturn.step, booker })
+                setReviewReturn(null)
+                return
+              }
               // landr-rmcsu.6: participants before dates → the dates step is
               // next (also after a "Change participants" detour, so the
               // calendar re-checks the dates against the edited party).
@@ -3568,7 +3634,11 @@ function BookingFlowApp() {
         {step.name === 'assign-languages' ? (
           <LanguageStep
             productName={step.product.name}
-            offeredLanguages={offeredLanguagesForProduct(step.product)}
+            offeredLanguages={
+              (cartLinesHere.length > 0
+                ? bookingLanguageOffer(productOfferedLanguages(step.product), cartLinesHere)
+                : null) ?? offeredLanguagesForProduct(step.product)
+            }
             {...(() => {
               const party = step.participants.map((p) => ({
                 first: p.first_name,
@@ -3592,17 +3662,35 @@ function BookingFlowApp() {
                 // language. Any companion entries a stale draft still carries
                 // are simply pruned by LanguageStep (partyCount = participants
                 // only) — see pruneLanguageAssignment.
-                initialAssignment: toIndexKeyed(
-                  bookingDraft.participantLanguages,
-                  roster,
-                ),
+                // landr-kq0l4: back from Review with a product added, the board
+                // opens on what the whole cart agreed (inline picks included).
+                initialAssignment: (() => {
+                  const main = toIndexKeyed(bookingDraft.participantLanguages, roster)
+                  const offer =
+                    cartLinesHere.length > 0
+                      ? bookingLanguageOffer(productOfferedLanguages(step.product), cartLinesHere)
+                      : null
+                  return offer
+                    ? effectiveLanguages(
+                        main,
+                        cartHere?.inline?.languages ?? null,
+                        offer,
+                        roster.length,
+                      )
+                    : main
+                })(),
                 // landr-hdk4y.2: the second-guiding-language question for this
                 // product (nobody is asked unless the operator switched it on),
                 // and the answers restored on back-nav.
-                secondLanguage: buildSecondLanguageCart(
-                  [step.product],
-                  [offeredLanguagesForProduct(step.product)],
-                ),
+                // landr-kq0l4: the question covers the whole cart, so an Edit from
+                // Review finds what a product added there asks too.
+                secondLanguage:
+                  cartLinesHere.length > 0
+                    ? secondLanguageCartFor(step.product, cartLinesHere)
+                    : buildSecondLanguageCart(
+                        [step.product],
+                        [offeredLanguagesForProduct(step.product)],
+                      ),
                 initialAccepted: toIndexKeyed(
                   bookingDraft.participantAcceptedLanguages,
                   roster,
@@ -3649,6 +3737,12 @@ function BookingFlowApp() {
                 participantLanguages: toIdentityKeyed(assignment, roster),
                 participantAcceptedLanguages: toIdentityKeyed(accepted, roster),
               })
+              // landr-kq0l4: an Edit from Review goes straight back to it.
+              if (reviewReturn?.from === 'assign-languages') {
+                setStep(reviewReturn.step)
+                setReviewReturn(null)
+                return
+              }
               setStep(
                 stepAfterLanguages(
                   {
@@ -3911,6 +4005,25 @@ function BookingFlowApp() {
             // landr-rw8i2: the billing address is entered on the Address step
             // before this one; "Edit" on its summary goes back there.
             onEditBilling={() => setStep(billingAddressStep(step))}
+            // landr-kq0l4: documents + waiver (Details) and the second guiding
+            // language (Language) are entered earlier; Review shows them and
+            // offers a way back to the step that owns them.
+            verification={verification}
+            onEditVerification={() => {
+              setReviewReturn({ from: 'details', step })
+              setStep({
+                name: 'details',
+                product: step.product,
+                selection: step.selection,
+                booker: step.booker,
+                participants: step.participants,
+                companions: step.companions,
+              })
+            }}
+            onEditLanguages={() => {
+              setReviewReturn({ from: 'assign-languages', step })
+              setStep(assignLanguagesStep(step))
+            }}
             viaAlternativeOf={
               alternativeOrigin && alternativeOrigin.to === step.product.product_id
                 ? alternativeOrigin.from

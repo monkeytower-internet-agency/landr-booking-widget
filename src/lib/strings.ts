@@ -261,6 +261,14 @@ export type Bundle = {
   addressStepTitle: string
   addressStepGate: string
   reviewEditLabel: string
+  reviewDocumentsTitle: string
+  reviewDocumentsSignedBy: string
+  reviewDocumentsMissing: string
+  reviewDocumentsGate: string
+  reviewSecondLanguageTitle: string
+  reviewSecondLanguageOnlyMain: string
+  reviewSecondLanguageMissing: string
+  reviewSecondLanguageGate: string
   fillInEveryRequiredField: string
   roleLabel: string
   includeYourCountryCode: string
@@ -1391,6 +1399,14 @@ const en: Bundle = {
   addressStepTitle: 'Where should the invoice go?',
   addressStepGate: 'Fill in street, postal code, city and country to continue.',
   reviewEditLabel: 'Edit',
+  reviewDocumentsTitle: 'Your documents',
+  reviewDocumentsSignedBy: 'Signed by {name}',
+  reviewDocumentsMissing: 'Still to add: your documents and signed waiver',
+  reviewDocumentsGate: 'Add your documents and sign the waiver in the Details step to confirm.',
+  reviewSecondLanguageTitle: 'Other guiding languages',
+  reviewSecondLanguageOnlyMain: 'Only {language}',
+  reviewSecondLanguageMissing: 'Still to answer',
+  reviewSecondLanguageGate: 'Answer the guiding-language question in the Language step to confirm. Still open: {names}.',
   fillInEveryRequiredField: 'Complete the required fields to continue.',
   roleLabel: 'Role',
   includeYourCountryCode: 'Include your country code',
