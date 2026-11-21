@@ -21636,6 +21636,10 @@ export interface components {
             failure_reason: string | null;
             /** Finalised At */
             finalised_at: string | null;
+            /** Holded Approve Error */
+            holded_approve_error?: string | null;
+            /** Holded Approve State */
+            holded_approve_state?: string | null;
             /** Holded Send State */
             holded_send_state?: string | null;
             /** Holded Sent At */
