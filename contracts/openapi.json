@@ -17861,6 +17861,28 @@
             ],
             "title": "Finalised At"
           },
+          "holded_approve_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Holded Approve Error"
+          },
+          "holded_approve_state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Holded Approve State"
+          },
           "holded_send_state": {
             "anyOf": [
               {
