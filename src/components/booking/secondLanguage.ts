@@ -23,7 +23,7 @@
  */
 import type { Product } from '@/api/types'
 import type { ExtraLine } from './crossSell'
-import { productDisplayLanguages } from './participantLanguages'
+import { offeredLanguagesForProduct } from './participantLanguages'
 
 export type SecondLanguageMode = 'off' | 'not_preferred' | 'always'
 export type SecondLanguageOffer = 'all' | 'preferred'
@@ -165,7 +165,7 @@ export function secondLanguageCartFor(
   const counted = primary.length > 0 ? primary : candidates
   return buildSecondLanguageCart(
     counted.map((c) => c.product),
-    counted.map((c) => productDisplayLanguages(c.product.guide_languages)),
+    counted.map((c) => offeredLanguagesForProduct(c.product)),
   )
 }
 

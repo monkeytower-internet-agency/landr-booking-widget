@@ -75,7 +75,7 @@ import { AddressStep } from '@/components/booking/AddressStep'
 import { LanguageStep } from '@/components/booking/LanguageStep'
 import {
   languageStepNeeded,
-  normaliseOfferedLanguages,
+  offeredLanguagesForProduct as resolveOfferedLanguages,
   productAcceptsAnyLanguage,
   singleLanguageAssignment,
 } from '@/components/booking/participantLanguages'
@@ -115,7 +115,7 @@ import {
 import { FullyBookedNotice } from '@/components/booking/FullyBookedNotice'
 import { ShopComingSoonStub } from '@/components/booking/ShopComingSoonStub'
 import { StayRangePicker } from '@/components/booking/StayRangePicker'
-import { stayGuestLanguages, withStayPartyCap } from '@/components/booking/stayFlow'
+import { withStayPartyCap } from '@/components/booking/stayFlow'
 import { SingleDatePicker } from '@/components/booking/SingleDatePicker'
 import {
   getContactPagePrefill,
@@ -1260,15 +1260,10 @@ function BookingFlowApp() {
   // run ahead of the API (rolling deploy) and an older API validates
   // `participants[].language` on every submit — skipping the step for such a
   // product would dead-end on a 422 with nothing the customer could do.
+  // The resolution itself lives in participantLanguages.ts (landr-tk66y) so the
+  // second-language cart in BookingForm reads the exact same answer.
   const offeredLanguagesForProduct = useCallback(
-    (product: Product) =>
-      // A stay has no guide: nothing to brief in a language, so no language
-      // is offered, assigned or sent (stay-only carts, landr-m6tp4.55).
-      isStayKind(product.product_kind)
-        ? stayGuestLanguages()
-        : productAcceptsAnyLanguage(product.guide_languages)
-          ? []
-          : normaliseOfferedLanguages(product.guide_languages),
+    (product: Product) => resolveOfferedLanguages(product),
     [],
   )
   // landr-h0opd.3: the language step only runs when there is a real choice —
