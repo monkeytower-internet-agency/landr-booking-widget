@@ -146,10 +146,10 @@ test('booking-submit happy path: catalog -> date -> participant -> confirm', asy
   await page.getByLabel('Last name').fill('Smoketest')
   await page.getByLabel('Email').fill('playwright-smoke@example.com')
   await page.getByLabel('Phone').fill('+491701234567')
-  // The billing address moved from this step to the review step.
+  // The billing address moved from this step to its own Address step.
   // This smoke runs against the DEPLOYED dev bundle (bw-dev.landr.de), which
-  // asks for it here until that change has deployed — so fill it here only
-  // when this step still has the fields (keeps both sides of that deploy green).
+  // may still ask for it here — so fill it here only when this step has the
+  // fields (keeps both sides of that deploy green).
   await fillBillingIfPresent(page)
   await page.getByRole('button', { name: 'Continue' }).click()
 
@@ -201,9 +201,24 @@ test('booking-submit happy path: catalog -> date -> participant -> confirm', asy
   }
   await page.getByTestId('cf-submit').click()
 
+  // ---- Address (billing) ------------------------------------------------------
+  // The billing address has its own step before the Review. Conditional like the
+  // language step: this spec runs against the DEPLOYED bw-dev build, which has
+  // no Address step until the PR introducing it has deployed (the older build
+  // asks for the address on the Review itself, handled below).
+  const addressNext = page.getByTestId('address-step-submit')
+  const hasAddressStep = await addressNext
+    .isVisible({ timeout: 15_000 })
+    .catch(() => false)
+  if (hasAddressStep) {
+    await fillBillingIfPresent(page)
+    await expect(addressNext).toBeEnabled()
+    await addressNext.click()
+  }
+
   // ---- Review + confirm -----------------------------------------------------
   await expect(page.getByText('Review your booking', { exact: true })).toBeVisible()
-  // The billing address is required right above Confirm.
+  // Older builds still ask for the address right above Confirm.
   await fillBillingIfPresent(page)
   // landr-5oox.30: intercept the submit response so the confirmation-title
   // assertion below can match whichever copy the approval engine actually
@@ -235,4 +250,117 @@ test('booking-submit happy path: catalog -> date -> participant -> confirm', asy
     timeout: 20_000,
   })
   await expect(page.getByText(/Reference/)).toBeVisible()
+})
+
+/**
+ * landr-tk66y — a product that asks for verification (documents, waiver and a
+ * signature) collects them on the Details step; the Address step follows and the
+ * Review only shows them. This walks that path up to, but NOT including, the
+ * submit: the case stops on the Review, so it creates no booking row.
+ *
+ * The fixture product above does not ask for verification, and a shared DB gets
+ * no invented data from here. The case therefore looks for a single-date service
+ * product that does ask, in the catalogue the widget itself loads, and skips
+ * cleanly when the dev operator has none. Anything a product of that shape adds
+ * beyond the steps handled below (pickup, guide language) fails the case on
+ * purpose: it should then be extended, not silently skipped.
+ */
+test('verified product: Details (documents) -> Address -> Review shows no inputs but the note', async ({
+  page,
+}) => {
+  const productsResponse = page.waitForResponse(
+    (res) =>
+      res.request().method() === 'GET' &&
+      /\/api\/public\/operators\/[^/]+\/products(\?|$)/.test(res.url()),
+  )
+  await page.goto(`/?w=${WIDGET_TOKEN}`)
+  const catalogue = (await (await productsResponse).json().catch(() => [])) as Array<{
+    slug?: string
+    product_kind?: string
+    service_time_shape?: string | null
+    requires_verification?: boolean | null
+  }>
+  const verified = catalogue.find(
+    (p) =>
+      p.slug &&
+      p.product_kind === 'service' &&
+      p.service_time_shape === 'single_date' &&
+      p.requires_verification === true,
+  )
+  test.skip(
+    !verified,
+    'the dev operator has no single-date product that requires verification — nothing to walk',
+  )
+
+  await expect(page.getByTestId('expanded-catalog')).toBeVisible()
+  await page.getByTestId(`product-card-${verified!.slug}`).click()
+  await page.getByTestId('product-detail-book-cta').click()
+
+  await expect(page.getByText('Pick a date')).toBeVisible()
+  await pickFirstAvailableDate(page)
+  await page.getByRole('button', { name: 'Continue' }).click()
+
+  // ---- Details: contact + the verification block --------------------------
+  await expect(page.getByLabel('First name')).toBeVisible()
+  await page.getByLabel('First name').fill('Playwright')
+  await page.getByLabel('Last name').fill('Smoketest')
+  await page.getByLabel('Email').fill('playwright-smoke@example.com')
+  await page.getByLabel('Phone').fill('+491701234567')
+  await expect(page.getByTestId('verification-fields')).toBeVisible()
+
+  // Contact is complete, the documents are not: Continue stays on this step and
+  // says what is missing.
+  await page.getByTestId('details-step-submit').click()
+  await expect(page.getByTestId('verification-fields')).toBeVisible()
+  await expect(page.getByTestId('details-step-gate')).not.toHaveText(/ready/i)
+
+  const pdf = { name: 'proof.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4 smoke') }
+  await page.getByTestId('verification-licence').setInputFiles(pdf)
+  await page.getByTestId('verification-insurance').setInputFiles(pdf)
+  await page.getByTestId('verification-signature').fill('Playwright Smoketest')
+  await page.getByTestId('verification-accept').check()
+  await page.getByTestId('details-step-submit').click()
+
+  // ---- Steps between Details and the Address (pickup, guide language) ------
+  const addressNext = page.getByTestId('address-step-submit')
+  const languageBoard = page.getByTestId('participant-language-board')
+  for (let hop = 0; hop < 4 && !(await addressNext.isVisible()); hop++) {
+    if (await page.getByText('Pickup location').first().isVisible()) {
+      await page.locator('input[type="radio"]').first().check()
+      await page.getByRole('button', { name: 'Continue' }).click()
+    } else if (await languageBoard.isVisible()) {
+      await page.getByTestId('lang-add-en').click()
+      const submit = page.getByTestId('language-step-submit')
+      const everyone = page.getByTestId('lang-everyone-en')
+      await expect(async () => {
+        if (await everyone.isVisible()) await everyone.click()
+        await expect(submit).toBeEnabled({ timeout: 1_000 })
+      }).toPass({ timeout: 15_000 })
+      await submit.click()
+    }
+    await page.waitForTimeout(500)
+  }
+
+  // ---- Address: Next waits for the billing address -------------------------
+  await expect(addressNext).toBeVisible()
+  await expect(addressNext).toBeDisabled()
+  await fillBillingIfPresent(page)
+  await expect(addressNext).toBeEnabled()
+  await addressNext.click()
+
+  // ---- Review: read-only except the note -----------------------------------
+  await expect(page.getByText('Review your booking', { exact: true })).toBeVisible()
+  await expect(page.getByTestId('review-verification')).toBeVisible()
+  await expect(page.getByTestId('review-verification-missing')).toHaveCount(0)
+  const controls = page.locator(
+    'input:not([type="hidden"]), textarea, select',
+  )
+  const testIds = await controls.evaluateAll((els) =>
+    els
+      .filter((el) => (el as HTMLElement).offsetParent !== null)
+      .map((el) => el.getAttribute('data-testid') ?? el.getAttribute('name') ?? el.tagName),
+  )
+  expect(testIds.filter((id) => id !== 'customer-comment')).toEqual([])
+  // Everything is in, so Confirm is available; the case ends here on purpose.
+  await expect(page.getByRole('button', { name: 'Confirm booking' })).toBeEnabled()
 })

@@ -26,6 +26,14 @@ import {
   daysSelectedLabel,
 } from '@/lib/strings'
 import { CustomerCommentField } from '@/components/booking/CustomerCommentField'
+import { VerificationFields } from '@/components/booking/VerificationFields'
+import {
+  EMPTY_VERIFICATION,
+  needsVerification,
+  verificationReady,
+  type VerificationInput,
+} from '@/components/booking/verification'
+import { verificationStrings } from '@/components/booking/verificationStrings'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -199,6 +207,16 @@ interface Props {
    * the customer already typed instead of a blank field.
    */
   initialCustomerComment?: string | null
+  /**
+   * landr-kq0l4: the products of the cart (the main one plus any added on the
+   * review step). When one of them asks for verification, the documents, the
+   * waiver and the signature are collected right here and Continue waits for
+   * them — the review only shows them. Absent = nothing to collect.
+   */
+  verificationProducts?: Product[]
+  /** landr-kq0l4: what was entered so far (held by the caller, restored on Back). */
+  verification?: VerificationInput
+  onVerificationChange?: (next: VerificationInput) => void
   /**
    * landr-otml0.3 review fix (MINOR 6): companion index (0-based, into
    * companions[] — matches the API's 422 `companion_index`) to highlight on
@@ -389,6 +407,9 @@ export function DetailsStep({
   initialCompanions,
   initialMemberPerkOtp,
   initialCustomerComment,
+  verificationProducts = [],
+  verification,
+  onVerificationChange,
   initialFocusCompanionContactIndex,
   onCompanionContactFocusApplied,
   onBack,
@@ -1228,7 +1249,14 @@ export function DetailsStep({
       : hasChildWithoutAge(additional) || hasChildWithoutAge(companions))
   // landr-zcb24.34: only an exact-age participating booker types their own age.
   const adultConfirmMissing = collectGuestAges && !bookerAdultOk
+  // landr-kq0l4: documents + signed waiver for a verified registration. Same
+  // rule as ever, now enforced on this step instead of on the review.
+  const verificationRequired =
+    onVerificationChange !== undefined && needsVerification(verificationProducts)
+  const verificationMissing =
+    verificationRequired && !verificationReady(verification ?? EMPTY_VERIFICATION)
   const canContinue =
+    !verificationMissing &&
     withinCap &&
     !guestAgeMissing &&
     !adultConfirmMissing &&
@@ -2204,6 +2232,15 @@ export function DetailsStep({
             value is still local (committed to the draft on Continue below,
             same as booker/participants/companions); every step after this
             one reads/writes bookingDraft.customerComment directly. */}
+        {verificationRequired ? (
+          <VerificationFields
+            products={verificationProducts}
+            value={verification ?? EMPTY_VERIFICATION}
+            onChange={(next) => onVerificationChange?.(next)}
+            locale={locale}
+          />
+        ) : null}
+
         <CustomerCommentField value={comment} onChange={setComment} collapsible />
 
         {/* landr-79re: Continue is ALWAYS tappable so mobile customers get
@@ -2231,7 +2268,13 @@ export function DetailsStep({
                 ? tr('readyToContinue', locale)
                 : !withinCap
                   ? tr('tooManyPeopleRemoveSomeone', locale)
-                  : tr('fillInEveryRequiredField', locale)}
+                  : verificationMissing && detailsAreComplete(
+                        bookerForSubmit,
+                        participantsForValidation,
+                        companions,
+                      )
+                    ? verificationStrings(locale).missingHint
+                    : tr('fillInEveryRequiredField', locale)}
             </p>
             <Button
               type="button"

@@ -16,6 +16,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { Product } from '@/api/types'
 import { configureCustomerLocale, overrideBookingLocale } from '@/lib/locale'
+import { AddressStep } from './AddressStep'
 import { BookingForm, type BookingSelection } from './BookingForm'
 import { DetailsStep } from './DetailsStep'
 import type { BookerDetails, ParticipantDetails } from './detailsTypes'
@@ -149,8 +150,8 @@ describe('BookingForm — German UI (landr-5aih0.9)', () => {
   })
 })
 
-// The billing address lives on the review step now.
-describe('BookingForm review billing address — German UI (landr-uuntm.3)', () => {
+// The billing address has its own Address step before the review (landr-rw8i2).
+describe('Address step — German UI (landr-uuntm.3 / landr-rw8i2)', () => {
   beforeEach(() => {
     vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response(JSON.stringify({ country: null }), { status: 200 }))
   })
@@ -160,11 +161,24 @@ describe('BookingForm review billing address — German UI (landr-uuntm.3)', () 
     configureCustomerLocale(null, null)
   })
 
+  function renderAddress(booker: BookerDetails = BOOKER) {
+    render(
+      <AddressStep
+        booker={booker}
+        onBillingChange={vi.fn()}
+        customerComment=""
+        onCustomerCommentChange={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    )
+  }
+
   it('shows the billing group, toggle, tax id and "Rechnung an:" cue in German', () => {
     setBrowserLanguage('de-DE')
     configureCustomerLocale(['en', 'de'], 'en')
-    renderForm()
+    renderAddress()
 
+    expect(screen.getByText('Wohin soll die Rechnung gehen?')).toBeInTheDocument()
     expect(screen.getByRole('group', { name: 'Rechnungsadresse' })).toBeInTheDocument()
     expect(screen.getByText('Diese Angaben benötigen wir für Ihre Rechnung.')).toBeInTheDocument()
     expect(screen.getByLabelText('Straße und Hausnummer')).toBeInTheDocument()
@@ -184,7 +198,34 @@ describe('BookingForm review billing address — German UI (landr-uuntm.3)', () 
     expect(screen.queryByText('Invoice to:')).not.toBeInTheDocument()
   })
 
-  it('says in German why Buchen waits when the address is missing', () => {
+  it('says in German why Weiter waits while the address is incomplete', () => {
+    setBrowserLanguage('de-DE')
+    configureCustomerLocale(['en', 'de'], 'en')
+    renderAddress({ ...BOOKER, billing: { ...BOOKER.billing, city: '' } })
+    expect(document.getElementById('address-step-gate')).toHaveTextContent(
+      'Tragen Sie Straße, PLZ, Ort und Land ein, um fortzufahren.',
+    )
+    expect(screen.getByTestId('address-step-submit')).toBeDisabled()
+    expect(screen.getByTestId('address-step-submit')).toHaveTextContent('Weiter')
+  })
+
+  it('keeps the English labels on an English browser', () => {
+    setBrowserLanguage('en-US')
+    configureCustomerLocale(['en', 'de'], 'en')
+    renderAddress()
+    expect(screen.getByRole('group', { name: 'Billing address' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Street and number')).toBeInTheDocument()
+  })
+})
+
+describe('BookingForm review billing summary — German UI (landr-rw8i2)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.unstubAllGlobals()
+    configureCustomerLocale(null, null)
+  })
+
+  it('shows the address summary, an Edit link and the Address-step hint in German', () => {
     setBrowserLanguage('de-DE')
     configureCustomerLocale(['en', 'de'], 'en')
     render(
@@ -196,21 +237,17 @@ describe('BookingForm review billing address — German UI (landr-uuntm.3)', () 
         participants={PARTICIPANTS}
         pickupLocationId={null}
         accommodationRooms={[]}
+        onEditBilling={vi.fn()}
         onBack={vi.fn()}
         onConfirmed={vi.fn()}
       />,
     )
+    expect(screen.getByTestId('review-billing')).toHaveTextContent('Rechnungsadresse')
+    expect(screen.getByTestId('review-billing-edit')).toHaveTextContent('Ändern')
     expect(document.getElementById('review-step-gate')).toHaveTextContent(
-      'Bitte geben Sie Ihre Rechnungsadresse ein, um zu buchen.',
+      'Ergänzen Sie Ihre Rechnungsadresse im Schritt „Adresse“, um zu buchen.',
     )
-  })
-
-  it('keeps the English labels on an English browser', () => {
-    setBrowserLanguage('en-US')
-    configureCustomerLocale(['en', 'de'], 'en')
-    renderForm()
-    expect(screen.getByRole('group', { name: 'Billing address' })).toBeInTheDocument()
-    expect(screen.getByLabelText('Street and number')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Buchung bestätigen' })).toBeDisabled()
   })
 })
 

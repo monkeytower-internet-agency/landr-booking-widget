@@ -21636,6 +21636,10 @@ export interface components {
             failure_reason: string | null;
             /** Finalised At */
             finalised_at: string | null;
+            /** Holded Send State */
+            holded_send_state?: string | null;
+            /** Holded Sent At */
+            holded_sent_at?: string | null;
             /** Max Attempts */
             max_attempts: number;
             /** Next Retry At */
@@ -23449,6 +23453,8 @@ export interface components {
             group_discount_threshold?: number | null;
             /** Holded Approve Mode */
             holded_approve_mode?: ("never" | "on_push") | null;
+            /** Holded Send Mode */
+            holded_send_mode?: ("manual" | "after_approval") | null;
             /** Holded Transfer Mode */
             holded_transfer_mode?: ("all_finalized" | "only_paid") | null;
             /** Hotel Email Locale */

@@ -22,6 +22,7 @@ import {
   memberLabel,
   membersOfLanguage,
   normaliseOfferedLanguages,
+  offeredLanguagesForProduct,
   openLanguageColumns,
   pruneLanguageAssignment,
   singleLanguageAssignment,
@@ -313,5 +314,33 @@ describe('singleLanguageAssignment (landr-h0opd.3)', () => {
 
   it('returns an empty map for an empty party', () => {
     expect(singleLanguageAssignment(['en'], 0)).toEqual({})
+  })
+})
+
+describe('offeredLanguagesForProduct (landr-tk66y)', () => {
+  const service = (guide_languages: unknown) =>
+    ({ product_kind: 'service', guide_languages }) as Parameters<
+      typeof offeredLanguagesForProduct
+    >[0]
+
+  it('uses the product list, cleaned', () => {
+    expect(offeredLanguagesForProduct(service([' DE ', 'en', 'de']))).toEqual(['de', 'en'])
+  })
+
+  it('reads an empty list as "any language"', () => {
+    expect(offeredLanguagesForProduct(service([]))).toEqual([])
+  })
+
+  it('falls back to the platform default for null or absent', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    expect(offeredLanguagesForProduct(service(null))).toEqual([...DEFAULT_OFFERED_LANGUAGES])
+    expect(offeredLanguagesForProduct(service(undefined))).toEqual([...DEFAULT_OFFERED_LANGUAGES])
+    warn.mockRestore()
+  })
+
+  it('offers no language for a stay', () => {
+    expect(
+      offeredLanguagesForProduct({ product_kind: 'stay', guide_languages: ['en', 'de'] }),
+    ).toEqual([])
   })
 })

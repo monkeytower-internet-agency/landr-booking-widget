@@ -141,7 +141,7 @@ describe('BookingForm — review-only screen (landr-8c03)', () => {
     expect(list).toHaveTextContent(/Alan Turing/)
   })
 
-  it('does NOT render any form input fields besides the billing address (data flows in via props)', () => {
+  it('renders no form inputs except the note for us (data flows in via props)', () => {
     render(
       <BookingForm
         widgetToken="para42"
@@ -150,15 +150,47 @@ describe('BookingForm — review-only screen (landr-8c03)', () => {
         booker={ADA_BOOKER}
         participants={[bookerAsParticipant(ADA_BOOKER)]}
         pickupLocationId={null}
+        customerComment="Window seat please."
+        onCustomerCommentChange={vi.fn()}
         onBack={vi.fn()}
         onConfirmed={vi.fn()}
       />,
     )
-    // The review screen is read-only apart from the billing address.
+    // landr-rw8i2: the review is a read-only summary; the billing address is
+    // entered on the Address step before it. The note is the only field.
     const outside = [...document.querySelectorAll('input, select, textarea')].filter(
-      (el) => !el.closest('[data-testid="booker-billing-group"]'),
+      (el) => !el.closest('[data-testid="customer-comment-section"]'),
     )
     expect(outside).toHaveLength(0)
+    expect(document.querySelector('[data-testid="booker-billing-group"]')).toBeNull()
+    expect(screen.getByTestId('customer-comment')).toBeInTheDocument()
+  })
+
+  it('puts the note for us last, directly above Confirm booking (landr-rw8i2)', () => {
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct('days_range')}
+        selection={DAYS_SELECTION}
+        booker={ADA_BOOKER}
+        participants={[bookerAsParticipant(ADA_BOOKER)]}
+        pickupLocationId={null}
+        customerComment="Window seat please."
+        onCustomerCommentChange={vi.fn()}
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    const note = screen.getByTestId('customer-comment-reveal')
+    const confirmBox = screen.getByTestId('review-confirm-btn').closest('[data-next-action]')
+    // The note's box is the sibling immediately before the Confirm box.
+    expect(note.nextElementSibling).toBe(confirmBox)
+    // And every summary card sits above the note.
+    for (const id of ['review-booker', 'review-billing', 'review-participants']) {
+      expect(
+        screen.getByTestId(id).compareDocumentPosition(note) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy()
+    }
   })
 
   it('renders the hotel block when accommodationRooms is non-empty (landr-iu3s)', () => {

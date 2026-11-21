@@ -3,9 +3,10 @@
  * (app/services/second_guiding_language.py, landr-hdk4y.1). The cases below are
  * the ones that file's own tests pin: keep the two in step.
  */
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import type { Product } from '@/api/types'
 import type { ExtraLine } from './crossSell'
+import { DEFAULT_OFFERED_LANGUAGES } from './participantLanguages'
 import {
   applyAnswerToEveryone,
   askedParticipants,
@@ -246,5 +247,35 @@ describe('secondLanguageCartFor (the lines the API counts)', () => {
     const cart = secondLanguageCartFor(svc('stay', [], 'off', 'stay'), [line(svc('video', ['en', 'de'], 'always'), 'o1')])
     expect(cart.lines).toHaveLength(1)
     expect(cart.cartLanguages).toEqual(['en', 'de'])
+  })
+})
+
+describe('secondLanguageCartFor with a product that has no guide_languages (landr-tk66y)', () => {
+  it('reads the platform default, like the language step does', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const main = {
+      id: 'p',
+      product_kind: 'service',
+      guide_languages: null,
+      ...product('always'),
+    } as unknown as Product
+    const cart = secondLanguageCartFor(main, [])
+    expect(cart.cartLanguages).toEqual([...DEFAULT_OFFERED_LANGUAGES])
+    // The cart agrees with the step: the question runs, and offers the other languages.
+    expect(cart.lines[0]?.mode).toBe('always')
+    expect(secondLanguageOptions(cart, DEFAULT_OFFERED_LANGUAGES[0])).toEqual(
+      DEFAULT_OFFERED_LANGUAGES.slice(1).sort(),
+    )
+    warn.mockRestore()
+  })
+
+  it('still reads an empty list as any language (no question)', () => {
+    const main = {
+      id: 'p',
+      product_kind: 'service',
+      guide_languages: [],
+      ...product('always'),
+    } as unknown as Product
+    expect(secondLanguageCartFor(main, []).cartLanguages).toBeNull()
   })
 })

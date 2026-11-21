@@ -4,7 +4,7 @@
  * landing (held vs ended), Change dates with an unavailable host day, and the
  * 422 capacity_exceeded that carries `days`.
  */
-import { fillBillingFields } from '@/test/fillBilling'
+import { passAddressStep } from '@/test/fillBilling'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -136,8 +136,7 @@ async function driveToConfirm() {
     await waitFor(() => expect(screen.getByTestId('language-step-submit')).toBeEnabled(), SLOW_FLOW)
   }
   fireEvent.click(screen.getByTestId('language-step-submit'))
-  await waitFor(() => expect(screen.getByText(/review your booking/i)).toBeInTheDocument(), SLOW_FLOW)
-  fillBillingFields()
+  await passAddressStep(SLOW_FLOW.timeout)
   fireEvent.click(screen.getByRole('button', { name: /confirm booking/i }))
 }
 

@@ -17861,6 +17861,28 @@
             ],
             "title": "Finalised At"
           },
+          "holded_send_state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Holded Send State"
+          },
+          "holded_sent_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Holded Sent At"
+          },
           "max_attempts": {
             "title": "Max Attempts",
             "type": "integer"
@@ -23115,6 +23137,21 @@
               }
             ],
             "title": "Holded Approve Mode"
+          },
+          "holded_send_mode": {
+            "anyOf": [
+              {
+                "enum": [
+                  "manual",
+                  "after_approval"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Holded Send Mode"
           },
           "holded_transfer_mode": {
             "anyOf": [

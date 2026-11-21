@@ -1,7 +1,7 @@
 /**
  * landr-hdk4y.2 — second guiding language on the submit body: the marker is
  * always sent, an answer only for a participant the cart's rule asks, and an
- * asked participant without an answer is asked again on the review screen.
+ * asked participant without an answer is asked again on the Language step (Review only shows a summary line, landr-kq0l4).
  */
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -189,57 +189,66 @@ describe('BookingForm — second guiding language (landr-hdk4y.2)', () => {
     expect(body.participants[0]).toMatchObject({ accepted_languages: ['en'] })
   })
 
-  it('an asked participant without an answer blocks Confirm and is asked on the review screen', async () => {
-    renderForm({ product: makeServiceProduct(ASKING) })
-    expect(screen.getByTestId('second-language-asked-0')).toBeTruthy()
-    expect(screen.queryByTestId('second-language-asked-1')).toBeNull()
+  it('an asked participant without an answer blocks Confirm; Review shows a summary line with a way back, no inputs (landr-kq0l4)', async () => {
+    const onEditLanguages = vi.fn()
+    renderForm({ product: makeServiceProduct(ASKING), onEditLanguages })
+    // A read-only line, never the question itself.
+    expect(screen.getByTestId('review-second-language-0')).toHaveTextContent(/Ada.*Still to answer/)
+    expect(screen.queryByTestId('review-second-language-1')).toBeNull()
+    expect(screen.queryByTestId('second-language-questions')).toBeNull()
+    expect(screen.queryByTestId('second-language-0-de')).toBeNull()
     expect(screen.getByRole('button', { name: /Confirm booking/i })).toBeDisabled()
-    expect(document.getElementById('review-step-gate')!.textContent).toMatch(/Tick at least one option.*Ada/)
-    fireEvent.click(screen.getByTestId('second-language-0-de'))
+    expect(document.getElementById('review-step-gate')!.textContent).toMatch(/Language step.*Ada/)
+    fireEvent.click(screen.getByTestId('review-second-language-edit'))
+    expect(onEditLanguages).toHaveBeenCalledTimes(1)
+  })
+
+  it('an answered participant shows the chosen languages and unblocks Confirm', async () => {
+    renderForm({
+      product: makeServiceProduct(ASKING),
+      participantAcceptedLanguages: { 0: ['de', 'es'] },
+    })
+    expect(screen.getByTestId('review-second-language-0')).toHaveTextContent(/Ada.*German, Spanish/)
     expect(screen.getByRole('button', { name: /Confirm booking/i })).not.toBeDisabled()
     await confirm()
     const body = await submitted()
-    expect(body.participants[0]).toMatchObject({ accepted_languages: ['de'] })
+    expect(body.participants[0]).toMatchObject({ accepted_languages: ['de', 'es'] })
   })
 
-  it('drops an answer when the participant main language changes, and asks again', () => {
-    const { rerender } = render(
-      <BookingForm
-        widgetToken="para42"
-        product={makeServiceProduct(ASKING)}
-        selection={SELECTION}
-        booker={BOOKER}
-        participants={PARTICIPANTS}
-        companions={COMPANIONS}
-        participantLanguages={{ 0: 'fr', 1: 'de' }}
-        participantAcceptedLanguages={{ 0: [] }}
-        pickupLocationId={null}
-        accommodationRooms={[]}
-        onBack={vi.fn()}
-        onConfirmed={vi.fn()}
-      />,
-    )
-    // Answered ("only French"): nothing blocks.
-    expect(screen.getByRole('button', { name: /Confirm booking/i })).not.toBeDisabled()
-    rerender(
-      <BookingForm
-        widgetToken="para42"
-        product={makeServiceProduct(ASKING)}
-        selection={SELECTION}
-        booker={BOOKER}
-        participants={PARTICIPANTS}
-        companions={COMPANIONS}
-        participantLanguages={{ 0: 'es', 1: 'de' }}
-        participantAcceptedLanguages={{ 0: [] }}
-        pickupLocationId={null}
-        accommodationRooms={[]}
-        onBack={vi.fn()}
-        onConfirmed={vi.fn()}
-      />,
-    )
+  it('"only my language" reads as such on the summary line', () => {
+    renderForm({
+      product: makeServiceProduct(ASKING),
+      participantAcceptedLanguages: { 0: [] },
+    })
+    expect(screen.getByTestId('review-second-language-0')).toHaveTextContent(/Ada.*Only French/)
+  })
+
+  it('an answer given for another main language is not trusted: asked again via the way back', () => {
+    // Ada's answer was stored while she was a French speaker; the cart now
+    // resolves her to Spanish (an added product's own language pick).
+    const addon = makeServiceProduct({ product_id: 'x', guide_languages: ['en', 'es', 'fr'] })
+    const line = {
+      key: 'x',
+      lineId: 'o1',
+      product: addon,
+      mode: 'days',
+      days: ['2026-06-10'],
+      slot: null,
+      windowId: null,
+      quantity: 1,
+      unavailableDays: [],
+      checking: false,
+    } as unknown as ExtraLine
+    renderForm({
+      product: makeServiceProduct(ASKING),
+      participantLanguages: { 0: 'fr', 1: 'de' },
+      participantAcceptedLanguages: { 0: [] },
+      extraLines: [line],
+      onExtraLinesChange: vi.fn(),
+      inlineAnswers: { languages: { 0: 'es', 1: 'de' }, forms: {}, pickupId: null, ages: null },
+    })
     expect(screen.getByRole('button', { name: /Confirm booking/i })).toBeDisabled()
-    expect(screen.getByTestId('second-language-asked-0')).toBeTruthy()
-    expect(screen.getByTestId('second-language-0-only')).not.toBeChecked()
+    expect(screen.getByTestId('review-second-language-0')).toHaveTextContent(/Still to answer/)
   })
 
   it('a product open to any or one language is never asked and sends no answer', async () => {
@@ -249,7 +258,7 @@ describe('BookingForm — second guiding language (landr-hdk4y.2)', () => {
         product: makeServiceProduct({ ...ASKING, second_language_mode: 'always', guide_languages: guide }),
         participantLanguages: guide.length ? { 0: 'en', 1: 'en' } : {},
       })
-      expect(screen.queryByTestId('second-language-questions')).toBeNull()
+      expect(screen.queryByTestId('review-second-language')).toBeNull()
       expect(screen.getByRole('button', { name: /Confirm booking/i })).not.toBeDisabled()
       await confirm()
       const body = await submitted()
@@ -301,7 +310,7 @@ describe('BookingForm — second guiding language (landr-hdk4y.2)', () => {
       extraLines: [line],
       onExtraLinesChange: vi.fn(),
     })
-    expect(screen.queryByTestId('second-language-questions')).toBeNull()
+    expect(screen.queryByTestId('review-second-language')).toBeNull()
     expect(screen.getByRole('button', { name: /Confirm booking/i })).not.toBeDisabled()
   })
 })

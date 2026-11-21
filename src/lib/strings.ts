@@ -104,6 +104,7 @@ export type Bundle = {
   crumbPickup: string
   crumbDetails: string
   crumbLanguage: string
+  crumbAddress: string
   crumbReview: string
 
   // ---- StepBackButton / breadcrumb ----
@@ -256,7 +257,18 @@ export type Bundle = {
   addGuestButton: string
   enterYourNameEmailPhoneCue: string
   enterYourBillingAddressCue: string
-  billingRequiredBeforeConfirm: string
+  reviewAddressGate: string
+  addressStepTitle: string
+  addressStepGate: string
+  reviewEditLabel: string
+  reviewDocumentsTitle: string
+  reviewDocumentsSignedBy: string
+  reviewDocumentsMissing: string
+  reviewDocumentsGate: string
+  reviewSecondLanguageTitle: string
+  reviewSecondLanguageOnlyMain: string
+  reviewSecondLanguageMissing: string
+  reviewSecondLanguageGate: string
   fillInEveryRequiredField: string
   roleLabel: string
   includeYourCountryCode: string
@@ -1245,6 +1257,7 @@ const en: Bundle = {
   crumbPickup: 'Pickup',
   crumbDetails: 'Details',
   crumbLanguage: 'Language',
+  crumbAddress: 'Address',
   crumbReview: 'Review',
 
   noTimesAvailable: 'No times available.',
@@ -1382,7 +1395,18 @@ const en: Bundle = {
   addGuestButton: '+ Add guest',
   enterYourNameEmailPhoneCue: 'enter your name, email and phone',
   enterYourBillingAddressCue: 'enter your billing address',
-  billingRequiredBeforeConfirm: 'Enter your billing address to confirm.',
+  reviewAddressGate: 'Add your billing address in the Address step to confirm.',
+  addressStepTitle: 'Where should the invoice go?',
+  addressStepGate: 'Fill in street, postal code, city and country to continue.',
+  reviewEditLabel: 'Edit',
+  reviewDocumentsTitle: 'Your documents',
+  reviewDocumentsSignedBy: 'Signed by {name}',
+  reviewDocumentsMissing: 'Still to add: your documents and signed waiver',
+  reviewDocumentsGate: 'Add your documents and sign the waiver in the Details step to confirm.',
+  reviewSecondLanguageTitle: 'Other guiding languages',
+  reviewSecondLanguageOnlyMain: 'Only {language}',
+  reviewSecondLanguageMissing: 'Still to answer',
+  reviewSecondLanguageGate: 'Answer the guiding-language question in the Language step to confirm. Still open: {names}.',
   fillInEveryRequiredField: 'Complete the required fields to continue.',
   roleLabel: 'Role',
   includeYourCountryCode: 'Include your country code',

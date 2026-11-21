@@ -16,6 +16,14 @@ import { dateFromIso, isoDate } from './dateUtils'
 vi.setConfig({ testTimeout: 30_000 })
 const SLOW = { timeout: 8000 }
 
+// landr-rw8i2: the demo's sample address arrives pre-filled, so the Address step
+// before the review only needs its Continue.
+async function continueFromAddress() {
+  const next = await screen.findByTestId('address-step-submit', undefined, SLOW)
+  await waitFor(() => expect(next).toBeEnabled())
+  fireEvent.click(next)
+}
+
 const base = {
   name_localized: null, short_description: null, short_description_localized: null, description: null,
   is_contiguous: false, duration_minutes: null, group_slug: null, group_name: null, sort_order: 1,
@@ -149,6 +157,7 @@ describe('demo mode: apartment (stay)', () => {
     await screen.findByText(/your contact details/i, undefined, SLOW)
     fillBooker()
     fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+    await continueFromAddress()
     await screen.findByText(/review your booking/i, undefined, SLOW)
     // 3 nights x 85.00 + 40.00 cleaning fee
     const rate = (await screen.findAllByTestId('price-sidebar-stay-rate'))[0]!
@@ -249,6 +258,15 @@ describe('demo mode: testival (verified registration)', () => {
     fireEvent.click(await screen.findByRole('button', { name: /continue/i }))
     await screen.findByText(/your contact details/i, undefined, SLOW)
     fillBooker()
+    // landr-kq0l4: the documents + waiver are collected on the Details step,
+    // and Continue waits for them.
+    expect(await screen.findByTestId('verification-fields', undefined, SLOW)).toBeInTheDocument()
+    expect(screen.getByTestId('verification-waiver-text')).toHaveTextContent('I fly at my own risk')
+    const pdf = (name: string) => new File([new Uint8Array(10)], name, { type: 'application/pdf' })
+    fireEvent.change(screen.getByTestId('verification-licence'), { target: { files: [pdf('licence.pdf')] } })
+    fireEvent.change(screen.getByTestId('verification-insurance'), { target: { files: [pdf('insurance.pdf')] } })
+    fireEvent.change(screen.getByTestId('verification-signature'), { target: { value: 'Ada Lovelace' } })
+    fireEvent.click(screen.getByTestId('verification-accept'))
     fireEvent.click(screen.getByRole('button', { name: /continue/i }))
     const submit = await screen.findByTestId('language-step-submit').catch(() => null)
     if (submit) {
@@ -256,17 +274,11 @@ describe('demo mode: testival (verified registration)', () => {
       await waitFor(() => expect(screen.getByTestId('language-step-submit')).toBeEnabled())
       fireEvent.click(screen.getByTestId('language-step-submit'))
     }
-    // The review step carries the documents + waiver, and Confirm waits for them.
-    expect(await screen.findByTestId('verification-fields', undefined, SLOW)).toBeInTheDocument()
-    expect(screen.getByTestId('verification-waiver-text')).toHaveTextContent('I fly at my own risk')
+    await continueFromAddress()
+    // The review step only summarises them: no inputs, Confirm enabled.
+    expect(await screen.findByTestId('review-verification', undefined, SLOW)).toHaveTextContent('licence.pdf')
+    expect(screen.queryByTestId('verification-fields')).toBeNull()
     const confirm = screen.getByRole('button', { name: /confirm booking/i })
-    expect(confirm).toBeDisabled()
-
-    const pdf = (name: string) => new File([new Uint8Array(10)], name, { type: 'application/pdf' })
-    fireEvent.change(screen.getByTestId('verification-licence'), { target: { files: [pdf('licence.pdf')] } })
-    fireEvent.change(screen.getByTestId('verification-insurance'), { target: { files: [pdf('insurance.pdf')] } })
-    fireEvent.change(screen.getByTestId('verification-signature'), { target: { value: 'Ada Lovelace' } })
-    fireEvent.click(screen.getByTestId('verification-accept'))
     await waitFor(() => expect(confirm).toBeEnabled())
     fireEvent.click(confirm)
     expect(await screen.findByTestId('demo-congrats')).toBeInTheDocument()
