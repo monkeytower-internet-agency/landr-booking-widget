@@ -1026,6 +1026,41 @@
         "title": "AiSettingsPatch",
         "type": "object"
       },
+      "AiStatusOut": {
+        "properties": {
+          "available": {
+            "title": "Available",
+            "type": "boolean"
+          },
+          "credentials": {
+            "title": "Credentials",
+            "type": "string"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "required": [
+          "available",
+          "reason",
+          "credentials",
+          "model"
+        ],
+        "title": "AiStatusOut",
+        "type": "object"
+      },
       "AiUsageOut": {
         "properties": {
           "current_month": {
@@ -1053,11 +1088,15 @@
           "settings": {
             "$ref": "#/components/schemas/AiSettingsOut"
           },
+          "status": {
+            "$ref": "#/components/schemas/AiStatusOut"
+          },
           "totals": {
             "$ref": "#/components/schemas/UsageTotals"
           }
         },
         "required": [
+          "status",
           "month",
           "current_month",
           "settings",
