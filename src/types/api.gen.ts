@@ -15534,6 +15534,17 @@ export interface components {
             /** Per Session Max Turns */
             per_session_max_turns?: number | null;
         };
+        /** AiStatusOut */
+        AiStatusOut: {
+            /** Available */
+            available: boolean;
+            /** Credentials */
+            credentials: string;
+            /** Model */
+            model: string;
+            /** Reason */
+            reason: string | null;
+        };
         /** AiUsageOut */
         AiUsageOut: {
             /** Current Month */
@@ -15545,6 +15556,7 @@ export interface components {
             /** Operators */
             operators: components["schemas"]["OperatorUsage"][];
             settings: components["schemas"]["AiSettingsOut"];
+            status: components["schemas"]["AiStatusOut"];
             totals: components["schemas"]["UsageTotals"];
         };
         /** AlertOut */
