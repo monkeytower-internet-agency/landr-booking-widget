@@ -5118,15 +5118,16 @@ describe('App', () => {
       expect(document.getElementById('address-step-gate')).toHaveTextContent(
         'Fill in street, postal code, city and country to continue.',
       )
-      // Required fields one by one: still greyed out until the last one.
+      // Required fields one by one: still greyed out until the last one. The
+      // country is set explicitly first: its async guess would otherwise race
+      // the assertions below.
+      fireEvent.change(document.querySelector('[name="booker_billing_country"]')!, {
+        target: { value: 'ES' },
+      })
       setInput('booker_billing_address_line1', 'Calle Mayor 1')
       setInput('booker_billing_postal_code', '28013')
       expect(next).toBeDisabled()
       setInput('booker_billing_city', 'Madrid')
-      expect(next).toBeDisabled()
-      fireEvent.change(document.querySelector('[name="booker_billing_country"]')!, {
-        target: { value: 'ES' },
-      })
       expect(next).toBeEnabled()
       fireEvent.click(next)
 
@@ -5161,6 +5162,132 @@ describe('App', () => {
         document.querySelector<HTMLInputElement>('[name="booker_billing_city"]'),
       ).toHaveValue('Madrid')
       expect(screen.getByTestId('address-step-submit')).toBeEnabled()
+    })
+
+    it('collects documents on Details and the second language on Language; Review only summarises both (landr-kq0l4)', async () => {
+      const today = new Date()
+      today.setHours(12, 0, 0, 0)
+      const iso = today.toISOString().slice(0, 10)
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          product_id: 'svc-docs',
+          product_kind: 'service',
+          service_time_shape: 'single_date',
+          name: 'Solo Lesson',
+          needs_pickup: false,
+          hotel_offering: 'none',
+          guide_languages: ['en', 'de', 'es', 'fr'],
+          requires_verification: true,
+          waiver_text_localized: { en: 'At my own risk.' },
+          second_language_mode: 'always',
+          second_language_options: 'all',
+        }),
+      ])
+      mocks.getAvailability.mockResolvedValue([
+        {
+          availability_id: 'a-1',
+          date: iso,
+          start_time: null,
+          end_time: null,
+          capacity: 10,
+          capacity_reserved: 0,
+          available_seats: 10,
+          status: 'open',
+        },
+      ])
+      const setInput = (name: string, value: string) =>
+        fireEvent.change(
+          document.querySelector<HTMLInputElement>(`input[name="${name}"]`)!,
+          { target: { value } },
+        )
+
+      render(<App />)
+      await pickProduct('Solo Lesson')
+      await waitFor(() => expect(screen.getByText(/Pick a date/i)).toBeInTheDocument())
+      const dayButtons = screen
+        .getAllByRole('gridcell')
+        .map((c) => c.querySelector('button'))
+        .filter((b): b is HTMLButtonElement => !!b && !b.disabled)
+      fireEvent.click(dayButtons[0]!)
+      fireEvent.click(await screen.findByRole('button', { name: /continue/i }))
+      await waitFor(() =>
+        expect(screen.getByText(/your contact details/i)).toBeInTheDocument(),
+      )
+
+      // Details: the documents live here; Continue waits for them.
+      expect(screen.getByTestId('verification-fields')).toBeInTheDocument()
+      setInput('booker_first_name', 'Ada')
+      setInput('booker_last_name', 'Lovelace')
+      setInput('booker_email', 'ada@example.com')
+      setInput('booker_phone', '+34 600000000')
+      fireEvent.click(screen.getByTestId('details-step-submit'))
+      expect(screen.getByTestId('details-step-gate')).toHaveTextContent(/Add both documents/)
+      expect(screen.queryByTestId('participant-language-board')).not.toBeInTheDocument()
+      const upload = (id: string, f: File) =>
+        fireEvent.change(screen.getByTestId(id), { target: { files: [f] } })
+      upload('verification-licence', new File(['x'], 'licence.jpg', { type: 'image/jpeg' }))
+      upload('verification-insurance', new File(['x'], 'insurance.pdf', { type: 'application/pdf' }))
+      fireEvent.change(screen.getByTestId('verification-signature'), {
+        target: { value: 'Ada Lovelace' },
+      })
+      fireEvent.click(screen.getByTestId('verification-accept'))
+      fireEvent.click(screen.getByTestId('details-step-submit'))
+
+      // Language: the second-language question is asked here, gating Continue.
+      await screen.findByTestId('participant-language-board')
+      fireEvent.click(screen.getByTestId('lang-add-en'))
+      await screen.findByTestId('second-language-questions')
+      await waitFor(() =>
+        expect(screen.getByTestId('language-step-submit')).toBeDisabled(),
+      )
+      fireEvent.click(screen.getByTestId('second-language-0-de'))
+      await waitFor(() =>
+        expect(screen.getByTestId('language-step-submit')).toBeEnabled(),
+      )
+      fireEvent.click(screen.getByTestId('language-step-submit'))
+
+      // Address, then the read-only Review.
+      await screen.findByTestId('address-step-submit')
+      fireEvent.change(document.querySelector('[name="booker_billing_country"]')!, {
+        target: { value: 'ES' },
+      })
+      setInput('booker_billing_address_line1', 'Calle Mayor 1')
+      setInput('booker_billing_postal_code', '28013')
+      setInput('booker_billing_city', 'Madrid')
+      fireEvent.click(screen.getByTestId('address-step-submit'))
+      await waitFor(() =>
+        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
+      )
+      const inputs = [...document.querySelectorAll('input, select, textarea')].filter(
+        (el) => !el.closest('[data-testid="customer-comment-section"]'),
+      )
+      expect(inputs).toHaveLength(0)
+      expect(screen.getByTestId('review-verification')).toHaveTextContent('licence.jpg')
+      expect(screen.getByTestId('review-verification')).toHaveTextContent('Signed by Ada Lovelace')
+      expect(screen.getByTestId('review-second-language-0')).toHaveTextContent(/German/)
+      expect(screen.getByRole('button', { name: /confirm booking/i })).toBeEnabled()
+
+      // "Edit" on the documents goes to Details (values kept) and Continue
+      // comes straight back to the same Review.
+      fireEvent.click(screen.getByTestId('review-verification-edit'))
+      await screen.findByTestId('verification-fields')
+      expect(screen.getByTestId('verification-signature')).toHaveValue('Ada Lovelace')
+      expect(screen.getByTestId('details-step-gate')).toHaveTextContent(/ready/i)
+      fireEvent.click(screen.getByTestId('details-step-submit'))
+      await waitFor(() =>
+        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
+      )
+      expect(screen.getByTestId('review-verification')).toHaveTextContent('licence.jpg')
+
+      // "Edit" on the second language goes to the Language step and back.
+      fireEvent.click(screen.getByTestId('review-second-language-edit'))
+      await screen.findByTestId('participant-language-board')
+      expect(screen.getByTestId('second-language-0-de')).toBeChecked()
+      fireEvent.click(screen.getByTestId('language-step-submit'))
+      await waitFor(() =>
+        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
+      )
+      expect(screen.getByTestId('review-second-language-0')).toHaveTextContent(/German/)
     })
 
     it('a malformed / failed flow fetch falls back to the legacy plan and NEVER blanks the widget', async () => {

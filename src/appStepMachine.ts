@@ -1086,7 +1086,7 @@ export function stepAfterBillingAddress(args: PreReviewArgs): Step {
  * bag. Same shape as `fillFormStep` — the two steps carry identical context and
  * differ only in what they render.
  */
-function assignLanguagesStep(args: PreReviewArgs): Step {
+export function assignLanguagesStep(args: PreReviewArgs): Step {
   return {
     name: 'assign-languages' as const,
     product: args.product,

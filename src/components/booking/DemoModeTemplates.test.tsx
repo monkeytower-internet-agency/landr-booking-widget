@@ -258,6 +258,15 @@ describe('demo mode: testival (verified registration)', () => {
     fireEvent.click(await screen.findByRole('button', { name: /continue/i }))
     await screen.findByText(/your contact details/i, undefined, SLOW)
     fillBooker()
+    // landr-kq0l4: the documents + waiver are collected on the Details step,
+    // and Continue waits for them.
+    expect(await screen.findByTestId('verification-fields', undefined, SLOW)).toBeInTheDocument()
+    expect(screen.getByTestId('verification-waiver-text')).toHaveTextContent('I fly at my own risk')
+    const pdf = (name: string) => new File([new Uint8Array(10)], name, { type: 'application/pdf' })
+    fireEvent.change(screen.getByTestId('verification-licence'), { target: { files: [pdf('licence.pdf')] } })
+    fireEvent.change(screen.getByTestId('verification-insurance'), { target: { files: [pdf('insurance.pdf')] } })
+    fireEvent.change(screen.getByTestId('verification-signature'), { target: { value: 'Ada Lovelace' } })
+    fireEvent.click(screen.getByTestId('verification-accept'))
     fireEvent.click(screen.getByRole('button', { name: /continue/i }))
     const submit = await screen.findByTestId('language-step-submit').catch(() => null)
     if (submit) {
@@ -266,17 +275,10 @@ describe('demo mode: testival (verified registration)', () => {
       fireEvent.click(screen.getByTestId('language-step-submit'))
     }
     await continueFromAddress()
-    // The review step carries the documents + waiver, and Confirm waits for them.
-    expect(await screen.findByTestId('verification-fields', undefined, SLOW)).toBeInTheDocument()
-    expect(screen.getByTestId('verification-waiver-text')).toHaveTextContent('I fly at my own risk')
+    // The review step only summarises them: no inputs, Confirm enabled.
+    expect(await screen.findByTestId('review-verification', undefined, SLOW)).toHaveTextContent('licence.pdf')
+    expect(screen.queryByTestId('verification-fields')).toBeNull()
     const confirm = screen.getByRole('button', { name: /confirm booking/i })
-    expect(confirm).toBeDisabled()
-
-    const pdf = (name: string) => new File([new Uint8Array(10)], name, { type: 'application/pdf' })
-    fireEvent.change(screen.getByTestId('verification-licence'), { target: { files: [pdf('licence.pdf')] } })
-    fireEvent.change(screen.getByTestId('verification-insurance'), { target: { files: [pdf('insurance.pdf')] } })
-    fireEvent.change(screen.getByTestId('verification-signature'), { target: { value: 'Ada Lovelace' } })
-    fireEvent.click(screen.getByTestId('verification-accept'))
     await waitFor(() => expect(confirm).toBeEnabled())
     fireEvent.click(confirm)
     expect(await screen.findByTestId('demo-congrats')).toBeInTheDocument()
