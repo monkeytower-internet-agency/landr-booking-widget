@@ -94,7 +94,7 @@ describe('App in demo mode', () => {
     expect(val('booker_first_name')).toBe('Alex')
     expect(val('booker_email')).toBe('alex.morgan@example.com')
     expect(val('booker_phone')).toBe('+4915112345678')
-    // the address is not asked here any more (see the review step).
+    // the address is not asked here any more (see the Address step).
     expect(document.querySelector('[name^="booker_billing_"]')).toBeNull()
     expect(screen.getByRole('button', { name: /continue/i })).toBeEnabled()
   })
@@ -138,6 +138,10 @@ describe('App in demo mode', () => {
         '[name="booker_billing_city"]',
       ),
     ).toHaveValue('Munich')
+    // The address step is complete already, so Continue is open; then the review.
+    const toReview = await screen.findByTestId('address-step-submit')
+    await waitFor(() => expect(toReview).toBeEnabled())
+    fireEvent.click(toReview)
     fireEvent.click(await screen.findByRole('button', { name: /confirm booking/i }))
     expect(await screen.findByTestId('demo-congrats')).toBeInTheDocument()
     // the real confirmation, with the sample booking overview, under the demo-only text

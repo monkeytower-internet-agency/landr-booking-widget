@@ -10,6 +10,7 @@ import type {
   ParticipantDetails,
 } from '@/components/booking/detailsTypes'
 import {
+  billingAddressStep,
   buildBreadcrumb,
   customFormsWithoutResponse,
   formResponsesFromDraft,
@@ -28,6 +29,7 @@ import {
   sidebarInputsForStep,
   enterReviewOrCustomForm,
   stepAfterAccommodation,
+  stepAfterBillingAddress,
   stepAfterLanguages,
   stepBefore,
   stepBeforeLanguages,
@@ -125,7 +127,7 @@ function makeCompanions(n: number): CompanionDetails[] {
 }
 
 describe('stepAfterAccommodation (landr-4r80 + landr-8c03)', () => {
-  it('routes straight to fill-form with the auto-selected pickup when listProducts marked a single location (landr-zy2wm.2)', () => {
+  it('routes straight to billing-address with the auto-selected pickup when listProducts marked a single location (landr-zy2wm.2)', () => {
     const product = makeProduct({
       needs_pickup: true,
       auto_pickup_location_id: 'loc-only',
@@ -133,12 +135,12 @@ describe('stepAfterAccommodation (landr-4r80 + landr-8c03)', () => {
     const next = stepAfterAccommodation(
       product, SLOT_SELECTION, ADA, makeParticipants(1), [], [], null,
     )
-    expect(next.name).toBe('fill-form')
-    if (next.name !== 'fill-form') throw new Error('narrowing')
+    expect(next.name).toBe('billing-address')
+    if (next.name !== 'billing-address') throw new Error('narrowing')
     expect(next.pickupLocationId).toBe('loc-only')
   })
 
-  it('routes to fill-form with pickup_location_id pre-set when a hotel was booked, skipping pick-pickup', () => {
+  it('routes to billing-address with pickup_location_id pre-set when a hotel was booked, skipping pick-pickup', () => {
     const product = makeProduct({
       needs_pickup: true,
       hotel_offering: 'optional',
@@ -152,8 +154,8 @@ describe('stepAfterAccommodation (landr-4r80 + landr-8c03)', () => {
       [{ productId: 'room-1', quantity: 2 }],
       'loc-hotel-mirador',
     )
-    expect(next.name).toBe('fill-form')
-    if (next.name !== 'fill-form') throw new Error('narrowing')
+    expect(next.name).toBe('billing-address')
+    if (next.name !== 'billing-address') throw new Error('narrowing')
     expect(next.pickupLocationId).toBe('loc-hotel-mirador')
     expect(next.accommodationRooms).toEqual([
       { productId: 'room-1', quantity: 2 },
@@ -182,7 +184,7 @@ describe('stepAfterAccommodation (landr-4r80 + landr-8c03)', () => {
     expect(next.booker).toEqual(ADA)
   })
 
-  it('routes to fill-form with pickup_location_id=null when no hotel and no pickup needed', () => {
+  it('routes to billing-address with pickup_location_id=null when no hotel and no pickup needed', () => {
     const product = makeProduct({
       needs_pickup: false,
       hotel_offering: 'none',
@@ -196,8 +198,8 @@ describe('stepAfterAccommodation (landr-4r80 + landr-8c03)', () => {
       [],
       null,
     )
-    expect(next.name).toBe('fill-form')
-    if (next.name !== 'fill-form') throw new Error('narrowing')
+    expect(next.name).toBe('billing-address')
+    if (next.name !== 'billing-address') throw new Error('narrowing')
     expect(next.pickupLocationId).toBeNull()
     expect(next.participants).toHaveLength(2)
   })
@@ -216,17 +218,17 @@ describe('stepAfterAccommodation (landr-4r80 + landr-8c03)', () => {
       [{ productId: 'room-1', quantity: 1 }],
       'loc-hotel-x',
     )
-    expect(next.name).toBe('fill-form')
-    if (next.name !== 'fill-form') throw new Error('narrowing')
+    expect(next.name).toBe('billing-address')
+    if (next.name !== 'billing-address') throw new Error('narrowing')
     expect(next.pickupLocationId).toBe('loc-hotel-x')
     expect(next.participants).toHaveLength(4)
   })
 
   it('threads booker + participants through every branch (landr-8c03)', () => {
     const cases = [
-      { hotelLocationId: 'h-1', needs_pickup: true, expected: 'fill-form' },
+      { hotelLocationId: 'h-1', needs_pickup: true, expected: 'billing-address' },
       { hotelLocationId: null, needs_pickup: true, expected: 'pick-pickup' },
-      { hotelLocationId: null, needs_pickup: false, expected: 'fill-form' },
+      { hotelLocationId: null, needs_pickup: false, expected: 'billing-address' },
     ] as const
     for (const c of cases) {
       const product = makeProduct({
@@ -243,7 +245,7 @@ describe('stepAfterAccommodation (landr-4r80 + landr-8c03)', () => {
         c.hotelLocationId,
       )
       expect(next.name).toBe(c.expected)
-      if (next.name === 'fill-form' || next.name === 'pick-pickup') {
+      if (next.name === 'billing-address' || next.name === 'pick-pickup') {
         expect(next.participants).toHaveLength(5)
         expect(next.booker).toEqual(ADA)
       }
@@ -431,7 +433,7 @@ describe('deriveAccommodationMode (landr-ffyg.2)', () => {
 })
 
 describe('stepAfterAccommodation — shared-double bypass (landr-ffyg.2)', () => {
-  it('shared-double (hotel set, NO rooms) routes straight to fill-form with the hotel as pickup, skipping pick-pickup', () => {
+  it('shared-double (hotel set, NO rooms) routes straight to billing-address with the hotel as pickup, skipping pick-pickup', () => {
     // needs_pickup=true would normally route to pick-pickup, but the hotel
     // is set so the landr-4r80 routing wins and the customer NEVER reaches
     // the free pickup picker — exactly the shared-double requirement.
@@ -452,8 +454,8 @@ describe('stepAfterAccommodation — shared-double bypass (landr-ffyg.2)', () =>
       true, // isSharedDouble
       'shared-double',
     )
-    expect(next.name).toBe('fill-form')
-    if (next.name !== 'fill-form') throw new Error('narrowing')
+    expect(next.name).toBe('billing-address')
+    if (next.name !== 'billing-address') throw new Error('narrowing')
     expect(next.pickupLocationId).toBe('loc-shared-hotel')
     expect(next.accommodationRooms).toEqual([])
     expect(next.isSharedDouble).toBe(true)
@@ -478,8 +480,8 @@ describe('stepAfterAccommodation — shared-double bypass (landr-ffyg.2)', () =>
       false,
       'guiding-only',
     )
-    expect(next.name).toBe('fill-form')
-    if (next.name !== 'fill-form') throw new Error('narrowing')
+    expect(next.name).toBe('billing-address')
+    if (next.name !== 'billing-address') throw new Error('narrowing')
     expect(next.pickupLocationId).toBeNull()
     expect(next.isSharedDouble).toBe(false)
     expect(next.accommodationMode).toBe('guiding-only')
@@ -578,18 +580,20 @@ describe('breadcrumb navigation (landr)', () => {
     }
   }
 
-  it('builds [Overview, Dates, Participants, Review] for a plain product', () => {
+  it('builds [Overview, Dates, Participants, Address, Review] for a plain product', () => {
     const crumbs = buildBreadcrumb(fillForm(), NO_DECL)
     expect(crumbs.map((c) => c.name)).toEqual([
       'product-detail',
       'pick-selection',
       'details',
+      'billing-address',
       'fill-form',
     ])
     expect(crumbs.map((c) => c.label)).toEqual([
       'Overview',
       'Dates',
       'Participants',
+      'Address',
       'Review',
     ])
     // The current (last) crumb is non-clickable; the rest carry targets.
@@ -608,6 +612,7 @@ describe('breadcrumb navigation (landr)', () => {
     expect(crumbs.map((c) => c.name)).toEqual([
       'pick-selection',
       'details',
+      'billing-address',
       'fill-form',
     ])
     expect(crumbs.map((c) => c.label)).not.toContain('Tandem Flight')
@@ -643,6 +648,7 @@ describe('breadcrumb navigation (landr)', () => {
       'pick-selection',
       'details',
       'pick-accommodation',
+      'billing-address',
       'fill-form',
     ])
     // The pickup picker was skipped on the way forward → not a crumb.
@@ -660,6 +666,7 @@ describe('breadcrumb navigation (landr)', () => {
       'pick-selection',
       'details',
       'pick-pickup',
+      'billing-address',
       'fill-form',
     ])
   })
@@ -671,15 +678,63 @@ describe('breadcrumb navigation (landr)', () => {
       'pick-selection',
       'details',
       'custom-form',
+      'billing-address',
       'fill-form',
     ])
-    // The penultimate crumb (one step back) targets the custom-form step,
-    // carrying its formKey.
-    const cfCrumb = crumbs.at(-2)!
+    // The custom-form crumb sits before the Address crumb and carries its
+    // formKey.
+    const cfCrumb = crumbs.at(-3)!
     expect(cfCrumb.target!.name).toBe('custom-form')
     expect(
       cfCrumb.target!.name === 'custom-form' ? cfCrumb.target!.formKey : null,
     ).toBe('waiver')
+  })
+
+  // landr-rw8i2: the billing address is its own step right before Review.
+  it('orders the full trail … Language › Details › Address › Review', () => {
+    const crumbs = buildBreadcrumb(fillForm(), { ...CUSTOM_FORM_FLOW, languageStep: true })
+    expect(crumbs.map((c) => c.label)).toEqual([
+      'Overview',
+      'Dates',
+      'Participants',
+      'Language',
+      'Details',
+      'Address',
+      'Review',
+    ])
+  })
+
+  it('ends the trail on the Address step with Address as the active crumb', () => {
+    const step = billingAddressStep(fillForm() as Parameters<typeof billingAddressStep>[0])
+    const crumbs = buildBreadcrumb(step, NO_DECL)
+    expect(crumbs.map((c) => c.label)).toEqual([
+      'Overview',
+      'Dates',
+      'Participants',
+      'Address',
+    ])
+    expect(crumbs.at(-1)!.current).toBe(true)
+  })
+
+  it('Back from Review is the Address step; Back from Address is the step Review used to follow', () => {
+    const review = fillForm()
+    const address = stepBefore(review, NO_DECL)
+    expect(address?.name).toBe('billing-address')
+    // The address step carries the whole provenance bag + the booker's billing.
+    expect(address && 'booker' in address ? address.booker : null).toEqual(ADA)
+    const beforeAddress = stepBefore(address!, NO_DECL)
+    expect(beforeAddress?.name).toBe('details')
+    // With a custom form configured, Address walks back to it.
+    expect(stepBefore(address!, CUSTOM_FORM_FLOW)?.name).toBe('custom-form')
+  })
+
+  it('moves forward Address → Review with the state intact', () => {
+    const args = fillForm() as Parameters<typeof billingAddressStep>[0]
+    const address = billingAddressStep(args)
+    expect(address.name).toBe('billing-address')
+    const next = stepAfterBillingAddress(address as Parameters<typeof billingAddressStep>[0])
+    expect(next.name).toBe('fill-form')
+    expect(next && 'booker' in next ? next.booker : null).toEqual(ADA)
   })
 
   it('returns no crumbs for non-funnel steps (catalog/confirmation)', () => {
@@ -1013,7 +1068,7 @@ describe('language step routing (landr-r6e5x.4)', () => {
     // Not reachable today (the column is NOT NULL with a four-language
     // default) but the gate is honoured rather than assumed.
     const next = enterReviewOrCustomForm(preReviewArgs(), null, undefined, false)
-    expect(next.name).toBe('fill-form')
+    expect(next.name).toBe('billing-address')
   })
 
   it('hands off to the custom-form chain, then to review', () => {
@@ -1023,7 +1078,7 @@ describe('language step routing (landr-r6e5x.4)', () => {
     expect(afterLang.formKey).toBe('customer_declarations')
 
     const noForms = stepAfterLanguages(preReviewArgs(), null)
-    expect(noForms.name).toBe('fill-form')
+    expect(noForms.name).toBe('billing-address')
   })
 
   it('carries the whole provenance bag through, so back-nav restores upstream state', () => {
@@ -1091,7 +1146,7 @@ describe('language step routing (landr-r6e5x.4)', () => {
     const languageStep = languageStepNeeded(['de'])
     expect(languageStep).toBe(false)
     const next = enterReviewOrCustomForm(preReviewArgs(), null, undefined, languageStep)
-    expect(next.name).toBe('fill-form')
+    expect(next.name).toBe('billing-address')
     // ...and no Language crumb on the review trail, nor as review's back-target.
     const trail = buildBreadcrumb(next, { languageStep }).map((c) => c.label)
     expect(trail).not.toContain('Language')

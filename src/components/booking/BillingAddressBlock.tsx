@@ -28,11 +28,11 @@ export interface BillingAddressBlockProps {
 }
 
 /**
- * The billing address block (landr-uuntm.3, moved here from DetailsStep) on
- * the REVIEW step, directly above Confirm. The booker IS the invoice
- * recipient, so it edits `booker.billing`; BookingForm owns the touched set
- * and the submit gate. Optional: line 2, invoice name, and, behind "Invoice to
- * a company?", company + tax id.
+ * The billing address block (landr-uuntm.3), shown on the Address step
+ * (landr-rw8i2: it used to sit on the Review). The booker IS the invoice
+ * recipient, so it edits `booker.billing`; AddressStep owns the touched set
+ * and the Continue gate. Optional: line 2, invoice name, and, behind "Invoice
+ * to a company?", company + tax id.
  */
 export function BillingAddressBlock({
   booker,

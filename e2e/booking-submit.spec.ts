@@ -146,10 +146,10 @@ test('booking-submit happy path: catalog -> date -> participant -> confirm', asy
   await page.getByLabel('Last name').fill('Smoketest')
   await page.getByLabel('Email').fill('playwright-smoke@example.com')
   await page.getByLabel('Phone').fill('+491701234567')
-  // The billing address moved from this step to the review step.
+  // The billing address moved from this step to its own Address step.
   // This smoke runs against the DEPLOYED dev bundle (bw-dev.landr.de), which
-  // asks for it here until that change has deployed — so fill it here only
-  // when this step still has the fields (keeps both sides of that deploy green).
+  // may still ask for it here — so fill it here only when this step has the
+  // fields (keeps both sides of that deploy green).
   await fillBillingIfPresent(page)
   await page.getByRole('button', { name: 'Continue' }).click()
 
@@ -201,9 +201,24 @@ test('booking-submit happy path: catalog -> date -> participant -> confirm', asy
   }
   await page.getByTestId('cf-submit').click()
 
+  // ---- Address (billing) ------------------------------------------------------
+  // The billing address has its own step before the Review. Conditional like the
+  // language step: this spec runs against the DEPLOYED bw-dev build, which has
+  // no Address step until the PR introducing it has deployed (the older build
+  // asks for the address on the Review itself, handled below).
+  const addressNext = page.getByTestId('address-step-submit')
+  const hasAddressStep = await addressNext
+    .isVisible({ timeout: 15_000 })
+    .catch(() => false)
+  if (hasAddressStep) {
+    await fillBillingIfPresent(page)
+    await expect(addressNext).toBeEnabled()
+    await addressNext.click()
+  }
+
   // ---- Review + confirm -----------------------------------------------------
   await expect(page.getByText('Review your booking', { exact: true })).toBeVisible()
-  // The billing address is required right above Confirm.
+  // Older builds still ask for the address right above Confirm.
   await fillBillingIfPresent(page)
   // landr-5oox.30: intercept the submit response so the confirmation-title
   // assertion below can match whichever copy the approval engine actually

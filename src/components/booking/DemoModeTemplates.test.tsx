@@ -16,6 +16,14 @@ import { dateFromIso, isoDate } from './dateUtils'
 vi.setConfig({ testTimeout: 30_000 })
 const SLOW = { timeout: 8000 }
 
+// landr-rw8i2: the demo's sample address arrives pre-filled, so the Address step
+// before the review only needs its Continue.
+async function continueFromAddress() {
+  const next = await screen.findByTestId('address-step-submit', undefined, SLOW)
+  await waitFor(() => expect(next).toBeEnabled())
+  fireEvent.click(next)
+}
+
 const base = {
   name_localized: null, short_description: null, short_description_localized: null, description: null,
   is_contiguous: false, duration_minutes: null, group_slug: null, group_name: null, sort_order: 1,
@@ -149,6 +157,7 @@ describe('demo mode: apartment (stay)', () => {
     await screen.findByText(/your contact details/i, undefined, SLOW)
     fillBooker()
     fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+    await continueFromAddress()
     await screen.findByText(/review your booking/i, undefined, SLOW)
     // 3 nights x 85.00 + 40.00 cleaning fee
     const rate = (await screen.findAllByTestId('price-sidebar-stay-rate'))[0]!
@@ -256,6 +265,7 @@ describe('demo mode: testival (verified registration)', () => {
       await waitFor(() => expect(screen.getByTestId('language-step-submit')).toBeEnabled())
       fireEvent.click(screen.getByTestId('language-step-submit'))
     }
+    await continueFromAddress()
     // The review step carries the documents + waiver, and Confirm waits for them.
     expect(await screen.findByTestId('verification-fields', undefined, SLOW)).toBeInTheDocument()
     expect(screen.getByTestId('verification-waiver-text')).toHaveTextContent('I fly at my own risk')
