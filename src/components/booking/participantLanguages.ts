@@ -24,6 +24,9 @@
  */
 
 import { pickBundle, resolveUiLanguage } from '@/lib/strings'
+import { isStayKind } from '@/flowPlan'
+import type { Product } from '@/api/types'
+import { stayGuestLanguages } from './stayFlow'
 
 /** Party-member index → assigned ISO 639-1 language code. */
 export type ParticipantLanguageMap = Record<number, string>
@@ -426,6 +429,24 @@ export function normaliseOfferedLanguages(
  */
 export function productAcceptsAnyLanguage(raw: unknown): boolean {
   return Array.isArray(raw) && raw.length === 0
+}
+
+/**
+ * The guide languages a PRODUCT offers — the one resolver the language step
+ * (App.tsx) and the second-guiding-language cart (secondLanguage.ts) both read,
+ * so they can never disagree about the same product.
+ *
+ * - a stay has no guide: no language is offered (`[]`);
+ * - `guide_languages = []` is an "any language" product: `[]`;
+ * - otherwise the cleaned list, and for null / absent / unusable input the
+ *   platform default (a widget can run ahead of the API), never "none".
+ */
+export function offeredLanguagesForProduct(
+  product: Pick<Product, 'product_kind' | 'guide_languages'>,
+): string[] {
+  if (isStayKind(product.product_kind)) return stayGuestLanguages()
+  if (productAcceptsAnyLanguage(product.guide_languages)) return []
+  return normaliseOfferedLanguages(product.guide_languages)
 }
 
 /**
