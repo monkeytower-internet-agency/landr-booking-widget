@@ -912,6 +912,14 @@
             "title": "Enabled",
             "type": "boolean"
           },
+          "helper_messages_per_hour": {
+            "title": "Helper Messages Per Hour",
+            "type": "integer"
+          },
+          "helper_messages_per_user_hour": {
+            "title": "Helper Messages Per User Hour",
+            "type": "integer"
+          },
           "monthly_hard_usd": {
             "title": "Monthly Hard Usd",
             "type": "number"
@@ -952,7 +960,9 @@
           "per_session_max_turns",
           "per_session_max_tokens",
           "monthly_soft_usd",
-          "monthly_hard_usd"
+          "monthly_hard_usd",
+          "helper_messages_per_hour",
+          "helper_messages_per_user_hour"
         ],
         "title": "AiSettingsOut",
         "type": "object"
@@ -969,6 +979,32 @@
               }
             ],
             "title": "Enabled"
+          },
+          "helper_messages_per_hour": {
+            "anyOf": [
+              {
+                "maximum": 1000.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Helper Messages Per Hour"
+          },
+          "helper_messages_per_user_hour": {
+            "anyOf": [
+              {
+                "maximum": 1000.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Helper Messages Per User Hour"
           },
           "monthly_hard_usd": {
             "anyOf": [
