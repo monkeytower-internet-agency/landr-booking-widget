@@ -683,8 +683,14 @@ function BookingDetailsCard({
       ? meetingPoint.waze_url
       : null
   const meetingPointAddress = meetingPoint?.address || null
+  const meetingPointDescription = meetingPoint?.description || null
+  const meetingPointPhone = meetingPoint?.phone || null
   const hasMeetingPointDetail = Boolean(
-    meetingPointAddress || meetingPointMapsUrl || meetingPointWazeUrl,
+    meetingPointAddress ||
+      meetingPointMapsUrl ||
+      meetingPointWazeUrl ||
+      meetingPointDescription ||
+      meetingPointPhone,
   )
   return (
     <div
@@ -740,8 +746,21 @@ function BookingDetailsCard({
         ) : null}
         {hasMeetingPointDetail ? (
           <div data-testid="confirmation-meeting-point" className="space-y-1.5">
+            {meetingPointDescription ? (
+              <p className="whitespace-pre-line">{meetingPointDescription}</p>
+            ) : null}
             {meetingPointAddress ? (
               <p className="text-muted-foreground">{meetingPointAddress}</p>
+            ) : null}
+            {meetingPointPhone ? (
+              <p>
+                <a
+                  href={`tel:${meetingPointPhone.replace(/[^\d+]/g, '')}`}
+                  className="text-primary underline underline-offset-2"
+                >
+                  {meetingPointPhone}
+                </a>
+              </p>
             ) : null}
             <div className="flex flex-wrap gap-2">
               {meetingPointMapsUrl ? (

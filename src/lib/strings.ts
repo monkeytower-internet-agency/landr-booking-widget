@@ -199,6 +199,9 @@ export type Bundle = {
   // ---- PickupLocationPicker ----
   pickupLocationTitle: string
   pickupLocationCue: string
+  pickupDetailsShowTemplate: string
+  pickupDetailsHideTemplate: string
+  pickupOpenInGoogleMaps: string
   chooseWhereWePickYouUp: string
   loadingPickupLocations: string
   noPickupLocationsConfigured: string
@@ -1346,6 +1349,9 @@ const en: Bundle = {
 
   pickupLocationTitle: 'Pickup location',
   pickupLocationCue: 'choose your pickup location',
+  pickupDetailsShowTemplate: 'Show details for {name}',
+  pickupDetailsHideTemplate: 'Hide details for {name}',
+  pickupOpenInGoogleMaps: 'Open in Google Maps',
   chooseWhereWePickYouUp: 'Choose where we pick you up',
   loadingPickupLocations: 'Loading pickup locations…',
   noPickupLocationsConfigured: 'No pickup locations set up yet — contact the operator',

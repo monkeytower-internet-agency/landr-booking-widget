@@ -352,6 +352,22 @@ describe('Confirmation — landr-nva1a.4 success-screen summary', () => {
     )
   })
 
+  it('shows meeting-point description and phone when present', () => {
+    const response = baseResponse({
+      summary: baseSummary({
+        meeting_point: {
+          id: 'pl-1', name: 'Main Beach', address: '', lat: '', lng: '',
+          google_maps_url: '', waze_url: '',
+          description: 'Blue kiosk', phone: '+49 30 123',
+        },
+      }),
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+    const block = screen.getByTestId('confirmation-meeting-point')
+    expect(block).toHaveTextContent('Blue kiosk')
+    expect(screen.getByRole('link', { name: '+49 30 123' })).toHaveAttribute('href', 'tel:+4930123')
+  })
+
   // landr-5aih0.2: the meeting-point block (address + Google Maps/Waze)
   // renders under the plain "Pickup:" line when summary.meeting_point
   // carries an address or a map link.
