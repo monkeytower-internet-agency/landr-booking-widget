@@ -25774,12 +25774,21 @@ export interface components {
              * @default false
              */
             on_main: boolean;
+            /** Promotion Date */
+            promotion_date?: string | null;
+            /** Promotion Sha */
+            promotion_sha?: string | null;
             /** Prs */
             prs: components["schemas"]["ProdHotfixPr"][];
             /** Run Id */
-            run_id: string;
+            run_id?: string | null;
             /** Sha */
             sha: string;
+            /**
+             * Source
+             * @default hotfix
+             */
+            source: string;
             /** Title */
             title: string;
             /** Url */
