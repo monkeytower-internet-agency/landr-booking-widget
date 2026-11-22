@@ -27756,6 +27756,15 @@ export interface components {
             /** Contact Id */
             contact_id?: string | null;
             /**
+             * Description
+             * @description landr-mi9s4: guest-facing text, e.g. 'Lobby entrance' (blank -> null)
+             */
+            description?: string | null;
+            /** Description Localized */
+            description_localized?: {
+                [key: string]: string;
+            } | null;
+            /**
              * Email
              * @description Booking / approval-request address of a place (the old hotel email)
              */
@@ -27848,6 +27857,12 @@ export interface components {
             contact_phone?: string | null;
             /** Created At */
             created_at: string;
+            /** Description */
+            description?: string | null;
+            /** Description Localized */
+            description_localized?: {
+                [key: string]: string;
+            } | null;
             /**
              * Effective Capacity
              * @description Seats this row stands for: capacity × quantity for a leaf, the sum over live active children for a parent; null = not seat-bookable
@@ -27933,6 +27948,15 @@ export interface components {
             color?: string | null;
             /** Contact Id */
             contact_id?: string | null;
+            /**
+             * Description
+             * @description landr-mi9s4: guest-facing text, e.g. 'Lobby entrance' (blank -> null)
+             */
+            description?: string | null;
+            /** Description Localized */
+            description_localized?: {
+                [key: string]: string;
+            } | null;
             /** Email */
             email?: string | null;
             /** Geo */

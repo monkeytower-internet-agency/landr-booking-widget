@@ -36227,6 +36227,33 @@
             ],
             "title": "Contact Id"
           },
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 1000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "landr-mi9s4: guest-facing text, e.g. 'Lobby entrance' (blank -> null)",
+            "title": "Description"
+          },
+          "description_localized": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description Localized"
+          },
           "email": {
             "anyOf": [
               {
@@ -36496,6 +36523,31 @@
           "created_at": {
             "title": "Created At",
             "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "description_localized": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description Localized"
           },
           "effective_capacity": {
             "anyOf": [
@@ -36780,6 +36832,33 @@
               }
             ],
             "title": "Contact Id"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 1000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "landr-mi9s4: guest-facing text, e.g. 'Lobby entrance' (blank -> null)",
+            "title": "Description"
+          },
+          "description_localized": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description Localized"
           },
           "email": {
             "anyOf": [
