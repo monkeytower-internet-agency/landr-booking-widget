@@ -2845,6 +2845,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/me/merge-eligibility": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Merge Eligibility */
+        get: operations["me_merge_eligibility"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/me/merge-into-existing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Merge Into Existing */
+        post: operations["me_merge_into_existing"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/me/password": {
         parameters: {
             query?: never;
@@ -22274,6 +22308,33 @@ export interface components {
             /** Otp */
             otp: string;
         };
+        /** MergeEligibilityOut */
+        MergeEligibilityOut: {
+            /** Eligible */
+            eligible: boolean;
+            /** Provider */
+            provider?: string | null;
+            /** Provider Email */
+            provider_email?: string | null;
+        };
+        /** MergeIn */
+        MergeIn: {
+            /** Email */
+            email: string;
+            /** Password */
+            password: string;
+        };
+        /** MergeSessionOut */
+        MergeSessionOut: {
+            /** Access Token */
+            access_token: string;
+            /** Expires In */
+            expires_in: number;
+            /** Refresh Token */
+            refresh_token: string;
+            /** User Id */
+            user_id: string;
+        };
         /** MessageIn */
         MessageIn: {
             /** Text */
@@ -36061,6 +36122,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AuthMethodsOut"];
+                };
+            };
+        };
+    };
+    me_merge_eligibility: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MergeEligibilityOut"];
+                };
+            };
+        };
+    };
+    me_merge_into_existing: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MergeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MergeSessionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
