@@ -6963,6 +6963,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/ai-onboarding/sessions/{session_id}/derived-proposals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Derived Proposal
+         * @description A card derived from another one (add-on price change, landr-wsq8q.16).
+         *     Same shape as a proposal event: ``previous`` is the server's own read.
+         */
+        post: operations["create_derived_proposal"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/ai-onboarding/sessions/{session_id}/messages": {
         parameters: {
             query?: never;
@@ -19488,6 +19509,20 @@ export interface components {
             kind: "price_rule" | "offer_rule" | "eligibility" | "occupancy";
             /** Label */
             label: string;
+        };
+        /**
+         * DerivedProposalIn
+         * @description landr-wsq8q.16: a card the dashboard derives from another card (the model
+         *     cannot propose these kinds); the server validates the payload and snapshots
+         *     the previous values itself.
+         */
+        DerivedProposalIn: {
+            /** Kind */
+            kind: string;
+            /** Payload */
+            payload: {
+                [key: string]: unknown;
+            };
         };
         /**
          * DetailsFormAnswers
@@ -42403,6 +42438,44 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["AcceptedIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_derived_proposal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DerivedProposalIn"];
             };
         };
         responses: {
