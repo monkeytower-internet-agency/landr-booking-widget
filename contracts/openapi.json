@@ -11574,6 +11574,28 @@
         "title": "DerivedCutSource",
         "type": "object"
       },
+      "DerivedProposalIn": {
+        "description": "landr-wsq8q.16: a card the dashboard derives from another card (the model\ncannot propose these kinds); the server validates the payload and snapshots\nthe previous values itself.",
+        "properties": {
+          "kind": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Kind",
+            "type": "string"
+          },
+          "payload": {
+            "additionalProperties": true,
+            "title": "Payload",
+            "type": "object"
+          }
+        },
+        "required": [
+          "kind",
+          "payload"
+        ],
+        "title": "DerivedProposalIn",
+        "type": "object"
+      },
       "DetailsFormAnswers": {
         "description": "Answers of one form, in the shape PUT takes: booking-scope ``answers``\nplus ``people`` keyed by booking_participant_id.",
         "properties": {
@@ -63847,6 +63869,75 @@
           }
         ],
         "summary": "Record Accepted",
+        "tags": [
+          "ai-onboarding"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/ai-onboarding/sessions/{session_id}/derived-proposals": {
+      "post": {
+        "description": "A card derived from another one (add-on price change, landr-wsq8q.16).\nSame shape as a proposal event: ``previous`` is the server's own read.",
+        "operationId": "create_derived_proposal",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DerivedProposalIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Create Derived Proposal",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Derived Proposal",
         "tags": [
           "ai-onboarding"
         ]
