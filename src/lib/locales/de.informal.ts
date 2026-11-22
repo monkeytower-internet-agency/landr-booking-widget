@@ -1059,4 +1059,5 @@ export const deInformal: Bundle = {
   addMoreModuleChange: 'Ändern',
   switchToDark: 'Zum dunklen Modus wechseln',
   switchToLight: 'Zum hellen Modus wechseln',
+  switchLanguage: 'Sprache wählen',
 }

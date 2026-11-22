@@ -1167,4 +1167,5 @@ export const it: Bundle = {
   addMoreModuleChange: 'Modifica',
   switchToDark: 'Passa alla modalità scura',
   switchToLight: 'Passa alla modalità chiara',
+  switchLanguage: 'Scegli la lingua',
 }

@@ -1146,4 +1146,5 @@ export const es: Bundle = {
   addMoreModuleChange: 'Cambiar',
   switchToDark: 'Cambiar al modo oscuro',
   switchToLight: 'Cambiar al modo claro',
+  switchLanguage: 'Elegir idioma',
 }
