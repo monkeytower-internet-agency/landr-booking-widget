@@ -3,7 +3,8 @@
  *
  * "If no French guide is available, which language would also work?" asked of
  * every guided participant the cart's rule asks (secondLanguage.ts). One helper
- * line above the list, then per participant: a checkbox per option plus the
+ * line above the list (naming the language only when everyone asked shares it),
+ * then one bordered block per participant: a checkbox per option plus the
  * exclusive "I only speak {language}". Ticking the exclusive one clears the
  * others and ticking another clears it; at least one tick is required (the
  * caller gates Continue). The first asked participant can copy their answer to
@@ -38,13 +39,16 @@ interface Props {
 export function SecondLanguageQuestions({ asked, onChange, onApplyToEveryone, locale = browserLocale() }: Props) {
   if (asked.length === 0) return null
   const first = asked[0]!
+  const sameMain = asked.every((p) => p.main === first.main)
   return (
     <section
       className="flex flex-col gap-3 border-t border-border pt-4"
       data-testid="second-language-questions"
     >
       <p className="text-sm text-muted-foreground" data-testid="second-language-helper">
-        {secondLanguageText('helper', languageName(first.main, locale), locale, first.main)}
+        {sameMain
+          ? secondLanguageText('helper', languageName(first.main, locale), locale, first.main)
+          : tr('secondLanguageHelperMixed', locale)}
       </p>
       {asked.map((p, position) => {
         const mainName = languageName(p.main, locale)
@@ -53,7 +57,7 @@ export function SecondLanguageQuestions({ asked, onChange, onApplyToEveryone, lo
         return (
           <fieldset
             key={p.index}
-            className="flex flex-col gap-2"
+            className="flex flex-col gap-2 rounded-xl border border-border p-3"
             aria-labelledby={legendId}
             data-testid={`second-language-asked-${p.index}`}
           >

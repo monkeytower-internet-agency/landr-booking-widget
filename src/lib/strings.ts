@@ -1010,6 +1010,7 @@ export type Bundle = {
   secondLanguageQuestionCase: 'lower' | 'keep'
   secondLanguageOnlyCase: 'lower' | 'keep'
   secondLanguageQuestionTemplate: string
+  secondLanguageHelperMixed: string
   secondLanguageHelperTemplate: string
   secondLanguageOnlyTemplate: string
   secondLanguageApplyAll: string
@@ -2092,6 +2093,8 @@ const en: Bundle = {
   secondLanguageQuestionTemplate: 'If no {language} guide is available, which language would also work?',
   secondLanguageHelperTemplate:
     '{language} stays your first choice. The more languages you tick, the more likely we can confirm your booking.',
+  secondLanguageHelperMixed:
+    "Each person's own language stays their first choice. The more languages you tick, the more likely we can confirm your booking.",
   secondLanguageOnlyTemplate: 'I only speak {language}',
   secondLanguageApplyAll: 'Apply to everyone',
   secondLanguageGateWaitingTemplate: 'Tick at least one option for each person. Still open: {names}.',
