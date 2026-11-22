@@ -1,5 +1,6 @@
 import type { CustomerStageLabel } from '@/api/types'
 import { demoLang, isDemoMode } from '@/lib/demo'
+import { SUPPORTED_UI_LANGUAGES } from '@/lib/strings'
 
 export function pickLocalized(
   fallback: string | null | undefined,
@@ -112,10 +113,94 @@ export function overrideBookingLocale(locale: string | null | undefined): void {
   bookingLocaleOverride = locale ?? null
 }
 
+/**
+ * landr-goi5m.3: the visitor's own language pick from the globe dropdown
+ * (operator setting widget_language_switcher). Remembered in localStorage,
+ * and honoured only while the operator has the switcher on and the pick is
+ * still one of the offered languages — switching it off restores the old
+ * resolution untouched.
+ */
+const VISITOR_LANG_KEY = 'landr.visitorLang'
+let visitorLang: string | null = null
+let visitorLangRead = false
+let switcherEnabled = false
+const visitorLangListeners = new Set<() => void>()
+
+function readVisitorLang(): string | null {
+  if (!visitorLangRead) {
+    visitorLangRead = true
+    try {
+      visitorLang = window.localStorage.getItem(VISITOR_LANG_KEY) || null
+    } catch {
+      visitorLang = null
+    }
+  }
+  return visitorLang
+}
+
+export function getVisitorLang(): string | null {
+  return readVisitorLang()
+}
+
+export function setVisitorLang(lang: string | null): void {
+  visitorLangRead = true
+  visitorLang = lang
+  try {
+    if (lang) window.localStorage.setItem(VISITOR_LANG_KEY, lang)
+    else window.localStorage.removeItem(VISITOR_LANG_KEY)
+  } catch {
+    // Storage blocked: the pick still holds for this page view.
+  }
+  visitorLangListeners.forEach((l) => l())
+}
+
+export function subscribeVisitorLang(listener: () => void): () => void {
+  visitorLangListeners.add(listener)
+  return () => {
+    visitorLangListeners.delete(listener)
+  }
+}
+
+/** Call once operator settings resolve; the visitor's pick only counts while on. */
+export function configureLanguageSwitcher(enabled: boolean | null | undefined): void {
+  switcherEnabled = Boolean(enabled)
+}
+
+/**
+ * Languages the dropdown offers: the operator's customer_languages narrowed to
+ * the languages this widget has catalogs for; every catalog when the operator
+ * set none. Base codes ('de'), in the operator's order.
+ */
+export function offeredLanguages(): string[] {
+  const supported = SUPPORTED_UI_LANGUAGES
+  if (!customerLocaleWhitelist) return [...supported]
+  const out: string[] = []
+  for (const code of customerLocaleWhitelist) {
+    const base = code.split(/[-_]/)[0]?.toLowerCase() ?? ''
+    if (supported.includes(base) && !out.includes(base)) out.push(base)
+  }
+  return out
+}
+
+/** Languages the dropdown would offer; fewer than two means no switcher. */
+export function languageOptions(): string[] {
+  const opts = offeredLanguages()
+  return opts.length >= 2 ? opts : []
+}
+
+function activeVisitorLang(): string | null {
+  if (!switcherEnabled) return null
+  const v = readVisitorLang()
+  if (!v) return null
+  return offeredLanguages().includes(v.split(/[-_]/)[0] ?? '') ? v : null
+}
+
 export function browserLocale(): string {
   // Demo embeds render in the `?lang=` the marketing page asked for, never the visitor's browser locale.
   if (isDemoMode()) return demoLang()
   if (bookingLocaleOverride) return bookingLocaleOverride
+  const picked = activeVisitorLang()
+  if (picked) return picked
   const raw = hostLangHint() ?? rawBrowserLocale()
   if (!customerLocaleWhitelist) return raw
   if (customerLocaleWhitelist.has(raw)) return raw

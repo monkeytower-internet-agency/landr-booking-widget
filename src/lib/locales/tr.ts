@@ -1065,4 +1065,5 @@ export const tr: Bundle = {
   addMoreModuleChange: 'Değiştir',
   switchToDark: 'Koyu moda geç',
   switchToLight: 'Açık moda geç',
+  switchLanguage: 'Dil seçin',
 }

@@ -11,6 +11,11 @@ import {
   apiLocale,
   browserLocale,
   configureCustomerLocale,
+  configureLanguageSwitcher,
+  getVisitorLang,
+  offeredLanguages,
+  setVisitorLang,
+  subscribeVisitorLang,
   overrideBookingLocale,
   pickLocalized,
   resolveCustomerStageLabel,
@@ -262,5 +267,61 @@ describe('apiLocale', () => {
   it('never exceeds 16 characters', () => {
     const shaped = apiLocale('supercalifragilisticexpialidocious-XX')
     expect(shaped.length).toBeLessThanOrEqual(16)
+  })
+})
+
+describe('visitor language choice (landr-goi5m.3)', () => {
+  afterEach(() => {
+    setVisitorLang(null)
+    configureLanguageSwitcher(false)
+    configureCustomerLocale(null, null)
+    overrideBookingLocale(null)
+    vi.unstubAllGlobals()
+  })
+
+  it('beats the browser locale only while the switcher is on', () => {
+    setBrowserLanguage('de-DE')
+    configureLanguageSwitcher(true)
+    setVisitorLang('fr')
+    expect(browserLocale()).toBe('fr')
+    configureLanguageSwitcher(false)
+    expect(browserLocale()).toBe('de-DE')
+  })
+
+  it('loses to an invite language and is ignored outside the operator list', () => {
+    setBrowserLanguage('en-US')
+    configureLanguageSwitcher(true)
+    configureCustomerLocale(['en', 'de'], 'en')
+    setVisitorLang('fr')
+    expect(browserLocale()).toBe('en')
+    setVisitorLang('de')
+    expect(browserLocale()).toBe('de')
+    overrideBookingLocale('en')
+    expect(browserLocale()).toBe('en')
+  })
+
+  it('offers operator languages that have catalogs, all catalogs when none set', () => {
+    configureCustomerLocale(['de', 'pt', 'en-GB'], 'de')
+    expect(offeredLanguages()).toEqual(['de', 'en'])
+    configureCustomerLocale(null, null)
+    expect(offeredLanguages()).toEqual(['en', 'de', 'es', 'tr', 'it', 'fr'])
+  })
+
+  it('survives blocked storage and notifies subscribers', () => {
+    vi.stubGlobal('localStorage', {
+      getItem: () => {
+        throw new Error('blocked')
+      },
+      setItem: () => {
+        throw new Error('blocked')
+      },
+      removeItem: () => {},
+    })
+    const spy = vi.fn()
+    const off = subscribeVisitorLang(spy)
+    expect(() => setVisitorLang('es')).not.toThrow()
+    expect(getVisitorLang()).toBe('es')
+    expect(spy).toHaveBeenCalledTimes(1)
+    off()
   })
 })
