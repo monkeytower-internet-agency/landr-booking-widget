@@ -22448,6 +22448,8 @@ export interface components {
         };
         /** MessageIn */
         MessageIn: {
+            /** Intake Text */
+            intake_text?: string | null;
             /** Text */
             text: string;
         };
