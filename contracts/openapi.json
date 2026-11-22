@@ -29696,6 +29696,28 @@
             "title": "On Main",
             "type": "boolean"
           },
+          "promotion_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Promotion Date"
+          },
+          "promotion_sha": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Promotion Sha"
+          },
           "prs": {
             "items": {
               "$ref": "#/components/schemas/ProdHotfixPr"
@@ -29704,11 +29726,23 @@
             "type": "array"
           },
           "run_id": {
-            "title": "Run Id",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Id"
           },
           "sha": {
             "title": "Sha",
+            "type": "string"
+          },
+          "source": {
+            "default": "hotfix",
+            "title": "Source",
             "type": "string"
           },
           "title": {
@@ -29729,7 +29763,6 @@
         },
         "required": [
           "sha",
-          "run_id",
           "title",
           "prs",
           "files",
