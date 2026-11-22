@@ -23,7 +23,8 @@
  */
 import type { Product } from '@/api/types'
 import type { ExtraLine } from './crossSell'
-import { offeredLanguagesForProduct } from './participantLanguages'
+import { fmt, pickBundle } from '@/lib/strings'
+import { joinLanguageNames, languageName, offeredLanguagesForProduct } from './participantLanguages'
 
 export type SecondLanguageMode = 'off' | 'not_preferred' | 'always'
 export type SecondLanguageOffer = 'all' | 'preferred'
@@ -185,6 +186,84 @@ export function askedParticipants(
     if (options.length > 0) out[i] = options
   }
   return out
+}
+
+/** Who needs no second language because a guide of their main language is always on hand. */
+export interface SettledParticipants {
+  /** Party index → main language, for the participants who are not asked and why. */
+  settled: Record<number, string>
+  /**
+   * The product's main (preferred) languages: those of the `not_preferred` lines,
+   * kept inside the cart's languages. Empty when the question is not in play.
+   */
+  preferred: string[]
+}
+
+/**
+ * landr-nr4ok — who is NOT asked the second-language question because their
+ * main language is one the operator always covers (a `not_preferred` line's
+ * preferred list), and which those languages are. Lets the language step say
+ * why some guests are asked and others are not. Empty when the language step
+ * does not run, no line is `not_preferred` (`always` asks everyone, `off` asks
+ * nobody — nothing to explain), or the participant has no main language yet.
+ */
+export function settledParticipants(
+  cart: SecondLanguageCart,
+  mainLanguages: Readonly<Record<number, string>>,
+  participantCount: number,
+): SettledParticipants {
+  const none: SettledParticipants = { settled: {}, preferred: [] }
+  const cartLanguages = cart.cartLanguages
+  if (cartLanguages === null || !languageStepRuns(cartLanguages)) return none
+  const preferred: string[] = []
+  for (const line of cart.lines) {
+    if (line.mode !== 'not_preferred') continue
+    for (const code of line.preferred) {
+      if (cartLanguages.includes(code) && !preferred.includes(code)) preferred.push(code)
+    }
+  }
+  if (preferred.length === 0) return none
+  const asked = askedParticipants(cart, mainLanguages, participantCount)
+  const settled: Record<number, string> = {}
+  for (let i = 0; i < participantCount; i += 1) {
+    const main = clean(mainLanguages[i])
+    if (main === '' || i in asked) continue
+    if (preferred.includes(main)) settled[i] = main
+  }
+  return { settled, preferred }
+}
+
+/**
+ * "Matthias, Anna (English) and Lena (German) are all set: we always have guides
+ * for our main languages, English and German." Names group by main language in
+ * party order; the reason is given once.
+ */
+export function settledSentence(
+  settled: ReadonlyArray<{ name: string; main: string }>,
+  languages: readonly string[],
+  locale?: string,
+): string {
+  const t = pickBundle(locale)
+  const groups: { main: string; names: string[] }[] = []
+  for (const p of settled) {
+    const group = groups.find((g) => g.main === p.main)
+    if (group) group.names.push(p.name)
+    else groups.push({ main: p.main, names: [p.name] })
+  }
+  const parts = groups.map((g) => `${g.names.join(', ')} (${languageName(g.main, locale)})`)
+  const who =
+    parts.length <= 1
+      ? (parts[0] ?? '')
+      : `${parts.slice(0, -1).join(', ')} ${t.listAndWord} ${parts[parts.length - 1]}`
+  const template =
+    settled.length === 1
+      ? languages.length === 1
+        ? t.secondLanguageSettledOnePersonOneLanguage
+        : t.secondLanguageSettledOnePersonManyLanguages
+      : languages.length === 1
+        ? t.secondLanguageSettledManyPeopleOneLanguage
+        : t.secondLanguageSettledManyPeopleManyLanguages
+  return fmt(template, { who, languages: joinLanguageNames(languages, locale) })
 }
 
 /**

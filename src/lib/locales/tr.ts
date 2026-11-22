@@ -893,6 +893,14 @@ export const tr: Bundle = {
     'Her kişinin seçtiği dil ilk tercihi olarak kalır. Ne kadar çok dil işaretlerseniz rezervasyonunuzu onaylama şansımız o kadar artar.',
   secondLanguageOnlyTemplate: 'Hiçbiri, yalnızca {language}',
   secondLanguageApplyAll: 'Herkese uygula',
+  secondLanguageSettledOnePersonOneLanguage:
+    '✓ {who} için her şey hazır: ana dilimiz {languages} için her zaman bir rehberimiz var.',
+  secondLanguageSettledOnePersonManyLanguages:
+    '✓ {who} için her şey hazır: ana dillerimiz {languages} için her zaman rehberlerimiz var.',
+  secondLanguageSettledManyPeopleOneLanguage:
+    '✓ {who} için her şey hazır: ana dilimiz {languages} için her zaman bir rehberimiz var.',
+  secondLanguageSettledManyPeopleManyLanguages:
+    '✓ {who} için her şey hazır: ana dillerimiz {languages} için her zaman rehberlerimiz var.',
   secondLanguageGateWaitingTemplate: 'Her kişi için en az bir seçenek işaretleyin — hâlâ bekleyenler: {names}.',
   secondLanguageErrorMissing: 'Dil adımına dönün ve her kişi için kabul edilebilecek diğer rehber dillerini işaretleyin.',
   secondLanguageErrorInvalid: 'Sunulan rehber dilleri değişti. Dil adımına dönüp yeniden seçin.',

@@ -963,6 +963,14 @@ export const es: Bundle = {
     'El idioma elegido por cada persona sigue siendo su primera opción. Cuantos más idiomas marques, más fácil será confirmar tu reserva.',
   secondLanguageOnlyTemplate: 'Ninguno, solo {language}',
   secondLanguageApplyAll: 'Aplicar a todos',
+  secondLanguageSettledOnePersonOneLanguage:
+    '✓ Para {who} todo está listo: siempre tenemos un guía en nuestro idioma principal, {languages}.',
+  secondLanguageSettledOnePersonManyLanguages:
+    '✓ Para {who} todo está listo: siempre tenemos guías en nuestros idiomas principales, {languages}.',
+  secondLanguageSettledManyPeopleOneLanguage:
+    '✓ Para {who} todo está listo: siempre tenemos un guía en nuestro idioma principal, {languages}.',
+  secondLanguageSettledManyPeopleManyLanguages:
+    '✓ Para {who} todo está listo: siempre tenemos guías en nuestros idiomas principales, {languages}.',
   secondLanguageGateWaitingTemplate: 'Marca al menos una opción para cada persona. Falta: {names}.',
   secondLanguageErrorMissing:
     'Vuelve al paso del idioma e indica qué otros idiomas del guía le sirven a cada persona.',
