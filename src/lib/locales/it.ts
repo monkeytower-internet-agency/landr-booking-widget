@@ -165,6 +165,9 @@ export const it: Bundle = {
 
   pickupLocationTitle: 'Punto di ritiro',
   pickupLocationCue: 'scegli il tuo punto di ritiro',
+  pickupDetailsShowTemplate: 'Mostra i dettagli di {name}',
+  pickupDetailsHideTemplate: 'Nascondi i dettagli di {name}',
+  pickupOpenInGoogleMaps: 'Apri in Google Maps',
   chooseWhereWePickYouUp: 'Scegli dove passiamo a prenderti',
   loadingPickupLocations: 'Caricamento dei punti di ritiro…',
   noPickupLocationsConfigured: 'Nessun punto di ritiro disponibile: contatta l’organizzatore',
