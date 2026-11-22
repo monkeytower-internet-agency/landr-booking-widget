@@ -762,13 +762,14 @@ export default function PriceSidebar(props: Props) {
   // What the UI is allowed to show: identical to `estimate` while a
   // selection exists; collapses to the no-data empty state ("Pick your
   // options to see the price.") when nothing is selected.
+  const requestLocale = browserLocale()
   const extraRequests = useMemo(
     () =>
-      extraEstimateRequests(extraLines ?? [], participantCount, browserLocale(), childAges, {
+      extraEstimateRequests(extraLines ?? [], participantCount, requestLocale, childAges, {
         linesFor: (lineId) => extraOfferEstimateLines(lineId, offerPicks ?? [], offerTree, members),
         guests,
       }),
-    [extraLines, participantCount, childAges, offerPicks, offerTree, members, guests],
+    [extraLines, participantCount, requestLocale, childAges, offerPicks, offerTree, members, guests],
   )
   const extras = useExtraLineEstimates(operatorToken, extraRequests)
   // The main estimate with every added line folded in. While an added line's

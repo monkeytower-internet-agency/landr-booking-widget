@@ -889,8 +889,18 @@ export const trInformal: Bundle = {
   secondLanguageOnlyCase: 'lower',
   secondLanguageQuestionTemplate: '{language} konuşan bir rehber yoksa hangi dil de uygun olur?',
   secondLanguageHelperTemplate: '{language} ilk tercihin olarak kalır. Ne kadar çok dil işaretlersen rezervasyonunu onaylama şansımız o kadar artar.',
-  secondLanguageOnlyTemplate: 'Yalnızca {language} konuşuyorum',
+  secondLanguageHelperMixed:
+    'Her kişinin seçtiği dil ilk tercihi olarak kalır. Ne kadar çok dil işaretlersen rezervasyonunu onaylama şansımız o kadar artar.',
+  secondLanguageOnlyTemplate: 'Hiçbiri, yalnızca {language}',
   secondLanguageApplyAll: 'Herkese uygula',
+  secondLanguageSettledOnePersonOneLanguage:
+    '✓ {who} için her şey hazır: ana dilimiz {languages} için her zaman bir rehberimiz var.',
+  secondLanguageSettledOnePersonManyLanguages:
+    '✓ {who} için her şey hazır: ana dillerimiz {languages} için her zaman rehberlerimiz var.',
+  secondLanguageSettledManyPeopleOneLanguage:
+    '✓ {who} için her şey hazır: ana dilimiz {languages} için her zaman bir rehberimiz var.',
+  secondLanguageSettledManyPeopleManyLanguages:
+    '✓ {who} için her şey hazır: ana dillerimiz {languages} için her zaman rehberlerimiz var.',
   secondLanguageGateWaitingTemplate: 'Her kişi için en az bir seçenek işaretle — hâlâ bekleyenler: {names}.',
   secondLanguageErrorMissing: 'Dil adımına dön ve her kişi için kabul edilebilecek diğer rehber dillerini işaretle.',
   secondLanguageErrorInvalid: 'Sunulan rehber dilleri değişti. Dil adımına dönüp yeniden seç.',
@@ -1055,4 +1065,5 @@ export const trInformal: Bundle = {
   addMoreModuleChange: 'Değiştir',
   switchToDark: 'Koyu moda geç',
   switchToLight: 'Açık moda geç',
+  switchLanguage: 'Dil seçin',
 }

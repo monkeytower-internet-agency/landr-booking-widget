@@ -437,7 +437,7 @@ describe('LanguageStep — second guiding language (landr-hdk4y.2)', () => {
     expect(screen.getByTestId('second-language-0-de')).toBeTruthy()
     expect(screen.getByTestId('second-language-0-es')).toBeTruthy()
     expect(screen.queryByTestId('second-language-0-fr')).toBeNull()
-    expect(screen.getByText('I only speak French')).toBeTruthy()
+    expect(screen.getByText('None of these, only French')).toBeTruthy()
   })
 
   it('options follow the all / preferred switch', () => {
@@ -454,6 +454,47 @@ describe('LanguageStep — second guiding language (landr-hdk4y.2)', () => {
     assignVia(2, 'de')
     expect(screen.getByTestId('second-language-asked-0')).toBeTruthy()
     expect(screen.getByTestId('second-language-asked-2')).toBeTruthy()
+  })
+
+  it('names no single first-choice language when the asked participants differ', () => {
+    renderAsking(askingCart('always'))
+    assignVia(0, 'fr')
+    assignVia(2, 'de')
+    const helper = screen.getByTestId('second-language-helper').textContent ?? ''
+    expect(helper).toMatch(/Each person's own language stays their first choice/)
+    expect(helper).not.toMatch(/French stays/)
+  })
+
+  it('explains why a guest with a covered main language is not asked (landr-nr4ok)', () => {
+    renderAsking(askingCart(), vi.fn(), { participantNames: ['Olaf', 'Matthias', 'Lena'] })
+    // Board still filling: nothing to explain yet.
+    expect(screen.queryByTestId('second-language-settled')).toBeNull()
+    assignVia(0, 'fr')
+    assignVia(1, 'en')
+    expect(screen.getByTestId('second-language-asked-0')).toBeTruthy()
+    expect(screen.getByTestId('second-language-settled').textContent).toBe(
+      '✓ Matthias (English) is all set: we always have guides for our main languages, English and German.',
+    )
+    assignVia(2, 'de')
+    expect(screen.getByTestId('second-language-settled').textContent).toBe(
+      '✓ Matthias (English) and Lena (German) are all set: we always have guides for our main languages, English and German.',
+    )
+    // Matthias leaves English: he is asked, so only Lena is explained.
+    assignVia(1, 'es')
+    expect(screen.getByTestId('second-language-settled').textContent).toMatch(/^✓ Lena \(German\) is all set/)
+  })
+
+  it('still explains when nobody is asked', () => {
+    renderAsking(askingCart(), vi.fn(), { participantNames: ['Olaf', 'Matthias', 'Lena'] })
+    assignVia(0, 'en')
+    expect(screen.queryByTestId('second-language-questions')).toBeNull()
+    expect(screen.getByTestId('second-language-settled').textContent).toMatch(/^✓ Olaf \(English\) is all set/)
+  })
+
+  it('says nothing for mode always', () => {
+    renderAsking(askingCart('always'))
+    assignVia(0, 'en')
+    expect(screen.queryByTestId('second-language-settled')).toBeNull()
   })
 
   it('mode off changes nothing: no question, Continue as before', () => {
@@ -574,7 +615,7 @@ describe('LanguageStep — second guiding language (landr-hdk4y.2)', () => {
       expect(screen.getByTestId('second-language-helper').textContent).toBe(
         'Französisch bleibt Ihre erste Wahl. Je mehr Sprachen Sie ankreuzen, desto eher können wir Ihre Buchung bestätigen.',
       )
-      expect(screen.getByText('Ich spreche nur Französisch')).toBeTruthy()
+      expect(screen.getByText('Keine davon, nur Französisch')).toBeTruthy()
     } finally {
       vi.unstubAllGlobals()
     }

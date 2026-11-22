@@ -883,8 +883,18 @@ export const de: Bundle = {
   secondLanguageOnlyCase: 'keep',
   secondLanguageQuestionTemplate: 'Falls kein {language}sprachiger Guide verfügbar ist: Welche Sprache wäre auch in Ordnung?',
   secondLanguageHelperTemplate: '{language} bleibt Ihre erste Wahl. Je mehr Sprachen Sie ankreuzen, desto eher können wir Ihre Buchung bestätigen.',
-  secondLanguageOnlyTemplate: 'Ich spreche nur {language}',
+  secondLanguageHelperMixed:
+    'Die gewählte Sprache jeder Person bleibt ihre erste Wahl. Je mehr Sprachen Sie ankreuzen, desto eher können wir Ihre Buchung bestätigen.',
+  secondLanguageOnlyTemplate: 'Keine davon, nur {language}',
   secondLanguageApplyAll: 'Für alle übernehmen',
+  secondLanguageSettledOnePersonOneLanguage:
+    '✓ {who} ist startklar: Für unsere Hauptsprache {languages} haben wir immer einen Guide.',
+  secondLanguageSettledOnePersonManyLanguages:
+    '✓ {who} ist startklar: Für unsere Hauptsprachen {languages} haben wir immer Guides.',
+  secondLanguageSettledManyPeopleOneLanguage:
+    '✓ {who} sind startklar: Für unsere Hauptsprache {languages} haben wir immer einen Guide.',
+  secondLanguageSettledManyPeopleManyLanguages:
+    '✓ {who} sind startklar: Für unsere Hauptsprachen {languages} haben wir immer Guides.',
   secondLanguageGateWaitingTemplate: 'Kreuzen Sie für jede Person mindestens eine Option an – noch offen: {names}.',
   secondLanguageErrorMissing: 'Bitte gehen Sie zurück zum Sprachschritt und geben Sie für jede Person an, welche weiteren Guide-Sprachen infrage kommen.',
   secondLanguageErrorInvalid: 'Die verfügbaren Guide-Sprachen haben sich geändert. Bitte gehen Sie zurück zum Sprachschritt und wählen Sie neu.',
@@ -1049,4 +1059,5 @@ export const de: Bundle = {
   addMoreModuleChange: 'Ändern',
   switchToDark: 'Zum dunklen Modus wechseln',
   switchToLight: 'Zum hellen Modus wechseln',
+  switchLanguage: 'Sprache wählen',
 }

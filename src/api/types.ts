@@ -717,6 +717,8 @@ export interface OperatorSettings {
   widget_color_mode?: string | null
   /** landr-a5i49 — show visitors a sun/moon light/dark switcher. Absent = off. */
   widget_color_switcher?: boolean
+  /** landr-goi5m — show visitors a globe language dropdown. Absent = off. */
+  widget_language_switcher?: boolean
   /**
    * landr-wm0jv — how German and Turkish strings address guests: 'informal'
    * (du / sen) or 'formal' (Sie / siz). Absent (older API) = informal.

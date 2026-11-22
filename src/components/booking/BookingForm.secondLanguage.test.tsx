@@ -169,7 +169,7 @@ describe('BookingForm — second guiding language (landr-hdk4y.2)', () => {
     expect('accepted_languages' in body.participants[1]!).toBe(false)
   })
 
-  it('sends [] for "I only speak my language"', async () => {
+  it('sends [] for "None of these, only my language"', async () => {
     renderForm({
       product: makeServiceProduct(ASKING),
       participantAcceptedLanguages: { 0: [] },

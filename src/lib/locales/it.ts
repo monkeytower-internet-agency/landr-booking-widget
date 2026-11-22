@@ -979,8 +979,18 @@ export const it: Bundle = {
     'Se non c’è una guida che parli {language}, quale altra lingua ti va bene?',
   secondLanguageHelperTemplate:
     '{language} resta la tua prima scelta. Più lingue scegli, più è probabile che riusciamo a confermare la prenotazione.',
-  secondLanguageOnlyTemplate: 'Parlo solo {language}',
+  secondLanguageHelperMixed:
+    'La lingua scelta da ciascuna persona resta la sua prima scelta. Più lingue scegli, più è probabile che riusciamo a confermare la prenotazione.',
+  secondLanguageOnlyTemplate: 'Nessuna di queste, solo {language}',
   secondLanguageApplyAll: 'Applica a tutti',
+  secondLanguageSettledOnePersonOneLanguage:
+    '✓ Per {who} è tutto a posto: abbiamo sempre una guida nella nostra lingua principale, {languages}.',
+  secondLanguageSettledOnePersonManyLanguages:
+    '✓ Per {who} è tutto a posto: abbiamo sempre guide nelle nostre lingue principali, {languages}.',
+  secondLanguageSettledManyPeopleOneLanguage:
+    '✓ Per {who} è tutto a posto: abbiamo sempre una guida nella nostra lingua principale, {languages}.',
+  secondLanguageSettledManyPeopleManyLanguages:
+    '✓ Per {who} è tutto a posto: abbiamo sempre guide nelle nostre lingue principali, {languages}.',
   secondLanguageGateWaitingTemplate: 'Scegli almeno un’opzione per ogni persona. Mancano: {names}.',
   secondLanguageErrorMissing:
     'Torna al passaggio della lingua e indica quali altre lingue della guida vanno bene per ogni persona.',
@@ -1157,4 +1167,5 @@ export const it: Bundle = {
   addMoreModuleChange: 'Modifica',
   switchToDark: 'Passa alla modalità scura',
   switchToLight: 'Passa alla modalità chiara',
+  switchLanguage: 'Scegli la lingua',
 }

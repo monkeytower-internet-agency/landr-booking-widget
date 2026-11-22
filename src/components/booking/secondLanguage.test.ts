@@ -15,6 +15,7 @@ import {
   secondLanguageCartFor,
   secondLanguageLine,
   secondLanguageOptions,
+  settledParticipants,
   toggleAcceptedLanguage,
   toggleOnlyMainLanguage,
   unansweredIndices,
@@ -277,5 +278,59 @@ describe('secondLanguageCartFor with a product that has no guide_languages (land
       ...product('always'),
     } as unknown as Product
     expect(secondLanguageCartFor(main, []).cartLanguages).toBeNull()
+  })
+})
+
+describe('settledParticipants (landr-nr4ok)', () => {
+  const cart = cartOf(product('not_preferred'))
+
+  it('lists who has a main language the operator always covers, plus those languages', () => {
+    expect(settledParticipants(cart, { 0: 'en', 1: 'de' }, 2)).toEqual({
+      settled: { 0: 'en', 1: 'de' },
+      preferred: ['en', 'de'],
+    })
+  })
+
+  it('mixed: the asked participant is left out, the covered one is in', () => {
+    const r = settledParticipants(cart, { 0: 'fr', 1: 'en' }, 2)
+    expect(r.settled).toEqual({ 1: 'en' })
+    expect(r.preferred).toEqual(['en', 'de'])
+  })
+
+  it('nobody is asked: everyone settled', () => {
+    expect(Object.keys(settledParticipants(cart, { 0: 'en', 1: 'en', 2: 'de' }, 3).settled)).toEqual(['0', '1', '2'])
+  })
+
+  it('a participant without a main language yet is excluded', () => {
+    expect(settledParticipants(cart, { 1: 'en' }, 3).settled).toEqual({ 1: 'en' })
+  })
+
+  it('mode always and off explain nothing', () => {
+    expect(settledParticipants(cartOf(product('always')), { 0: 'en' }, 1)).toEqual({ settled: {}, preferred: [] })
+    expect(settledParticipants(cartOf(product('off')), { 0: 'en' }, 1)).toEqual({ settled: {}, preferred: [] })
+  })
+
+  it('keeps the preferred list inside the cart languages', () => {
+    const narrow = cartOf(product('not_preferred', ['en', 'de', 'it']))
+    expect(settledParticipants(narrow, { 0: 'en' }, 1).preferred).toEqual(['en', 'de'])
+  })
+
+  it('not asked as the language step does not run (single language)', () => {
+    const single = cartOf(product('not_preferred'), ['en'])
+    expect(settledParticipants(single, { 0: 'en' }, 1)).toEqual({ settled: {}, preferred: [] })
+  })
+
+  it('options="preferred" changes the options, not who is covered', () => {
+    const c = cartOf(product('not_preferred', ['en', 'de'], 'preferred'))
+    expect(settledParticipants(c, { 0: 'en', 1: 'fr' }, 2).settled).toEqual({ 0: 'en' })
+  })
+
+  it('a second asking line takes a participant out of the settled set', () => {
+    const c = buildSecondLanguageCart(
+      [product('not_preferred', ['en', 'de']), product('not_preferred', ['de'])],
+      [GUIDE, GUIDE],
+    )
+    // English is preferred on line 1 only: line 2 still asks an English guest.
+    expect(settledParticipants(c, { 0: 'en', 1: 'de' }, 2).settled).toEqual({ 1: 'de' })
   })
 })
