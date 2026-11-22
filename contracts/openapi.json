@@ -93,6 +93,21 @@
       },
       "AcceptedItem": {
         "properties": {
+          "changed_fields": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 50,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Changed Fields"
+          },
           "entity_id": {
             "anyOf": [
               {
@@ -106,13 +121,8 @@
             "title": "Entity Id"
           },
           "entity_type": {
-            "enum": [
-              "company_profile",
-              "location",
-              "product",
-              "opening_hours",
-              "team_invite"
-            ],
+            "maxLength": 64,
+            "minLength": 1,
             "title": "Entity Type",
             "type": "string"
           },
@@ -121,6 +131,19 @@
             "minLength": 1,
             "title": "Proposal Id",
             "type": "string"
+          },
+          "undo_of": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Undo Of"
           }
         },
         "required": [
@@ -46037,6 +46060,15 @@
               }
             ],
             "title": "Locale"
+          },
+          "mode": {
+            "default": "onboarding",
+            "enum": [
+              "onboarding",
+              "helper"
+            ],
+            "title": "Mode",
+            "type": "string"
           }
         },
         "title": "SessionIn",
@@ -63843,6 +63875,74 @@
           }
         ],
         "summary": "Post Message",
+        "tags": [
+          "ai-onboarding"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/ai-onboarding/sessions/{session_id}/proposals/{proposal_id}/current": {
+      "get": {
+        "description": "The values an update card would change, as they are now (masked). The\ncard compares them with its ``previous`` before Accept / Undo.",
+        "operationId": "get_proposal_current",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "proposal_id",
+            "required": true,
+            "schema": {
+              "title": "Proposal Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Proposal Current",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Proposal Current",
         "tags": [
           "ai-onboarding"
         ]

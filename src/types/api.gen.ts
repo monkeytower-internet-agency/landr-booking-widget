@@ -6980,6 +6980,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/ai-onboarding/sessions/{session_id}/proposals/{proposal_id}/current": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Proposal Current
+         * @description The values an update card would change, as they are now (masked). The
+         *     card compares them with its ``previous`` before Accept / Undo.
+         */
+        get: operations["get_proposal_current"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/apply-preset": {
         parameters: {
             query?: never;
@@ -15277,15 +15298,16 @@ export interface components {
         };
         /** AcceptedItem */
         AcceptedItem: {
+            /** Changed Fields */
+            changed_fields?: string[] | null;
             /** Entity Id */
             entity_id?: string | null;
-            /**
-             * Entity Type
-             * @enum {string}
-             */
-            entity_type: "company_profile" | "location" | "product" | "opening_hours" | "team_invite";
+            /** Entity Type */
+            entity_type: string;
             /** Proposal Id */
             proposal_id: string;
+            /** Undo Of */
+            undo_of?: string | null;
         };
         /**
          * AcceptedLanguagesPatchIn
@@ -31536,6 +31558,12 @@ export interface components {
         app__routers__staff_ai_onboarding__SessionIn: {
             /** Locale */
             locale?: ("de" | "en") | null;
+            /**
+             * Mode
+             * @default onboarding
+             * @enum {string}
+             */
+            mode: "onboarding" | "helper";
         };
         /** RuleIn */
         app__routers__staff_commission__RuleIn: {
@@ -42373,6 +42401,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_proposal_current: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                session_id: string;
+                proposal_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */
