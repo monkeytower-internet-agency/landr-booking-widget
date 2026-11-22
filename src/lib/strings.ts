@@ -2095,7 +2095,7 @@ const en: Bundle = {
     '{language} stays your first choice. The more languages you tick, the more likely we can confirm your booking.',
   secondLanguageHelperMixed:
     "Each person's own language stays their first choice. The more languages you tick, the more likely we can confirm your booking.",
-  secondLanguageOnlyTemplate: 'I only speak {language}',
+  secondLanguageOnlyTemplate: 'None of these, only {language}',
   secondLanguageApplyAll: 'Apply to everyone',
   secondLanguageGateWaitingTemplate: 'Tick at least one option for each person. Still open: {names}.',
   secondLanguageErrorMissing: 'Go back to the language step and choose which other guiding languages work for each person.',
@@ -2875,9 +2875,9 @@ export function secondLanguageText(
     if (kind === 'question') {
       return fmt(t.secondLanguageQuestionTemplate, { language: frenchGuideAdjective(name, code) })
     }
-    const only = fmt(t.secondLanguageOnlyTemplate, { language: name })
-    // "Je ne parle qu’anglais": que elides before a vowel or mute h.
-    return frenchElides(name) ? only.replace(` que ${name}`, ` qu’${name}`) : only
+    // "Aucune, seulement le français" / "l’anglais": definite article, lower-case.
+    const definite = frenchDefiniteName(name)
+    return fmt(t.secondLanguageOnlyTemplate, { language: definite.charAt(0).toLocaleLowerCase('fr') + definite.slice(1) })
   }
   if (kind === 'helper') return fmt(t.secondLanguageHelperTemplate, { language })
   if (kind === 'question') {
@@ -2912,7 +2912,7 @@ function frenchDefiniteName(lowerName: string): string {
   return frenchElides(lowerName) ? `L’${lowerName}` : `Le ${lowerName}`
 }
 
-/** True when a French article or "que" elides before this lower-case name (vowel or mute h; "hongrois" is an aspirated h). */
+/** True when a French article elides before this lower-case name (vowel or mute h; "hongrois" is an aspirated h). */
 function frenchElides(lowerName: string): boolean {
   return /^[aeiouyàâéèêëîïôöûüh]/i.test(lowerName) && !lowerName.startsWith('hongrois')
 }

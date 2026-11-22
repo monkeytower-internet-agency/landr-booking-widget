@@ -961,7 +961,7 @@ export const es: Bundle = {
     '{language} sigue siendo tu primera opción. Cuantos más idiomas marques, más fácil será confirmar tu reserva.',
   secondLanguageHelperMixed:
     'El idioma elegido por cada persona sigue siendo su primera opción. Cuantos más idiomas marques, más fácil será confirmar tu reserva.',
-  secondLanguageOnlyTemplate: 'Solo hablo {language}',
+  secondLanguageOnlyTemplate: 'Ninguno, solo {language}',
   secondLanguageApplyAll: 'Aplicar a todos',
   secondLanguageGateWaitingTemplate: 'Marca al menos una opción para cada persona. Falta: {names}.',
   secondLanguageErrorMissing:

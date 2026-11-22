@@ -9,7 +9,7 @@
  * the widget asks exactly the people, with exactly the options, the API will
  * accept. Keep the two in step.
  *
- * An answer is a list of language codes, `[]` meaning "I only speak my main
+ * An answer is a list of language codes, `[]` meaning "none of these, only my main
  * language"; a participant who has not answered has no entry. That is the same
  * encoding the wire uses (`participants[].accepted_languages`).
  *
@@ -229,7 +229,7 @@ export function toggleAcceptedLanguage(
   return next.length === 0 ? undefined : next
 }
 
-/** The exclusive "I only speak X": ticking clears every other tick, ticking again clears the answer. */
+/** The exclusive "None of these, only X": ticking clears every other tick, ticking again clears the answer. */
 export function toggleOnlyMainLanguage(current: readonly string[] | undefined): string[] | undefined {
   return Array.isArray(current) && current.length === 0 ? undefined : []
 }

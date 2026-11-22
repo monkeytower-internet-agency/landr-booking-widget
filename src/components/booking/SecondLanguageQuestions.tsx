@@ -5,7 +5,7 @@
  * every guided participant the cart's rule asks (secondLanguage.ts). One helper
  * line above the list (naming the language only when everyone asked shares it),
  * then one bordered block per participant: a checkbox per option plus the
- * exclusive "I only speak {language}". Ticking the exclusive one clears the
+ * exclusive "None of these, only {language}". Ticking the exclusive one clears the
  * others and ticking another clears it; at least one tick is required (the
  * caller gates Continue). The first asked participant can copy their answer to
  * the others.
