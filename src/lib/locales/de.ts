@@ -887,6 +887,14 @@ export const de: Bundle = {
     'Die gewählte Sprache jeder Person bleibt ihre erste Wahl. Je mehr Sprachen Sie ankreuzen, desto eher können wir Ihre Buchung bestätigen.',
   secondLanguageOnlyTemplate: 'Keine davon, nur {language}',
   secondLanguageApplyAll: 'Für alle übernehmen',
+  secondLanguageSettledOnePersonOneLanguage:
+    '✓ {who} ist startklar: Für unsere Hauptsprache {languages} haben wir immer einen Guide.',
+  secondLanguageSettledOnePersonManyLanguages:
+    '✓ {who} ist startklar: Für unsere Hauptsprachen {languages} haben wir immer Guides.',
+  secondLanguageSettledManyPeopleOneLanguage:
+    '✓ {who} sind startklar: Für unsere Hauptsprache {languages} haben wir immer einen Guide.',
+  secondLanguageSettledManyPeopleManyLanguages:
+    '✓ {who} sind startklar: Für unsere Hauptsprachen {languages} haben wir immer Guides.',
   secondLanguageGateWaitingTemplate: 'Kreuzen Sie für jede Person mindestens eine Option an – noch offen: {names}.',
   secondLanguageErrorMissing: 'Bitte gehen Sie zurück zum Sprachschritt und geben Sie für jede Person an, welche weiteren Guide-Sprachen infrage kommen.',
   secondLanguageErrorInvalid: 'Die verfügbaren Guide-Sprachen haben sich geändert. Bitte gehen Sie zurück zum Sprachschritt und wählen Sie neu.',

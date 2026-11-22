@@ -1014,6 +1014,10 @@ export type Bundle = {
   secondLanguageHelperTemplate: string
   secondLanguageOnlyTemplate: string
   secondLanguageApplyAll: string
+  secondLanguageSettledOnePersonOneLanguage: string
+  secondLanguageSettledOnePersonManyLanguages: string
+  secondLanguageSettledManyPeopleOneLanguage: string
+  secondLanguageSettledManyPeopleManyLanguages: string
   secondLanguageGateWaitingTemplate: string
   /** Submit 422s `participant_accepted_languages_missing` / `_invalid`. */
   secondLanguageErrorMissing: string
@@ -2097,6 +2101,14 @@ const en: Bundle = {
     "Each person's own language stays their first choice. The more languages you tick, the more likely we can confirm your booking.",
   secondLanguageOnlyTemplate: 'None of these, only {language}',
   secondLanguageApplyAll: 'Apply to everyone',
+  secondLanguageSettledOnePersonOneLanguage:
+    '✓ {who} is all set: we always have a guide for our main language, {languages}.',
+  secondLanguageSettledOnePersonManyLanguages:
+    '✓ {who} is all set: we always have guides for our main languages, {languages}.',
+  secondLanguageSettledManyPeopleOneLanguage:
+    '✓ {who} are all set: we always have a guide for our main language, {languages}.',
+  secondLanguageSettledManyPeopleManyLanguages:
+    '✓ {who} are all set: we always have guides for our main languages, {languages}.',
   secondLanguageGateWaitingTemplate: 'Tick at least one option for each person. Still open: {names}.',
   secondLanguageErrorMissing: 'Go back to the language step and choose which other guiding languages work for each person.',
   secondLanguageErrorInvalid: 'The guiding languages on offer have changed. Go back to the language step and choose again.',

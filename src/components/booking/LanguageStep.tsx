@@ -49,11 +49,13 @@ import { ParticipantLanguageBoard } from './ParticipantLanguageBoard'
 import {
   SecondLanguageQuestions,
   type AskedParticipant,
+  type SettledParticipant,
 } from './SecondLanguageQuestions'
 import {
   applyAnswerToEveryone,
   askedParticipants,
   pruneAcceptedAnswers,
+  settledParticipants,
   unansweredIndices,
   type AcceptedLanguagesMap,
   type SecondLanguageCart,
@@ -203,6 +205,27 @@ export function LanguageStep({
         })),
     [asked, accepted, assignment, participantNames],
   )
+  // landr-nr4ok: who is NOT asked because their main language is always covered,
+  // so the step can say why (updates with the board).
+  const settledInfo = useMemo(
+    () =>
+      secondLanguage
+        ? settledParticipants(secondLanguage, assignment, partyCount)
+        : { settled: {}, preferred: [] },
+    [secondLanguage, assignment, partyCount],
+  )
+  const settledList = useMemo<SettledParticipant[]>(
+    () =>
+      Object.keys(settledInfo.settled)
+        .map(Number)
+        .sort((a, b) => a - b)
+        .map((index) => ({
+          index,
+          name: memberLabel(participantNames, index),
+          main: settledInfo.settled[index]!,
+        })),
+    [settledInfo, participantNames],
+  )
   const unansweredLabels = useMemo(
     () => unansweredIndices(asked, accepted).map((i) => memberLabel(participantNames, i)),
     [asked, accepted, participantNames],
@@ -321,6 +344,8 @@ export function LanguageStep({
             language and the product asks. Renders nothing when nobody is asked. */}
         <SecondLanguageQuestions
           asked={askedList}
+          settled={settledList}
+          settledLanguages={settledInfo.preferred}
           onChange={handleAcceptedChange}
           onApplyToEveryone={handleApplyToEveryone}
           locale={locale}
