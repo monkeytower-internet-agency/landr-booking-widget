@@ -128,11 +128,13 @@ describe('locale-agnostic helper phrases (landr-8r6oc.4)', () => {
     expect(secondLanguageText('helper', 'Français', 'fr-FR', 'fr')).toBe(
       'Le français reste votre premier choix. Plus vous cochez de langues, plus nous avons de chances de confirmer votre réservation.',
     )
-    expect(secondLanguageText('only', 'Français', 'fr-FR', 'fr')).toBe('Je ne parle que français')
+    expect(secondLanguageText('only', 'Français', 'fr-FR', 'fr')).toBe('Aucune, seulement le français')
     // The language name follows the guest's main language.
     expect(secondLanguageText('question', 'Allemand', 'fr', 'de')).toContain('guide germanophone')
     expect(secondLanguageText('helper', 'Anglais', 'fr', 'en')).toMatch(/^L’anglais reste/)
-    expect(secondLanguageText('only', 'Anglais', 'fr', 'en')).toBe('Je ne parle qu’anglais')
+    expect(secondLanguageText('only', 'Anglais', 'fr', 'en')).toBe('Aucune, seulement l’anglais')
+    expect(secondLanguageText('only', 'Russe', 'fr', 'ru')).toBe('Aucune, seulement le russe')
+    expect(secondLanguageText('only', 'Espagnol', 'fr', 'es')).toBe('Aucune, seulement l’espagnol')
     // A language without a French adjective reads "guide parlant …".
     expect(secondLanguageText('question', 'Polonais', 'fr', 'pl')).toContain('guide parlant polonais')
     expect(secondLanguageText('helper', 'Hongrois', 'fr', 'hu')).toMatch(/^Le hongrois reste/)

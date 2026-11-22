@@ -437,7 +437,7 @@ describe('LanguageStep — second guiding language (landr-hdk4y.2)', () => {
     expect(screen.getByTestId('second-language-0-de')).toBeTruthy()
     expect(screen.getByTestId('second-language-0-es')).toBeTruthy()
     expect(screen.queryByTestId('second-language-0-fr')).toBeNull()
-    expect(screen.getByText('I only speak French')).toBeTruthy()
+    expect(screen.getByText('None of these, only French')).toBeTruthy()
   })
 
   it('options follow the all / preferred switch', () => {
@@ -583,7 +583,7 @@ describe('LanguageStep — second guiding language (landr-hdk4y.2)', () => {
       expect(screen.getByTestId('second-language-helper').textContent).toBe(
         'Französisch bleibt Ihre erste Wahl. Je mehr Sprachen Sie ankreuzen, desto eher können wir Ihre Buchung bestätigen.',
       )
-      expect(screen.getByText('Ich spreche nur Französisch')).toBeTruthy()
+      expect(screen.getByText('Keine davon, nur Französisch')).toBeTruthy()
     } finally {
       vi.unstubAllGlobals()
     }
