@@ -23756,6 +23756,8 @@ export interface components {
             widget_headline?: string | null;
             /** Widget Headline First Page Only */
             widget_headline_first_page_only?: boolean | null;
+            /** Widget Language Switcher */
+            widget_language_switcher?: boolean | null;
             /** Widget Show Logo */
             widget_show_logo?: boolean | null;
             /** Widget Tile Aspect */
@@ -24100,6 +24102,11 @@ export interface components {
              * @default false
              */
             widget_headline_first_page_only: boolean;
+            /**
+             * Widget Language Switcher
+             * @default false
+             */
+            widget_language_switcher: boolean;
             /**
              * Widget Show Logo
              * @default true

@@ -23963,6 +23963,17 @@
             ],
             "title": "Widget Headline First Page Only"
           },
+          "widget_language_switcher": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Widget Language Switcher"
+          },
           "widget_show_logo": {
             "anyOf": [
               {
@@ -24885,6 +24896,11 @@
           "widget_headline_first_page_only": {
             "default": false,
             "title": "Widget Headline First Page Only",
+            "type": "boolean"
+          },
+          "widget_language_switcher": {
+            "default": false,
+            "title": "Widget Language Switcher",
             "type": "boolean"
           },
           "widget_show_logo": {
