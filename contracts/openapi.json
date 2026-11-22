@@ -93,6 +93,34 @@
       },
       "AcceptedItem": {
         "properties": {
+          "accepted_payload": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "maxProperties": 30,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accepted Payload"
+          },
+          "changed_fields": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 50,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Changed Fields"
+          },
           "entity_id": {
             "anyOf": [
               {
@@ -106,13 +134,8 @@
             "title": "Entity Id"
           },
           "entity_type": {
-            "enum": [
-              "company_profile",
-              "location",
-              "product",
-              "opening_hours",
-              "team_invite"
-            ],
+            "maxLength": 64,
+            "minLength": 1,
             "title": "Entity Type",
             "type": "string"
           },
@@ -121,6 +144,19 @@
             "minLength": 1,
             "title": "Proposal Id",
             "type": "string"
+          },
+          "undo_of": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Undo Of"
           }
         },
         "required": [
@@ -889,6 +925,14 @@
             "title": "Enabled",
             "type": "boolean"
           },
+          "helper_messages_per_hour": {
+            "title": "Helper Messages Per Hour",
+            "type": "integer"
+          },
+          "helper_messages_per_user_hour": {
+            "title": "Helper Messages Per User Hour",
+            "type": "integer"
+          },
           "monthly_hard_usd": {
             "title": "Monthly Hard Usd",
             "type": "number"
@@ -929,7 +973,9 @@
           "per_session_max_turns",
           "per_session_max_tokens",
           "monthly_soft_usd",
-          "monthly_hard_usd"
+          "monthly_hard_usd",
+          "helper_messages_per_hour",
+          "helper_messages_per_user_hour"
         ],
         "title": "AiSettingsOut",
         "type": "object"
@@ -946,6 +992,32 @@
               }
             ],
             "title": "Enabled"
+          },
+          "helper_messages_per_hour": {
+            "anyOf": [
+              {
+                "maximum": 1000.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Helper Messages Per Hour"
+          },
+          "helper_messages_per_user_hour": {
+            "anyOf": [
+              {
+                "maximum": 1000.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Helper Messages Per User Hour"
           },
           "monthly_hard_usd": {
             "anyOf": [
@@ -11515,6 +11587,28 @@
         "title": "DerivedCutSource",
         "type": "object"
       },
+      "DerivedProposalIn": {
+        "description": "landr-wsq8q.16: a card the dashboard derives from another card (the model\ncannot propose these kinds); the server validates the payload and snapshots\nthe previous values itself.",
+        "properties": {
+          "kind": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Kind",
+            "type": "string"
+          },
+          "payload": {
+            "additionalProperties": true,
+            "title": "Payload",
+            "type": "object"
+          }
+        },
+        "required": [
+          "kind",
+          "payload"
+        ],
+        "title": "DerivedProposalIn",
+        "type": "object"
+      },
       "DetailsFormAnswers": {
         "description": "Answers of one form, in the shape PUT takes: booking-scope ``answers``\nplus ``people`` keyed by booking_participant_id.",
         "properties": {
@@ -19650,6 +19744,89 @@
           "otp"
         ],
         "title": "MemberProofIn",
+        "type": "object"
+      },
+      "MergeEligibilityOut": {
+        "properties": {
+          "eligible": {
+            "title": "Eligible",
+            "type": "boolean"
+          },
+          "provider": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider"
+          },
+          "provider_email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Email"
+          }
+        },
+        "required": [
+          "eligible"
+        ],
+        "title": "MergeEligibilityOut",
+        "type": "object"
+      },
+      "MergeIn": {
+        "properties": {
+          "email": {
+            "maxLength": 320,
+            "title": "Email",
+            "type": "string"
+          },
+          "password": {
+            "maxLength": 1024,
+            "title": "Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ],
+        "title": "MergeIn",
+        "type": "object"
+      },
+      "MergeSessionOut": {
+        "properties": {
+          "access_token": {
+            "title": "Access Token",
+            "type": "string"
+          },
+          "expires_in": {
+            "title": "Expires In",
+            "type": "integer"
+          },
+          "refresh_token": {
+            "title": "Refresh Token",
+            "type": "string"
+          },
+          "user_id": {
+            "title": "User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "access_token",
+          "refresh_token",
+          "expires_in",
+          "user_id"
+        ],
+        "title": "MergeSessionOut",
         "type": "object"
       },
       "MessageIn": {
@@ -45954,6 +46131,15 @@
               }
             ],
             "title": "Locale"
+          },
+          "mode": {
+            "default": "onboarding",
+            "enum": [
+              "onboarding",
+              "helper"
+            ],
+            "title": "Mode",
+            "type": "string"
           }
         },
         "title": "SessionIn",
@@ -53638,6 +53824,78 @@
           }
         ],
         "summary": "Auth Methods",
+        "tags": [
+          "me"
+        ]
+      }
+    },
+    "/api/me/merge-eligibility": {
+      "get": {
+        "operationId": "me_merge_eligibility",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MergeEligibilityOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Merge Eligibility",
+        "tags": [
+          "me"
+        ]
+      }
+    },
+    "/api/me/merge-into-existing": {
+      "post": {
+        "operationId": "me_merge_into_existing",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MergeIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MergeSessionOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Merge Into Existing",
         "tags": [
           "me"
         ]
@@ -63629,6 +63887,75 @@
         ]
       }
     },
+    "/api/staff/operators/{operator_id}/ai-onboarding/sessions/{session_id}/derived-proposals": {
+      "post": {
+        "description": "A card derived from another one (add-on price change, landr-wsq8q.16).\nSame shape as a proposal event: ``previous`` is the server's own read.",
+        "operationId": "create_derived_proposal",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DerivedProposalIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Create Derived Proposal",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Derived Proposal",
+        "tags": [
+          "ai-onboarding"
+        ]
+      }
+    },
     "/api/staff/operators/{operator_id}/ai-onboarding/sessions/{session_id}/messages": {
       "post": {
         "operationId": "post_message",
@@ -63688,6 +64015,210 @@
           }
         ],
         "summary": "Post Message",
+        "tags": [
+          "ai-onboarding"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/ai-onboarding/sessions/{session_id}/proposals/{proposal_id}/current": {
+      "get": {
+        "description": "The values an update card would change, as they are now (masked). The\ncard compares them with its ``previous`` before Accept / Undo.",
+        "operationId": "get_proposal_current",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "proposal_id",
+            "required": true,
+            "schema": {
+              "title": "Proposal Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Proposal Current",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Proposal Current",
+        "tags": [
+          "ai-onboarding"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/ai-onboarding/sessions/{session_id}/proposals/{proposal_id}/dismiss": {
+      "post": {
+        "description": "The owner dismissed a card: its sealed payload is purged (idempotent).",
+        "operationId": "dismiss_proposal",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "proposal_id",
+            "required": true,
+            "schema": {
+              "title": "Proposal Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Dismiss Proposal",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Dismiss Proposal",
+        "tags": [
+          "ai-onboarding"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/ai-onboarding/sessions/{session_id}/proposals/{proposal_id}/pending": {
+      "get": {
+        "description": "Releases a bank card's full payload to the session owner, a writer, who\nmust see the full IBAN to confirm and to apply it. Gone after Accept,\ndismiss or session close (404 pending_not_available).",
+        "operationId": "get_proposal_pending",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "proposal_id",
+            "required": true,
+            "schema": {
+              "title": "Proposal Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Proposal Pending",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Proposal Pending",
         "tags": [
           "ai-onboarding"
         ]

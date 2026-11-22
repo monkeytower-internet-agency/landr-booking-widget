@@ -885,8 +885,16 @@ export const deInformal: Bundle = {
   secondLanguageHelperTemplate: '{language} bleibt deine erste Wahl. Je mehr Sprachen du ankreuzt, desto eher können wir deine Buchung bestätigen.',
   secondLanguageHelperMixed:
     'Die gewählte Sprache jeder Person bleibt ihre erste Wahl. Je mehr Sprachen du ankreuzt, desto eher können wir deine Buchung bestätigen.',
-  secondLanguageOnlyTemplate: 'Ich spreche nur {language}',
+  secondLanguageOnlyTemplate: 'Keine davon, nur {language}',
   secondLanguageApplyAll: 'Für alle übernehmen',
+  secondLanguageSettledOnePersonOneLanguage:
+    '✓ {who} ist startklar: Für unsere Hauptsprache {languages} haben wir immer einen Guide.',
+  secondLanguageSettledOnePersonManyLanguages:
+    '✓ {who} ist startklar: Für unsere Hauptsprachen {languages} haben wir immer Guides.',
+  secondLanguageSettledManyPeopleOneLanguage:
+    '✓ {who} sind startklar: Für unsere Hauptsprache {languages} haben wir immer einen Guide.',
+  secondLanguageSettledManyPeopleManyLanguages:
+    '✓ {who} sind startklar: Für unsere Hauptsprachen {languages} haben wir immer Guides.',
   secondLanguageGateWaitingTemplate: 'Kreuze für jede Person mindestens eine Option an – noch offen: {names}.',
   secondLanguageErrorMissing: 'Bitte geh zurück zum Sprachschritt und gib für jede Person an, welche weiteren Guide-Sprachen infrage kommen.',
   secondLanguageErrorInvalid: 'Die verfügbaren Guide-Sprachen haben sich geändert. Bitte geh zurück zum Sprachschritt und wähle neu.',

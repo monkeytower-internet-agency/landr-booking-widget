@@ -5,7 +5,7 @@
  * every guided participant the cart's rule asks (secondLanguage.ts). One helper
  * line above the list (naming the language only when everyone asked shares it),
  * then one bordered block per participant: a checkbox per option plus the
- * exclusive "I only speak {language}". Ticking the exclusive one clears the
+ * exclusive "None of these, only {language}". Ticking the exclusive one clears the
  * others and ticking another clears it; at least one tick is required (the
  * caller gates Continue). The first asked participant can copy their answer to
  * the others.
@@ -15,7 +15,7 @@
 import { browserLocale } from '@/lib/locale'
 import { secondLanguageText, tr } from '@/lib/strings'
 import { languageName } from './participantLanguages'
-import { toggleAcceptedLanguage, toggleOnlyMainLanguage } from './secondLanguage'
+import { settledSentence, toggleAcceptedLanguage, toggleOnlyMainLanguage } from './secondLanguage'
 
 export interface AskedParticipant {
   /** Party index (the key the answers map uses). */
@@ -29,15 +29,44 @@ export interface AskedParticipant {
   answer: readonly string[] | undefined
 }
 
+/** A participant who is not asked: a guide of their main language is always on hand (landr-nr4ok). */
+export interface SettledParticipant {
+  index: number
+  name: string
+  /** The participant's main guiding language (ISO 639-1). */
+  main: string
+}
+
 interface Props {
   asked: readonly AskedParticipant[]
+  /** Participants explained, not asked. */
+  settled?: readonly SettledParticipant[]
+  /** The product's main languages, named in the explanation. */
+  settledLanguages?: readonly string[]
   onChange: (index: number, answer: string[] | undefined) => void
   onApplyToEveryone: (sourceIndex: number) => void
   locale?: string
 }
 
-export function SecondLanguageQuestions({ asked, onChange, onApplyToEveryone, locale = browserLocale() }: Props) {
-  if (asked.length === 0) return null
+export function SecondLanguageQuestions({
+  asked,
+  settled = [],
+  settledLanguages = [],
+  onChange,
+  onApplyToEveryone,
+  locale = browserLocale(),
+}: Props) {
+  const settledLine =
+    settled.length > 0 && settledLanguages.length > 0 ? (
+      <p className="text-sm text-muted-foreground" data-testid="second-language-settled">
+        {settledSentence(settled, settledLanguages, locale)}
+      </p>
+    ) : null
+  if (asked.length === 0) {
+    return settledLine ? (
+      <section className="flex flex-col gap-3 border-t border-border pt-4">{settledLine}</section>
+    ) : null
+  }
   const first = asked[0]!
   const sameMain = asked.every((p) => p.main === first.main)
   return (
@@ -121,6 +150,7 @@ export function SecondLanguageQuestions({ asked, onChange, onApplyToEveryone, lo
           </fieldset>
         )
       })}
+      {settledLine}
     </section>
   )
 }

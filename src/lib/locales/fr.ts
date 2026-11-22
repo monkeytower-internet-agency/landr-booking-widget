@@ -961,8 +961,16 @@ export const fr: Bundle = {
     '{language} reste votre premier choix. Plus vous cochez de langues, plus nous avons de chances de confirmer votre réservation.',
   secondLanguageHelperMixed:
     'La langue choisie par chaque personne reste son premier choix. Plus vous cochez de langues, plus nous avons de chances de confirmer votre réservation.',
-  secondLanguageOnlyTemplate: 'Je ne parle que {language}',
+  secondLanguageOnlyTemplate: 'Aucune, seulement {language}',
   secondLanguageApplyAll: 'Appliquer à tous',
+  secondLanguageSettledOnePersonOneLanguage:
+    '✓ Pour {who}, tout est réglé : nous avons toujours un guide dans notre langue principale, {languages}.',
+  secondLanguageSettledOnePersonManyLanguages:
+    '✓ Pour {who}, tout est réglé : nous avons toujours des guides dans nos langues principales, {languages}.',
+  secondLanguageSettledManyPeopleOneLanguage:
+    '✓ Pour {who}, tout est réglé : nous avons toujours un guide dans notre langue principale, {languages}.',
+  secondLanguageSettledManyPeopleManyLanguages:
+    '✓ Pour {who}, tout est réglé : nous avons toujours des guides dans nos langues principales, {languages}.',
   secondLanguageGateWaitingTemplate: 'Cochez au moins une option pour chaque personne : encore à compléter : {names}.',
   secondLanguageErrorMissing:
     'Veuillez revenir à l’étape de la langue et indiquer quelles autres langues d’encadrement chaque personne accepterait.',

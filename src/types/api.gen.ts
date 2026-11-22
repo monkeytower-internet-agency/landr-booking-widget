@@ -2845,6 +2845,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/me/merge-eligibility": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Merge Eligibility */
+        get: operations["me_merge_eligibility"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/me/merge-into-existing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Merge Into Existing */
+        post: operations["me_merge_into_existing"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/me/password": {
         parameters: {
             query?: never;
@@ -6929,6 +6963,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/ai-onboarding/sessions/{session_id}/derived-proposals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Derived Proposal
+         * @description A card derived from another one (add-on price change, landr-wsq8q.16).
+         *     Same shape as a proposal event: ``previous`` is the server's own read.
+         */
+        post: operations["create_derived_proposal"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/ai-onboarding/sessions/{session_id}/messages": {
         parameters: {
             query?: never;
@@ -6940,6 +6995,69 @@ export interface paths {
         put?: never;
         /** Post Message */
         post: operations["post_message"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/ai-onboarding/sessions/{session_id}/proposals/{proposal_id}/current": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Proposal Current
+         * @description The values an update card would change, as they are now (masked). The
+         *     card compares them with its ``previous`` before Accept / Undo.
+         */
+        get: operations["get_proposal_current"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/ai-onboarding/sessions/{session_id}/proposals/{proposal_id}/dismiss": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Dismiss Proposal
+         * @description The owner dismissed a card: its sealed payload is purged (idempotent).
+         */
+        post: operations["dismiss_proposal"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/ai-onboarding/sessions/{session_id}/proposals/{proposal_id}/pending": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Proposal Pending
+         * @description Releases a bank card's full payload to the session owner, a writer, who
+         *     must see the full IBAN to confirm and to apply it. Gone after Accept,
+         *     dismiss or session close (404 pending_not_available).
+         */
+        get: operations["get_proposal_pending"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -15243,15 +15361,20 @@ export interface components {
         };
         /** AcceptedItem */
         AcceptedItem: {
+            /** Accepted Payload */
+            accepted_payload?: {
+                [key: string]: unknown;
+            } | null;
+            /** Changed Fields */
+            changed_fields?: string[] | null;
             /** Entity Id */
             entity_id?: string | null;
-            /**
-             * Entity Type
-             * @enum {string}
-             */
-            entity_type: "company_profile" | "location" | "product" | "opening_hours" | "team_invite";
+            /** Entity Type */
+            entity_type: string;
             /** Proposal Id */
             proposal_id: string;
+            /** Undo Of */
+            undo_of?: string | null;
         };
         /**
          * AcceptedLanguagesPatchIn
@@ -15521,6 +15644,10 @@ export interface components {
         AiSettingsOut: {
             /** Enabled */
             enabled: boolean;
+            /** Helper Messages Per Hour */
+            helper_messages_per_hour: number;
+            /** Helper Messages Per User Hour */
+            helper_messages_per_user_hour: number;
             /** Monthly Hard Usd */
             monthly_hard_usd: number;
             /** Monthly Soft Usd */
@@ -15538,6 +15665,10 @@ export interface components {
         AiSettingsPatch: {
             /** Enabled */
             enabled?: boolean | null;
+            /** Helper Messages Per Hour */
+            helper_messages_per_hour?: number | null;
+            /** Helper Messages Per User Hour */
+            helper_messages_per_user_hour?: number | null;
             /** Monthly Hard Usd */
             monthly_hard_usd?: number | null;
             /** Monthly Soft Usd */
@@ -19384,6 +19515,20 @@ export interface components {
             label: string;
         };
         /**
+         * DerivedProposalIn
+         * @description landr-wsq8q.16: a card the dashboard derives from another card (the model
+         *     cannot propose these kinds); the server validates the payload and snapshots
+         *     the previous values itself.
+         */
+        DerivedProposalIn: {
+            /** Kind */
+            kind: string;
+            /** Payload */
+            payload: {
+                [key: string]: unknown;
+            };
+        };
+        /**
          * DetailsFormAnswers
          * @description Answers of one form, in the shape PUT takes: booking-scope ``answers``
          *     plus ``people`` keyed by booking_participant_id.
@@ -22273,6 +22418,33 @@ export interface components {
             email: string;
             /** Otp */
             otp: string;
+        };
+        /** MergeEligibilityOut */
+        MergeEligibilityOut: {
+            /** Eligible */
+            eligible: boolean;
+            /** Provider */
+            provider?: string | null;
+            /** Provider Email */
+            provider_email?: string | null;
+        };
+        /** MergeIn */
+        MergeIn: {
+            /** Email */
+            email: string;
+            /** Password */
+            password: string;
+        };
+        /** MergeSessionOut */
+        MergeSessionOut: {
+            /** Access Token */
+            access_token: string;
+            /** Expires In */
+            expires_in: number;
+            /** Refresh Token */
+            refresh_token: string;
+            /** User Id */
+            user_id: string;
         };
         /** MessageIn */
         MessageIn: {
@@ -31475,6 +31647,12 @@ export interface components {
         app__routers__staff_ai_onboarding__SessionIn: {
             /** Locale */
             locale?: ("de" | "en") | null;
+            /**
+             * Mode
+             * @default onboarding
+             * @enum {string}
+             */
+            mode: "onboarding" | "helper";
         };
         /** RuleIn */
         app__routers__staff_commission__RuleIn: {
@@ -36061,6 +36239,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AuthMethodsOut"];
+                };
+            };
+        };
+    };
+    me_merge_eligibility: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MergeEligibilityOut"];
+                };
+            };
+        };
+    };
+    me_merge_into_existing: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MergeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MergeSessionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -42236,6 +42467,44 @@ export interface operations {
             };
         };
     };
+    create_derived_proposal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DerivedProposalIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     post_message: {
         parameters: {
             query?: never;
@@ -42259,6 +42528,111 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_proposal_current: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                session_id: string;
+                proposal_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    dismiss_proposal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                session_id: string;
+                proposal_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_proposal_pending: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                session_id: string;
+                proposal_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */
