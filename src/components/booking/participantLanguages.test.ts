@@ -22,6 +22,7 @@ import {
   memberLabel,
   membersOfLanguage,
   normaliseOfferedLanguages,
+  offeredLanguagesForProduct,
   openLanguageColumns,
   pruneLanguageAssignment,
   singleLanguageAssignment,
@@ -257,6 +258,14 @@ describe('display — German UI (landr-5aih0.27)', () => {
     )
   })
 
+  it('languageName(code, "fr") names the common codes in French (landr-hdk4y.10)', () => {
+    expect(languageName('fr', 'fr')).toBe('Français')
+    expect(languageName('de', 'fr-FR')).toBe('Allemand')
+    expect(languageName('en', 'fr')).toBe('Anglais')
+    expect(languageName('zz', 'fr')).toBe('ZZ')
+    expect(joinLanguageNames(['fr', 'en', 'de'], 'fr')).toBe('Français, Anglais et Allemand')
+  })
+
   it('a regional German tag (de-AT) resolves the same as bare "de"', () => {
     expect(languageName('fr', 'de-AT')).toBe('Französisch')
   })
@@ -288,8 +297,8 @@ describe('display — Spanish and Turkish UI (landr-8r6oc.4)', () => {
     expect(joinLanguageNames(['en', 'es', 'de'], 'tr')).toBe('İngilizce, İspanyolca ve Almanca')
   })
 
-  it('English stays English for other locales (fr)', () => {
-    expect(languageName('de', 'fr')).toBe('German')
+  it('English stays English for other locales (pt)', () => {
+    expect(languageName('de', 'pt')).toBe('German')
   })
 })
 
@@ -305,5 +314,33 @@ describe('singleLanguageAssignment (landr-h0opd.3)', () => {
 
   it('returns an empty map for an empty party', () => {
     expect(singleLanguageAssignment(['en'], 0)).toEqual({})
+  })
+})
+
+describe('offeredLanguagesForProduct (landr-tk66y)', () => {
+  const service = (guide_languages: unknown) =>
+    ({ product_kind: 'service', guide_languages }) as Parameters<
+      typeof offeredLanguagesForProduct
+    >[0]
+
+  it('uses the product list, cleaned', () => {
+    expect(offeredLanguagesForProduct(service([' DE ', 'en', 'de']))).toEqual(['de', 'en'])
+  })
+
+  it('reads an empty list as "any language"', () => {
+    expect(offeredLanguagesForProduct(service([]))).toEqual([])
+  })
+
+  it('falls back to the platform default for null or absent', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    expect(offeredLanguagesForProduct(service(null))).toEqual([...DEFAULT_OFFERED_LANGUAGES])
+    expect(offeredLanguagesForProduct(service(undefined))).toEqual([...DEFAULT_OFFERED_LANGUAGES])
+    warn.mockRestore()
+  })
+
+  it('offers no language for a stay', () => {
+    expect(
+      offeredLanguagesForProduct({ product_kind: 'stay', guide_languages: ['en', 'de'] }),
+    ).toEqual([])
   })
 })

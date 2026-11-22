@@ -134,15 +134,16 @@ function hotelLocId(ctx: FunnelCtx): string | null {
 
 /**
  * ORACLE for the FORWARD step after accommodation (the old hardcoded ladder):
- *   hotel booked → fill-form (hotel as pickup);
+ *   hotel booked → billing-address (hotel as pickup; landr-rw8i2: the address
+ *     step now sits between the middles and the review);
  *   else needs_pickup → pick-pickup;
- *   else fill-form (pickup null).
+ *   else billing-address (pickup null).
  * Returns the expected Step['name'].
  */
 function oracleStepAfterAccommodation(ctx: FunnelCtx): Step['name'] {
-  if (ctx.hotelBooked) return 'fill-form'
+  if (ctx.hotelBooked) return 'billing-address'
   if (ctx.needsPickup) return 'pick-pickup'
-  return 'fill-form'
+  return 'billing-address'
 }
 
 /**
@@ -215,11 +216,11 @@ describe('legacy-plan ≡ current routing — stepAfterAccommodation (all permut
       )
       expect(next.name, permLabel(ctx)).toBe(oracleStepAfterAccommodation(ctx))
       // When a hotel was booked, the hotel must be locked in as the pickup.
-      if (ctx.hotelBooked && next.name === 'fill-form') {
+      if (ctx.hotelBooked && next.name === 'billing-address') {
         expect(next.pickupLocationId, permLabel(ctx)).toBe('loc-hotel')
       }
-      // When no hotel + no pickup, fill-form's pickup must be null.
-      if (!ctx.hotelBooked && !ctx.needsPickup && next.name === 'fill-form') {
+      // When no hotel + no pickup, the address step's pickup must be null.
+      if (!ctx.hotelBooked && !ctx.needsPickup && next.name === 'billing-address') {
         expect(next.pickupLocationId, permLabel(ctx)).toBeNull()
       }
       // A needs_pickup product with no hotel booked must route to the PICKUP picker.
@@ -266,7 +267,7 @@ function oracleBreadcrumb(ctx: FunnelCtx): string[] {
   // landr-71kz.10: the legacy hardcoded declarations crumb is retired — the
   // zero-config (no remote flow) plan goes straight from the last middle to
   // review.
-  trail.push('fill-form')
+  trail.push('billing-address', 'fill-form')
   return trail
 }
 
@@ -304,8 +305,8 @@ describe('legacy-plan ≡ current routing — breadcrumb trail (all permutations
 describe('legacy-plan ≡ current routing — stepBefore mirrors the trail (all permutations)', () => {
   it('each crumb target equals the step one back from the next crumb', () => {
     for (const ctx of permutations()) {
-      const fillForm: Step = {
-        name: 'fill-form',
+      const addressStep: Step = {
+        name: 'billing-address',
         product: makeProduct({
           hotel_offering: ctx.offering,
           needs_pickup: ctx.needsPickup,
@@ -321,9 +322,9 @@ describe('legacy-plan ≡ current routing — stepBefore mirrors the trail (all 
         addons: [],
         hotelLocationId: hotelLocId(ctx),
       }
-      // stepBefore from fill-form (no remote flow) must equal the back-review
+      // stepBefore from the address step (no remote flow) must equal the back-review
       // oracle.
-      const prev = stepBefore(fillForm, {})
+      const prev = stepBefore(addressStep, {})
       expect(prev?.name, permLabel(ctx)).toBe(oracleStepBeforeReview(ctx))
     }
   })

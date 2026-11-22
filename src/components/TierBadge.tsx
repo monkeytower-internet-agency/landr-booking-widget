@@ -3,10 +3,13 @@
  * whenever VITE_DEPLOY_TIER is 'dev' or 'staging'.
  *
  * - prod / undefined → renders nothing (no DOM nodes).
- * - staging          → amber background, dark text, "STAGING" label.
+ * - staging          → a full-width "Playground" ribbon at the top of the page
+ *                      (landr-tbzye.12): in normal flow, so it pushes content
+ *                      down instead of overlaying it, and it carries the
+ *                      build chip (build number) inside it.
  * - dev              → blue background, white text, "DEV" label.
  *
- * The badge is positioned as a fixed overlay in the top-left corner (a host page's close button usually sits top-right) of the
+ * The dev badge is positioned as a fixed overlay in the top-left corner (a host page's close button usually sits top-right) of the
  * viewport so it is always visible regardless of which booking step is shown,
  * survives iframe scrolling, and doesn't displace any booking UI.
  */
@@ -19,12 +22,24 @@ export function TierBadge() {
 
   if (!tier || tier === 'prod') return null
 
-  const label = tier === 'staging' ? 'STAGING' : 'DEV'
+  if (tier === 'staging') {
+    return (
+      <div
+        aria-label="Environment: PLAYGROUND"
+        role="status"
+        data-testid="tier-badge"
+        className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-sky-300 bg-sky-100 px-3 py-1.5 text-sky-900"
+      >
+        <span className="rounded-full bg-sky-600 px-2.5 py-0.5 text-xs font-bold tracking-widest text-white uppercase select-none">
+          Playground
+        </span>
+        <BuildChip inline />
+      </div>
+    )
+  }
 
-  const colorClass =
-    tier === 'staging'
-      ? 'bg-amber-400 text-amber-950'
-      : 'bg-blue-600 text-white'
+  const label = 'DEV'
+  const colorClass = 'bg-blue-600 text-white'
 
   return (
     <>

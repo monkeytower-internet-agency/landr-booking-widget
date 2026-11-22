@@ -181,7 +181,7 @@ describe('deriveProductFacts - kind label per language (landr-8r6oc.18)', () => 
     ['tr', 'gift_card', 'Hediye kartı'],
     ['es', 'addon', 'Extra'],
     ['tr', 'membership', 'Üyelik'],
-    ['en', 'addon', 'Addon'],
+    ['en', 'addon', 'Add-on'],
   ])('%s: %s -> %s', (lang, kind, label) => {
     expect(
       deriveProductFacts(makeProduct({ product_kind: kind as never }), lang),

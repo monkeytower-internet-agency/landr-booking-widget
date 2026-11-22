@@ -27,14 +27,14 @@ describe('strings (pickBundle/tr locale resolution, landr-5aih0.9)', () => {
     expect(pickBundle('de-AT')).toBe(de)
     expect(pickBundle('DE')).toBe(de)
     expect(pickBundle('De-de')).toBe(de)
-    expect(de.multiDayPickerHelp).toMatch(/^Tippen Sie auf Tage/)
+    expect(de.multiDayPickerHelp).toMatch(/^Tippen Sie auf die Tage/)
   })
 
   it('pickBundle falls back to English for every other locale, including none', () => {
     const en = pickBundle('en')
     expect(pickBundle(undefined)).toBe(en)
     expect(pickBundle('')).toBe(en)
-    expect(pickBundle('fr-FR')).toBe(en)
+    expect(pickBundle('pt-PT')).toBe(en)
     expect(pickBundle('pt-BR')).toBe(en)
     expect(pickBundle('constructor')).toBe(en)
     expect(en.multiDayPickerHelp).toMatch(/^Tap days to add or remove/)
@@ -57,17 +57,19 @@ describe('strings (pickBundle/tr locale resolution, landr-5aih0.9)', () => {
     expect(resolveUiLanguage('de-AT')).toBe('de')
     expect(resolveUiLanguage('es-ES')).toBe('es')
     expect(resolveUiLanguage('tr_TR')).toBe('tr')
-    expect(resolveUiLanguage('fr')).toBe('en')
+    expect(resolveUiLanguage('pt')).toBe('en')
     expect(resolveUiLanguage(undefined)).toBe('en')
     expect(resolveUiLanguage('it-IT')).toBe('it')
-    expect([...SUPPORTED_UI_LANGUAGES].sort()).toEqual(['de', 'en', 'es', 'it', 'tr'])
+    expect(resolveUiLanguage('fr-FR')).toBe('fr')
+    expect(resolveUiLanguage('fr-CH')).toBe('fr')
+    expect([...SUPPORTED_UI_LANGUAGES].sort()).toEqual(['de', 'en', 'es', 'fr', 'it', 'tr'])
   })
 
   it('tr resolves per the same locale rule as pickBundle', () => {
-    expect(tr('multiDayPickerHelp', 'de')).toMatch(/^Tippen Sie auf Tage/)
-    expect(tr('multiDayPickerHelp', 'de-DE')).toMatch(/^Tippen Sie auf Tage/)
+    expect(tr('multiDayPickerHelp', 'de')).toMatch(/^Tippen Sie auf die Tage/)
+    expect(tr('multiDayPickerHelp', 'de-DE')).toMatch(/^Tippen Sie auf die Tage/)
     expect(tr('multiDayPickerHelp')).toMatch(/^Tap days to add or remove/)
-    expect(tr('multiDayPickerHelp', 'fr-FR')).toMatch(/^Tap days to add or remove/)
+    expect(tr('multiDayPickerHelp', 'pt-PT')).toMatch(/^Tap days to add or remove/)
   })
 
   it('isGermanLocale matches pickBundle', () => {
@@ -228,7 +230,7 @@ describe('time-confirmed-by-operator copy (EN + DE)', () => {
     )
     expect(tr('timeConfirmedByOperator', 'de')).toBe('Uhrzeit bestätigt der Anbieter')
     expect(tr('timeConfirmedHelper', 'de')).toBe(
-      'Der Anbieter bestätigt Uhrzeit und Details nach deiner Buchung.',
+      'Die genaue Uhrzeit und alle Details bestätigt der Anbieter nach Ihrer Buchung.',
     )
     expect(tr('timeConfirmedByOperator', 'en')).not.toMatch(/any time/i)
   })

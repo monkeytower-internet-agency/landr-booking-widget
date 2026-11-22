@@ -4,7 +4,7 @@
  * stay line and its add-on are both submitted with the stay's NIGHT LIST, and
  * the price sidebar shows nights × rate plus the cleaning fee.
  */
-import { fillBillingFields } from '@/test/fillBilling'
+import { passAddressStep } from '@/test/fillBilling'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -227,12 +227,11 @@ describe('standalone stay booking flow', () => {
     setInput('booker_last_name', 'Lovelace')
     setInput('booker_email', 'ada@example.com')
     setInput('booker_phone', '+34 600000000')
-    fillBillingFields()
     fireEvent.click(screen.getByRole('button', { name: /continue/i }))
 
     // No pickup and no guide-language step for a stay: straight to the review,
     // where the stay's offers sit under the main line.
-    await screen.findByText(/review your booking/i, undefined, SLOW_FLOW)
+    await passAddressStep(SLOW_FLOW.timeout)
     const toggle = await screen.findByTestId('offer-toggle-offer-breakfast', undefined, SLOW_FLOW)
     fireEvent.click(toggle)
     expect(screen.queryByTestId('participant-language-board')).not.toBeInTheDocument()
@@ -296,9 +295,8 @@ describe('standalone stay booking flow', () => {
     setInput('booker_last_name', 'Lovelace')
     setInput('booker_email', 'ada@example.com')
     setInput('booker_phone', '+34 600000000')
-    fillBillingFields()
     fireEvent.click(screen.getByRole('button', { name: /continue/i }))
-    await screen.findByText(/review your booking/i, undefined, SLOW_FLOW)
+    await passAddressStep(SLOW_FLOW.timeout)
     expect((await screen.findAllByTestId('price-sidebar-stay-errors'))[0]).toHaveTextContent(
       /already booked/,
     )

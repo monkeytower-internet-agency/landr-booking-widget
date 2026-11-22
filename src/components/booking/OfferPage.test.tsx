@@ -193,6 +193,53 @@ describe('OfferPage', () => {
     expect(parts[1]).toHaveTextContent('John')
   })
 
+  describe('landr-4pm5n: party wording follows the main product line kind', () => {
+    const line = (over: Record<string, unknown>) => ({ ...OFFER.product_lines[0], ...over })
+    const withLines = (product_lines: unknown[]) => ({
+      ...OFFER,
+      product_lines,
+      line_items: [
+        {
+          product_id: 'p1', label: 'Sailing Week', qty: 1, units: 1, line_total: 100,
+          unit_price: 100, paid_to: 'operator', participants: 2, per_person_price: 50,
+        },
+      ],
+    })
+    const renderWith = async (offer: unknown) => {
+      mocks.getBookingByToken.mockResolvedValue(offer)
+      render(<OfferPage token={TOKEN} />)
+      await waitFor(() => screen.getByTestId('offer-ready'))
+    }
+
+    it('says Guests / guests for a stay offer', async () => {
+      await renderWith(withLines([line({ product_kind: 'stay', is_addon_only: false })]))
+      expect(screen.getByText('Guests')).toBeInTheDocument()
+      expect(screen.queryByText('Participants')).not.toBeInTheDocument()
+      expect(screen.getByTestId('offer-line-per-person')).toHaveTextContent('× 2 guests')
+    })
+
+    it('keeps participants for a service offer', async () => {
+      await renderWith(withLines([line({ product_kind: 'service', is_addon_only: false })]))
+      expect(screen.getByText('Participants')).toBeInTheDocument()
+      expect(screen.getByTestId('offer-line-per-person')).toHaveTextContent('× 2 participants')
+    })
+
+    it('keeps participants when the API sends no kind (older response)', async () => {
+      await renderWith(withLines([line({})]))
+      expect(screen.getByText('Participants')).toBeInTheDocument()
+    })
+
+    it('words by the first non add-on line, not a leading add-on', async () => {
+      await renderWith(
+        withLines([
+          line({ product_id: 'a1', name: 'Breakfast', product_kind: 'service', is_addon_only: true }),
+          line({ product_kind: 'stay', is_addon_only: false }),
+        ]),
+      )
+      expect(screen.getByText('Guests')).toBeInTheDocument()
+    })
+  })
+
   it('shows fetch error card when getBookingByToken rejects', async () => {
     mocks.getBookingByToken.mockRejectedValue(new Error('403 Forbidden'))
     render(<OfferPage token={TOKEN} />)
@@ -583,7 +630,7 @@ describe('OfferPage', () => {
       expect(screen.queryByTestId('offer-bank-details')).not.toBeInTheDocument()
     })
 
-    it('titles the browser tab "Payment site <operator>"', async () => {
+    it('titles the browser tab "Payment <operator>"', async () => {
       mocks.getBookingByToken.mockResolvedValue({
         ...payOffer,
         operator_name: 'Canary Tandem Co',
@@ -591,7 +638,7 @@ describe('OfferPage', () => {
       render(<OfferPage token={TOKEN} mode="pay" />)
 
       await waitFor(() => {
-        expect(document.title).toBe('Payment site Canary Tandem Co')
+        expect(document.title).toBe('Payment Canary Tandem Co')
       })
     })
 
@@ -1830,7 +1877,7 @@ describe('OfferPage — offer v3 flow: acceptance + hotel step (landr-bo0wd.5)',
       'Your offer becomes valid once the hotel confirms your dates.',
     )
     expect(screen.getByTestId('offer-hotel-note')).toHaveTextContent(
-      'You can accept now — we send your confirmation and payment link as soon as the hotel confirms.',
+      "You can accept now — we'll send your confirmation and payment link once the hotel confirms.",
     )
     expect(screen.queryByTestId('offer-hotel-confirmed')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /accept & pay|pay now/i })).not.toBeInTheDocument()
@@ -1843,7 +1890,7 @@ describe('OfferPage — offer v3 flow: acceptance + hotel step (landr-bo0wd.5)',
       expect(screen.queryByTestId('offer-accept-pay-btn')).not.toBeInTheDocument(),
     )
     expect(mocks.initiatePayment).not.toHaveBeenCalled()
-    expect(screen.getByTestId('offer-hotel-note')).toHaveTextContent('We are waiting for the hotel')
+    expect(screen.getByTestId('offer-hotel-note')).toHaveTextContent("We're waiting for the hotel")
     expect(screen.getByTestId('offer-description')).toHaveTextContent('You have accepted this offer.')
   })
 
@@ -1855,7 +1902,7 @@ describe('OfferPage — offer v3 flow: acceptance + hotel step (landr-bo0wd.5)',
     })
     await ready()
     expect(screen.queryByTestId('offer-accept-pay-btn')).not.toBeInTheDocument()
-    expect(screen.getByTestId('offer-hotel-note')).toHaveTextContent('We are waiting for the hotel')
+    expect(screen.getByTestId('offer-hotel-note')).toHaveTextContent("We're waiting for the hotel")
   })
 
   it('acceptance not required: confirmation wording, no accept button, Pay now when the hotel step is done', async () => {
@@ -1866,7 +1913,7 @@ describe('OfferPage — offer v3 flow: acceptance + hotel step (landr-bo0wd.5)',
     mocks.initiatePayment.mockResolvedValue(INITIATE_RESP)
     await ready()
     expect(screen.getByText('Your booking as agreed')).toBeInTheDocument()
-    expect(screen.getByTestId('offer-description')).toHaveTextContent(/nothing for you to accept/i)
+    expect(screen.getByTestId('offer-description')).toHaveTextContent(/nothing to accept/i)
     expect(screen.queryByRole('button', { name: /accept/i })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /pay now/i }))
     await waitFor(() => expect(mocks.initiatePayment).toHaveBeenCalledOnce())
@@ -2006,7 +2053,7 @@ describe('OfferPage — offer v3 flow: acceptance + hotel step (landr-bo0wd.5)',
     })
     await ready()
     expect(screen.getByTestId('offer-hotel-declined')).toHaveTextContent('We are updating your offer.')
-    expect(screen.getByTestId('offer-description')).toHaveTextContent(/could not confirm these rooms/i)
+    expect(screen.getByTestId('offer-description')).toHaveTextContent(/couldn't confirm these rooms/i)
     expect(screen.queryByTestId('offer-hotel-note')).not.toBeInTheDocument()
     expect(screen.queryByTestId('offer-accept-pay-btn')).not.toBeInTheDocument()
     expect(screen.queryByTestId('offer-bank-details')).not.toBeInTheDocument()

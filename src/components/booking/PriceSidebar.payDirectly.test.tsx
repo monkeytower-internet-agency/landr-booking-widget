@@ -83,7 +83,7 @@ describe('PriceSidebar: operator without online payment', () => {
     })
     const desktop = screen.getByTestId('price-sidebar-desktop')
     expect(desktop).toHaveTextContent('120')
-    expect(desktop).toHaveTextContent('Pay directly to Sky Club. There is no online payment.')
+    expect(desktop).toHaveTextContent("You pay Sky Club directly — there's no online payment.")
   })
 
   it('shows the German wording for a German browser', async () => {
@@ -94,7 +94,7 @@ describe('PriceSidebar: operator without online payment', () => {
         expect(screen.getAllByTestId('price-sidebar-pay-directly').length).toBeGreaterThan(0)
       })
       expect(screen.getByTestId('price-sidebar-desktop')).toHaveTextContent(
-        'Bitte zahlen Sie direkt an Sky Club. Es gibt keine Online-Zahlung.',
+        'Sie zahlen direkt bei Sky Club, nicht online.',
       )
     } finally {
       spy.mockRestore()
@@ -107,7 +107,7 @@ describe('PriceSidebar: operator without online payment', () => {
       expect(screen.getAllByTestId('price-sidebar-pay-directly').length).toBeGreaterThan(0)
     })
     expect(screen.getByTestId('price-sidebar-desktop')).toHaveTextContent(
-      'Pay directly to the operator.',
+      "You pay the operator directly — there's no online payment.",
     )
   })
 

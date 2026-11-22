@@ -546,7 +546,7 @@ describe('MultiDayPicker', () => {
       )
       fireEvent.click(screen.getByRole('button', { name: /how this works/i }))
       expect(screen.getByTestId('multi-day-help')).toHaveTextContent(
-        /consecutive days/i,
+        /days must be consecutive/i,
       )
     })
 

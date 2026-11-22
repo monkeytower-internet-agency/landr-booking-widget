@@ -86,7 +86,7 @@ const CASES = [
     lang: 'es',
     browser: 'es-ES',
     title: 'Revisa tu reserva',
-    contact: 'Tu contacto',
+    contact: 'Tus datos de contacto',
     confirm: 'Confirmar reserva',
   },
   {
@@ -95,6 +95,13 @@ const CASES = [
     title: 'Rezervasyonunuzu gözden geçirin',
     contact: 'İletişim bilgileriniz',
     confirm: 'Rezervasyonu onayla',
+  },
+  {
+    lang: 'fr',
+    browser: 'fr-FR',
+    title: 'Vérifiez votre réservation',
+    contact: 'Vos coordonnées',
+    confirm: 'Confirmer la réservation',
   },
 ] as const
 

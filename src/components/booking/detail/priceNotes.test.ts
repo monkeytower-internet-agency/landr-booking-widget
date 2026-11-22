@@ -25,7 +25,7 @@ describe('formatPriceNotes', () => {
     expect(out).toHaveLength(3)
     expect(out[0]).toMatch(/^Grundpreis 150\s€$/)
     expect(out[1]).toMatch(/^Wochenende \+20\s€$/)
-    expect(out[2]).toMatch(/^Start 09:00 −10\s€$/)
+    expect(out[2]).toMatch(/^Start um 09:00 −10\s€$/)
     expect(out.join(' ')).not.toMatch(/Weekends|Base price| start/)
   })
 

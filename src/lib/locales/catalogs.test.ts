@@ -26,6 +26,7 @@ import {
   optionalRevealLabel,
   pickBundle,
   seatsLeftLabel,
+  secondLanguageText,
   type Bundle,
 } from '../strings'
 
@@ -61,7 +62,7 @@ describe.each(SUPPORTED_UI_LANGUAGES.filter((l) => l !== 'en'))('%s catalog', (l
 })
 
 describe('locale-agnostic helper phrases (landr-8r6oc.4)', () => {
-  it.each(['en', 'de', 'es', 'it', 'tr'])('%s: helpers fill their placeholders and never leak braces', (lang) => {
+  it.each(['en', 'de', 'es', 'it', 'tr', 'fr'])('%s: helpers fill their placeholders and never leak braces', (lang) => {
     const t: Bundle = pickBundle(lang)
     const outputs = [
       daysSelectedLabel(1, lang),
@@ -111,6 +112,30 @@ describe('locale-agnostic helper phrases (landr-8r6oc.4)', () => {
     expect(multiDayGate(0, 'it')).toMatch(/data/i)
     expect(languageStepGate([], 'it')).toMatch(/lingua/i)
     expect(nightsWord(2, 'it')).toBe('notti')
+  })
+
+  it('French helper copy is in the right language', () => {
+    expect(multiDayGate(0, 'fr')).toMatch(/date/i)
+    expect(languageStepGate([], 'fr')).toMatch(/langue/i)
+    expect(nightsWord(2, 'fr')).toBe('nuits')
+    expect(nightsWord(1, 'fr')).toBe('nuit')
+  })
+
+  it('French second-language question, helper and opt-out read naturally (landr-hdk4y.10)', () => {
+    expect(secondLanguageText('question', 'Français', 'fr-FR', 'fr')).toBe(
+      'Si aucun guide francophone n’est disponible, quelle autre langue vous conviendrait ?',
+    )
+    expect(secondLanguageText('helper', 'Français', 'fr-FR', 'fr')).toBe(
+      'Le français reste votre premier choix. Plus vous cochez de langues, plus nous avons de chances de confirmer votre réservation.',
+    )
+    expect(secondLanguageText('only', 'Français', 'fr-FR', 'fr')).toBe('Je ne parle que français')
+    // The language name follows the guest's main language.
+    expect(secondLanguageText('question', 'Allemand', 'fr', 'de')).toContain('guide germanophone')
+    expect(secondLanguageText('helper', 'Anglais', 'fr', 'en')).toMatch(/^L’anglais reste/)
+    expect(secondLanguageText('only', 'Anglais', 'fr', 'en')).toBe('Je ne parle qu’anglais')
+    // A language without a French adjective reads "guide parlant …".
+    expect(secondLanguageText('question', 'Polonais', 'fr', 'pl')).toContain('guide parlant polonais')
+    expect(secondLanguageText('helper', 'Hongrois', 'fr', 'hu')).toMatch(/^Le hongrois reste/)
   })
 
   it('fmt leaves unknown placeholders untouched', () => {

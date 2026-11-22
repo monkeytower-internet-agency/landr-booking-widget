@@ -86,7 +86,7 @@ describe('party members', () => {
     expect(members.map((m) => m.ref)).toEqual(['g1', 'g2', 'g3'])
     expect(members.map((m) => m.key)).toEqual(['m-ada', 'm-bob', 'm-kid'])
     expect(members[2]!.attributes.age).toBe(8)
-    expect(members[0]!.attributes.age).toBeUndefined()
+    expect(members[0]!.attributes.age).toBe(18) // landr-zorj8: an adult without an age is 18+
   })
 
   it('takes the age map (RoomAssignment) over nothing, never over an answered age', () => {
@@ -96,6 +96,22 @@ describe('party members', () => {
       { 0: { band: 'child', age: 3 }, 1: { band: 'child', age: 5 } },
     )
     expect(ms.map((m) => m.attributes.age)).toEqual([40, 5])
+  })
+
+  it('landr-zorj8: the booker (adult, no age) counts at 18 beside children 7 and 12', () => {
+    const ms = partyMembers(
+      [{ id: 'olaf', first_name: 'Olaf' }],
+      [
+        { id: 'm', first_name: 'Matthias', occupant_age_band: 'child', occupant_age: 7 },
+        { id: 'a', first_name: 'Alyda', occupant_age_band: 'child', occupant_age: 12 },
+      ],
+    )
+    expect(guestsWire(ms).map((g) => g.attributes.age)).toEqual([18, 7, 12])
+  })
+
+  it('landr-zorj8: a child without an age stays unanswered', () => {
+    const ms = partyMembers([{ id: 'o' }], [{ id: 'k', occupant_age_band: 'child', occupant_age: null }])
+    expect(ms[1]!.attributes.age).toBeUndefined()
   })
 
   it('keeps member keys stable when the roster is reordered', () => {
@@ -415,8 +431,8 @@ describe('display', () => {
   })
 
   it('says why a line cannot be booked', () => {
-    expect(reasonText('guest_attr_all.age', { op: 'gte', value: 10 }, 'en')).toBe('No guests under 10')
-    expect(reasonText('guest_attr_all.age', { op: 'gte', value: 10 }, 'de')).toBe('Keine Gäste unter 10')
+    expect(reasonText('guest_attr_all.age', { op: 'gte', value: 10 }, 'en')).toBe("This accommodation doesn't accept guests under 10.")
+    expect(reasonText('guest_attr_all.age', { op: 'gte', value: 10 }, 'de')).toBe('Diese Unterkunft nimmt keine Gäste unter 10 Jahren auf.')
     expect(reasonText('guest_attr_all.age', { op: 'lte', value: 12 }, 'en')).toBe('Only for guests up to 12')
     expect(reasonText('guest_attr_all.age', { op: 'between', value: [3, 11] }, 'en')).toBe(
       'Only for guests aged 3 to 11',
@@ -428,7 +444,7 @@ describe('display', () => {
       'At least one guest must be aged 3 to 11',
     )
     expect(reasonText('guest_attr_all.age', null, 'en')).toBe('Not available for the ages in your party')
-    expect(reasonText('attribute_missing.age', null, 'en')).toBe('Please answer the guest questions first')
+    expect(reasonText('attribute_missing.age', null, 'en')).toBe('Answer the guest questions first')
     expect(reasonText('date_window', null, 'en')).toBe('Not available on your dates')
     expect(reasonText('stay_nights', null, 'en')).toBe('Not available for this number of nights')
     expect(reasonText('parent_unavailable', null, 'en')).toBe('Sold out for your dates')

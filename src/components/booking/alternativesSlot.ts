@@ -11,3 +11,10 @@ export const ALTERNATIVES_SLOT_ID = 'landr-alternatives-slot'
  * after an alternative switch: under the total, where the row was tapped.
  */
 export const ALTERNATIVE_BACK_SLOT_ID = 'landr-alternative-back-slot'
+
+/**
+ * Desktop slot for the cross-sell hint block, directly under the grand total
+ * card (PriceSidebar). Below md, or without the rail, the block renders inline
+ * at the end of the review step.
+ */
+export const CROSS_SELL_HINTS_SLOT_ID = 'landr-cross-sell-hints-slot'

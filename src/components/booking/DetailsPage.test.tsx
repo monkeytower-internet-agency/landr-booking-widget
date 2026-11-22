@@ -303,9 +303,9 @@ describe('DetailsPage', () => {
     )
 
   it.each([
-    ['en-US', 'Ben Pilot: Weight is required.', 'Please check these answers'],
+    ['en-US', 'Ben Pilot: Weight is required.', 'Check these answers'],
     ['de-DE', 'Ben Pilot: Weight ist ein Pflichtfeld.', 'Bitte prüfen Sie diese Angaben'],
-    ['fr-FR', 'Ben Pilot: Weight is required.', 'Please check these answers'],
+    ['pt-PT', 'Ben Pilot: Weight is required.', 'Check these answers'],
   ])('server 422 codes read in the customer language (%s)', async (language, line, title) => {
     vi.stubGlobal('navigator', { ...navigator, language })
     mocks.getBookingDetails.mockResolvedValue(PENDING_DETAILS)

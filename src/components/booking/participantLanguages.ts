@@ -24,6 +24,9 @@
  */
 
 import { pickBundle, resolveUiLanguage } from '@/lib/strings'
+import { isStayKind } from '@/flowPlan'
+import type { Product } from '@/api/types'
+import { stayGuestLanguages } from './stayFlow'
 
 /** Party-member index → assigned ISO 639-1 language code. */
 export type ParticipantLanguageMap = Record<number, string>
@@ -251,12 +254,25 @@ const LANGUAGE_NAMES_TR: Record<string, string> = {
   zh: 'Çince',
 }
 
+/** landr-hdk4y.10: French fallback table (same codes/order as LANGUAGE_NAMES). */
+const LANGUAGE_NAMES_FR: Record<string, string> = {
+  ar: 'Arabe', bg: 'Bulgare', bs: 'Bosniaque', ca: 'Catalan', cs: 'Tchèque', da: 'Danois',
+  de: 'Allemand', el: 'Grec', en: 'Anglais', es: 'Espagnol', et: 'Estonien', eu: 'Basque',
+  fi: 'Finnois', fr: 'Français', ga: 'Irlandais', gl: 'Galicien', he: 'Hébreu', hi: 'Hindi',
+  hr: 'Croate', hu: 'Hongrois', id: 'Indonésien', is: 'Islandais', it: 'Italien',
+  ja: 'Japonais', ko: 'Coréen', lt: 'Lituanien', lv: 'Letton', mk: 'Macédonien',
+  nl: 'Néerlandais', no: 'Norvégien', pl: 'Polonais', pt: 'Portugais', ro: 'Roumain', ru: 'Russe',
+  sk: 'Slovaque', sl: 'Slovène', sq: 'Albanais', sr: 'Serbe', sv: 'Suédois', th: 'Thaï',
+  tr: 'Turc', uk: 'Ukrainien', vi: 'Vietnamien', zh: 'Chinois',
+}
+
 /** Fallback tables for the `Intl.DisplayNames` path, by UI language (English uses LANGUAGE_NAMES). */
 const LANGUAGE_NAMES_BY_UI: Record<string, Record<string, string>> = {
   de: LANGUAGE_NAMES_DE,
   es: LANGUAGE_NAMES_ES,
   it: LANGUAGE_NAMES_IT,
   tr: LANGUAGE_NAMES_TR,
+  fr: LANGUAGE_NAMES_FR,
 }
 
 // landr-5aih0.17 / landr-8r6oc.4: one shared Intl.DisplayNames instance per UI
@@ -413,6 +429,24 @@ export function normaliseOfferedLanguages(
  */
 export function productAcceptsAnyLanguage(raw: unknown): boolean {
   return Array.isArray(raw) && raw.length === 0
+}
+
+/**
+ * The guide languages a PRODUCT offers — the one resolver the language step
+ * (App.tsx) and the second-guiding-language cart (secondLanguage.ts) both read,
+ * so they can never disagree about the same product.
+ *
+ * - a stay has no guide: no language is offered (`[]`);
+ * - `guide_languages = []` is an "any language" product: `[]`;
+ * - otherwise the cleaned list, and for null / absent / unusable input the
+ *   platform default (a widget can run ahead of the API), never "none".
+ */
+export function offeredLanguagesForProduct(
+  product: Pick<Product, 'product_kind' | 'guide_languages'>,
+): string[] {
+  if (isStayKind(product.product_kind)) return stayGuestLanguages()
+  if (productAcceptsAnyLanguage(product.guide_languages)) return []
+  return normaliseOfferedLanguages(product.guide_languages)
 }
 
 /**

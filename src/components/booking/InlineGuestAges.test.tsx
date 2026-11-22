@@ -33,7 +33,7 @@ describe('InlineGuestAges bands (landr-zcb24.2)', () => {
     expect(screen.queryByTestId('inline-age-band-0')).not.toBeInTheDocument()
     expect(Array.from(screen.getByTestId('inline-age-band-1').querySelectorAll('option')).map((o) => o.textContent)).toEqual([
       'Adult',
-      'Child',
+      ...Array.from({ length: 18 }, (_, a) => `Child, ${a} year${a === 1 ? '' : 's'} old`),
     ])
   })
 
@@ -44,14 +44,14 @@ describe('InlineGuestAges bands (landr-zcb24.2)', () => {
       'Adult 18-64',
       'Senior 65+',
     ])
-    fireEvent.change(screen.getByTestId('inline-age-band-1'), { target: { value: 'age_65_plus' } })
+    fireEvent.change(screen.getByTestId('inline-age-band-1'), { target: { value: 'a:age_65_plus' } })
     expect(onChange).toHaveBeenLastCalledWith({ 1: { band: 'adult', age: null, floor: 65 } })
     expect(screen.queryByTestId('inline-booker-adult-confirm')).not.toBeInTheDocument()
   })
 })
 
 describe('InlineGuestAges exact (landr-zcb24.7)', () => {
-  it('asks a number per guest, the booker confirmed at 18+', () => {
+  it('asks one select per guest, the booker an adult', () => {
     const onChange = vi.fn()
     function ExactHarness() {
       const [value, setValue] = useState<Record<number, GuestAgeEntry>>({})
@@ -69,12 +69,9 @@ describe('InlineGuestAges exact (landr-zcb24.7)', () => {
       )
     }
     render(<ExactHarness />)
-    fireEvent.change(screen.getByTestId('guest-age-inline-0'), { target: { value: '40' } })
-    fireEvent.change(screen.getByTestId('guest-age-inline-1'), { target: { value: '9' } })
-    expect(onChange).toHaveBeenLastCalledWith({
-      0: { band: 'adult', age: 40 },
-      1: { band: 'child', age: 9 },
-    })
+    expect(screen.queryByTestId('inline-age-band-0')).not.toBeInTheDocument()
+    fireEvent.change(screen.getByTestId('inline-age-band-1'), { target: { value: 'c:9' } })
+    expect(onChange).toHaveBeenLastCalledWith({ 1: { band: 'child', age: 9 } })
   })
 })
 

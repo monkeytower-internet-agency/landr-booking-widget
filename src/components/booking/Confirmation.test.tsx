@@ -1300,7 +1300,7 @@ describe('Confirmation', () => {
     const response = baseResponse({ confirmation_email_status: 'sent' })
     render(<Confirmation response={response} onRestart={vi.fn()} />)
 
-    expect(screen.getByText(/confirmation email has been sent/i)).toBeInTheDocument()
+    expect(screen.getByText(/emailed you a confirmation with your booking details/i)).toBeInTheDocument()
     // Must NOT show the failure panel.
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
     // Card must still render — never blank.
@@ -1316,7 +1316,7 @@ describe('Confirmation', () => {
     const response = baseResponse({ confirmation_email_status: 'captured' })
     render(<Confirmation response={response} onRestart={vi.fn()} />)
 
-    expect(screen.getByText(/confirmation email has been sent/i)).toBeInTheDocument()
+    expect(screen.getByText(/emailed you a confirmation with your booking details/i)).toBeInTheDocument()
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
     expect(screen.getByText(/booking received/i)).toBeInTheDocument()
   })
@@ -1336,8 +1336,8 @@ describe('Confirmation', () => {
     // Must instruct customer to contact the operator.
     expect(panel).toHaveTextContent(/contact/i)
     // The regular "confirmation email" paragraph must NOT appear.
-    expect(screen.queryByText(/you will receive a confirmation email/i)).not.toBeInTheDocument()
-    expect(screen.queryByText(/confirmation email has been sent/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/get a confirmation email/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/emailed you a confirmation with your booking details/i)).not.toBeInTheDocument()
     // Card must still render — never blank; reference visible (derived
     // client-side — never the raw UUID, landr-otml0.4 review fix MAJOR 1).
     expect(screen.getByText(/booking received/i)).toBeInTheDocument()
@@ -1357,7 +1357,7 @@ describe('Confirmation', () => {
     const response = baseResponse({ confirmation_email_status: 'pending' })
     render(<Confirmation response={response} onRestart={vi.fn()} />)
 
-    expect(screen.getByText(/you will receive a confirmation email shortly/i)).toBeInTheDocument()
+    expect(screen.getByText(/get a confirmation email with the next steps shortly/i)).toBeInTheDocument()
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
     expect(screen.getByText(/booking received/i)).toBeInTheDocument()
   })
@@ -1367,7 +1367,7 @@ describe('Confirmation', () => {
     const response = baseResponse()
     render(<Confirmation response={response} onRestart={vi.fn()} />)
 
-    expect(screen.getByText(/you will receive a confirmation email shortly/i)).toBeInTheDocument()
+    expect(screen.getByText(/get a confirmation email with the next steps shortly/i)).toBeInTheDocument()
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
     expect(screen.getByText(/booking received/i)).toBeInTheDocument()
   })
@@ -1424,7 +1424,7 @@ describe('Confirmation', () => {
     render(<Confirmation response={response} onRestart={vi.fn()} />)
 
     expect(
-      screen.getByText(/please pay on the day, at the meeting point/i),
+      screen.getByText(/you pay on the day, at the meeting point/i),
     ).toBeInTheDocument()
     expect(screen.queryByText(/payment link/i)).not.toBeInTheDocument()
   })
@@ -1486,7 +1486,7 @@ describe('Confirmation', () => {
     render(<Confirmation response={response} onRestart={vi.fn()} />)
     const note = screen.getByTestId('confirmation-payment-terms')
     expect(note).toHaveTextContent(/30% deposit today, the rest by .*(May 31|31 May)/i)
-    expect(note).toHaveTextContent(/the deposit is not refunded if you cancel/i)
+    expect(note).toHaveTextContent(/the deposit is non-refundable/i)
   })
 
   it('payment terms: nothing shown by default (refundable, no due date)', () => {
@@ -1532,8 +1532,8 @@ describe('Confirmation', () => {
     render(<Confirmation response={response} onRestart={vi.fn()} />)
 
     expect(screen.getByText(/booking received/i)).toBeInTheDocument()
-    expect(screen.getByText(/awaiting confirmation/i)).toBeInTheDocument()
-    expect(screen.getByText(/you will receive a confirmation email shortly/i)).toBeInTheDocument()
+    expect(screen.getByText(/waiting for the operator to confirm/i)).toBeInTheDocument()
+    expect(screen.getByText(/get a confirmation email with the next steps shortly/i)).toBeInTheDocument()
     expect(screen.queryByText(/booking confirmed/i)).not.toBeInTheDocument()
     expect(screen.queryByText(response.semantic_state)).not.toBeInTheDocument()
     expect(screen.queryByText(/capacity/i)).not.toBeInTheDocument()
@@ -1547,8 +1547,8 @@ describe('Confirmation', () => {
     render(<Confirmation response={response} onRestart={vi.fn()} />)
 
     expect(screen.getByText(/booking received/i)).toBeInTheDocument()
-    expect(screen.getByText(/awaiting confirmation/i)).toBeInTheDocument()
-    expect(screen.getByText(/you will receive a confirmation email shortly/i)).toBeInTheDocument()
+    expect(screen.getByText(/waiting for the operator to confirm/i)).toBeInTheDocument()
+    expect(screen.getByText(/get a confirmation email with the next steps shortly/i)).toBeInTheDocument()
     expect(screen.queryByText(/booking confirmed/i)).not.toBeInTheDocument()
     expect(screen.queryByText(response.semantic_state)).not.toBeInTheDocument()
     expect(screen.queryByText(/capacity/i)).not.toBeInTheDocument()
@@ -1782,7 +1782,7 @@ describe('Confirmation — landr-otml0.4 group/invite share surfaces', () => {
     )
     expect(screen.getByTestId('invite-email')).not.toBeDisabled()
     expect(
-      screen.getByText(/could not send that email/i),
+      screen.getByText(/couldn't send that email/i),
     ).toBeInTheDocument()
   })
 
@@ -1806,9 +1806,9 @@ describe('Confirmation — landr-otml0.4 group/invite share surfaces', () => {
 
     const emailButton = screen.getByTestId('invite-email')
     expect(emailButton).toBeDisabled()
-    expect(emailButton).toHaveAttribute('title', expect.stringMatching(/unavailable/i))
+    expect(emailButton).toHaveAttribute('title', expect.stringMatching(/isn't available/i))
     expect(screen.getByTestId('invite-email-unavailable')).toHaveTextContent(
-      /email sending unavailable — copy the link instead/i,
+      /email isn't available — copy the link instead/i,
     )
     // Clicking a disabled button never fires the handler.
     fireEvent.click(emailButton)
@@ -1879,7 +1879,7 @@ describe('Confirmation — landr-otml0.4 group/invite share surfaces', () => {
 
     await waitFor(() =>
       expect(screen.getByTestId('invite-email-error')).toHaveTextContent(
-        /could not send that email/i,
+        /couldn't send that email/i,
       ),
     )
     expect(screen.getByTestId('invite-email')).not.toBeDisabled()
@@ -2038,7 +2038,7 @@ describe('Confirmation — landr-otml0.4 CopyButton fallback chain', () => {
     })
     render(<Confirmation response={response} onRestart={vi.fn()} />)
     expect(screen.getByTestId('invite-hold-line')).toHaveTextContent(
-      /When you booked, seats for Thomas Klein were still free\. Held for 72 hours, until /,
+      /Seats for Thomas Klein were free when you booked and are held for 72 hours, until /,
     )
   })
 
@@ -2049,7 +2049,7 @@ describe('Confirmation — landr-otml0.4 CopyButton fallback chain', () => {
     })
     render(<Confirmation response={response} onRestart={vi.fn()} />)
     expect(screen.getByTestId('invite-hold-line')).toHaveTextContent(
-      'Seats for Thomas Klein are not held',
+      "Seats for Thomas Klein aren't held — they can book while seats last.",
     )
   })
 

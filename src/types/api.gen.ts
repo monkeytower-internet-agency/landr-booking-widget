@@ -622,6 +622,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/internal/playground/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * History
+         * @description Live's proposal / take / decline timeline of one operator for a live member (signed).
+         */
+        post: operations["history"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/internal/playground/invites": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Receive Invite
+         * @description Create the invite on THIS (staging/dev) tier for a live owner's colleague.
+         */
+        post: operations["receive_invite"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/internal/playground/proposals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Proposals
+         * @description Store a live member's playground proposal for that operator (signed).
+         */
+        post: operations["proposals"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/internal/playground/setup-bundle": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Setup Bundle
+         * @description The live setup bundle of one operator for a live member of it (signed).
+         */
+        post: operations["setup_bundle"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/internal/release/changelog": {
         parameters: {
             query?: never;
@@ -717,7 +797,11 @@ export interface paths {
         put?: never;
         /**
          * Express Chain Relay
-         * @description Create AND approve a staging_to_main run for a dev express chain.
+         * @description Create AND approve a staging_to_main run for a dev express chain — or,
+         *     with ``kind='prod_hotfix_code'`` + ``picks`` (landr-i74li), a held
+         *     prod_hotfix_code run for a dev express HOTFIX chain (409 ``run_in_flight``
+         *     while any run is queued/executing on staging; 409 with the
+         *     resolve_prod_picks code for a bad pick).
          *
          *     Auth: HMAC + nonce. 403 ``initiator_not_approver`` · 409
          *     ``staging_signoff_pending`` / ``staging_to_main_in_flight`` /
@@ -725,6 +809,26 @@ export interface paths {
          *     ``already_relayed`` (idempotent on source_run_id).
          */
         post: operations["express_chain_relay"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/internal/release/express-chain/continue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Express Chain Continue
+         * @description End the hold of the express run now (landr-ijc0o). Auth: HMAC + approver.
+         */
+        post: operations["express_chain_continue"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1624,6 +1728,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/landr-staff/promotions/express-chain/continue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Express Continue Now
+         * @description landr-ijc0o — "Continue now": end the hold of the live express chain's
+         *     staging run. Dev api only, release approvers only; relayed to staging (the
+         *     HMAC authenticates this service, staging re-checks the human is an approver).
+         *     409 unless the chain is relayed and staging's run is still queued.
+         */
+        post: operations["express_continue_now"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/landr-staff/promotions/local-worktree": {
         parameters: {
             query?: never;
@@ -1920,6 +2047,12 @@ export interface paths {
          *     it into ``staging`` — a conflict fails the run with nothing merged — and,
          *     if the landr-api picks touched supabase/migrations, applies them to the
          *     staging DB pinned to the new staging SHA. No version/changelog/tag.
+         *
+         *     landr-i74li — ``express=true`` makes it an express hotfix chain
+         *     (app/workers/express_chain.py): approver-only and refused up front by the
+         *     same gates as Ship to prod (``_enforce_express_allowed`` on the picked
+         *     repos); the run is created with ``chain_to_main`` and, once staging is
+         *     deployed and healthy, staging creates the held Hotfix to production.
          */
         post: operations["create_staging_hotfix_code"];
         delete?: never;
@@ -2353,6 +2486,44 @@ export interface paths {
          *     put in ``pitch.<locale>.hero_url`` and its public URL.
          */
         post: operations["landr_staff_upload_template_hero"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/landr-staff/templates/{slug}/power-ups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Landr Staff Template Power Ups */
+        get: operations["landr_staff_template_power_ups"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/landr-staff/templates/{slug}/power-ups/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Landr Staff Switch Template Power Up
+         * @description Edit the template's set. Staging (and local development) only: production
+         *     receives templates through the export migrations, set included.
+         */
+        put: operations["landr_staff_switch_template_power_up"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -3440,6 +3611,264 @@ export interface paths {
         patch: operations["patch_product_offer"];
         trace?: never;
     };
+    "/api/operators/{operator_id}/playground-proposal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Proposal
+         * @description The open proposal from the playground, judged against live now (or ``null``).
+         */
+        get: operations["get_proposal"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/operators/{operator_id}/playground-proposal/decline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Decline Proposal
+         * @description Decline the whole proposal; nothing in live changes.
+         */
+        post: operations["decline_proposal"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/operators/{operator_id}/playground-proposal/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Proposal History
+         * @description Who proposed / took / declined which lines of the playground, and when.
+         */
+        get: operations["proposal_history"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/operators/{operator_id}/playground-proposal/review-started": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Review Started
+         * @description An owner / admin opened the review (first opener recorded; idempotent).
+         */
+        post: operations["review_started"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/operators/{operator_id}/playground-proposal/take": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Take Proposal
+         * @description Take the ticked groups (and only those) into live.
+         */
+        post: operations["take_proposal"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/operators/{operator_id}/playground/demo-bookings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Fill Demo Bookings */
+        post: operations["fill_demo_bookings"];
+        /**
+         * Remove Demo Bookings
+         * @description Remove this operator's marked demo bookings (and their payments and demo
+         *     guests). Unmarked bookings are never touched.
+         */
+        delete: operations["remove_demo_bookings"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/operators/{operator_id}/playground/diff": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Playground Diff Lines
+         * @description Live against this playground as per-line groups (landr-tbzye.2).
+         *
+         *     Direction comes from the stored per-row baseline of the live rows this
+         *     playground last took (``operator_playground_baselines``), never from a
+         *     fingerprint: ``live`` / ``here`` / ``both``. A first look seeds the baseline with
+         *     the rows identical on both tiers; a row the baseline lacks that differs on both
+         *     tiers is ``both`` + ``origin_unknown``, one only live has is ``live``, one only
+         *     here is ``here`` (proposable). Each group carries lines
+         *     ``{table, pk, kind (update|new|delete), live_value, playground_value,
+         *     direction, origin_unknown, label, area, group_id}`` and ``requires`` (group ids
+         *     to take together). Values are data for escaped text
+         *     (``app/services/playground_diff.py``).
+         */
+        get: operations["playground_diff_lines"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/operators/{operator_id}/playground/fetch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Playground Fetch
+         * @description Apply the ticked "Changed in live" groups to this playground (module doc).
+         */
+        post: operations["playground_fetch"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/operators/{operator_id}/playground/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Playground History Timeline
+         * @description The Playground history: fetches here + live's proposals / takes / declines.
+         *
+         *     ``{events, live: {connected, reason}}``; each event is
+         *     ``{id, kind: fetch|proposal|take|decline, direction: to_playground|to_live, at,
+         *     actor_name, proposal_id, proposal_status, group_count, line_count, groups}``
+         *     (labels and counts, never a value). Same members as the rest of the panel.
+         */
+        get: operations["playground_history_timeline"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/operators/{operator_id}/playground/live-bundle": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Live Bundle
+         * @description This operator's LIVE setup bundle, for a member of it on both tiers.
+         */
+        get: operations["live_bundle"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/operators/{operator_id}/playground/proposals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Propose For Live
+         * @description Send the ticked "Changed here, not in live" groups to live as a proposal.
+         */
+        post: operations["propose_for_live"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/operators/{operator_id}/playground/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Playground Status
+         * @description Whether this caller can use the channel right now (no call to live).
+         */
+        get: operations["playground_status"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/operators/{operator_id}/products/{product_id}/eligibility-rules": {
         parameters: {
             query?: never;
@@ -3461,6 +3890,31 @@ export interface paths {
          *     product / season of another operator.
          */
         patch: operations["patch_product_eligibility_rules"];
+        trace?: never;
+    };
+    "/api/operators/{operator_id}/products/{product_id}/suggestions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Product Suggestions
+         * @description The product's suggestion links in order.
+         */
+        get: operations["list_product_suggestions"];
+        /**
+         * Put Product Suggestions
+         * @description Replace the product's suggestion links with ``suggested_product_ids``
+         *     (de-duplicated, first occurrence wins; the list order is the hint order).
+         */
+        put: operations["put_product_suggestions"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/platform-settings/onboarding-call": {
@@ -4620,6 +5074,27 @@ export interface paths {
         };
         /** Get Pass Tiers */
         get: operations["public_get_pass_tiers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/operators/{token}/products/{product_id}/suggestions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Product Suggestions
+         * @description The product's cross-sell hints; ``[]`` when the operator has them off or
+         *     the product is not the operator's. 404 only for an unknown widget token.
+         */
+        get: operations["public_get_product_suggestions"];
         put?: never;
         post?: never;
         delete?: never;
@@ -6187,7 +6662,12 @@ export interface paths {
          * @description List the operator's agent commission rows, newest first.
          *
          *     Source: ``commissions WHERE recipient_kind='agent'`` (landr-xnbfe.4).
-         *     Optional filters: agent_user_id, status_filter (accrued|paid|reversed).
+         *     Optional filters: agent_user_id, status_filter (projected|earned|paid|
+         *     reversed|held|no_commission). Each row also carries ``status_label``
+         *     (projected|held|earned|paid|dropped|reversed|no_commission; ``reversed``
+         *     rows split into dropped / reversed by the last lifecycle entry) and its
+         *     ``open_adjustments`` (not yet netted into a payout) with their total
+         *     (landr-xnbfe.39).
          *     Read-only — earnings accrue via recipient_commission_drain, not this API.
          */
         get: operations["list_agent_earnings"];
@@ -6208,19 +6688,171 @@ export interface paths {
         };
         /**
          * Agent Earnings Summary
-         * @description Per-agent accrued/paid/reversed commission totals for the operator.
+         * @description Per-agent commission totals for the operator, by lifecycle status.
          *
-         *     Aggregates the agent commissions rows (``commissions WHERE
-         *     recipient_kind='agent'``, landr-xnbfe.4) by recipient_user_id
-         *     and status. Returns one row per agent with the three status buckets
-         *     (+ currency, which is uniform per agent in practice). Read-only.
+         *     One row per Sales agent and currency, aggregated IN SQL
+         *     (``agent_payout_summary``, landr-xnbfe.5) over ``commissions WHERE
+         *     recipient_kind='agent'`` of this operator, with the agent's ``display_name``
+         *     and ``email``. ``earned_total`` is what the customer's payments have earned
+         *     and is not yet paid out (earned_amount), ``projected_total`` the rest of the
+         *     expected commission, ``accrued_total`` the pre-lifecycle label,
+         *     ``paid_total`` what payouts paid. ``dropped_total`` is the part of
+         *     ``reversed_total`` cancelled before the customer paid; ``held_total`` /
+         *     ``held_count`` / ``no_commission_count`` keep paused-agent and zero-term
+         *     bookings visible; ``open_adjustments_total`` the signed sum of the agent's
+         *     adjustments not yet netted into a payout (negative = to be deducted);
+         *     ``payable_total`` = earned + open adjustments, what Mark paid would pay.
          *
-         *     Done in-Python over the operator's earning rows rather than via a
-         *     SQL GROUP BY because the supabase REST client doesn't expose
-         *     aggregate grouping; the row volume per operator is small (one row
-         *     per agent×booking) and bounded by the same row guard.
+         *     ``period=YYYY-MM`` narrows the rows to the bookings of that payout month
+         *     (the month of the booking's cancellation_deadline in the operator's
+         *     timezone, the same predicate mark-paid claims by) and adds the month's
+         *     latest paid ``batch_id`` / ``batch_status`` (null when none). Read-only.
          */
         get: operations["agent_earnings_summary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/agent-groups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Agent Groups */
+        get: operations["list_agent_groups"];
+        put?: never;
+        /** Create Agent Group */
+        post: operations["create_agent_group"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/agent-groups/{group_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Agent Group */
+        delete: operations["delete_agent_group"];
+        options?: never;
+        head?: never;
+        /** Patch Agent Group */
+        patch: operations["patch_agent_group"];
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/agent-groups/{group_id}/rates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Agent Group Rates */
+        get: operations["get_agent_group_rates"];
+        /** Put Agent Group Rates */
+        put: operations["put_agent_group_rates"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/agent-invites": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Agent Invite
+         * @description Add Sales agent (landr-xnbfe.27): invite + pending contract + referral
+         *     token in one transaction; the response carries the link to print.
+         */
+        post: operations["create_agent_invite"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/agent-rate-defaults": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Agent Rate Defaults */
+        get: operations["get_agent_rate_defaults"];
+        /** Put Agent Rate Defaults */
+        put: operations["put_agent_rate_defaults"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/agent/bookings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Agent Bookings
+         * @description The operator's bookings attributed to an agent, newest first.
+         *
+         *     An agent (alone or combined with another non-owner role) reads only their
+         *     own; an owner/admin reads every agent's and may filter with ``agent_user_id``.
+         */
+        get: operations["staff_agent_bookings_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/agent/earnings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Agent Earnings
+         * @description An agent's commission rows with the booking they came from, plus totals.
+         *
+         *     ``totals`` = projected (expected, customer not paid yet) / earned (the
+         *     customer has paid) / paid (paid out) / held (a link booking through a paused
+         *     agent), summed over the FULL scoped set; ``rows`` is the newest ``limit`` of
+         *     it and ``truncated`` says the list is shorter than the set the totals
+         *     cover. Rows on a soft-deleted booking are hidden like My bookings hides the
+         *     booking, except those still carrying money. The same scoping as the
+         *     bookings list.
+         */
+        get: operations["staff_agent_earnings_list"];
         put?: never;
         post?: never;
         delete?: never;
@@ -7236,6 +7868,34 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/participants/{participant_id}/accepted-languages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Patch Participant Accepted Languages
+         * @description Set (or clear) the other guiding languages a participant accepts
+         *     (``booking_participants.accepted_languages``, landr-hdk4y.1) — the
+         *     staff-side correction next to the language override above.
+         *
+         *     Needs the ``second_guiding_language`` feature (403 ``feature_disabled``).
+         *     Every value must be one of the booking's guide languages when the booking
+         *     has a restricted set (422 ``participant_accepted_languages_invalid``). The
+         *     participant's effective main language is dropped from the list by the
+         *     database in the same statement, so it never contains it.
+         */
+        patch: operations["staff_patch_participant_accepted_languages"];
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/bookings/{booking_id}/participants/{participant_id}/day-group/{day_date}/join": {
         parameters: {
             query?: never;
@@ -8243,6 +8903,33 @@ export interface paths {
         patch: operations["commission_patch_tier"];
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/commissions/payouts/mark-paid": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mark Payout Paid
+         * @description Mark one Sales agent's earned commission for a month as paid.
+         *
+         *     Creates a NEW paid batch (never reuses one) and claims the agent's EARNED,
+         *     unbatched commissions of ``period`` plus their open adjustments, all in one
+         *     transaction. 404 ``agent_not_found`` when the user has no agent contract at
+         *     this operator, 409 ``nothing_to_pay`` when nothing is earned in the month
+         *     (or open reversals outweigh it). Held, projected and reversed rows are
+         *     never payable. owner / admin / finance.
+         */
+        post: operations["commission_mark_payout_paid"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/company-inquiry": {
         parameters: {
             query?: never;
@@ -8442,6 +9129,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/contracts/me/agent-rates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * My Agent Rates
+         * @description landr-xnbfe.25: the caller's OWN effective Sales agent terms at this
+         *     operator (their open agent contract, filtered by operator AND user) --
+         *     the only way an agent reads rates (agent_rate_terms RLS shows them none).
+         */
+        get: operations["my_agent_rates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/contracts/{contract_id}": {
         parameters: {
             query?: never;
@@ -8459,6 +9168,32 @@ export interface paths {
         patch: operations["patch_contract"];
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/contracts/{contract_id}/agent-rates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Contract Agent Rates
+         * @description landr-xnbfe.25: an agent contract's own terms and what applies.
+         */
+        get: operations["get_contract_agent_rates"];
+        /**
+         * Put Contract Agent Rates
+         * @description landr-xnbfe.25: replace an agent contract's own terms atomically; []
+         *     removes them so the group / default terms apply. Bookings already made
+         *     keep their frozen snapshot.
+         */
+        put: operations["put_contract_agent_rates"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/contracts/{contract_id}/end": {
         parameters: {
             query?: never;
@@ -8470,6 +9205,40 @@ export interface paths {
         put?: never;
         /** End Contract */
         post: operations["end_contract"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/contracts/{contract_id}/held-link-bookings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Held Link Bookings */
+        get: operations["list_held_link_bookings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/contracts/{contract_id}/link-booking-decision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Decide Link Booking */
+        post: operations["decide_link_booking"];
         delete?: never;
         options?: never;
         head?: never;
@@ -10317,6 +11086,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/playground-invites": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Invite To Playground */
+        post: operations["invite_to_playground"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/presets": {
         parameters: {
             query?: never;
@@ -11190,6 +11976,34 @@ export interface paths {
          *     when it would count nothing.
          */
         patch: operations["patch_product_requirement"];
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/products/{product_id}/second-language-settings/copy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Copy Second Language Settings
+         * @description landr-hdk4y.1: copy this product's mode / preferred list / options to
+         *     other products of the SAME operator ("Apply to other products").
+         *
+         *     Needs the ``second_guiding_language`` feature (403 ``feature_disabled``).
+         *     The preferred list is intersected with each target's own guide languages
+         *     (a restricted set; ``[]`` = any language keeps the whole list), so the
+         *     subset invariant holds. A target that is not one of this operator's live
+         *     service products is reported under ``skipped`` (never written, never
+         *     revealing another operator's rows). Idempotent.
+         */
+        post: operations["copy_second_language_settings"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/staff/operators/{operator_id}/products/{product_id}/subscription-config": {
@@ -13027,6 +13841,23 @@ export interface paths {
         patch: operations["pricing_seasons_patch"];
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/second-language-breakdown": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Second Language Breakdown */
+        get: operations["staff_second_language_breakdown"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/service-roles": {
         parameters: {
             query?: never;
@@ -13949,6 +14780,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/power-ups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Power Ups
+         * @description Every active Power-up with its state for the caller's operator.
+         */
+        get: operations["list_power_ups"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/power-ups/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Switch Power Up
+         * @description Switch one Power-up on or off (owner / admin).
+         */
+        put: operations["switch_power_up"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/provider-assignments/{assignment_id}": {
         parameters: {
             query?: never;
@@ -14365,6 +15236,18 @@ export interface components {
             /** Proposal Id */
             proposal_id: string;
         };
+        /**
+         * AcceptedLanguagesPatchIn
+         * @description PATCH participant accepted-languages body (landr-hdk4y.1).
+         *
+         *     The key is REQUIRED and ``null`` is meaningful, like ``LanguagePatchIn``:
+         *     ``null`` = "not asked", ``[]`` = "only the main language", otherwise the
+         *     other guiding languages the participant accepts.
+         */
+        AcceptedLanguagesPatchIn: {
+            /** Accepted Languages */
+            accepted_languages: string[] | null;
+        };
         /** AccountLinkRequest */
         AccountLinkRequest: {
             /** Email */
@@ -14440,6 +15323,183 @@ export interface components {
             /** Unavailable Reason */
             unavailable_reason?: ("sold_out" | "unit_taken") | null;
         };
+        /** AgentChannelTermsOut */
+        AgentChannelTermsOut: {
+            /** Enabled */
+            enabled: boolean;
+            /** Level */
+            level?: string | null;
+            /** Terms */
+            terms: components["schemas"]["AgentEffectiveTermOut"][];
+        };
+        /** AgentEffectiveTermOut */
+        AgentEffectiveTermOut: {
+            /** Currency */
+            currency?: string | null;
+            /** Product Id */
+            product_id?: string | null;
+            /** Rate Kind */
+            rate_kind: string;
+            /** Term Id */
+            term_id?: string | null;
+            /** Value */
+            value: number;
+        };
+        /** AgentEffectiveTermsOut */
+        AgentEffectiveTermsOut: {
+            assisted: components["schemas"]["AgentChannelTermsOut"];
+            self_serve: components["schemas"]["AgentChannelTermsOut"];
+        };
+        /** AgentGroupIn */
+        AgentGroupIn: {
+            /**
+             * Books For Clients
+             * @default true
+             */
+            books_for_clients: boolean;
+            /**
+             * Has Link
+             * @default true
+             */
+            has_link: boolean;
+            /** Name */
+            name: string;
+        };
+        /** AgentGroupOut */
+        AgentGroupOut: {
+            /**
+             * Agent Count
+             * @default 0
+             */
+            agent_count: number;
+            /** Books For Clients */
+            books_for_clients: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Has Link */
+            has_link: boolean;
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Operator Id */
+            operator_id: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** AgentGroupPatch */
+        AgentGroupPatch: {
+            /** Books For Clients */
+            books_for_clients?: boolean | null;
+            /** Has Link */
+            has_link?: boolean | null;
+            /** Name */
+            name?: string | null;
+        };
+        /**
+         * AgentInviteBody
+         * @description Add Sales agent (landr-xnbfe.27): who, which group, how they sell.
+         */
+        AgentInviteBody: {
+            /** Can Book For Clients */
+            can_book_for_clients?: boolean | null;
+            /** Contact Id */
+            contact_id?: string | null;
+            /** Email */
+            email: string;
+            /** Group Id */
+            group_id?: string | null;
+            /** Has Link */
+            has_link?: boolean | null;
+            /** Locale */
+            locale?: string | null;
+            /** Name */
+            name: string;
+            /** Phone */
+            phone?: string | null;
+        };
+        /** AgentRateDefaultsIn */
+        AgentRateDefaultsIn: {
+            /** Books For Clients */
+            books_for_clients?: boolean | null;
+            /** Has Link */
+            has_link?: boolean | null;
+            /** Terms */
+            terms?: components["schemas"]["AgentRateTermIn"][] | null;
+        };
+        /** AgentRateDefaultsOut */
+        AgentRateDefaultsOut: {
+            /** Books For Clients */
+            books_for_clients: boolean;
+            /** Has Link */
+            has_link: boolean;
+            /** Terms */
+            terms: components["schemas"]["AgentRateTermOut"][];
+        };
+        /** AgentRateTermIn */
+        AgentRateTermIn: {
+            /**
+             * Channel
+             * @enum {string}
+             */
+            channel: "assisted" | "self_serve";
+            /** Currency */
+            currency?: string | null;
+            /** Product Id */
+            product_id?: string | null;
+            /**
+             * Rate Kind
+             * @enum {string}
+             */
+            rate_kind: "percent" | "flat_per_booking" | "flat_per_person";
+            /** Value */
+            value: number | string;
+        };
+        /** AgentRateTermOut */
+        AgentRateTermOut: {
+            /**
+             * Channel
+             * @enum {string}
+             */
+            channel: "assisted" | "self_serve";
+            /** Currency */
+            currency?: string | null;
+            /** Id */
+            id: string;
+            /** Product Id */
+            product_id?: string | null;
+            /**
+             * Rate Kind
+             * @enum {string}
+             */
+            rate_kind: "percent" | "flat_per_booking" | "flat_per_person";
+            /** Value */
+            value: number;
+        };
+        /** AgentRateTermsIn */
+        AgentRateTermsIn: {
+            /** Terms */
+            terms: components["schemas"]["AgentRateTermIn"][];
+        };
+        /** AgentRateTermsOut */
+        AgentRateTermsOut: {
+            /** Terms */
+            terms: components["schemas"]["AgentRateTermOut"][];
+        };
+        /** AgentRatesOut */
+        AgentRatesOut: {
+            /** Contract Id */
+            contract_id: string;
+            effective: components["schemas"]["AgentEffectiveTermsOut"];
+            /** Own */
+            own: components["schemas"]["AgentRateTermOut"][];
+        };
         /** AiSettingsOut */
         AiSettingsOut: {
             /** Enabled */
@@ -14474,6 +15534,17 @@ export interface components {
             /** Per Session Max Turns */
             per_session_max_turns?: number | null;
         };
+        /** AiStatusOut */
+        AiStatusOut: {
+            /** Available */
+            available: boolean;
+            /** Credentials */
+            credentials: string;
+            /** Model */
+            model: string;
+            /** Reason */
+            reason: string | null;
+        };
         /** AiUsageOut */
         AiUsageOut: {
             /** Current Month */
@@ -14485,6 +15556,7 @@ export interface components {
             /** Operators */
             operators: components["schemas"]["OperatorUsage"][];
             settings: components["schemas"]["AiSettingsOut"];
+            status: components["schemas"]["AiStatusOut"];
             totals: components["schemas"]["UsageTotals"];
         };
         /** AlertOut */
@@ -14627,6 +15699,7 @@ export interface components {
             plan_gated: {
                 [key: string]: string[];
             };
+            power_ups?: components["schemas"]["PowerUpsApplied"] | null;
             /**
              * Status
              * @enum {string}
@@ -17169,6 +18242,8 @@ export interface components {
         ContractOut: {
             /** Accepted At */
             accepted_at?: string | null;
+            /** Can Book For Clients */
+            can_book_for_clients?: boolean | null;
             /** Commission Scheme Id */
             commission_scheme_id?: string | null;
             /**
@@ -17180,6 +18255,10 @@ export interface components {
             currency?: string | null;
             /** Ended At */
             ended_at?: string | null;
+            /** Group Id */
+            group_id?: string | null;
+            /** Has Link */
+            has_link?: boolean | null;
             /** Id */
             id: string;
             /** Invite Id */
@@ -17189,6 +18268,8 @@ export interface components {
              * @enum {string}
              */
             kind: "provider" | "agent";
+            /** Mute Link Bookings */
+            mute_link_bookings?: boolean | null;
             /** Notes */
             notes?: string | null;
             /** Operator Id */
@@ -17224,10 +18305,16 @@ export interface components {
         };
         /** ContractPatch */
         ContractPatch: {
+            /** Can Book For Clients */
+            can_book_for_clients?: boolean | null;
             /** Commission Scheme Id */
             commission_scheme_id?: string | null;
             /** Currency */
             currency?: string | null;
+            /** Group Id */
+            group_id?: string | null;
+            /** Has Link */
+            has_link?: boolean | null;
             /** Notes */
             notes?: string | null;
             /** Rate Kind */
@@ -17877,6 +18964,8 @@ export interface components {
         };
         /** DayManifestRow */
         DayManifestRow: {
+            /** Accepted Languages */
+            accepted_languages?: string[] | null;
             /** Assigned Unit Id */
             assigned_unit_id?: string | null;
             /** Assigned Unit Name */
@@ -18196,6 +19285,54 @@ export interface components {
             participant_id: string;
             /** Unit Id */
             unit_id?: string | null;
+        };
+        /** DecisionIn */
+        DecisionIn: {
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "reactivate" | "pay_once" | "no_commission" | "mute" | "unmute";
+            /** Commission Id */
+            commission_id?: string | null;
+        };
+        /** DecisionOut */
+        DecisionOut: {
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "reactivate" | "pay_once" | "no_commission" | "mute" | "unmute";
+            /** Agent Paused */
+            agent_paused: boolean;
+            /** Applied */
+            applied: boolean;
+            /** Commission Id */
+            commission_id?: string | null;
+            /** Commission Status */
+            commission_status?: string | null;
+            /** Has Link */
+            has_link: boolean;
+            /** Mute Link Bookings */
+            mute_link_bookings: boolean;
+            /**
+             * Resolved Count
+             * @default 0
+             */
+            resolved_count: number;
+        };
+        /** DeclineIn */
+        DeclineIn: {
+            /**
+             * Idempotency Key
+             * Format: uuid
+             */
+            idempotency_key: string;
+            /**
+             * Proposal Id
+             * Format: uuid
+             */
+            proposal_id: string;
         };
         /**
          * DerivedCut
@@ -18648,6 +19785,10 @@ export interface components {
          *     (e.g. "60.00"), matching ``_compute_line``'s wire format exactly.
          */
         EstimateLineItem: {
+            /** Attribute Bands */
+            attribute_bands?: {
+                [key: string]: unknown;
+            } | null;
             /** Attribute Missing */
             attribute_missing?: boolean | null;
             /** Auto Attached */
@@ -19026,6 +20167,15 @@ export interface components {
              * Format: date
              */
             start_date: string;
+        };
+        /** FetchRequest */
+        FetchRequest: {
+            /** Group Ids */
+            group_ids: string[];
+            /** Live Fingerprint */
+            live_fingerprint: string;
+            /** Playground Fingerprint */
+            playground_fingerprint: string;
         };
         /** FieldSchemaIn */
         FieldSchemaIn: {
@@ -19846,6 +20996,27 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /** HeldLinkBookingOut */
+        HeldLinkBookingOut: {
+            /** Booking Id */
+            booking_id: string;
+            /** Commission Amount */
+            commission_amount: number;
+            /** Commission Id */
+            commission_id: string;
+            /** Currency */
+            currency: string;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /**
+             * Held At
+             * Format: date-time
+             */
+            held_at: string;
+        };
         /**
          * HeldSeatRow
          * @description One invite seat held on one day (landr-f987a.11).
@@ -20477,6 +21648,14 @@ export interface components {
             failure_reason: string | null;
             /** Finalised At */
             finalised_at: string | null;
+            /** Holded Approve Error */
+            holded_approve_error?: string | null;
+            /** Holded Approve State */
+            holded_approve_state?: string | null;
+            /** Holded Send State */
+            holded_send_state?: string | null;
+            /** Holded Sent At */
+            holded_sent_at?: string | null;
             /** Max Attempts */
             max_attempts: number;
             /** Next Retry At */
@@ -21157,6 +22336,12 @@ export interface components {
             days: number;
         } & {
             [key: string]: unknown;
+        };
+        /** MyAgentRatesOut */
+        MyAgentRatesOut: {
+            /** Contract Id */
+            contract_id: string;
+            effective: components["schemas"]["AgentEffectiveTermsOut"];
         };
         /** MyLanguageIn */
         MyLanguageIn: {
@@ -21850,6 +23035,8 @@ export interface components {
             date_range_end?: string | null;
             /** Date Range Start */
             date_range_start?: string | null;
+            /** Is Addon Only */
+            is_addon_only?: boolean | null;
             /** Name */
             name: string;
             /** Name Localized */
@@ -21858,6 +23045,8 @@ export interface components {
             } | null;
             /** Product Id */
             product_id: string;
+            /** Product Kind */
+            product_kind?: string | null;
             /** Quantity */
             quantity: number;
             /** Selected Days */
@@ -22238,6 +23427,8 @@ export interface components {
          * @description Partial update payload — every field is optional.
          */
         OperatorPatch: {
+            /** Address Form */
+            address_form?: ("informal" | "formal") | null;
             /** Balance Due Days Before Arrival */
             balance_due_days_before_arrival?: number | null;
             /** Booking Window Months */
@@ -22278,6 +23469,8 @@ export interface components {
             group_discount_threshold?: number | null;
             /** Holded Approve Mode */
             holded_approve_mode?: ("never" | "on_push") | null;
+            /** Holded Send Mode */
+            holded_send_mode?: ("manual" | "after_approval") | null;
             /** Holded Transfer Mode */
             holded_transfer_mode?: ("all_finalized" | "only_paid") | null;
             /** Hotel Email Locale */
@@ -22346,6 +23539,10 @@ export interface components {
             widget_catalog_layout?: string | null;
             /** Widget Category Columns */
             widget_category_columns?: number | null;
+            /** Widget Color Mode */
+            widget_color_mode?: ("light" | "dark" | "auto") | null;
+            /** Widget Color Switcher */
+            widget_color_switcher?: boolean | null;
             /** Widget Cross Sell Enabled */
             widget_cross_sell_enabled?: boolean | null;
             /** Widget Description */
@@ -22425,6 +23622,8 @@ export interface components {
             /** Next Window Start */
             next_window_start?: string | null;
             occupancy_pricing?: components["schemas"]["OccupancyPricingConfig"] | null;
+            /** Preferred Guide Languages */
+            preferred_guide_languages?: string[];
             /** Price Base */
             price_base?: string | null;
             /** Price From */
@@ -22438,6 +23637,16 @@ export interface components {
              * @default false
              */
             requires_verification: boolean;
+            /**
+             * Second Language Mode
+             * @default off
+             */
+            second_language_mode: string;
+            /**
+             * Second Language Options
+             * @default all
+             */
+            second_language_options: string;
             /**
              * Share Reference Enabled
              * @default false
@@ -22579,6 +23788,11 @@ export interface components {
          *     landr-jb1k: widget_variant and widget_category_columns added.
          */
         OperatorSettings: {
+            /**
+             * Address Form
+             * @default informal
+             */
+            address_form: string;
             /** Balance Due Days Before Arrival */
             balance_due_days_before_arrival?: number | null;
             /** Booking Window Months */
@@ -22587,6 +23801,11 @@ export interface components {
             contact_email?: string | null;
             /** Country */
             country?: string | null;
+            /**
+             * Cross Sell Hints Enabled
+             * @default false
+             */
+            cross_sell_hints_enabled: boolean;
             /** Customer Languages */
             customer_languages?: string[];
             /**
@@ -22646,6 +23865,16 @@ export interface components {
             widget_catalog_layout?: string | null;
             /** Widget Category Columns */
             widget_category_columns?: number | null;
+            /**
+             * Widget Color Mode
+             * @default light
+             */
+            widget_color_mode: string;
+            /**
+             * Widget Color Switcher
+             * @default false
+             */
+            widget_color_switcher: boolean;
             /**
              * Widget Cross Sell Enabled
              * @default true
@@ -22712,6 +23941,11 @@ export interface components {
             pitch: {
                 [key: string]: components["schemas"]["TemplatePitchLocale"];
             } | null;
+            /**
+             * Power Ups
+             * @default []
+             */
+            power_ups: string[];
             /** Product Count */
             product_count: number;
             /** Product Kind */
@@ -22905,6 +24139,8 @@ export interface components {
         };
         /** ParticipantIn */
         ParticipantIn: {
+            /** Accepted Languages */
+            accepted_languages?: string[] | null;
             /** Email */
             email?: string | null;
             /** First Name */
@@ -23144,6 +24380,25 @@ export interface components {
              */
             method: "sepa_core" | "open_invoice";
         };
+        /** PayoutMarkPaidIn */
+        PayoutMarkPaidIn: {
+            /** Currency */
+            currency: string;
+            /** Notes */
+            notes?: string | null;
+            /** Period */
+            period: string;
+            /**
+             * Recipient Kind
+             * @constant
+             */
+            recipient_kind: "agent";
+            /**
+             * Recipient User Id
+             * Format: uuid
+             */
+            recipient_user_id: string;
+        };
         /**
          * PendingDecisionDetail
          * @description Full detail including landr_snapshot and candidates jsonb.
@@ -23365,6 +24620,161 @@ export interface components {
             interval: "monthly" | "annual";
             /** Package Slug */
             package_slug: string;
+        };
+        /** PlaygroundInviteIn */
+        PlaygroundInviteIn: {
+            /**
+             * Membership Id
+             * Format: uuid
+             */
+            membership_id: string;
+        };
+        /** PlaygroundLeftOut */
+        PlaygroundLeftOut: {
+            /** Columns */
+            columns: string[];
+            /** Group Id */
+            group_id: string;
+            /** Label */
+            label: string;
+            /** Pk */
+            pk: string;
+            /** Reason */
+            reason: string;
+            /** Table */
+            table: string;
+        };
+        /** PlaygroundProposeIn */
+        PlaygroundProposeIn: {
+            /** Group Ids */
+            group_ids: string[];
+            /**
+             * Idempotency Key
+             * Format: uuid
+             */
+            idempotency_key: string;
+            /** Live Fingerprint Seen */
+            live_fingerprint_seen?: string | null;
+            /** Replaces Proposal Id */
+            replaces_proposal_id?: string | null;
+            /** Seen */
+            seen: {
+                [key: string]: components["schemas"]["PlaygroundSeenLine"][];
+            };
+        };
+        /** PlaygroundProposeOut */
+        PlaygroundProposeOut: {
+            /** Created */
+            created: boolean;
+            /** Left Out */
+            left_out: components["schemas"]["PlaygroundLeftOut"][];
+            /** Live Fingerprint */
+            live_fingerprint?: string | null;
+            /** Proposal Id */
+            proposal_id: string;
+            /** Proposed At */
+            proposed_at?: string | null;
+            /** Proposed Group Ids */
+            proposed_group_ids: string[];
+            /** Proposed Lines */
+            proposed_lines: number;
+            /** Replaced At */
+            replaced_at?: string | null;
+            /** Replaced Proposal Id */
+            replaced_proposal_id?: string | null;
+            /** Replaced Proposed At */
+            replaced_proposed_at?: string | null;
+        };
+        /**
+         * PlaygroundSeenLine
+         * @description A line as the panel showed it (only to notice a change since; never sent on).
+         */
+        PlaygroundSeenLine: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "update" | "new" | "delete";
+            /** Live Value */
+            live_value?: {
+                [key: string]: unknown;
+            } | null;
+            /** Pk */
+            pk: string;
+            /** Playground Value */
+            playground_value?: {
+                [key: string]: unknown;
+            } | null;
+            /** Table */
+            table: string;
+        };
+        /** PowerUpListOut */
+        PowerUpListOut: {
+            /** Can Switch */
+            can_switch: boolean;
+            /** Operator Id */
+            operator_id: string;
+            /** Power Ups */
+            power_ups: components["schemas"]["PowerUpOut"][];
+        };
+        /** PowerUpLiveItems */
+        PowerUpLiveItems: {
+            /** Count */
+            count: number;
+            /** Label */
+            label: string;
+        };
+        /** PowerUpOut */
+        PowerUpOut: {
+            /** Description */
+            description?: string | null;
+            /** Key */
+            key: string;
+            live_items?: components["schemas"]["PowerUpLiveItems"] | null;
+            /** Name */
+            name: string;
+            /** Required By */
+            required_by: string[];
+            /** Requires */
+            requires: string[];
+            /** Settings Route */
+            settings_route?: string | null;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "on" | "off" | "available" | "locked";
+            /** Switched On */
+            switched_on: boolean;
+            /** Unlocked By */
+            unlocked_by?: string | null;
+        };
+        /** PowerUpSwitchIn */
+        PowerUpSwitchIn: {
+            /** Enabled */
+            enabled: boolean;
+        };
+        /** PowerUpSwitchOut */
+        PowerUpSwitchOut: {
+            /** Enabled */
+            enabled: boolean;
+            /** Key */
+            key: string;
+            /** Switched */
+            switched: string[];
+        };
+        /** PowerUpsApplied */
+        PowerUpsApplied: {
+            /**
+             * Enabled
+             * @default []
+             */
+            enabled: string[];
+            /**
+             * Plan Locked
+             * @default []
+             */
+            plan_locked: string[];
         };
         /**
          * PresetOut
@@ -24185,6 +25595,13 @@ export interface components {
             /** Repos */
             repos: components["schemas"]["ProdHotfixCandidateRepo"][];
         };
+        /** ProdHotfixCodeIn */
+        ProdHotfixCodeIn: {
+            /** Notes */
+            notes?: string | null;
+            /** Picks */
+            picks: components["schemas"]["HotfixPickIn"][];
+        };
         /** ProdHotfixPr */
         ProdHotfixPr: {
             /** Number */
@@ -24522,6 +25939,35 @@ export interface components {
              */
             parent_id?: string | null;
         };
+        /** ProductHint */
+        ProductHint: {
+            /** Currency */
+            currency?: string | null;
+            /** Name */
+            name: string;
+            /** Name Localized */
+            name_localized?: {
+                [key: string]: unknown;
+            } | null;
+            /** Price From */
+            price_from?: number | null;
+            /** Product Id */
+            product_id: string;
+            /** Product Kind */
+            product_kind?: string | null;
+            /** Short Description */
+            short_description?: string | null;
+            /** Short Description Localized */
+            short_description_localized?: {
+                [key: string]: unknown;
+            } | null;
+            /** Slug */
+            slug?: string | null;
+            /** Source */
+            source: string;
+            /** Thumb Url */
+            thumb_url?: string | null;
+        };
         /**
          * ProductImage
          * @description One image rendition pair for a product gallery (epic landr-d8rg).
@@ -24672,6 +26118,8 @@ export interface components {
             payment_note_localized?: {
                 [key: string]: unknown;
             } | null;
+            /** Preferred Guide Languages */
+            preferred_guide_languages?: string[] | null;
             /** Price Unit */
             price_unit?: ("booking" | "night" | "stay" | "guest" | "guest_night") | null;
             /** Product Group Id */
@@ -24685,6 +26133,10 @@ export interface components {
             requires_verification: boolean;
             /** Revenue Flows Through Operator */
             revenue_flows_through_operator?: boolean | null;
+            /** Second Language Mode */
+            second_language_mode?: ("off" | "not_preferred" | "always") | null;
+            /** Second Language Options */
+            second_language_options?: ("all" | "preferred") | null;
             /** Service Time Shape */
             service_time_shape?: ("single_date" | "days_range" | "fixed_window" | "time_slot") | null;
             /**
@@ -24911,6 +26363,8 @@ export interface components {
             payment_note_localized?: {
                 [key: string]: unknown;
             } | null;
+            /** Preferred Guide Languages */
+            preferred_guide_languages?: string[] | null;
             /** Price Unit */
             price_unit?: ("booking" | "night" | "stay" | "guest" | "guest_night") | null;
             /** Product Group Id */
@@ -24921,6 +26375,10 @@ export interface components {
             requires_verification?: boolean | null;
             /** Revenue Flows Through Operator */
             revenue_flows_through_operator?: boolean | null;
+            /** Second Language Mode */
+            second_language_mode?: ("off" | "not_preferred" | "always") | null;
+            /** Second Language Options */
+            second_language_options?: ("all" | "preferred") | null;
             /** Service Time Shape */
             service_time_shape?: ("single_date" | "days_range" | "fixed_window" | "time_slot") | null;
             /** Share Reference Enabled */
@@ -25051,6 +26509,22 @@ export interface components {
             units_required_per_booking?: number | null;
             /** Units Required Per Participant */
             units_required_per_participant?: number | null;
+        };
+        /** ProductSuggestion */
+        ProductSuggestion: {
+            /** Id */
+            id: string;
+            /** Product Id */
+            product_id: string;
+            /** Sort Order */
+            sort_order: number;
+            /** Suggested Product Id */
+            suggested_product_id: string;
+        };
+        /** ProductSuggestionsIn */
+        ProductSuggestionsIn: {
+            /** Suggested Product Ids */
+            suggested_product_ids: string[];
         };
         /**
          * ProductsCount
@@ -25281,6 +26755,11 @@ export interface components {
         };
         /** PublicSubmitBookingIn */
         PublicSubmitBookingIn: {
+            /**
+             * Accepted Languages Supported
+             * @default false
+             */
+            accepted_languages_supported: boolean;
             /** Agent Token */
             agent_token?: string | null;
             /**
@@ -26722,6 +28201,14 @@ export interface components {
             /** Reason */
             reason: string;
         };
+        /** ReviewStartedIn */
+        ReviewStartedIn: {
+            /**
+             * Proposal Id
+             * Format: uuid
+             */
+            proposal_id: string;
+        };
         /** RoleCapabilityLevel */
         RoleCapabilityLevel: {
             /**
@@ -27190,6 +28677,54 @@ export interface components {
             id?: string | null;
             /** Name */
             name: string;
+        };
+        /** SecondLanguageBreakdownOut */
+        SecondLanguageBreakdownOut: {
+            /** Combos */
+            combos: components["schemas"]["SecondLanguageComboRow"][];
+            /** Rows */
+            rows: components["schemas"]["SecondLanguageBreakdownRow"][];
+        };
+        /** SecondLanguageBreakdownRow */
+        SecondLanguageBreakdownRow: {
+            /** Accepted */
+            accepted: {
+                [key: string]: number;
+            };
+            /** Day */
+            day: string;
+            /** Main Language */
+            main_language?: string | null;
+            /** None */
+            none: number;
+            /** Product Id */
+            product_id: string;
+            /** Total */
+            total: number;
+        };
+        /**
+         * SecondLanguageComboRow
+         * @description ``count`` distinct participants of ``main_language`` who were on exactly
+         *     ``product_ids`` that ``day``: sum the combos touching a set of products to
+         *     count each guest once.
+         */
+        SecondLanguageComboRow: {
+            /** Count */
+            count: number;
+            /** Day */
+            day: string;
+            /** Main Language */
+            main_language?: string | null;
+            /** Product Ids */
+            product_ids: string[];
+        };
+        /**
+         * SecondLanguageCopyIn
+         * @description landr-hdk4y.1: copy one product's second-language settings to others.
+         */
+        SecondLanguageCopyIn: {
+            /** Target Product Ids */
+            target_product_ids: string[];
         };
         /**
          * SendConfirmationBody
@@ -27807,6 +29342,11 @@ export interface components {
             pitch: {
                 [key: string]: components["schemas"]["TemplatePitchLocale"];
             } | null;
+            /**
+             * Power Ups
+             * @default []
+             */
+            power_ups: string[];
             /** Product Count */
             product_count: number;
             /** Product Kind */
@@ -28027,6 +29567,12 @@ export interface components {
         };
         /** StagingHotfixCodeIn */
         StagingHotfixCodeIn: {
+            /**
+             * Express
+             * @description landr-i74li — express hotfix: after the staging hotfix merged, wait for the staging deploys + health, then have staging create AND approve a Hotfix to production of the same commits on the caller's behalf (held EXPRESS_HOTFIX_HOLD_SECONDS). Release approvers only.
+             * @default false
+             */
+            express: boolean;
             /** Notes */
             notes?: string | null;
             /** Picks */
@@ -28456,6 +30002,21 @@ export interface components {
             /** Name */
             name?: string | null;
         };
+        /** TakeIn */
+        TakeIn: {
+            /** Group Ids */
+            group_ids: string[];
+            /**
+             * Idempotency Key
+             * Format: uuid
+             */
+            idempotency_key: string;
+            /**
+             * Proposal Id
+             * Format: uuid
+             */
+            proposal_id: string;
+        };
         /**
          * TaxRateCheck
          * @description Is the operator's configured sales-tax rate actually usable against
@@ -28586,6 +30147,11 @@ export interface components {
             pitch: {
                 [key: string]: components["schemas"]["TemplatePitchLocale"];
             } | null;
+            /**
+             * Power Ups
+             * @default []
+             */
+            power_ups: string[];
             /** Product Count */
             product_count: number;
             /** Product Kind */
@@ -28626,6 +30192,44 @@ export interface components {
             headline?: string | null;
             /** Hero Url */
             hero_url?: string | null;
+        };
+        /** TemplatePowerUpIn */
+        TemplatePowerUpIn: {
+            /** Enabled */
+            enabled: boolean;
+        };
+        /** TemplatePowerUpOut */
+        TemplatePowerUpOut: {
+            /** Description */
+            description?: string | null;
+            /** Enabled */
+            enabled: boolean;
+            /** Key */
+            key: string;
+            /** Name */
+            name: string;
+            /**
+             * Required By
+             * @default []
+             */
+            required_by: string[];
+            /**
+             * Requires
+             * @default []
+             */
+            requires: string[];
+        };
+        /** TemplatePowerUpsOut */
+        TemplatePowerUpsOut: {
+            /** Power Ups */
+            power_ups: components["schemas"]["TemplatePowerUpOut"][];
+            /** Slug */
+            slug: string;
+            /**
+             * Switched
+             * @default []
+             */
+            switched: string[];
         };
         /** TemplatePublishIn */
         TemplatePublishIn: {
@@ -31018,6 +32622,86 @@ export interface operations {
             };
         };
     };
+    history: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    receive_invite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    proposals: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    setup_bundle: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
     relay_changelog: {
         parameters: {
             query: {
@@ -31129,6 +32813,28 @@ export interface operations {
         };
     };
     express_chain_relay: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    express_chain_continue: {
         parameters: {
             query?: never;
             header?: never;
@@ -32777,6 +34483,28 @@ export interface operations {
             };
         };
     };
+    express_continue_now: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
     get_local_worktree: {
         parameters: {
             query?: never;
@@ -32958,7 +34686,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["StagingHotfixCodeIn"];
+                "application/json": components["schemas"]["ProdHotfixCodeIn"];
             };
         };
         responses: {
@@ -33695,6 +35423,73 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HeroOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    landr_staff_template_power_ups: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TemplatePowerUpsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    landr_staff_switch_template_power_up: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TemplatePowerUpIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TemplatePowerUpsOut"];
                 };
             };
             /** @description Validation Error */
@@ -35315,6 +37110,453 @@ export interface operations {
             };
         };
     };
+    get_proposal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    decline_proposal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeclineIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    proposal_history: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    review_started: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReviewStartedIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    take_proposal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TakeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    fill_demo_bookings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_demo_bookings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    playground_diff_lines: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    playground_fetch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FetchRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    playground_history_timeline: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    live_bundle: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    propose_for_live: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlaygroundProposeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlaygroundProposeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    playground_status: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     patch_product_eligibility_rules: {
         parameters: {
             query?: never;
@@ -35338,6 +37580,74 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EligibilityRulesBody-Output"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_product_suggestions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductSuggestion"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_product_suggestions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProductSuggestionsIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductSuggestion"][];
                 };
             };
             /** @description Validation Error */
@@ -37046,6 +39356,38 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_get_product_suggestions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductHint"][];
                 };
             };
             /** @description Validation Error */
@@ -39291,7 +41633,7 @@ export interface operations {
         parameters: {
             query?: {
                 agent_user_id?: string | null;
-                status_filter?: ("accrued" | "paid" | "reversed") | null;
+                status_filter?: ("projected" | "earned" | "accrued" | "paid" | "reversed" | "held" | "no_commission") | null;
                 limit?: number;
             };
             header?: never;
@@ -39326,7 +41668,9 @@ export interface operations {
     };
     agent_earnings_summary: {
         parameters: {
-            query?: never;
+            query?: {
+                period?: string | null;
+            };
             header?: never;
             path: {
                 operator_id: string;
@@ -39344,6 +41688,381 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     }[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_agent_groups: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentGroupOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_agent_group: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentGroupIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentGroupOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_agent_group: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                group_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_agent_group: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                group_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentGroupPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentGroupOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_agent_group_rates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                group_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentRateTermsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_agent_group_rates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                group_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentRateTermsIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentRateTermsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_agent_invite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentInviteBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_agent_rate_defaults: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentRateDefaultsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_agent_rate_defaults: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentRateDefaultsIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentRateDefaultsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_agent_bookings_list: {
+        parameters: {
+            query?: {
+                agent_user_id?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    }[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_agent_earnings_list: {
+        parameters: {
+            query?: {
+                agent_user_id?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */
@@ -41261,6 +43980,45 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_patch_participant_accepted_languages: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                booking_id: string;
+                participant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AcceptedLanguagesPatchIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
             };
             /** @description Validation Error */
             422: {
@@ -43250,6 +46008,43 @@ export interface operations {
             };
         };
     };
+    commission_mark_payout_paid: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PayoutMarkPaidIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_latest_company_inquiry: {
         parameters: {
             query?: never;
@@ -43603,6 +46398,37 @@ export interface operations {
             };
         };
     };
+    my_agent_rates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MyAgentRatesOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     patch_contract: {
         parameters: {
             query?: never;
@@ -43639,6 +46465,74 @@ export interface operations {
             };
         };
     };
+    get_contract_agent_rates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                contract_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentRatesOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_contract_agent_rates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                contract_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentRateTermsIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentRatesOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     end_contract: {
         parameters: {
             query?: never;
@@ -43658,6 +46552,74 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ContractOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_held_link_bookings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                contract_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HeldLinkBookingOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    decide_link_booking: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                contract_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DecisionIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DecisionOut"];
                 };
             };
             /** @description Validation Error */
@@ -47321,6 +50283,43 @@ export interface operations {
             };
         };
     };
+    invite_to_playground: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlaygroundInviteIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_presets_endpoint: {
         parameters: {
             query?: never;
@@ -49263,6 +52262,44 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProductRequirementOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    copy_second_language_settings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SecondLanguageCopyIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */
@@ -52653,6 +55690,42 @@ export interface operations {
             };
         };
     };
+    staff_second_language_breakdown: {
+        parameters: {
+            query: {
+                from: string;
+                to: string;
+                approval?: "approved" | "unapproved" | "both";
+                language?: string | null;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SecondLanguageBreakdownOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_service_roles: {
         parameters: {
             query?: never;
@@ -54374,6 +57447,76 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_power_ups: {
+        parameters: {
+            query?: {
+                /** @description The operator to act on. Required when the caller belongs to more than one operator (400 operator_id_required); optional otherwise. */
+                operator_id?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PowerUpListOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    switch_power_up: {
+        parameters: {
+            query?: {
+                /** @description The operator to act on. Required when the caller belongs to more than one operator (400 operator_id_required); optional otherwise. */
+                operator_id?: string | null;
+            };
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PowerUpSwitchIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PowerUpSwitchOut"];
                 };
             };
             /** @description Validation Error */

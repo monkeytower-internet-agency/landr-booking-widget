@@ -250,3 +250,11 @@ export type PartyBreakfastMap = Record<PartyMemberId, boolean>
  * which the submit gate then makes the customer fix.
  */
 export type PartyLanguageMap = Record<PartyMemberId, string>
+
+/**
+ * landr-hdk4y.2: per-member ACCEPTED second guiding languages keyed by
+ * PartyMemberId (draft form). Same seam rule as `PartyLanguageMap`. `[]` means
+ * "I only speak my main language"; an absent member has not answered (or is not
+ * asked).
+ */
+export type PartyAcceptedLanguagesMap = Record<PartyMemberId, string[]>

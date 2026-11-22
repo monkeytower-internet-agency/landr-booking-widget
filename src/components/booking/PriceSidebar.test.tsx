@@ -199,7 +199,7 @@ describe('PriceSidebar (landr-qez0)', () => {
     )
     await waitFor(() => {
       expect(
-        screen.getAllByText(/your final total will be shown at confirmation/i)
+        screen.getAllByText(/you'll see your final total at confirmation/i)
           .length,
       ).toBeGreaterThan(0)
     })
@@ -1491,7 +1491,7 @@ describe('PriceSidebar — payee-aware pay-separately (landr-hzovu.5)', () => {
     })
     const desktop = screen.getByTestId('price-sidebar-desktop')
     const section = desktop.querySelector('[data-testid="price-sidebar-performer-section"]')
-    expect(section).toHaveTextContent('Zahlung an: Tandem pilot · am Tag selbst')
+    expect(section).toHaveTextContent('Zahlung an Tandem pilot · am Tag selbst')
     expect(section).toHaveTextContent('Wird direkt vor Ort an Tandem pilot bezahlt')
     expect(desktop.textContent).not.toMatch(/Hotel|Nacht|Nächte/)
   })

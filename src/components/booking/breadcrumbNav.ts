@@ -1,6 +1,7 @@
 import { createContext, useContext } from 'react'
 import type { BreadcrumbItem } from '@/appStepMachine'
 import type { Step } from '@/appStepMachine'
+import type { ProductKind } from '@/api/types'
 
 /**
  * Shared step-breadcrumb wiring (landr).
@@ -21,6 +22,18 @@ export interface BreadcrumbNavValue {
   items: BreadcrumbItem[]
   /** Navigate to a previous step (state already restored on the target). */
   onNavigate: (target: Step) => void
+  /**
+   * landr-3knn9: the funnel's main product kind — a stay words its people as
+   * guests in the crumbs. Absent/null → participant wording.
+   */
+  productKind?: ProductKind | null
+  /**
+   * A cross-sell detour: the product the guest opened from a suggestion has no
+   * trail of its own to walk back along, so the back slot (top-left of the
+   * step, where the step's back button always sits) returns to the booking
+   * they left instead.
+   */
+  detourBack?: { label: string; onBack: () => void }
 }
 
 export const BreadcrumbNavContext = createContext<BreadcrumbNavValue | null>(

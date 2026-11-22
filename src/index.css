@@ -165,8 +165,10 @@
   --elev-inset: inset 0 1px 2px 0 rgb(0 0 0 / 0.5);
   --popover: oklch(0.205 0 0);
   --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
+  /* Unthemed operators keep a blue accent in dark mode too (landr-80ubl.1:
+   * a near-white CTA reads like body text). Lighter blue + dark label: AA. */
+  --primary: #60a5fa;
+  --primary-foreground: #111111;
   --secondary: oklch(0.269 0 0);
   --secondary-foreground: oklch(0.985 0 0);
   --muted: oklch(0.269 0 0);
@@ -333,4 +335,25 @@ input[type='tel']:-webkit-autofill {
 input[type='tel']:not(:-webkit-autofill) {
   animation-name: onAutoFillCancel;
   animation-duration: 1ms;
+}
+
+/*
+ * Cross-sell hints: an unavailable suggestion flashes its notice (a small
+ * scale pop), then fades out. The notice-only message fades after a pause.
+ * Reduced motion: no scale, just the fade.
+ */
+@keyframes hint-flashout {
+  0% { opacity: 1; transform: scale(1); }
+  15% { transform: scale(1.03); }
+  70% { opacity: 1; }
+  100% { opacity: 0; transform: scale(0.96); }
+}
+@keyframes hint-fadeaway {
+  0%, 75% { opacity: 1; }
+  100% { opacity: 0; }
+}
+.hint-flash { animation: hint-flashout 1.4s ease forwards; }
+.hint-fade { animation: hint-fadeaway 3s ease forwards; }
+@media (prefers-reduced-motion: reduce) {
+  .hint-flash { animation-name: hint-fadeaway; animation-duration: 1.4s; }
 }

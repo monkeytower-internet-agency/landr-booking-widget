@@ -1,4 +1,4 @@
-import { fillBillingFields } from '@/test/fillBilling'
+import { passAddressStep } from '@/test/fillBilling'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 
@@ -190,6 +190,15 @@ async function passLanguageStep() {
  */
 async function backPastLanguageStep() {
   await screen.findByTestId('participant-language-board')
+  fireEvent.click(screen.getByTestId('step-back-button'))
+}
+
+/**
+ * landr-rw8i2: Back from the Review lands on the Address step first. One more
+ * Back continues to wherever the caller expects to be.
+ */
+async function backPastAddressStep() {
+  await screen.findByTestId('address-step-submit')
   fireEvent.click(screen.getByTestId('step-back-button'))
 }
 
@@ -1261,7 +1270,6 @@ describe('App', () => {
       setInput('booker_last_name', 'Lovelace')
       setInput('booker_email', 'ada@example.com')
       setInput('booker_phone', '+34 600000000')
-      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /continue/i }))
 
       // Dates, with the carried day already chosen.
@@ -1497,7 +1505,6 @@ describe('App', () => {
       fireEvent.change(bookerLast, { target: { value: 'Lovelace' } })
       fireEvent.change(bookerEmail, { target: { value: 'ada@example.com' } })
       fireEvent.change(bookerPhone, { target: { value: '+34 600000000' } })
-      fillBillingFields()
 
       const detailsContinue = screen.getByRole('button', { name: /continue/i })
       fireEvent.click(detailsContinue)
@@ -1505,9 +1512,7 @@ describe('App', () => {
       // landr-71kz.10: no remote flow configured (default mock) → no custom-form
       // step → straight to the review screen.
       await passLanguageStep()
-      await waitFor(() =>
-        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
-      )
+      await passAddressStep()
     })
 
     // landr-b3g5: regression test — back-navigating from a downstream
@@ -1578,7 +1583,6 @@ describe('App', () => {
       setInput('booker_last_name', 'Lovelace')
       setInput('booker_email', 'ada@example.com')
       setInput('booker_phone', '+34 600000000')
-      fillBillingFields()
       fireEvent.click(
         screen.getByRole('button', { name: /add participant/i }),
       )
@@ -1601,13 +1605,12 @@ describe('App', () => {
       fireEvent.click(screen.getByTestId('cf-submit'))
 
       // Now on BookingForm (review screen).
-      await waitFor(() =>
-        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
-      )
+      await passAddressStep()
 
-      // Back from the review screen → the custom-form step (the last pre-review
-      // step shown on the way forward).
+      // Back from the review screen → the Address step → the custom-form step
+      // (the last pre-review step shown on the way forward).
       fireEvent.click(screen.getByTestId('step-back-button'))
+      await backPastAddressStep()
       await waitFor(() =>
         expect(screen.getByTestId('cf-field-license_valid')).toBeInTheDocument(),
       )
@@ -1706,7 +1709,6 @@ describe('App', () => {
       setInput('booker_last_name', 'Lovelace')
       setInput('booker_email', 'ada@example.com')
       setInput('booker_phone', '+34 600000000')
-      fillBillingFields()
       // The OTP request fires on the email's blur, not on every keystroke.
       fireEvent.blur(
         document.querySelector<HTMLInputElement>('input[name="booker_email"]')!,
@@ -1722,14 +1724,13 @@ describe('App', () => {
 
       fireEvent.click(screen.getByRole('button', { name: /continue/i }))
       await passLanguageStep()
-      await waitFor(() =>
-        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
-      )
+      await passAddressStep()
 
       // Back to DetailsStep: the code re-appears (top-level App state, not
       // wiped by the remount) and the OTP request is NOT fired again for an
       // unchanged email.
       fireEvent.click(screen.getByTestId('step-back-button'))
+      await backPastAddressStep()
       await backPastLanguageStep()
       await waitFor(() =>
         expect(screen.getByText(/your contact details/i)).toBeInTheDocument(),
@@ -1741,9 +1742,7 @@ describe('App', () => {
       // Forward again without retyping anything, then Confirm.
       fireEvent.click(screen.getByRole('button', { name: /continue/i }))
       await passLanguageStep()
-      await waitFor(() =>
-        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
-      )
+      await passAddressStep()
       fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
       await waitFor(() =>
         expect(mocks.submitBooking).toHaveBeenCalledTimes(1),
@@ -1814,7 +1813,6 @@ describe('App', () => {
       setInput('booker_last_name', 'Lovelace')
       setInput('booker_email', 'ada@example.com')
       setInput('booker_phone', '+34 600000000')
-      fillBillingFields()
 
       // DetailsStep never gets a comment typed into it here — the whole
       // point is that the field is untouched on this step and only filled
@@ -1835,9 +1833,7 @@ describe('App', () => {
       // review (fill-form): the edit made on assign-languages survived
       // without the customer ever re-typing it, and it's pre-filled here
       // too (editable, not just echoed read-only).
-      await waitFor(() =>
-        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
-      )
+      await passAddressStep()
       expect(screen.getByTestId('customer-comment')).toHaveValue(
         'Allergic to bee stings',
       )
@@ -1946,7 +1942,6 @@ describe('App', () => {
       setInput('booker_last_name', 'Lovelace')
       setInput('booker_email', 'ada@example.com')
       setInput('booker_phone', '+34 600000000')
-      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /continue/i }))
 
       // PickupLocationPicker → pick "Beach Parking" → Continue.
@@ -1968,13 +1963,13 @@ describe('App', () => {
       fireEvent.click(screen.getByTestId('cf-submit'))
 
       // Land on fill-form (BookingForm review screen).
-      await waitFor(() =>
-        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
-      )
+      await passAddressStep()
 
-      // Click the top-left Back button — back to the custom-form step (the last
-      // pre-review step shown forward, not the pickup picker).
+      // Click the top-left Back button — Review → Address, and once more back to
+      // the custom-form step (the last pre-review step shown forward, not the
+      // pickup picker).
       fireEvent.click(screen.getByTestId('step-back-button'))
+      await backPastAddressStep()
       await waitFor(() =>
         expect(screen.getByTestId('cf-field-license_valid')).toBeInTheDocument(),
       )
@@ -2129,7 +2124,6 @@ describe('App', () => {
       setInput('booker_last_name', 'Lovelace')
       setInput('booker_email', 'ada@example.com')
       setInput('booker_phone', '+34 600000000')
-      fillBillingFields()
       // The hotel room is a capacity-2 Double Room; the occupancy gate now
       // requires both spots filled, so add a second guest before continuing.
       fireEvent.click(screen.getByRole('button', { name: /add participant/i }))
@@ -2347,7 +2341,6 @@ describe('App', () => {
       setInput('booker_last_name', 'Lovelace')
       setInput('booker_email', 'ada@example.com')
       setInput('booker_phone', '+34600000001')
-      fillBillingFields()
       fireEvent.click(screen.getByTestId('add-participant'))
       setInput('participant_2_first_name', 'Grace')
       setInput('participant_2_last_name', 'Hopper')
@@ -2395,9 +2388,7 @@ describe('App', () => {
       await waitFor(() => expect(screen.getByText('Ready to continue.')).toBeInTheDocument())
       fireEvent.click(screen.getByRole('button', { name: /Continue/i }))
       await passLanguageStep()
-      await waitFor(() =>
-        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
-      )
+      await passAddressStep()
 
       // Breadcrumb back to the details form and remove Grace — the MIDDLE
       // participant. Alan slides from party index 2 to index 1.
@@ -3154,7 +3145,6 @@ describe('App', () => {
       setInput('booker_last_name', 'Klein')
       setInput('booker_email', 'thomas@example.com')
       setInput('booker_phone', '+34 600000000')
-      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /continue/i }))
 
       // KEYSTONE ASSERTION: the invite flow still reaches the custom-form
@@ -3171,9 +3161,7 @@ describe('App', () => {
       })
       fireEvent.click(screen.getByTestId('cf-submit'))
 
-      await waitFor(() =>
-        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
-      )
+      await passAddressStep()
       fireEvent.click(screen.getByRole('button', { name: /confirm booking/i }))
 
       await waitFor(() => expect(mocks.submitBooking).toHaveBeenCalled())
@@ -3312,7 +3300,6 @@ describe('App', () => {
       setInput('booker_last_name', 'Klein')
       setInput('booker_email', 'thomas@example.com')
       setInput('booker_phone', '+34 600000000')
-      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /continue/i }))
 
       // Accommodation: guiding only (preselected) or a room - no shared room.
@@ -3333,9 +3320,7 @@ describe('App', () => {
       fireEvent.click(screen.getByRole('button', { name: /continue/i }))
 
       await passLanguageStep()
-      await waitFor(() =>
-        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
-      )
+      await passAddressStep()
       fireEvent.click(screen.getByRole('button', { name: /confirm booking/i }))
       await waitFor(() => expect(mocks.submitBooking).toHaveBeenCalled())
       const body = mocks.submitBooking.mock.calls[0]![0] as {
@@ -4155,7 +4140,6 @@ describe('App', () => {
       setInput('booker_last_name', 'Lovelace')
       setInput('booker_email', 'ada@example.com')
       setInput('booker_phone', '+34 600000000')
-      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /add participant/i }))
       setInput('participant_2_first_name', 'Grace')
       setInput('participant_2_last_name', 'Hopper')
@@ -4164,9 +4148,7 @@ describe('App', () => {
 
       // Review (fill-form) — no declarations for test-operator.
       await passLanguageStep()
-      await waitFor(() =>
-        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
-      )
+      await passAddressStep()
       // The breadcrumb now shows Dates as a NON-penultimate crumb, so it has
       // its own testid (the bug only manifests on a true breadcrumb JUMP).
       const datesCrumb = screen.getByTestId('breadcrumb-pick-selection')
@@ -4202,9 +4184,7 @@ describe('App', () => {
       // Continue forward to review and submit.
       fireEvent.click(screen.getByRole('button', { name: /continue/i }))
       await passLanguageStep()
-      await waitFor(() =>
-        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
-      )
+      await passAddressStep()
       fireEvent.click(screen.getByRole('button', { name: /confirm booking/i }))
 
       // CRITICAL ASSERTION 2: the final submit payload carries the preserved
@@ -4308,16 +4288,13 @@ describe('App', () => {
       setInput('booker_last_name', 'Lovelace')
       setInput('booker_email', 'ada@example.com')
       setInput('booker_phone', '+34 600000000')
-      fillBillingFields()
       setInput('participant_2_first_name', 'Grace')
       setInput('participant_2_last_name', 'Hopper')
       setInput('participant_2_phone', '+34600000002')
       fireEvent.click(screen.getByRole('button', { name: /continue/i }))
 
       await passLanguageStep()
-      await waitFor(() =>
-        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
-      )
+      await passAddressStep()
       // Seats ran out meanwhile → the review offers "Change dates".
       mocks.submitBooking.mockRejectedValueOnce(
         new HttpError(
@@ -4466,7 +4443,6 @@ describe('App', () => {
       setInput('booker_last_name', 'Lovelace')
       setInput('booker_email', 'ada@example.com')
       setInput('booker_phone', '+34 600000000')
-      fillBillingFields()
       setInput('participant_2_first_name', 'Grace')
       setInput('participant_2_last_name', 'Hopper')
       setInput('participant_2_phone', '+34600000002')
@@ -4531,9 +4507,7 @@ describe('App', () => {
 
       // Dates were the second frame step → straight on to the middles.
       await passLanguageStep()
-      await waitFor(() =>
-        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
-      )
+      await passAddressStep()
       fireEvent.click(screen.getByRole('button', { name: /confirm booking/i }))
       await waitFor(() => expect(mocks.submitBooking).toHaveBeenCalled())
       const body = mocks.submitBooking.mock.calls[0]![0] as {
@@ -4611,9 +4585,7 @@ describe('App', () => {
       fillParty()
       fireEvent.click(screen.getByRole('button', { name: /continue/i }))
       await passLanguageStep()
-      await waitFor(() =>
-        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
-      )
+      await passAddressStep()
     })
   })
 
@@ -4692,7 +4664,6 @@ describe('App', () => {
       setInput('booker_last_name', 'Lovelace')
       setInput('booker_email', 'ada@example.com')
       setInput('booker_phone', '+34 600000000')
-      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /continue/i }))
 
       // KEYSTONE ASSERTION: the custom-form step renders (NOT straight to review).
@@ -4714,9 +4685,7 @@ describe('App', () => {
       fireEvent.click(screen.getByTestId('cf-submit'))
 
       // Review screen → confirm.
-      await waitFor(() =>
-        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
-      )
+      await passAddressStep()
       fireEvent.click(screen.getByRole('button', { name: /confirm booking/i }))
 
       // The submit payload carries the answers as form_responses.
@@ -4825,7 +4794,6 @@ describe('App', () => {
       setInput('booker_last_name', 'Lovelace')
       setInput('booker_email', 'ada@example.com')
       setInput('booker_phone', '+34 600000000')
-      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /continue/i }))
 
       // Form 1: declarations.
@@ -4854,9 +4822,7 @@ describe('App', () => {
       })
       fireEvent.click(screen.getByTestId('cf-submit'))
 
-      await waitFor(() =>
-        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
-      )
+      await passAddressStep()
       fireEvent.click(screen.getByRole('button', { name: /confirm booking/i }))
 
       await waitFor(() => expect(mocks.submitBooking).toHaveBeenCalled())
@@ -4940,7 +4906,6 @@ describe('App', () => {
         setInput('booker_last_name', 'Lovelace')
         setInput('booker_email', 'ada@example.com')
         setInput('booker_phone', '+34 600000000')
-        fillBillingFields()
         fireEvent.click(screen.getByRole('button', { name: /continue/i }))
         await passLanguageStep()
         await waitFor(() =>
@@ -4955,9 +4920,7 @@ describe('App', () => {
         expect(screen.queryByTestId('cf-field-license_valid')).toBeNull()
         fireEvent.click(screen.getByTestId('cf-submit'))
 
-        await waitFor(() =>
-          expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
-        )
+        await passAddressStep()
         expect(screen.getByTestId('review-customer-completes')).toHaveTextContent(
           /Customer completes:.*Eligibility declarations/i,
         )
@@ -4977,9 +4940,7 @@ describe('App', () => {
       it('survives a reload: the flag is still sent and the deferred form has no response', async () => {
         const rendered = await driveToCustomForm()
         fireEvent.click(screen.getByTestId('cf-submit'))
-        await waitFor(() =>
-          expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
-        )
+        await passAddressStep()
         // Reload: in-memory state is gone, only sessionStorage survives.
         rendered.unmount()
         render(<App />)
@@ -5012,9 +4973,7 @@ describe('App', () => {
         })
         fireEvent.click(screen.getByTestId('cf-submit'))
 
-        await waitFor(() =>
-          expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
-        )
+        await passAddressStep()
         expect(screen.queryByTestId('review-customer-completes')).toBeNull()
         fireEvent.click(screen.getByRole('button', { name: /confirm booking/i }))
 
@@ -5087,15 +5046,248 @@ describe('App', () => {
       setInput('booker_last_name', 'Lovelace')
       setInput('booker_email', 'ada@example.com')
       setInput('booker_phone', '+34 600000000')
-      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /continue/i }))
 
       // Straight to review — no custom-form step is produced.
       await passLanguageStep()
+      await passAddressStep()
+      expect(screen.queryByTestId('cf-submit')).not.toBeInTheDocument()
+    })
+
+    // landr-rw8i2: the billing address is its own step right before the
+    // read-only Review.
+    it('collects the billing address on its own Address step before a read-only Review', async () => {
+      const today = new Date()
+      today.setHours(12, 0, 0, 0)
+      const iso = today.toISOString().slice(0, 10)
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          product_id: 'svc-addr',
+          product_kind: 'service',
+          service_time_shape: 'single_date',
+          name: 'Solo Lesson',
+          needs_pickup: false,
+          hotel_offering: 'none',
+        }),
+      ])
+      mocks.getAvailability.mockResolvedValue([
+        {
+          availability_id: 'a-1',
+          date: iso,
+          start_time: null,
+          end_time: null,
+          capacity: 10,
+          capacity_reserved: 0,
+          available_seats: 10,
+          status: 'open',
+        },
+      ])
+      const setInput = (name: string, value: string) =>
+        fireEvent.change(
+          document.querySelector<HTMLInputElement>(`input[name="${name}"]`)!,
+          { target: { value } },
+        )
+
+      render(<App />)
+      await pickProduct('Solo Lesson')
+      await waitFor(() => expect(screen.getByText(/Pick a date/i)).toBeInTheDocument())
+      const dayButtons = screen
+        .getAllByRole('gridcell')
+        .map((c) => c.querySelector('button'))
+        .filter((b): b is HTMLButtonElement => !!b && !b.disabled)
+      fireEvent.click(dayButtons[0]!)
+      fireEvent.click(await screen.findByRole('button', { name: /continue/i }))
+      await waitFor(() =>
+        expect(screen.getByText(/your contact details/i)).toBeInTheDocument(),
+      )
+      setInput('booker_first_name', 'Ada')
+      setInput('booker_last_name', 'Lovelace')
+      setInput('booker_email', 'ada@example.com')
+      setInput('booker_phone', '+34 600000000')
+      fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+      await passLanguageStep()
+
+      // The Address step: breadcrumb … Language › Address, Next greyed out.
+      const next = await screen.findByTestId('address-step-submit')
+      expect(screen.queryByText(/review your booking/i)).not.toBeInTheDocument()
+      const crumbs = within(screen.getByTestId('step-breadcrumb'))
+        .getAllByRole('listitem')
+        .map((li) => li.textContent)
+      expect(crumbs.slice(-3)).toEqual(['Participants', 'Language', 'Address'])
+      expect(next).toBeDisabled()
+      expect(document.getElementById('address-step-gate')).toHaveTextContent(
+        'Fill in street, postal code, city and country to continue.',
+      )
+      // Required fields one by one: still greyed out until the last one. The
+      // country is set explicitly first: its async guess would otherwise race
+      // the assertions below.
+      fireEvent.change(document.querySelector('[name="booker_billing_country"]')!, {
+        target: { value: 'ES' },
+      })
+      setInput('booker_billing_address_line1', 'Calle Mayor 1')
+      setInput('booker_billing_postal_code', '28013')
+      expect(next).toBeDisabled()
+      setInput('booker_billing_city', 'Madrid')
+      expect(next).toBeEnabled()
+      fireEvent.click(next)
+
+      // Review: the full trail ends … Address › Review; only a summary, no
+      // billing inputs; the note is the last thing before Confirm.
       await waitFor(() =>
         expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
       )
-      expect(screen.queryByTestId('cf-submit')).not.toBeInTheDocument()
+      const reviewCrumbs = within(screen.getByTestId('step-breadcrumb'))
+        .getAllByRole('listitem')
+        .map((li) => li.textContent)
+      expect(reviewCrumbs.slice(-4)).toEqual(['Participants', 'Language', 'Address', 'Review'])
+      expect(screen.getByTestId('review-billing')).toHaveTextContent('Calle Mayor 1')
+      expect(screen.getByTestId('review-billing')).toHaveTextContent('28013 Madrid')
+      expect(document.querySelector('[name^="booker_billing"]')).toBeNull()
+      expect(screen.queryByText(/enter your billing address/i)).not.toBeInTheDocument()
+      const inputs = [...document.querySelectorAll('input, select, textarea')].filter(
+        (el) => !el.closest('[data-testid="customer-comment-section"]'),
+      )
+      expect(inputs).toHaveLength(0)
+      const confirm = screen.getByRole('button', { name: /confirm booking/i })
+      expect(confirm).toBeEnabled()
+      // The (collapsed) note sits directly above the Confirm box.
+      expect(screen.getByTestId('customer-comment-reveal-add').nextElementSibling).toBe(
+        confirm.closest('[data-next-action]'),
+      )
+
+      // "Edit" on the summary goes back to the Address step, values intact.
+      fireEvent.click(screen.getByTestId('review-billing-edit'))
+      await screen.findByTestId('address-step-submit')
+      expect(
+        document.querySelector<HTMLInputElement>('[name="booker_billing_city"]'),
+      ).toHaveValue('Madrid')
+      expect(screen.getByTestId('address-step-submit')).toBeEnabled()
+    })
+
+    it('collects documents on Details and the second language on Language; Review only summarises both (landr-kq0l4)', async () => {
+      const today = new Date()
+      today.setHours(12, 0, 0, 0)
+      const iso = today.toISOString().slice(0, 10)
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          product_id: 'svc-docs',
+          product_kind: 'service',
+          service_time_shape: 'single_date',
+          name: 'Solo Lesson',
+          needs_pickup: false,
+          hotel_offering: 'none',
+          guide_languages: ['en', 'de', 'es', 'fr'],
+          requires_verification: true,
+          waiver_text_localized: { en: 'At my own risk.' },
+          second_language_mode: 'always',
+          second_language_options: 'all',
+        }),
+      ])
+      mocks.getAvailability.mockResolvedValue([
+        {
+          availability_id: 'a-1',
+          date: iso,
+          start_time: null,
+          end_time: null,
+          capacity: 10,
+          capacity_reserved: 0,
+          available_seats: 10,
+          status: 'open',
+        },
+      ])
+      const setInput = (name: string, value: string) =>
+        fireEvent.change(
+          document.querySelector<HTMLInputElement>(`input[name="${name}"]`)!,
+          { target: { value } },
+        )
+
+      render(<App />)
+      await pickProduct('Solo Lesson')
+      await waitFor(() => expect(screen.getByText(/Pick a date/i)).toBeInTheDocument())
+      const dayButtons = screen
+        .getAllByRole('gridcell')
+        .map((c) => c.querySelector('button'))
+        .filter((b): b is HTMLButtonElement => !!b && !b.disabled)
+      fireEvent.click(dayButtons[0]!)
+      fireEvent.click(await screen.findByRole('button', { name: /continue/i }))
+      await waitFor(() =>
+        expect(screen.getByText(/your contact details/i)).toBeInTheDocument(),
+      )
+
+      // Details: the documents live here; Continue waits for them.
+      expect(screen.getByTestId('verification-fields')).toBeInTheDocument()
+      setInput('booker_first_name', 'Ada')
+      setInput('booker_last_name', 'Lovelace')
+      setInput('booker_email', 'ada@example.com')
+      setInput('booker_phone', '+34 600000000')
+      fireEvent.click(screen.getByTestId('details-step-submit'))
+      expect(screen.getByTestId('details-step-gate')).toHaveTextContent(/Add both documents/)
+      expect(screen.queryByTestId('participant-language-board')).not.toBeInTheDocument()
+      const upload = (id: string, f: File) =>
+        fireEvent.change(screen.getByTestId(id), { target: { files: [f] } })
+      upload('verification-licence', new File(['x'], 'licence.jpg', { type: 'image/jpeg' }))
+      upload('verification-insurance', new File(['x'], 'insurance.pdf', { type: 'application/pdf' }))
+      fireEvent.change(screen.getByTestId('verification-signature'), {
+        target: { value: 'Ada Lovelace' },
+      })
+      fireEvent.click(screen.getByTestId('verification-accept'))
+      fireEvent.click(screen.getByTestId('details-step-submit'))
+
+      // Language: the second-language question is asked here, gating Continue.
+      await screen.findByTestId('participant-language-board')
+      fireEvent.click(screen.getByTestId('lang-add-en'))
+      await screen.findByTestId('second-language-questions')
+      await waitFor(() =>
+        expect(screen.getByTestId('language-step-submit')).toBeDisabled(),
+      )
+      fireEvent.click(screen.getByTestId('second-language-0-de'))
+      await waitFor(() =>
+        expect(screen.getByTestId('language-step-submit')).toBeEnabled(),
+      )
+      fireEvent.click(screen.getByTestId('language-step-submit'))
+
+      // Address, then the read-only Review.
+      await screen.findByTestId('address-step-submit')
+      fireEvent.change(document.querySelector('[name="booker_billing_country"]')!, {
+        target: { value: 'ES' },
+      })
+      setInput('booker_billing_address_line1', 'Calle Mayor 1')
+      setInput('booker_billing_postal_code', '28013')
+      setInput('booker_billing_city', 'Madrid')
+      fireEvent.click(screen.getByTestId('address-step-submit'))
+      await waitFor(() =>
+        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
+      )
+      const inputs = [...document.querySelectorAll('input, select, textarea')].filter(
+        (el) => !el.closest('[data-testid="customer-comment-section"]'),
+      )
+      expect(inputs).toHaveLength(0)
+      expect(screen.getByTestId('review-verification')).toHaveTextContent('licence.jpg')
+      expect(screen.getByTestId('review-verification')).toHaveTextContent('Signed by Ada Lovelace')
+      expect(screen.getByTestId('review-second-language-0')).toHaveTextContent(/German/)
+      expect(screen.getByRole('button', { name: /confirm booking/i })).toBeEnabled()
+
+      // "Edit" on the documents goes to Details (values kept) and Continue
+      // comes straight back to the same Review.
+      fireEvent.click(screen.getByTestId('review-verification-edit'))
+      await screen.findByTestId('verification-fields')
+      expect(screen.getByTestId('verification-signature')).toHaveValue('Ada Lovelace')
+      expect(screen.getByTestId('details-step-gate')).toHaveTextContent(/ready/i)
+      fireEvent.click(screen.getByTestId('details-step-submit'))
+      await waitFor(() =>
+        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
+      )
+      expect(screen.getByTestId('review-verification')).toHaveTextContent('licence.jpg')
+
+      // "Edit" on the second language goes to the Language step and back.
+      fireEvent.click(screen.getByTestId('review-second-language-edit'))
+      await screen.findByTestId('participant-language-board')
+      expect(screen.getByTestId('second-language-0-de')).toBeChecked()
+      fireEvent.click(screen.getByTestId('language-step-submit'))
+      await waitFor(() =>
+        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
+      )
+      expect(screen.getByTestId('review-second-language-0')).toHaveTextContent(/German/)
     })
 
     it('a malformed / failed flow fetch falls back to the legacy plan and NEVER blanks the widget', async () => {
@@ -5154,14 +5346,11 @@ describe('App', () => {
       setInput('booker_last_name', 'Lovelace')
       setInput('booker_email', 'ada@example.com')
       setInput('booker_phone', '+34 600000000')
-      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /continue/i }))
 
       // The widget still works — straight to review, no custom-form, no crash.
       await passLanguageStep()
-      await waitFor(() =>
-        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
-      )
+      await passAddressStep()
       expect(screen.queryByTestId('cf-submit')).not.toBeInTheDocument()
     })
 
@@ -5249,7 +5438,6 @@ describe('App', () => {
       setInput('booker_last_name', 'Lovelace')
       setInput('booker_email', 'ada@example.com')
       setInput('booker_phone', '+34 600000000')
-      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /continue/i }))
 
       // The flow fetch is still in flight (releaseFirstFlow not yet called) —
@@ -5350,7 +5538,6 @@ describe('App', () => {
       setInput('booker_last_name', 'Lovelace')
       setInput('booker_email', 'ada@example.com')
       setInput('booker_phone', '+34 600000000')
-      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /continue/i }))
 
       // The custom-form step renders from App's already-resolved flow — no
@@ -5372,9 +5559,7 @@ describe('App', () => {
       expect(submitButton).not.toBeDisabled()
       fireEvent.click(submitButton)
 
-      await waitFor(() =>
-        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
-      )
+      await passAddressStep()
 
       // Only App's single fetch happened — CustomFormStep never re-fetched.
       expect(calls).toBe(1)
@@ -5419,7 +5604,6 @@ describe('App', () => {
       setInput('booker_last_name', 'Lovelace')
       setInput('booker_email', 'ada@example.com')
       setInput('booker_phone', '+34 600000000')
-      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /continue/i }))
     }
 
@@ -5473,9 +5657,7 @@ describe('App', () => {
       })
       fireEvent.click(screen.getByTestId('cf-submit'))
 
-      await waitFor(() =>
-        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
-      )
+      await passAddressStep()
       fireEvent.click(screen.getByRole('button', { name: /confirm booking/i }))
       await waitFor(() => expect(mocks.submitBooking).toHaveBeenCalled())
 
@@ -5559,9 +5741,7 @@ describe('App', () => {
       })
       fireEvent.click(screen.getByTestId('cf-submit'))
 
-      await waitFor(() =>
-        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
-      )
+      await passAddressStep()
 
       // Jump back to the "product" breadcrumb crumb — the reachable path back
       // to ProductDetailStep WITHOUT a full restart (every step-by-step Back
@@ -5883,7 +6063,6 @@ describe('App', () => {
       setField('booker_last_name', 'Lovelace')
       setField('booker_email', 'ada@example.com')
       setField('booker_phone', '+34600000001')
-      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /continue/i }))
     }
 
@@ -5921,9 +6100,7 @@ describe('App', () => {
       await fillDateThenBooker()
 
       // Straight from details to review — no board, no language crumb.
-      await waitFor(() =>
-        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
-      )
+      await passAddressStep()
       expect(screen.queryByTestId('participant-language-board')).not.toBeInTheDocument()
       expect(screen.queryByTestId('review-participant-language-0')).not.toBeInTheDocument()
 
@@ -5987,15 +6164,13 @@ describe('App', () => {
       render(<App />)
       await pickProduct('Any Tandem')
       await fillDateThenBooker()
-      await waitFor(() =>
-        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
-      )
+      await passAddressStep()
       // The price names who to pay; there is no payment or card step.
       await waitFor(() =>
         expect(screen.getAllByTestId('price-sidebar-pay-directly').length).toBeGreaterThan(0),
       )
       expect(screen.getAllByTestId('price-sidebar-pay-directly')[0]).toHaveTextContent(
-        'Pay directly to Sky Club',
+        'You pay Sky Club directly',
       )
       expect(screen.queryByText(/card number|pay now|payment details/i)).not.toBeInTheDocument()
       expect(screen.getAllByText('Your price').length).toBeGreaterThan(0)
@@ -6064,7 +6239,7 @@ describe('App', () => {
         expect(screen.getAllByTestId('price-sidebar-pay-directly').length).toBeGreaterThan(0),
       )
       expect(screen.getAllByTestId('price-sidebar-pay-directly')[0]).toHaveTextContent(
-        'Pay directly to Sky Club. There is no online payment.',
+        "You pay Sky Club directly — there's no online payment.",
       )
       expect(mocks.submitBooking).not.toHaveBeenCalled()
     })
@@ -6115,9 +6290,7 @@ describe('App', () => {
       await fillDateThenBooker()
 
       // Straight from details to review — no board, no language crumb.
-      await waitFor(() =>
-        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
-      )
+      await passAddressStep()
       expect(screen.queryByTestId('participant-language-board')).not.toBeInTheDocument()
       expect(screen.queryByTestId('breadcrumb-assign-languages')).not.toBeInTheDocument()
 
@@ -6166,9 +6339,7 @@ describe('App', () => {
         expect(screen.getByTestId('language-step-submit')).toBeEnabled(),
       )
       fireEvent.click(screen.getByTestId('language-step-submit'))
-      await waitFor(() =>
-        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
-      )
+      await passAddressStep()
       expect(
         screen.getByTestId('review-participant-language-0').textContent,
       ).toContain('German')
@@ -6176,9 +6347,7 @@ describe('App', () => {
       await backToCatalogViaProductCrumb()
       await pickProduct('Any Flight')
       await fillDateThenBooker()
-      await waitFor(() =>
-        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
-      )
+      await passAddressStep()
     }
 
     async function backToCatalogViaProductCrumb() {
@@ -6254,7 +6423,7 @@ describe('App', () => {
       }
     }
 
-    async function advanceToLanguageBoard() {
+    async function advanceToLanguageBoard(productExtra: Partial<Product> = {}) {
       const today = new Date()
       today.setHours(12, 0, 0, 0)
       mocks.getOperatorSettings.mockResolvedValue({
@@ -6272,6 +6441,7 @@ describe('App', () => {
           // landr-p68d2: the offered set now lives on the PRODUCT — this
           // was the operator's offered_languages before landr-p68d2.1/.2.
           guide_languages: ['en', 'de', 'es'],
+          ...productExtra,
         }),
       ])
       mocks.getAvailability.mockResolvedValue([
@@ -6319,7 +6489,6 @@ describe('App', () => {
       setField('booker_last_name', 'Lovelace')
       setField('booker_email', 'ada@example.com')
       setField('booker_phone', '+34600000001')
-      fillBillingFields()
       fireEvent.click(screen.getByTestId('add-participant'))
       setField('participant_2_first_name', 'Grace')
       setField('participant_2_last_name', 'Hopper')
@@ -6358,9 +6527,7 @@ describe('App', () => {
       expect(screen.queryByTestId('cf-field-languages')).not.toBeInTheDocument()
       fireEvent.click(screen.getByTestId('cf-submit'))
 
-      await waitFor(() =>
-        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
-      )
+      await passAddressStep()
       // The review names each person's language before anything is submitted.
       expect(
         screen.getByTestId('review-participant-language-0').textContent,
@@ -6385,6 +6552,47 @@ describe('App', () => {
       })
       // Booking-level list derived from the same map, booker first.
       expect(body.customer_languages).toEqual(['es', 'de'])
+    })
+
+    it('asks the second guiding language per participant and submits the answers (landr-hdk4y.2)', async () => {
+      // EN/DE preferred, mode "only when the main language is not preferred":
+      // the Spanish guest is asked, the German one is not.
+      await advanceToLanguageBoard({
+        second_language_mode: 'not_preferred',
+        preferred_guide_languages: ['en', 'de'],
+        second_language_options: 'all',
+      })
+      assignLanguage(0, 'es')
+      assignLanguage(1, 'de')
+      expect(screen.getByTestId('second-language-asked-0')).toBeInTheDocument()
+      expect(screen.queryByTestId('second-language-asked-1')).not.toBeInTheDocument()
+      // Everyone placed, but Ada has not answered: Continue says why.
+      expect(screen.getByTestId('language-step-submit')).toBeDisabled()
+      fireEvent.click(screen.getByTestId('second-language-0-en'))
+      fireEvent.click(screen.getByTestId('second-language-0-de'))
+      await waitFor(() =>
+        expect(screen.getByTestId('language-step-submit')).toBeEnabled(),
+      )
+      fireEvent.click(screen.getByTestId('language-step-submit'))
+
+      await waitFor(() => expect(screen.getByTestId('cf-submit')).toBeEnabled())
+      fireEvent.click(screen.getByTestId('cf-submit'))
+      await passAddressStep()
+      // Answered on the language step, so the review does not ask again.
+      expect(screen.queryByTestId('second-language-questions')).not.toBeInTheDocument()
+
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+      await waitFor(() => expect(mocks.submitBooking).toHaveBeenCalled())
+      const body = mocks.submitBooking.mock.calls[0][0] as {
+        accepted_languages_supported?: boolean
+        participants: Array<Record<string, unknown>>
+      }
+      expect(body.accepted_languages_supported).toBe(true)
+      expect(body.participants[0]).toMatchObject({
+        language: 'es',
+        accepted_languages: ['en', 'de'],
+      })
+      expect('accepted_languages' in body.participants[1]!).toBe(false)
     })
 
     it('runs the language step for a product with NO custom form at all', async () => {
@@ -6453,7 +6661,6 @@ describe('App', () => {
       setField('booker_last_name', 'Lovelace')
       setField('booker_email', 'ada@example.com')
       setField('booker_phone', '+34600000001')
-      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /continue/i }))
 
       // The language step still appears, with no custom form anywhere.
@@ -6470,9 +6677,7 @@ describe('App', () => {
       fireEvent.click(screen.getByTestId('language-step-submit'))
 
       // Straight to review — no custom-form step in this plan.
-      await waitFor(() =>
-        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
-      )
+      await passAddressStep()
       expect(screen.queryByTestId('cf-submit')).not.toBeInTheDocument()
 
       fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
@@ -6549,7 +6754,6 @@ describe('App', () => {
       setField('booker_last_name', 'Lovelace')
       setField('booker_email', 'ada@example.com')
       setField('booker_phone', '+34600000001')
-      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /continue/i }))
 
       await waitFor(() =>
@@ -6561,9 +6765,7 @@ describe('App', () => {
       })
       fireEvent.click(screen.getByTestId('guest-attrs-submit'))
 
-      await waitFor(() =>
-        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
-      )
+      await passAddressStep()
       fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
       await waitFor(() => expect(mocks.submitBooking).toHaveBeenCalled())
       const body = mocks.submitBooking.mock.calls[0][0] as {
@@ -6638,10 +6840,9 @@ describe('App', () => {
       setField('booker_last_name', 'Lovelace')
       setField('booker_email', 'ada@example.com')
       setField('booker_phone', '+34600000001')
-      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /continue/i }))
 
-      await waitFor(() => expect(screen.getByText(/review your booking/i)).toBeInTheDocument())
+      await passAddressStep()
       expect(screen.queryByTestId('guest-attributes-step')).toBeNull()
       fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
       await waitFor(() => expect(mocks.submitBooking).toHaveBeenCalled())
@@ -6712,7 +6913,6 @@ describe('App', () => {
       setField('booker_last_name', 'Lovelace')
       setField('booker_email', 'ada@example.com')
       setField('booker_phone', '+34600000001')
-      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /continue/i }))
 
       await waitFor(() =>
@@ -6721,12 +6921,11 @@ describe('App', () => {
       fireEvent.change(screen.getByTestId('guest-attr-0-age'), { target: { value: '34' } })
       fireEvent.change(screen.getByTestId('guest-attr-0-weight_kg'), { target: { value: '70' } })
       fireEvent.click(screen.getByTestId('guest-attrs-submit'))
-      await waitFor(() =>
-        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
-      )
+      await passAddressStep()
 
       // Back to the party step and on again: the step comes back prefilled.
       fireEvent.click(screen.getByTestId('step-back-button'))
+      await backPastAddressStep()
       await waitFor(() =>
         expect(screen.getByText(/your contact details/i)).toBeInTheDocument(),
       )
@@ -6750,9 +6949,7 @@ describe('App', () => {
       fireEvent.click(screen.getByTestId('language-step-submit'))
       await waitFor(() => expect(screen.getByTestId('cf-submit')).toBeEnabled())
       fireEvent.click(screen.getByTestId('cf-submit'))
-      await waitFor(() =>
-        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
-      )
+      await passAddressStep()
 
       // Back to details, remove Ada's co-flyer, forward again.
       fireEvent.click(screen.getByTestId('breadcrumb-details'))
@@ -6840,7 +7037,6 @@ describe('App', () => {
       setField('booker_last_name', 'Lovelace')
       setField('booker_email', 'ada@example.com')
       setField('booker_phone', '+34600000001')
-      fillBillingFields()
       // A non-guiding companion joins the trip but is never in the activity.
       fireEvent.click(screen.getByRole('button', { name: /add companion/i }))
       setField('companion_1_first_name', 'Kay')
@@ -6870,9 +7066,7 @@ describe('App', () => {
       )
       fireEvent.click(screen.getByTestId('language-step-submit'))
 
-      await waitFor(() =>
-        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
-      )
+      await passAddressStep()
       // The review shows nothing for Kay's language — there is none.
       expect(
         screen.queryByTestId('review-companion-language-0'),
@@ -6953,16 +7147,13 @@ describe('App', () => {
       setField('booker_last_name', 'Lovelace')
       setField('booker_email', 'ada@example.com')
       setField('booker_phone', '+34600000001')
-      fillBillingFields()
       fireEvent.click(screen.getByTestId('add-participant'))
       setField('participant_2_first_name', 'Grace')
       setField('participant_2_last_name', 'Hopper')
       setField('participant_2_phone', '+34600000002')
       fireEvent.click(screen.getByRole('button', { name: /continue/i }))
       if (landOn === 'review') {
-        await waitFor(() =>
-          expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
-        )
+        await passAddressStep()
         return
       }
       await waitFor(() =>

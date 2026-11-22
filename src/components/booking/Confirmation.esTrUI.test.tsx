@@ -86,6 +86,15 @@ describe.each([
     breakdown: 'Fiyat dökümü',
     reference: 'Referans',
   },
+  {
+    browser: 'fr-FR',
+    lang: 'fr',
+    whitelist: ['en', 'fr'],
+    heading: 'Réservation confirmée',
+    summary: 'Votre réservation',
+    breakdown: 'Détail du prix',
+    reference: 'Référence',
+  },
 ])('Confirmation - $lang UI (landr-8r6oc.18)', (c) => {
   afterEach(() => {
     vi.unstubAllGlobals()
@@ -109,7 +118,7 @@ describe.each([
   })
 
   it('falls back to the operator default when the browser language is not whitelisted', () => {
-    setBrowserLanguage('fr-FR', [c.lang, 'en'])
+    setBrowserLanguage('pt-PT', [c.lang, 'en'])
     const response = baseResponse({ summary: baseSummary() })
     render(<Confirmation response={response} onRestart={vi.fn()} />)
 

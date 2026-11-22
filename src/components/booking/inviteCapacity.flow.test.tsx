@@ -4,7 +4,7 @@
  * landing (held vs ended), Change dates with an unavailable host day, and the
  * 422 capacity_exceeded that carries `days`.
  */
-import { fillBillingFields } from '@/test/fillBilling'
+import { passAddressStep } from '@/test/fillBilling'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -128,7 +128,6 @@ async function driveToConfirm() {
   setInput('booker_last_name', 'Klein')
   setInput('booker_email', 'olaf@example.com')
   setInput('booker_phone', '+34 600000000')
-  fillBillingFields()
   fireEvent.click(screen.getByRole('button', { name: /continue/i }))
   await screen.findByTestId('participant-language-board', undefined, SLOW_FLOW)
   const submit = screen.getByTestId('language-step-submit') as HTMLButtonElement
@@ -137,7 +136,7 @@ async function driveToConfirm() {
     await waitFor(() => expect(screen.getByTestId('language-step-submit')).toBeEnabled(), SLOW_FLOW)
   }
   fireEvent.click(screen.getByTestId('language-step-submit'))
-  await waitFor(() => expect(screen.getByText(/review your booking/i)).toBeInTheDocument(), SLOW_FLOW)
+  await passAddressStep(SLOW_FLOW.timeout)
   fireEvent.click(screen.getByRole('button', { name: /confirm booking/i }))
 }
 
@@ -203,13 +202,13 @@ describe('host confirmation — seat hold text', () => {
   it('held: names the invitee, hours and deadline', async () => {
     const line = await run({ seat_hold_expires_at: inSeventyTwoHours(), seat_hold_hours: 72 })
     expect(line).toHaveTextContent(
-      /When you booked, seats for Matthias were still free\. Held for 72 hours, until /,
+      /Seats for Matthias were free when you booked and are held for 72 hours, until /,
     )
   })
 
   it('not held: only when the operator holds nothing (hours === 0)', async () => {
     const line = await run({ seat_hold_expires_at: null, seat_hold_hours: 0 })
-    expect(line).toHaveTextContent('Seats for Matthias are not held')
+    expect(line).toHaveTextContent("Seats for Matthias aren't held — they can book while seats last.")
   })
 
   it('requested: seats were not free at booking time', async () => {
@@ -219,7 +218,7 @@ describe('host confirmation — seat hold text', () => {
       seats_were_free: false,
     })
     expect(line).toHaveTextContent(
-      /Seats for Matthias are requested and held for 72 hours, until .*The operator still has to confirm that everyone fits\./,
+      /Seats for Matthias are requested and held for 72 hours, until .*The operator still needs to confirm there's room for everyone\./,
     )
   })
 

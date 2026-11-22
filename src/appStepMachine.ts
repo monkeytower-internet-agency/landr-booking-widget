@@ -14,6 +14,7 @@ import type { RoomSelection } from '@/components/booking/accommodationCalc'
 import type {
   PartyAssignmentMap,
   PartyBreakfastMap,
+  PartyAcceptedLanguagesMap,
   PartyLanguageMap,
   PartyOccupantAgeMap,
 } from '@/components/booking/partyIdentity'
@@ -27,7 +28,7 @@ import type {
 } from '@/components/booking/detailsTypes'
 import { hasFixedStartTimes } from '@/components/booking/slotKey'
 import { maxPartySize, seatsNeeded } from '@/lib/seatHold'
-import type { Product, ProductGroup, SubmitBookingResponse } from '@/api/types'
+import type { Product, ProductGroup, ProductKind, SubmitBookingResponse } from '@/api/types'
 import type {
   FlowGuestAttribute,
   FormResponseEntry,
@@ -142,6 +143,14 @@ export interface BookingDraft {
    * at the seam with toIdentityKeyed / toIndexKeyedOrUndefined.
    */
   participantLanguages?: PartyLanguageMap
+  /**
+   * landr-hdk4y.2: each guided participant's answer to "which other guiding
+   * languages would also work?" (identity-keyed like `participantLanguages`).
+   * Written by the language step, read back at review. `[]` = only the main
+   * language. Never trusted as-is: the submit re-derives who is asked and which
+   * values are valid from the current cart (see secondLanguage.ts).
+   */
+  participantAcceptedLanguages?: PartyAcceptedLanguagesMap
 }
 
 /**
@@ -213,7 +222,12 @@ export type Step =
   // nothing to book. Only reachable via a deep link; the catalogue overview
   // hides sold-out products (or shows them as inline cards when the embed
   // opts in via show_sold_out), never as this standalone step.
-  | { name: 'fully-booked'; product: Product }
+  | {
+      name: 'fully-booked'
+      product: Product
+      /** landr-f210e.5: reached from a cross-sell hint card -- the notice names the carried days. */
+      fromHint?: boolean
+    }
   // landr-8c03 (was 'participants' / landr-mbge): collects full booker
   // + participant details right after dates. The booker fields and the
   // participants array thread through every downstream step + the
@@ -406,6 +420,15 @@ export type Step =
       roomProductNames?: Record<string, string>
       breakfastMap?: PartyBreakfastMap
     }
+  /**
+   * The billing-address step (landr-rw8i2): the invoice address the review
+   * used to collect, as its OWN step right before Review, so Review only ever
+   * shows finished data. Carries the identical provenance bag as `fill-form`
+   * (PreReviewArgs), so the forward and backward walks thread state through it
+   * unchanged. Shown in every flow that reaches Review (staff mode included,
+   * where the address is optional).
+   */
+  | ({ name: 'billing-address' } & PreReviewArgs)
   | {
       name: 'fill-form'
       product: Product
@@ -458,6 +481,9 @@ export type Step =
       // landr-h0opd.3: the booked product's share_reference_enabled flag,
       // captured at submit time (the confirmed step carries no product).
       shareReferenceEnabled?: boolean
+      // landr-3knn9: the main product's kind, captured at submit time, so the
+      // confirmation words a stay's people as guests (the response has none).
+      productKind?: ProductKind | null
     }
 
 /**
@@ -747,11 +773,12 @@ export function stepAfterAccommodation(
       breakfastMap,
     }
   }
-  // No live pickup ahead → straight to the review terminus. When a hotel was
+  // No live pickup ahead → straight to the pre-review terminus: the billing
+  // address step (landr-rw8i2), then Review. When a hotel was
   // booked the hotel IS the pickup (landr-4r80 / landr-ffyg.2: package +
   // shared-double); otherwise pickup_location_id is null.
   return {
-    name: 'fill-form',
+    name: 'billing-address',
     product,
     selection,
     booker,
@@ -778,7 +805,8 @@ export function stepAfterAccommodation(
 
 /**
  * landr-87n9.1: pick the step to return to when the customer hits Back
- * from the review screen (declarations / fill-form). This MIRRORS the
+ * from the billing-address step (landr-rw8i2: the step right before the
+ * review screen; same walk as the review had before). This MIRRORS the
  * forward stepAfterAccommodation routing so Back retraces exactly the
  * steps that were shown on the way forward — it must NOT route to a step
  * that was skipped.
@@ -964,7 +992,8 @@ function reviewBackModule(args: StepBeforeReviewArgs): FlowModuleKind | null {
 
 /**
  * Resolve the back-target from a step that sits AT or AFTER the custom-form
- * chain (the review screen, or a custom-form step identified by `fromFormKey`).
+ * chain (the billing-address step, or a custom-form step identified by
+ * `fromFormKey`; undefined = coming from the address step).
  *
  * landr-71kz.10: when the operator configured custom forms, the chain
  * custom-form[0] → … → custom-form[n] → review sits just before review. Back
@@ -1039,11 +1068,25 @@ function fillFormStep(args: PreReviewArgs): Step {
 }
 
 /**
+ * landr-rw8i2: build the `billing-address` step (the one right before Review)
+ * from the provenance bag. Review's Back and its "Edit" affordance land here;
+ * the forward pre-review router ends here.
+ */
+export function billingAddressStep(args: PreReviewArgs): Step {
+  return { ...args, name: 'billing-address' as const }
+}
+
+/** landr-rw8i2: forward out of the billing-address step, into the read-only Review. */
+export function stepAfterBillingAddress(args: PreReviewArgs): Step {
+  return fillFormStep(args)
+}
+
+/**
  * landr-r6e5x.4: build the per-participant language step from the provenance
  * bag. Same shape as `fillFormStep` — the two steps carry identical context and
  * differ only in what they render.
  */
-function assignLanguagesStep(args: PreReviewArgs): Step {
+export function assignLanguagesStep(args: PreReviewArgs): Step {
   return {
     name: 'assign-languages' as const,
     product: args.product,
@@ -1077,7 +1120,7 @@ function customFormChainOrReview(
   customFormAnswers?: Record<string, Record<string, unknown>>,
 ): Step {
   const formKeys = customFormKeysBeforeReview(args.product, remoteFlow)
-  if (formKeys.length === 0) return fillFormStep(args)
+  if (formKeys.length === 0) return billingAddressStep(args)
   return reconstructCustomFormStep(formKeys[0]!, { ...args, customFormAnswers })
 }
 
@@ -1133,7 +1176,7 @@ export function stepAfterCustomForm(
   const formKeys = customFormKeysBeforeReview(args.product, remoteFlow)
   const idx = formKeys.indexOf(fromFormKey)
   const nextKey = idx >= 0 ? formKeys[idx + 1] : undefined
-  if (nextKey === undefined) return fillFormStep(args)
+  if (nextKey === undefined) return billingAddressStep(args)
   return reconstructCustomFormStep(nextKey, { ...args, customFormAnswers })
 }
 
@@ -1232,6 +1275,7 @@ export function sidebarInputsForStep(
     case 'pick-pickup':
     case 'assign-languages':
     case 'custom-form':
+    case 'billing-address':
     case 'fill-form':
       return {
         product: step.product,
@@ -1318,6 +1362,8 @@ const BREADCRUMB_LABELS: Partial<Record<Step['name'], string>> = {
   'custom-form': 'Details',
   // landr-r6e5x.4: the per-participant guide-language step.
   'assign-languages': 'Language',
+  // landr-rw8i2: the billing address, collected before the read-only review.
+  'billing-address': 'Address',
   'fill-form': 'Review',
 }
 
@@ -1329,6 +1375,7 @@ const BREADCRUMB_STEPS: ReadonlySet<Step['name']> = new Set([
   'pick-pickup',
   'assign-languages',
   'custom-form',
+  'billing-address',
   'fill-form',
 ])
 
@@ -1623,8 +1670,11 @@ export function stepBefore(step: Step, opts: BreadcrumbOptions): Step | null {
         // landr-rmcsu.6: frame back-target (details vs dates).
         remoteFlow: opts.remoteFlow,
       })
+    // landr-rw8i2: Back from the read-only review is the address step it shows.
     case 'fill-form':
-      // landr-71kz.10: Back from review lands on the LAST custom form when the
+      return billingAddressStep(step)
+    case 'billing-address':
+      // landr-71kz.10: Back from the address step lands on the LAST custom form when the
       // operator configured any (stepBeforeReview walks the chain head-first);
       // otherwise the hotel-aware non-custom walk — byte-for-byte the legacy
       // routing for zero-config products.
@@ -1644,6 +1694,7 @@ export function stepBefore(step: Step, opts: BreadcrumbOptions): Step | null {
         roomAssignment: step.roomAssignment,
         occupantAgeMap: step.occupantAgeMap,
         roomProductNames: step.roomProductNames,
+        breakfastMap: step.breakfastMap,
         remoteFlow: opts.remoteFlow,
         customFormAnswers: opts.customFormAnswers,
         languageStep: opts.languageStep,
@@ -1754,7 +1805,10 @@ export function stepForAlternativeSwitch(args: AlternativeSwitchArgs): Step {
  */
 export interface AlternativeBack {
   /** The step the row was tapped on (the origin's date step or fully-booked notice). */
-  from: Extract<Step, { name: 'pick-selection' } | { name: 'fully-booked' }>
+  from: Extract<
+    Step,
+    { name: 'pick-selection' } | { name: 'fully-booked' } | { name: 'fill-form' }
+  >
   /** Product switched to; the way back is offered only while on its date step. */
   toProductId: string
   /** Live day(s) picked on the origin at tap time. */

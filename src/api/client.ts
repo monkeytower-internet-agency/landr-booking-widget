@@ -24,6 +24,7 @@ import type {
   OfferEvaluateRequest,
   OfferEvaluateResponse,
   ProductAlternative,
+  ProductHint,
   ProductGroup,
   SavingLine,
   ServiceRole,
@@ -511,6 +512,21 @@ export async function getFixedDateWindows(
   if (mocksEnabled()) return mockFixedDateWindows()
   return http<FixedDateWindow[]>(
     `/api/public/products/${encodeURIComponent(productId)}/fixed-date-windows`,
+  )
+}
+
+/**
+ * landr-f210e.5: the cross-sell hints of a product (light read, no stock
+ * check). A separate request after the step has rendered; callers treat a
+ * failure as "no cards".
+ */
+export async function getProductSuggestions(
+  operatorToken: string,
+  productId: string,
+): Promise<ProductHint[]> {
+  if (mocksEnabled()) return []
+  return http<ProductHint[]>(
+    `/api/public/operators/${encodeURIComponent(operatorToken)}/products/${encodeURIComponent(productId)}/suggestions`,
   )
 }
 
@@ -1084,6 +1100,14 @@ export interface OfferProductLine {
   date_range_end: string | null
   selected_days: string[] | null
   quantity: number
+  /**
+   * The product's kind ('service', 'stay', …) and whether it is an add-on-only
+   * line. Absent from an older API response, so both are optional: the offer
+   * page words its party by the main line's kind and reads a missing kind as a
+   * service.
+   */
+  product_kind?: string | null
+  is_addon_only?: boolean | null
 }
 
 /**

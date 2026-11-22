@@ -31,7 +31,7 @@ describe('checkoutPaymentTermsNote', () => {
 
   it('booked inside the window: due in full now, only the deposit rule remains', () => {
     expect(checkoutPaymentTermsNote(TERMS, ['2031-01-20'], 'en', TODAY)).toBe(
-      'The 30% deposit is not refunded if you cancel.',
+      'The 30% deposit is non-refundable.',
     )
     expect(
       checkoutPaymentTermsNote({ ...TERMS, deposit_refundable: true }, ['2031-01-20'], 'en', TODAY),

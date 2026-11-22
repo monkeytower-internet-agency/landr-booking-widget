@@ -47,6 +47,7 @@ import type { GuestAttributeValues } from './detailsTypes'
 import { INEXACT_KEY } from './inexact'
 import { stayNightIsos, type RoomSelection } from './accommodationCalc'
 import { addDays } from './offerDates'
+import { ADULT_FROM } from './ageBands'
 
 export const MAIN_LINE_ID = 'main'
 /** Depth of a pick counted from the stay line (depth 0); a chain stops here. */
@@ -148,6 +149,11 @@ export function partyMembers(
               ? (p.occupant_age ?? null)
               : stored
     if (attributes.age === undefined && typeof age === 'number') attributes.age = age
+    // landr-zorj8: an adult who gave no age is still 18 or older. Without it an
+    // age band (tourist tax from 10) skips the booker and every adult as "age
+    // missing". A child without an age stays unanswered (blocked upstream).
+    const isChild = entry?.band === 'child' || p.occupant_age_band === 'child'
+    if (attributes.age === undefined && !isChild) attributes.age = ADULT_FROM
     const name = `${p.first_name ?? ''} ${p.last_name ?? ''}`.trim()
     return {
       key: p.id || partyRef(i),

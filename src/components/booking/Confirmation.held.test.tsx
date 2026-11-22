@@ -105,7 +105,7 @@ describe('Confirmation: held request', () => {
       />,
     )
     expect(screen.queryByText(/could not be sent/i)).not.toBeInTheDocument()
-    expect(screen.queryByText(/awaiting confirmation/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/waiting for the operator to confirm/i)).not.toBeInTheDocument()
     expect(screen.getByTestId('confirmation-held')).toBeInTheDocument()
   })
 
@@ -217,7 +217,7 @@ describe('Confirmation: operator without online payment', () => {
     setBrowserLanguage('en-US')
     render(<Confirmation response={direct()} onRestart={vi.fn()} operatorName="Sky Club" />)
     expect(screen.getByTestId('confirmation-pay-directly')).toHaveTextContent(
-      'Pay directly to Sky Club. There is no online payment.',
+      "You pay Sky Club directly — there's no online payment.",
     )
     expect(screen.queryByText(/payment link/i)).not.toBeInTheDocument()
   })

@@ -26,7 +26,8 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { browserLocale, configureCustomerLocale, resolveCustomerStageLabel } from '@/lib/locale'
-import { fmt, pickBundle, plural, tr } from '@/lib/strings'
+import { fmt, partyTr, pickBundle, plural, tr } from '@/lib/strings'
+import type { ProductKind } from '@/api/types'
 import { formatCurrency } from './accommodationCalc'
 import { CustomerDetailsForm } from './CustomerDetailsForm'
 import { collectForms } from './customerDetails'
@@ -781,6 +782,11 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
 
   // ── Ready / paying ────────────────────────────────────────────────────────
   const { totals, product_lines, participants } = offer
+  // landr-4pm5n: a stay offer says "guests". The party is worded by the MAIN
+  // line's kind (first non add-on line, else the first line); a missing kind
+  // (older API response) reads as a service.
+  const mainLine = product_lines.find((pl) => pl.is_addon_only !== true) ?? product_lines[0]
+  const partyKind = (mainLine?.product_kind ?? undefined) as ProductKind | undefined
   const busy = status === 'paying'
   const currencyCode = totals.currency
 
@@ -1138,8 +1144,8 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
                         {formatCurrency(li.per_person_price, currencyCode, locale)}{' '}
                         {plural(
                           li.participants,
-                          tr('participantSuffixSingular', locale),
-                          tr('participantSuffixPlural', locale),
+                          partyTr('participantSuffixSingular', locale, partyKind),
+                          partyTr('participantSuffixPlural', locale, partyKind),
                         ).replace('{n}', String(li.participants))}
                       </div>
                     )}
@@ -1353,7 +1359,7 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
 
         {/* Participants */}
         {participants.length > 0 && (
-          <OfferSection title={tr('offerParticipantsTitle', locale)}>
+          <OfferSection title={partyTr('offerParticipantsTitle', locale, partyKind)}>
             <ul className="flex flex-col divide-y text-sm">
               {participants.map((p, i) => (
                 <li key={i} data-testid="offer-participant" className="px-4 py-2.5">
@@ -1416,8 +1422,8 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
                         ).replace('{n}', String(p.units))}{' '}
                         {plural(
                           p.participants,
-                          tr('participantSuffixSingular', locale),
-                          tr('participantSuffixPlural', locale),
+                          partyTr('participantSuffixSingular', locale, partyKind),
+                          partyTr('participantSuffixPlural', locale, partyKind),
                         ).replace('{n}', String(p.participants))}
                       </div>
                       ) : null}

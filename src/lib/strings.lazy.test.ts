@@ -14,7 +14,7 @@ async function freshStrings() {
 }
 
 afterEach(() => {
-  vi.doUnmock('./locales/tr')
+  vi.doUnmock('./locales/tr.informal')
   vi.resetModules()
 })
 
@@ -34,6 +34,7 @@ describe('lazy UI catalogs', () => {
   it.each([
     ['de-DE', 'Buchung bestätigt'],
     ['tr-TR', 'Rezervasyon onaylandı'],
+    ['fr-FR', 'Réservation confirmée'],
   ])('loads %s on demand', async (locale, heading) => {
     const s = await freshStrings()
     await s.loadUiCatalog(locale)
@@ -44,9 +45,9 @@ describe('lazy UI catalogs', () => {
   it('is a no-op for English and unsupported languages', async () => {
     const s = await freshStrings()
     await expect(s.loadUiCatalog('en-US')).resolves.toBeUndefined()
-    await expect(s.loadUiCatalog('fr-FR')).resolves.toBeUndefined()
+    await expect(s.loadUiCatalog('pt-PT')).resolves.toBeUndefined()
     await expect(s.loadUiCatalog(undefined)).resolves.toBeUndefined()
-    expect(s.pickBundle('fr-FR')).toBe(s.pickBundle('en'))
+    expect(s.pickBundle('pt-PT')).toBe(s.pickBundle('en'))
   })
 
   it('shares one in-flight import between concurrent callers', async () => {
@@ -56,7 +57,7 @@ describe('lazy UI catalogs', () => {
   })
 
   it('keeps rendering English, without throwing, when the chunk fails to load', async () => {
-    vi.doMock('./locales/tr', () => {
+    vi.doMock('./locales/tr.informal', () => {
       throw new Error('chunk failed')
     })
     const s = await freshStrings()
@@ -66,7 +67,7 @@ describe('lazy UI catalogs', () => {
   })
 
   it('gives up waiting after maxWaitMs while a never-resolving loader stays pending', async () => {
-    vi.doMock('./locales/de', () => new Promise(() => {}))
+    vi.doMock('./locales/de.informal', () => new Promise(() => {}))
     const s = await freshStrings()
     vi.useFakeTimers()
     try {
@@ -83,14 +84,14 @@ describe('lazy UI catalogs', () => {
       expect(s.pickBundle('de')).toBe(s.pickBundle('en'))
     } finally {
       vi.useRealTimers()
-      vi.doUnmock('./locales/de')
+      vi.doUnmock('./locales/de.informal')
     }
   })
 
   it('notifies subscribers once when a catalog lands after the wait deadline', async () => {
     let release: (mod: object) => void = () => {}
-    vi.doMock('./locales/de', () => new Promise<object>((resolve) => (release = resolve)))
-    const real = await vi.importActual<typeof import('./locales/de')>('./locales/de')
+    vi.doMock('./locales/de.informal', () => new Promise<object>((resolve) => (release = resolve)))
+    const real = await vi.importActual<typeof import('./locales/de.informal')>('./locales/de.informal')
     const s = await freshStrings()
     const listener = vi.fn()
     const unsubscribe = s.subscribeUiCatalogs(listener)
@@ -104,7 +105,7 @@ describe('lazy UI catalogs', () => {
       expect(listener).not.toHaveBeenCalled()
       expect(s.pickBundle('de').bookingConfirmed).toBe('Booking confirmed')
 
-      release({ de: real.de })
+      release({ deInformal: real.deInformal })
       await vi.waitFor(() => expect(listener).toHaveBeenCalledTimes(1))
       expect(s.getUiCatalogVersion()).toBe(before + 1)
       expect(s.pickBundle('de').bookingConfirmed).toBe('Buchung bestätigt')
@@ -115,7 +116,24 @@ describe('lazy UI catalogs', () => {
     } finally {
       vi.useRealTimers()
       unsubscribe()
-      vi.doUnmock('./locales/de')
+      vi.doUnmock('./locales/de.informal')
     }
+  })
+})
+
+describe('lazy UI catalogs by address form (landr-wm0jv)', () => {
+  it('loads the informal set by default and the formal set when the operator picks it', async () => {
+    const s = await freshStrings()
+    const { setAddressForm } = await import('./addressForm')
+    await s.loadUiCatalog('de')
+    expect(s.pickBundle('de').enterValidEmail).toBe('Bitte gib eine gültige E-Mail-Adresse ein.')
+    // Formal is not loaded yet: English until it lands, never blank.
+    setAddressForm('formal')
+    expect(s.pickBundle('de').enterValidEmail).toBe(s.pickBundle('en').enterValidEmail)
+    await s.loadUiCatalog('de')
+    expect(s.pickBundle('de').enterValidEmail).toBe('Bitte geben Sie eine gültige E-Mail-Adresse ein.')
+    // Switching back is instant: both sets stay in memory.
+    setAddressForm('informal')
+    expect(s.pickBundle('de').enterValidEmail).toBe('Bitte gib eine gültige E-Mail-Adresse ein.')
   })
 })

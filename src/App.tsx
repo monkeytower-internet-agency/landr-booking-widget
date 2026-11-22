@@ -71,13 +71,22 @@ import {
   isOwnAccommodationInvite,
   roomedCompanions,
 } from '@/components/booking/ownAccommodation'
+import { AddressStep } from '@/components/booking/AddressStep'
 import { LanguageStep } from '@/components/booking/LanguageStep'
 import {
   languageStepNeeded,
-  normaliseOfferedLanguages,
+  offeredLanguagesForProduct as resolveOfferedLanguages,
   productAcceptsAnyLanguage,
   singleLanguageAssignment,
 } from '@/components/booking/participantLanguages'
+import {
+  buildSecondLanguageCart,
+  secondLanguageCartFor,
+} from '@/components/booking/secondLanguage'
+import {
+  EMPTY_VERIFICATION,
+  type VerificationInput,
+} from '@/components/booking/verification'
 import { FixedDateWindowPicker } from '@/components/booking/FixedDateWindowPicker'
 import { expandWindowDays } from '@/components/booking/expandWindowDays'
 import { MembershipCheckoutStep } from '@/components/booking/MembershipCheckoutStep'
@@ -87,7 +96,13 @@ import { MultiDayStep } from '@/components/booking/MultiDayStep'
 import { PickupLocationPicker } from '@/components/booking/PickupLocationPicker'
 import { childAgesFromRoster, hasOccupancyPricing } from '@/components/booking/occupancyPricing'
 import PriceSidebar, { type CalculatedTotal } from '@/components/booking/PriceSidebar'
-import type { ExtraLine } from '@/components/booking/crossSell'
+import {
+  bookingLanguageOffer,
+  effectiveLanguages,
+  productOfferedLanguages,
+  unavailableDaysFor,
+  type ExtraLine,
+} from '@/components/booking/crossSell'
 import { ProductList } from '@/components/booking/ProductList'
 import {
   alternativePartyClampedMessage,
@@ -100,7 +115,7 @@ import {
 import { FullyBookedNotice } from '@/components/booking/FullyBookedNotice'
 import { ShopComingSoonStub } from '@/components/booking/ShopComingSoonStub'
 import { StayRangePicker } from '@/components/booking/StayRangePicker'
-import { stayGuestLanguages, withStayPartyCap } from '@/components/booking/stayFlow'
+import { withStayPartyCap } from '@/components/booking/stayFlow'
 import { SingleDatePicker } from '@/components/booking/SingleDatePicker'
 import {
   getContactPagePrefill,
@@ -110,6 +125,7 @@ import {
   getProductFlow,
   HttpError,
   listProductGroups,
+  getAvailability,
   listProducts,
 } from '@/api/client'
 import { CustomFormStep } from '@/components/booking/CustomFormStep'
@@ -120,6 +136,7 @@ import type {
   OperatorSettings,
   Product,
   ProductGroup,
+  ProductHint,
   ServiceRole,
   VoucherStatus,
   EstimateLineItem,
@@ -136,11 +153,14 @@ import {
   frameBackStep,
   participantsBeforeSelection,
   draftFromStep,
+  assignLanguagesStep,
+  billingAddressStep,
   enterReviewOrCustomForm,
   mergeCapturedDraft,
   mergeDraftPatch,
   sidebarInputsForStep,
   stepAfterAccommodation,
+  stepAfterBillingAddress,
   stepAfterCustomForm,
   stepAfterLanguages,
   stepBeforeLanguages,
@@ -171,6 +191,7 @@ import {
   overrideBookingLocale,
   pickLocalized,
 } from '@/lib/locale'
+import { setAddressForm } from '@/lib/addressForm'
 import { seatsNeeded } from '@/lib/seatHold'
 import { paysDirectly } from '@/lib/paymentMode'
 import { InviteHoldNote } from '@/components/booking/InviteHoldNote'
@@ -185,6 +206,8 @@ import { isBookingInProgress, useStaffDirtySignal } from '@/lib/staffDirty'
 import { loadTileFont } from '@/lib/tileFont'
 import type { TileFontKey } from '@/lib/tileFont'
 import { widgetThemeStyle } from '@/lib/widgetTheme'
+import { setOperatorColorMode, useIsDark } from '@/lib/colorMode'
+import { ColorModeSwitch } from '@/components/booking/ColorModeSwitch'
 import { StepTransition } from '@/components/booking/StepTransition'
 import { applyBootLogo, dismissBootSplash, isBootReady } from '@/lib/bootSplash'
 
@@ -492,6 +515,8 @@ function BookingFlowApp() {
   // gate further down owns. Showing the landing page here would be the very
   // bug this ticket fixes.
   const [showLanding, setShowLanding] = useState<boolean>(!token && !invite)
+  // landr-a5i49.3: light / dark (lib/colorMode.ts) — picks the dark brand theme.
+  const isDark = useIsDark()
   // landr-2mgl: restore funnel progress persisted to sessionStorage on the
   // previous render (survives an accidental mobile pull-to-refresh OR an
   // intentional reload, which both remount this component from scratch).
@@ -823,8 +848,11 @@ function BookingFlowApp() {
   // by BookingForm (submit lines) and PriceSidebar (total). Bound to the main
   // line it was built on: a different product or different dates start empty,
   // so an added line never keeps dates inherited from an earlier selection.
+  // landr-rw8i2: the Address step sits right before Review; an edit made from
+  // Review ("Edit" on the billing summary) must keep the cart, so both steps
+  // share one signature.
   const crossSellSig =
-    step.name === 'fill-form'
+    step.name === 'fill-form' || step.name === 'billing-address'
       ? JSON.stringify([
           step.product.product_id,
           step.selection.kind === 'slot'
@@ -908,6 +936,40 @@ function BookingFlowApp() {
       }),
     [crossSellSig, setCrossSell],
   )
+  // landr-kq0l4: the cart as the steps BEFORE Review see it. Products added on
+  // Review count towards the documents (Details step) and the second-language
+  // question (Language step), so an Edit from Review finds them there. The
+  // stored cart belongs to a product + dates; anything else reads as empty.
+  const cartSigHere =
+    'product' in step && 'selection' in step && step.selection
+      ? JSON.stringify([
+          step.product.product_id,
+          step.selection.kind === 'slot'
+            ? [step.selection.slot.date]
+            : step.selection.selectedDays,
+        ])
+      : ''
+  const cartHere = cartSigHere !== '' && crossSell.sig === cartSigHere ? crossSell : null
+  const cartLinesHere = cartHere?.lines ?? []
+  // landr-kq0l4: documents + signed waiver, entered on the Details step and
+  // only summarised on Review. Held here (files cannot live in the persisted
+  // draft); a new main product starts empty.
+  const [verification, setVerification] = useState<VerificationInput>(EMPTY_VERIFICATION)
+  const verificationProductId = 'product' in step ? step.product.product_id : null
+  const [verificationFor, setVerificationFor] = useState<string | null>(null)
+  if (verificationProductId !== null && verificationProductId !== verificationFor) {
+    setVerificationFor(verificationProductId)
+    setVerification(EMPTY_VERIFICATION)
+  }
+  // landr-kq0l4: "Edit" on a Review summary opens the step that owns the data;
+  // Continue there returns straight to the Review it came from (the Review step
+  // is kept whole), unless the party changed — then the normal forward walk runs.
+  const [reviewReturn, setReviewReturn] = useState<{
+    from: 'details' | 'assign-languages'
+    step: Extract<Step, { name: 'fill-form' }>
+  } | null>(null)
+  if (reviewReturn && step.name !== reviewReturn.from) setReviewReturn(null)
+
   // Staff mode: the operator hands a filled-in form back to the customer —
   // drop its response. Which forms the customer completes is derived at render
   // time (the product's forms minus those with a response), never kept here.
@@ -1198,15 +1260,10 @@ function BookingFlowApp() {
   // run ahead of the API (rolling deploy) and an older API validates
   // `participants[].language` on every submit — skipping the step for such a
   // product would dead-end on a 422 with nothing the customer could do.
+  // The resolution itself lives in participantLanguages.ts (landr-tk66y) so the
+  // second-language cart in BookingForm reads the exact same answer.
   const offeredLanguagesForProduct = useCallback(
-    (product: Product) =>
-      // A stay has no guide: nothing to brief in a language, so no language
-      // is offered, assigned or sent (stay-only carts, landr-m6tp4.55).
-      isStayKind(product.product_kind)
-        ? stayGuestLanguages()
-        : productAcceptsAnyLanguage(product.guide_languages)
-          ? []
-          : normaliseOfferedLanguages(product.guide_languages),
+    (product: Product) => resolveOfferedLanguages(product),
     [],
   )
   // landr-h0opd.3: the language step only runs when there is a real choice —
@@ -1245,6 +1302,9 @@ function BookingFlowApp() {
           // globally to every browserLocale() call from here on, no prop
           // threading needed.
           configureCustomerLocale(settings.customer_languages, settings.default_locale)
+          // landr-wm0jv: du/sen vs Sie/siz for the German and Turkish
+          // catalogs; absent (older API) = informal. Set before the catalog load.
+          setAddressForm(settings.address_form)
           // landr-8r6oc.18: the resolved language may differ from the
           // browser's, so fetch its catalog before the settings render.
           await loadUiCatalog(browserLocale(), APP_CATALOG_WAIT_MS)
@@ -1252,6 +1312,9 @@ function BookingFlowApp() {
         if (!cancelled) {
           setOperatorSettings(settings)
           setShowLanding(false)
+          // landr-a5i49.3: operator light/dark/auto (cached per token so the
+          // next visit's first paint is already dark).
+          setOperatorColorMode(settings.widget_color_mode, token)
           // landr-tkgx8.1: operator logo on the boot splash (and cached for
           // the next visit's first paint). widget_show_logo only hides the
           // in-widget header logo; the loading splash always shows the
@@ -1370,6 +1433,8 @@ function BookingFlowApp() {
   // landr-p2du5: the way back to the product the guest switched away from,
   // with the picks it had. Offered on the target's date step only.
   const [alternativeBack, setAlternativeBack] = useState<AlternativeBack | null>(null)
+  // landr-f210e.5: the review's cart (extra lines, offers) while a hint detour is open.
+  const [hintReturnCart, setHintReturnCart] = useState<typeof crossSell | null>(null)
   // The course window last picked live, per product (FixedDateWindowPicker
   // reports it with the days); read when a switch snapshots a course origin.
   const liveWindowRef = useRef<{ productId: string; windowId?: string } | null>(null)
@@ -1663,8 +1728,12 @@ function BookingFlowApp() {
     // than in an effect: react-hooks/set-state-in-effect.)
     if (productAcceptsAnyLanguage(product.guide_languages)) {
       setBookingDraft((prev) =>
-        prev.participantLanguages
-          ? { ...prev, participantLanguages: undefined }
+        prev.participantLanguages || prev.participantAcceptedLanguages
+          ? {
+              ...prev,
+              participantLanguages: undefined,
+              participantAcceptedLanguages: undefined,
+            }
           : prev,
       )
     }
@@ -1900,7 +1969,7 @@ function BookingFlowApp() {
     // landr-iyyf: withResolvedFlow gates this on flow READINESS rather than
     // reading flowForProduct's possibly-not-yet-cached value directly — a
     // still-in-flight fetch must never be read as "no custom forms".
-    if (next.name === 'fill-form') {
+    if (next.name === 'billing-address') {
       withResolvedFlow(product.product_id, (flow) => {
         setStep(
           enterReviewOrCustomForm(
@@ -1939,7 +2008,8 @@ function BookingFlowApp() {
     () =>
       step.name === 'details' && liveParticipantCount > 0
         ? liveChildAges
-        : step.name === 'fill-form' && inlineAnswers?.childAges
+        : (step.name === 'fill-form' || step.name === 'billing-address') &&
+            inlineAnswers?.childAges
           ? inlineAnswers.childAges
           : childAgesFromRoster(
             rosterForAges ?? [],
@@ -2037,9 +2107,11 @@ function BookingFlowApp() {
     languageStepForProduct,
     opensOnDates,
   ])
+  // landr-3knn9: the funnel's main product decides participant vs guest wording.
+  const productKind = 'product' in step ? step.product.product_kind : null
   const breadcrumbNav = useMemo(
-    () => ({ items: breadcrumbItems, onNavigate: navigateTo }),
-    [breadcrumbItems, navigateTo],
+    () => ({ items: breadcrumbItems, onNavigate: navigateTo, productKind }),
+    [breadcrumbItems, navigateTo, productKind],
   )
 
   // landr-tkgx8.1: drop the boot splash once the step the customer lands on
@@ -2083,10 +2155,9 @@ function BookingFlowApp() {
   // The operator's 3-colour theme (brand/accent/background) wins when
   // present; otherwise the legacy single primary_color → --primary path
   // is preserved; otherwise no inline vars and index.css defaults stand.
-  // (See lib/widgetTheme.ts for the mapping + contrast safety. Dark mode
-  // is carried on the type but not applied — the widget has no active
-  // dark mode today.)
-  const brandStyle: CSSProperties = widgetThemeStyle(operatorSettings)
+  // (See lib/widgetTheme.ts for the mapping + contrast safety; in dark mode
+  // — `?theme=dark|auto`, lib/colorMode.ts — the theme's dark variant.)
+  const brandStyle: CSSProperties = widgetThemeStyle(operatorSettings, isDark)
 
   // landr-rjda — "first step" = the product/category selection screen.
   // pick-category only appears when the operator has >1 product group; both
@@ -2176,6 +2247,123 @@ function BookingFlowApp() {
       }),
     )
   }
+  // The product's own availability on the booking's dates and party: the one
+  // check behind both the hint chips' "Check availability" and the tap. null =
+  // superseded by a newer switch. A failed read counts as available (the
+  // product's own date step re-checks); a sold-out or unbookable product does not.
+  const hintSoldOut = async (
+    target: Product,
+    carry: { days: string[]; seats: number },
+    seq: number,
+  ): Promise<boolean | null> => {
+    const checkDays =
+      target.service_time_shape === 'fixed_window'
+        ? []
+        : target.service_time_shape === 'days_range'
+          ? carry.days
+          : carry.days.slice(0, 1)
+    let soldOut = !isBookable(target)
+    if (!soldOut && checkDays.length > 0) {
+      try {
+        const sorted = [...checkDays].sort()
+        const slots = await getAvailability(
+          target.product_id,
+          sorted[0] as string,
+          sorted[sorted.length - 1] as string,
+        )
+        if (seq !== switchSeqRef.current) return null
+        soldOut = unavailableDaysFor(slots, checkDays, carry.seats).length > 0
+      } catch {
+        // see above
+      }
+    }
+    return soldOut
+  }
+  const onCheckCrossSellHints = async (
+    hints: ProductHint[],
+    carry: { days: string[]; seats: number },
+  ): Promise<Record<string, boolean>> => {
+    if (!token) return {}
+    let products: Product[]
+    try {
+      products = await listProducts(token)
+    } catch {
+      return {}
+    }
+    const seq = switchSeqRef.current
+    const out: Record<string, boolean> = {}
+    await Promise.all(
+      hints.map(async (hint) => {
+        const target = products.find((p) => p.product_id === hint.product_id)
+        // A product the catalogue no longer lists cannot be opened: not available.
+        if (!target) {
+          out[hint.product_id] = false
+          return
+        }
+        const soldOut = await hintSoldOut(target, carry, seq)
+        out[hint.product_id] = soldOut === null ? true : !soldOut
+      }),
+    )
+    return out
+  }
+  // landr-f210e.5: a tapped cross-sell hint card. The airline model: the
+  // suggested product opens as its OWN booking with the dates and party carried
+  // over and its own availability check; the review the guest left stays as it
+  // was (snapshot below) and the back button returns to it. Fully booked on
+  // those days -> the notice plus the existing "Also available" panel.
+  const onOpenCrossSellHint = async (
+    hint: ProductHint,
+    carry: { days: string[]; seats: number },
+  ) => {
+    if (!token || step.name !== 'fill-form') return
+    const from = step
+    const seq = ++switchSeqRef.current
+    let target: Product | undefined
+    try {
+      const products = await listProducts(token)
+      target = products.find((p) => p.product_id === hint.product_id)
+    } catch {
+      return
+    }
+    if (seq !== switchSeqRef.current || stepRef.current.name !== 'fill-form') return
+    if (!target) return
+    // A course takes its own windows, not carried days: its date step opens empty.
+    const takesDays = target.service_time_shape !== 'fixed_window'
+    const soldOut = await hintSoldOut(target, carry, seq)
+    if (soldOut === null) return
+    alternativeSwitchRef.current = true
+    setAlternativeOrigin(null)
+    setAlternativeBack({
+      from,
+      toProductId: target.product_id,
+      days: takesDays ? carry.days : [],
+      draft: bookingDraft,
+    })
+    setHintReturnCart(crossSell)
+    setLiveSelectionDays([])
+    setLiveSlot(null)
+    setJoinRef(null)
+    clearLiveAccommodation()
+    const clampedTo = partyClampForSwitch(bookingDraft, target)
+    setPartyClampNote(
+      clampedTo === null
+        ? null
+        : {
+            productId: target.product_id,
+            text: alternativePartyClampedMessage(
+              pickLocalized(target.name, target.name_localized, browserLocale()),
+              clampedTo,
+              browserLocale(),
+            ),
+          },
+    )
+    setBookingDraft((prev) => draftForProductSwitch(prev, target))
+    setStep(
+      soldOut
+        ? { name: 'fully-booked', product: target, fromHint: true }
+        : stepForAlternativeSwitch({ target, days: takesDays ? carry.days : [] }),
+    )
+  }
   // landr-p2du5: return from an alternative to the product the guest left,
   // its day(s)/window/start time and the pre-switch draft restored.
   const goBackFromAlternative = () => {
@@ -2191,11 +2379,17 @@ function BookingFlowApp() {
     setJoinRef(null)
     clearLiveAccommodation()
     setBookingDraft(back.draft)
+    // landr-f210e.5: a hint detour leaves the review's cart (extra lines,
+    // offers) behind; the way back puts it exactly as it was.
+    if (hintReturnCart !== null) {
+      setCrossSell(hintReturnCart)
+      setHintReturnCart(null)
+    }
     setStep(stepForAlternativeBack(back))
   }
   const showAlternativeBack =
     alternativeBack !== null &&
-    step.name === 'pick-selection' &&
+    (step.name === 'pick-selection' || step.name === 'fully-booked') &&
     step.product.product_id === alternativeBack.toProductId
 
   // An invite's hold counts for the product it was minted for only.
@@ -2281,6 +2475,12 @@ function BookingFlowApp() {
         gives the sidebar breathing room without squeezing the step content.
       */}
       <div className="mx-auto flex max-w-5xl flex-col gap-6 p-2 sm:p-6">
+        {/* landr-a5i49.3: visitor light/dark switch, when the operator offers it. */}
+        {operatorSettings.widget_color_switcher ? (
+          <div className="-mb-4 flex justify-end">
+            <ColorModeSwitch />
+          </div>
+        ) : null}
         {/*
           landr-yp8x / landr-nils — operator brand + intro header. The
           widget is embedded inside the operator's own page, so they own
@@ -2452,7 +2652,19 @@ function BookingFlowApp() {
           The "back to categories" link is part of the pick-product surface,
           so it lives inside.
         */}
-        <BreadcrumbNavContext.Provider value={breadcrumbNav}>
+        <BreadcrumbNavContext.Provider
+          value={
+            showAlternativeBack && hintReturnCart !== null
+              ? {
+                  ...breadcrumbNav,
+                  detourBack: {
+                    label: tr('crossSellBackToBooking', browserLocale()),
+                    onBack: goBackFromAlternative,
+                  },
+                }
+              : breadcrumbNav
+          }
+        >
         <StepTransition stepKey={step.name}>
         {/*
           landr-d8rg.4: category entrance — shown when the operator has >1
@@ -2639,7 +2851,7 @@ function BookingFlowApp() {
           pickedGroupSlug); a top-level ?product= deep link has no
           catalogue to go back to.
         */}
-        {showAlternativeBack && alternativeBack ? (
+        {showAlternativeBack && alternativeBack && hintReturnCart === null ? (
           <AlternativeBackButton
             productName={pickLocalized(
               alternativeBack.from.product.name,
@@ -2681,6 +2893,7 @@ function BookingFlowApp() {
             }
             operatorTimezone={operatorSettings.timezone}
             onSelectAlternative={onSelectAlternative}
+            hintNotice={step.fromHint === true}
           />
         ) : null}
 
@@ -2735,6 +2948,7 @@ function BookingFlowApp() {
                 email,
                 isSharedDouble: false,
                 shareReferenceEnabled: false,
+                productKind: step.product.product_kind,
               })
             }}
           />
@@ -2973,8 +3187,6 @@ function BookingFlowApp() {
             // predate the key) the field stays hidden rather than flashing in
             // and then vanishing.
             hasMemberPerks={operatorSettings.has_member_perks ?? false}
-            // landr-uuntm.3: last link of the billing-country guess chain.
-            operatorCountry={operatorSettings.country ?? null}
             // landr-ehye: token passed to GroupInquiryForm for the POST.
             operatorToken={token!}
             // landr-jiagg.2: an invitee takes the seat themselves — no
@@ -3009,6 +3221,10 @@ function BookingFlowApp() {
             // from the persistent draft (it round-trips through
             // sessionStorage), unlike memberPerkOtp above.
             initialCustomerComment={bookingDraft.customerComment}
+            // landr-kq0l4: documents + waiver are entered here, not on Review.
+            verificationProducts={[step.product, ...cartLinesHere.map((l) => l.product)]}
+            verification={verification}
+            onVerificationChange={setVerification}
             // landr-otml0.3 review fix (MINOR 6): set only on the one mount
             // that follows a companion_contact_required rejection; cleared
             // by DetailsStep itself once applied.
@@ -3039,6 +3255,20 @@ function BookingFlowApp() {
               // of their own to share — drop any shared-double reference
               // confirmed on an earlier pass through accommodation.
               if (!bookerJoins(booker)) setJoinRef(null)
+              // landr-kq0l4: an Edit from Review comes straight back to it when
+              // the party is the same (documents / contact details only).
+              if (
+                reviewReturn?.from === 'details' &&
+                reviewReturn.step.product.product_id === step.product.product_id &&
+                JSON.stringify(reviewReturn.step.participants) ===
+                  JSON.stringify(participants) &&
+                JSON.stringify(reviewReturn.step.companions) === JSON.stringify(companions)
+              ) {
+                commitDetails(step.product, booker, participants, companions, comment)
+                setStep({ ...reviewReturn.step, booker })
+                setReviewReturn(null)
+                return
+              }
               // landr-rmcsu.6: participants before dates → the dates step is
               // next (also after a "Change participants" detour, so the
               // calendar re-checks the dates against the edited party).
@@ -3399,7 +3629,11 @@ function BookingFlowApp() {
         {step.name === 'assign-languages' ? (
           <LanguageStep
             productName={step.product.name}
-            offeredLanguages={offeredLanguagesForProduct(step.product)}
+            offeredLanguages={
+              (cartLinesHere.length > 0
+                ? bookingLanguageOffer(productOfferedLanguages(step.product), cartLinesHere)
+                : null) ?? offeredLanguagesForProduct(step.product)
+            }
             {...(() => {
               const party = step.participants.map((p) => ({
                 first: p.first_name,
@@ -3423,8 +3657,37 @@ function BookingFlowApp() {
                 // language. Any companion entries a stale draft still carries
                 // are simply pruned by LanguageStep (partyCount = participants
                 // only) — see pruneLanguageAssignment.
-                initialAssignment: toIndexKeyed(
-                  bookingDraft.participantLanguages,
+                // landr-kq0l4: back from Review with a product added, the board
+                // opens on what the whole cart agreed (inline picks included).
+                initialAssignment: (() => {
+                  const main = toIndexKeyed(bookingDraft.participantLanguages, roster)
+                  const offer =
+                    cartLinesHere.length > 0
+                      ? bookingLanguageOffer(productOfferedLanguages(step.product), cartLinesHere)
+                      : null
+                  return offer
+                    ? effectiveLanguages(
+                        main,
+                        cartHere?.inline?.languages ?? null,
+                        offer,
+                        roster.length,
+                      )
+                    : main
+                })(),
+                // landr-hdk4y.2: the second-guiding-language question for this
+                // product (nobody is asked unless the operator switched it on),
+                // and the answers restored on back-nav.
+                // landr-kq0l4: the question covers the whole cart, so an Edit from
+                // Review finds what a product added there asks too.
+                secondLanguage:
+                  cartLinesHere.length > 0
+                    ? secondLanguageCartFor(step.product, cartLinesHere)
+                    : buildSecondLanguageCart(
+                        [step.product],
+                        [offeredLanguagesForProduct(step.product)],
+                      ),
+                initialAccepted: toIndexKeyed(
+                  bookingDraft.participantAcceptedLanguages,
                   roster,
                 ),
               }
@@ -3460,16 +3723,21 @@ function BookingFlowApp() {
                 }),
               )
             }
-            onConfirm={(assignment) => {
+            onConfirm={(assignment, accepted) => {
               // THE OUTBOUND SEAM: the board reports party indices, the draft
               // stores stable ids so a later roster edit cannot hand one person
               // another person's language (landr-uwvl).
+              const roster = buildPartyRoster(step.participants, step.companions)
               mergeDraft({
-                participantLanguages: toIdentityKeyed(
-                  assignment,
-                  buildPartyRoster(step.participants, step.companions),
-                ),
+                participantLanguages: toIdentityKeyed(assignment, roster),
+                participantAcceptedLanguages: toIdentityKeyed(accepted, roster),
               })
+              // landr-kq0l4: an Edit from Review goes straight back to it.
+              if (reviewReturn?.from === 'assign-languages') {
+                setStep(reviewReturn.step)
+                setReviewReturn(null)
+                return
+              }
               setStep(
                 stepAfterLanguages(
                   {
@@ -3508,6 +3776,7 @@ function BookingFlowApp() {
             productId={step.product.product_id}
             formKey={step.formKey}
             productName={step.product.name}
+            productKind={step.product.product_kind}
             // Restore answers from draft on back-nav re-entry.
             initialAnswers={step.initialAnswers as Record<string, unknown> | undefined}
             // landr-db45: thread the already-resolved flow down so this step
@@ -3633,6 +3902,67 @@ function BookingFlowApp() {
           />
         ) : null}
 
+        {/* landr-rw8i2: the billing address, as its own step right before the
+            read-only Review (Next stays greyed out until it is complete). */}
+        {step.name === 'billing-address' ? (
+          <AddressStep
+            description={step.product.name}
+            booker={step.booker}
+            // The address rides on booker.billing in both the step and the
+            // persistent draft so Back / a reload restore what was typed.
+            onBillingChange={(billing) => {
+              setStep((cur) =>
+                cur.name === 'billing-address'
+                  ? { ...cur, booker: { ...cur.booker, billing } }
+                  : cur,
+              )
+              setBookingDraft((prev) =>
+                prev.booker ? { ...prev, booker: { ...prev.booker, billing } } : prev,
+              )
+            }}
+            // landr-uuntm.3: last link of the billing-country guess chain.
+            operatorCountry={operatorSettings.country ?? null}
+            customerComment={bookingDraft.customerComment ?? ''}
+            onCustomerCommentChange={(comment) =>
+              mergeDraft({ customerComment: comment || null })
+            }
+            onBack={() => {
+              // landr-71kz.10: Back from the Address step walks the pre-review tail via
+              // stepBeforeReview — the LAST custom form (when the operator
+              // configured any), else the hotel-aware non-custom walk that
+              // returns to pick-accommodation rather than a skipped pickup
+              // picker (landr-87n9.1). All prior provenance + state is threaded
+              // through so the upstream step re-mounts restored. Replaces the
+              // hardcoded declarations back-hop.
+              setStep(
+                stepBeforeReview({
+                  product: step.product,
+                  selection: step.selection,
+                  booker: step.booker,
+                  participants: step.participants,
+                  companions: step.companions,
+                  pickupLocationId: step.pickupLocationId,
+                  accommodationRooms: step.accommodationRooms,
+                  addons: step.addons,
+                  hotelLocationId: step.hotelLocationId,
+                  includeHotel: step.includeHotel,
+                  isSharedDouble: step.isSharedDouble,
+                  accommodationMode: step.accommodationMode,
+                  roomAssignment: step.roomAssignment,
+                  occupantAgeMap: step.occupantAgeMap,
+                  roomProductNames: step.roomProductNames,
+                  breakfastMap: step.breakfastMap,
+                  remoteFlow: flowForProduct(step.product.product_id),
+                  customFormAnswers: bookingDraft.customFormAnswers,
+                  // landr-p68d2: per-product, not per-operator.
+                  languageStep: languageStepForProduct(step.product),
+                }),
+              )
+            }}
+            onConfirm={() => setStep(stepAfterBillingAddress(step))}
+          />
+        ) : null}
+
         {step.name === 'fill-form' && reviewNeedsAttributes ? (
           <GuestAttributesStep
             productName={pickLocalized(
@@ -3667,6 +3997,28 @@ function BookingFlowApp() {
             product={step.product}
             selection={step.selection}
             booker={step.booker}
+            // landr-rw8i2: the billing address is entered on the Address step
+            // before this one; "Edit" on its summary goes back there.
+            onEditBilling={() => setStep(billingAddressStep(step))}
+            // landr-kq0l4: documents + waiver (Details) and the second guiding
+            // language (Language) are entered earlier; Review shows them and
+            // offers a way back to the step that owns them.
+            verification={verification}
+            onEditVerification={() => {
+              setReviewReturn({ from: 'details', step })
+              setStep({
+                name: 'details',
+                product: step.product,
+                selection: step.selection,
+                booker: step.booker,
+                participants: step.participants,
+                companions: step.companions,
+              })
+            }}
+            onEditLanguages={() => {
+              setReviewReturn({ from: 'assign-languages', step })
+              setStep(assignLanguagesStep(step))
+            }}
             viaAlternativeOf={
               alternativeOrigin && alternativeOrigin.to === step.product.product_id
                 ? alternativeOrigin.from
@@ -3733,6 +4085,12 @@ function BookingFlowApp() {
                 // companions — the whole roster) is auto-filled with that
                 // one language here, overriding anything an earlier
                 // product left in the draft.
+                // landr-hdk4y.2: the language step's second-language answers;
+                // BookingForm re-derives who is asked from the whole cart.
+                participantAcceptedLanguages: toIndexKeyed(
+                  bookingDraft.participantAcceptedLanguages,
+                  roster,
+                ),
                 participantLanguages:
                   singleLanguageAssignment(
                     offeredLanguagesForProduct(step.product),
@@ -3795,6 +4153,9 @@ function BookingFlowApp() {
             // The operator's cross-sell switch now only hides the offers
             // every booking gets (parent-less) and the products they add.
             crossSellEnabled={operatorSettings.widget_cross_sell_enabled !== false}
+            crossSellHintsEnabled={operatorSettings.cross_sell_hints_enabled === true}
+            onOpenCrossSellHint={onOpenCrossSellHint}
+            onCheckCrossSellHints={onCheckCrossSellHints}
             inlineAnswers={inlineAnswers}
             onInlineAnswersChange={setInlineAnswers}
             // landr-rmcsu.5: keep the committed dates (like Back does) so the
@@ -3806,39 +4167,8 @@ function BookingFlowApp() {
                 selection: step.selection,
               })
             }
-            onBack={() => {
-              // landr-71kz.10: Back from review walks the pre-review tail via
-              // stepBeforeReview — the LAST custom form (when the operator
-              // configured any), else the hotel-aware non-custom walk that
-              // returns to pick-accommodation rather than a skipped pickup
-              // picker (landr-87n9.1). All prior provenance + state is threaded
-              // through so the upstream step re-mounts restored. Replaces the
-              // hardcoded declarations back-hop.
-              setStep(
-                stepBeforeReview({
-                  product: step.product,
-                  selection: step.selection,
-                  booker: step.booker,
-                  participants: step.participants,
-                  companions: step.companions,
-                  pickupLocationId: step.pickupLocationId,
-                  accommodationRooms: step.accommodationRooms,
-                  addons: step.addons,
-                  hotelLocationId: step.hotelLocationId,
-                  includeHotel: step.includeHotel,
-                  isSharedDouble: step.isSharedDouble,
-                  accommodationMode: step.accommodationMode,
-                  roomAssignment: step.roomAssignment,
-                  occupantAgeMap: step.occupantAgeMap,
-                  roomProductNames: step.roomProductNames,
-                  breakfastMap: step.breakfastMap,
-                  remoteFlow: flowForProduct(step.product.product_id),
-                  customFormAnswers: bookingDraft.customFormAnswers,
-                  // landr-p68d2: per-product, not per-operator.
-                  languageStep: languageStepForProduct(step.product),
-                }),
-              )
-            }}
+            // landr-rw8i2: Back from the read-only review is the Address step.
+            onBack={() => setStep(billingAddressStep(step))}
             onConfirmed={(response, email) => {
               setCrossSell({ sig: '', lines: [] })
               // landr-2mgl: the booking is now placed — drop the persisted
@@ -3857,6 +4187,7 @@ function BookingFlowApp() {
                 // landr-h0opd.3: gates the share-reference hint; absent on
                 // an older API → false.
                 shareReferenceEnabled: step.product.share_reference_enabled === true,
+                productKind: step.product.product_kind,
               })
             }}
           />
@@ -3886,6 +4217,7 @@ function BookingFlowApp() {
               }}
               isSharedDouble={step.isSharedDouble}
               shareReferenceEnabled={step.shareReferenceEnabled}
+              productKind={step.productKind}
               operatorName={operatorSettings.name ?? null}
               contactEmail={operatorSettings.contact_email ?? null}
             />
@@ -3944,7 +4276,7 @@ function BookingFlowApp() {
             offerPicks={
               step.name === 'pick-accommodation' && liveAccommodationTouched
                 ? liveAddons
-                : step.name === 'fill-form'
+                : step.name === 'fill-form' || step.name === 'billing-address'
                   ? [...sidebarInputs.addons, ...offerPicks]
                   : sidebarInputs.addons
             }
@@ -3975,7 +4307,11 @@ function BookingFlowApp() {
             onCalculatedTotalChange={setEstimateTotal}
             voucherCode={voucherCode}
             onVoucherStatusChange={setVoucherStatus}
-            extraLines={step.name === 'fill-form' ? extraLines : undefined}
+            extraLines={
+              step.name === 'fill-form' || step.name === 'billing-address'
+                ? extraLines
+                : undefined
+            }
             childAges={sidebarChildAges}
             payDirectly={paysDirectly(operatorSettings.payment_methods)}
             operatorName={operatorSettings.name ?? null}

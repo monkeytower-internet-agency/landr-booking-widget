@@ -62,10 +62,10 @@ describe('hasOccupancyPricing', () => {
 describe('occupancyBlurb', () => {
   it('describes the model in German', () => {
     const t = occupancyBlurb(rule, 'EUR', 'de')
-    expect(t).toContain('inkl. 2 Erwachsene')
+    expect(t).toContain('2 Erwachsene inklusive')
     expect(t).toContain('weitere Erwachsene +25')
     expect(t).toContain('Kinder 3-11 +12')
-    expect(t).toContain('Kinder 0-2 gratis')
+    expect(t).toContain('Kinder 0-2 kostenlos')
   })
   it('describes the model in English', () => {
     expect(occupancyBlurb({ ...rule, included_adults: 1 }, 'EUR', 'en')).toContain('incl. 1 adult')
@@ -137,8 +137,8 @@ describe('inline guest ages on added lines', () => {
     const onChange = vi.fn()
     render(<InlineGuestAges labels={['Ada', 'Bo', 'Cy']} value={{}} onChange={onChange} locale="en" />)
     expect(screen.queryByTestId('inline-age-band-0')).not.toBeInTheDocument()
-    fireEvent.change(screen.getByTestId('inline-age-band-1'), { target: { value: 'child' } })
-    expect(onChange).toHaveBeenCalledWith({ 1: { band: 'child', age: null } })
+    fireEvent.change(screen.getByTestId('inline-age-band-1'), { target: { value: 'c:5' } })
+    expect(onChange).toHaveBeenCalledWith({ 1: { band: 'child', age: 5 } })
     expect(screen.getByTestId('inline-age-band-2')).toBeInTheDocument()
   })
 })
