@@ -15577,6 +15577,10 @@ export interface components {
         AiSettingsOut: {
             /** Enabled */
             enabled: boolean;
+            /** Helper Messages Per Hour */
+            helper_messages_per_hour: number;
+            /** Helper Messages Per User Hour */
+            helper_messages_per_user_hour: number;
             /** Monthly Hard Usd */
             monthly_hard_usd: number;
             /** Monthly Soft Usd */
@@ -15594,6 +15598,10 @@ export interface components {
         AiSettingsPatch: {
             /** Enabled */
             enabled?: boolean | null;
+            /** Helper Messages Per Hour */
+            helper_messages_per_hour?: number | null;
+            /** Helper Messages Per User Hour */
+            helper_messages_per_user_hour?: number | null;
             /** Monthly Hard Usd */
             monthly_hard_usd?: number | null;
             /** Monthly Soft Usd */
