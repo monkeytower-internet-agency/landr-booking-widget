@@ -187,6 +187,10 @@ import { LandingPage } from '@/components/booking/LandingPage'
 import { TierBadge } from '@/components/TierBadge'
 import {
   browserLocale,
+  configureLanguageSwitcher,
+  getVisitorLang,
+  languageOptions,
+  subscribeVisitorLang,
   configureCustomerLocale,
   overrideBookingLocale,
   pickLocalized,
@@ -208,6 +212,7 @@ import type { TileFontKey } from '@/lib/tileFont'
 import { widgetThemeStyle } from '@/lib/widgetTheme'
 import { setOperatorColorMode, useIsDark } from '@/lib/colorMode'
 import { ColorModeSwitch } from '@/components/booking/ColorModeSwitch'
+import { LanguageSwitch } from '@/components/booking/LanguageSwitch'
 import { StepTransition } from '@/components/booking/StepTransition'
 import { applyBootLogo, dismissBootSplash, isBootReady } from '@/lib/bootSplash'
 
@@ -317,6 +322,9 @@ function App() {
   // landr-8r6oc.26: re-render once when a late catalog lands (tr()/pickBundle()
   // read module state, so nothing else would trigger a repaint).
   useSyncExternalStore(subscribeUiCatalogs, getUiCatalogVersion)
+  // landr-goi5m.3: the visitor's globe pick re-renders the whole app in place
+  // (state untouched); also a dep of the locale-reading memos below.
+  useSyncExternalStore(subscribeVisitorLang, getVisitorLang)
   // landr-sgnd: branch on the URL pathname before the booking flow
   // state machinery so we never spin up the operator/product fetches
   // when the customer is just here to cancel.
@@ -1302,6 +1310,7 @@ function BookingFlowApp() {
           // globally to every browserLocale() call from here on, no prop
           // threading needed.
           configureCustomerLocale(settings.customer_languages, settings.default_locale)
+          configureLanguageSwitcher(settings.widget_language_switcher)
           // landr-wm0jv: du/sen vs Sie/siz for the German and Turkish
           // catalogs; absent (older API) = informal. Set before the catalog load.
           setAddressForm(settings.address_form)
@@ -2069,13 +2078,14 @@ function BookingFlowApp() {
     participants: draftParticipants,
     companions: draftCompanions,
   } = bookingDraft
+  const crumbLocale = browserLocale()
   const breadcrumbItems = useMemo(() => {
     const productLabel =
       'product' in step
         ? pickLocalized(
             step.product.name,
             step.product.name_localized,
-            browserLocale(),
+            crumbLocale,
           )
         : undefined
     return buildBreadcrumb(step, {
@@ -2106,6 +2116,7 @@ function BookingFlowApp() {
     bookingDraft.customFormAnswers,
     languageStepForProduct,
     opensOnDates,
+    crumbLocale,
   ])
   // landr-3knn9: the funnel's main product decides participant vs guest wording.
   const productKind = 'product' in step ? step.product.product_kind : null
@@ -2476,9 +2487,11 @@ function BookingFlowApp() {
       */}
       <div className="mx-auto flex max-w-5xl flex-col gap-6 p-2 sm:p-6">
         {/* landr-a5i49.3: visitor light/dark switch, when the operator offers it. */}
-        {operatorSettings.widget_color_switcher ? (
-          <div className="-mb-4 flex justify-end">
-            <ColorModeSwitch />
+        {operatorSettings.widget_color_switcher ||
+        (operatorSettings.widget_language_switcher && languageOptions().length > 0) ? (
+          <div className="-mb-4 flex items-center justify-end gap-1">
+            {operatorSettings.widget_language_switcher ? <LanguageSwitch /> : null}
+            {operatorSettings.widget_color_switcher ? <ColorModeSwitch /> : null}
           </div>
         ) : null}
         {/*

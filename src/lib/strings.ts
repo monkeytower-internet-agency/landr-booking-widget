@@ -1186,6 +1186,7 @@ export type Bundle = {
   // landr-a5i49.3: visitor light/dark switcher (operator widget_color_switcher).
   switchToDark: string
   switchToLight: string
+  switchLanguage: string
 }
 
 const en: Bundle = {
@@ -2273,6 +2274,7 @@ const en: Bundle = {
   addMoreModuleChange: 'Change',
   switchToDark: 'Switch to dark mode',
   switchToLight: 'Switch to light mode',
+  switchLanguage: 'Choose language',
 }
 
 /**
