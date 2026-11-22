@@ -15648,6 +15648,10 @@ export interface components {
             helper_messages_per_hour: number;
             /** Helper Messages Per User Hour */
             helper_messages_per_user_hour: number;
+            /** Helper Pastes Per Hour */
+            helper_pastes_per_hour: number;
+            /** Helper Pastes Per User Hour */
+            helper_pastes_per_user_hour: number;
             /** Monthly Hard Usd */
             monthly_hard_usd: number;
             /** Monthly Soft Usd */
@@ -15669,6 +15673,10 @@ export interface components {
             helper_messages_per_hour?: number | null;
             /** Helper Messages Per User Hour */
             helper_messages_per_user_hour?: number | null;
+            /** Helper Pastes Per Hour */
+            helper_pastes_per_hour?: number | null;
+            /** Helper Pastes Per User Hour */
+            helper_pastes_per_user_hour?: number | null;
             /** Monthly Hard Usd */
             monthly_hard_usd?: number | null;
             /** Monthly Soft Usd */
