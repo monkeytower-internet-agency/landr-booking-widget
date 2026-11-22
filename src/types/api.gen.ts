@@ -15361,6 +15361,10 @@ export interface components {
         };
         /** AcceptedItem */
         AcceptedItem: {
+            /** Accepted Payload */
+            accepted_payload?: {
+                [key: string]: unknown;
+            } | null;
             /** Changed Fields */
             changed_fields?: string[] | null;
             /** Entity Id */
