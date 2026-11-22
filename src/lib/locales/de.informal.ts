@@ -883,6 +883,8 @@ export const deInformal: Bundle = {
   secondLanguageOnlyCase: 'keep',
   secondLanguageQuestionTemplate: 'Falls kein {language}sprachiger Guide verfügbar ist: Welche Sprache wäre auch in Ordnung?',
   secondLanguageHelperTemplate: '{language} bleibt deine erste Wahl. Je mehr Sprachen du ankreuzt, desto eher können wir deine Buchung bestätigen.',
+  secondLanguageHelperMixed:
+    'Die gewählte Sprache jeder Person bleibt ihre erste Wahl. Je mehr Sprachen du ankreuzt, desto eher können wir deine Buchung bestätigen.',
   secondLanguageOnlyTemplate: 'Ich spreche nur {language}',
   secondLanguageApplyAll: 'Für alle übernehmen',
   secondLanguageGateWaitingTemplate: 'Kreuze für jede Person mindestens eine Option an – noch offen: {names}.',

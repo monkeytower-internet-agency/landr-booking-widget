@@ -889,6 +889,8 @@ export const tr: Bundle = {
   secondLanguageOnlyCase: 'lower',
   secondLanguageQuestionTemplate: '{language} konuşan bir rehber yoksa hangi dil de uygun olur?',
   secondLanguageHelperTemplate: '{language} ilk tercihiniz olarak kalır. Ne kadar çok dil işaretlerseniz rezervasyonunuzu onaylama şansımız o kadar artar.',
+  secondLanguageHelperMixed:
+    'Her kişinin seçtiği dil ilk tercihi olarak kalır. Ne kadar çok dil işaretlerseniz rezervasyonunuzu onaylama şansımız o kadar artar.',
   secondLanguageOnlyTemplate: 'Yalnızca {language} konuşuyorum',
   secondLanguageApplyAll: 'Herkese uygula',
   secondLanguageGateWaitingTemplate: 'Her kişi için en az bir seçenek işaretleyin — hâlâ bekleyenler: {names}.',
