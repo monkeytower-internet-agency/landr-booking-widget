@@ -883,6 +883,8 @@ export const de: Bundle = {
   secondLanguageOnlyCase: 'keep',
   secondLanguageQuestionTemplate: 'Falls kein {language}sprachiger Guide verfügbar ist: Welche Sprache wäre auch in Ordnung?',
   secondLanguageHelperTemplate: '{language} bleibt Ihre erste Wahl. Je mehr Sprachen Sie ankreuzen, desto eher können wir Ihre Buchung bestätigen.',
+  secondLanguageHelperMixed:
+    'Die gewählte Sprache jeder Person bleibt ihre erste Wahl. Je mehr Sprachen Sie ankreuzen, desto eher können wir Ihre Buchung bestätigen.',
   secondLanguageOnlyTemplate: 'Ich spreche nur {language}',
   secondLanguageApplyAll: 'Für alle übernehmen',
   secondLanguageGateWaitingTemplate: 'Kreuzen Sie für jede Person mindestens eine Option an – noch offen: {names}.',

@@ -49012,6 +49012,62 @@
         ]
       }
     },
+    "/api/internal/tick": {
+      "post": {
+        "operationId": "tick",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Internal-Tick-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Internal-Tick-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "additionalProperties": {
+                      "type": "string"
+                    },
+                    "type": "object"
+                  },
+                  "title": "Response Tick",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Tick",
+        "tags": [
+          "scheduler-tick-internal"
+        ]
+      }
+    },
     "/api/landr-staff/ai-settings": {
       "patch": {
         "operationId": "patch_ai_settings",

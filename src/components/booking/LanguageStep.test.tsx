@@ -456,6 +456,15 @@ describe('LanguageStep — second guiding language (landr-hdk4y.2)', () => {
     expect(screen.getByTestId('second-language-asked-2')).toBeTruthy()
   })
 
+  it('names no single first-choice language when the asked participants differ', () => {
+    renderAsking(askingCart('always'))
+    assignVia(0, 'fr')
+    assignVia(2, 'de')
+    const helper = screen.getByTestId('second-language-helper').textContent ?? ''
+    expect(helper).toMatch(/Each person's own language stays their first choice/)
+    expect(helper).not.toMatch(/French stays/)
+  })
+
   it('mode off changes nothing: no question, Continue as before', () => {
     const onConfirm = renderAsking(askingCart('off'))
     assignVia(0, 'fr')
