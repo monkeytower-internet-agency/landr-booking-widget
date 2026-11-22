@@ -19831,6 +19831,19 @@
       },
       "MessageIn": {
         "properties": {
+          "intake_text": {
+            "anyOf": [
+              {
+                "maxLength": 20000,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Intake Text"
+          },
           "text": {
             "maxLength": 4000,
             "minLength": 1,
