@@ -93,6 +93,19 @@
       },
       "AcceptedItem": {
         "properties": {
+          "accepted_payload": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "maxProperties": 30,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accepted Payload"
+          },
           "changed_fields": {
             "anyOf": [
               {
