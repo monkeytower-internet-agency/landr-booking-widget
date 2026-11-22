@@ -917,6 +917,15 @@ export interface Location {
    * carry 'pickup' too, e.g. Para42's Hotel Mirador).
    */
   place_roles?: string[] | null
+  /**
+   * landr-mi9s4 — place details, sent by the API only when the operator has
+   * the place_details feature on (keys are ABSENT otherwise: treat all as
+   * optional). `maps_link` is an operator-set http(s) URL.
+   */
+  description?: string | null
+  description_localized?: Record<string, string> | null
+  phone?: string | null
+  maps_link?: string | null
 }
 
 /**
@@ -933,6 +942,9 @@ export interface MeetingPoint {
   lng: string
   google_maps_url: string
   waze_url: string
+  /** landr-mi9s4 — "" when unknown or the place_details feature is off. */
+  description?: string
+  phone?: string
 }
 
 /**

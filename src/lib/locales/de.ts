@@ -142,6 +142,9 @@ export const de: Bundle = {
 
   pickupLocationTitle: 'Abholort',
   pickupLocationCue: 'Abholort wählen',
+  pickupDetailsShowTemplate: 'Details zu {name} anzeigen',
+  pickupDetailsHideTemplate: 'Details zu {name} ausblenden',
+  pickupOpenInGoogleMaps: 'In Google Maps öffnen',
   chooseWhereWePickYouUp: 'Wo sollen wir Sie abholen?',
   loadingPickupLocations: 'Abholorte werden geladen…',
   noPickupLocationsConfigured: 'Keine Abholorte hinterlegt – bitte wenden Sie sich an den Anbieter',

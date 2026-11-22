@@ -145,6 +145,9 @@ export const trInformal: Bundle = {
 
   pickupLocationTitle: 'Alınış noktası',
   pickupLocationCue: 'alınış noktanı seç',
+  pickupDetailsShowTemplate: '{name} ayrıntılarını göster',
+  pickupDetailsHideTemplate: '{name} ayrıntılarını gizle',
+  pickupOpenInGoogleMaps: 'Google Haritalar’da aç',
   chooseWhereWePickYouUp: 'Seni nereden alacağımızı seç',
   loadingPickupLocations: 'Alınış noktaları yükleniyor…',
   noPickupLocationsConfigured: 'Tanımlı alınış noktası yok — lütfen işletmeyle iletişime geç',

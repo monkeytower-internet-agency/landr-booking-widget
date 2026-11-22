@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Check, MapPin } from 'lucide-react'
+import { Check, ChevronDown, MapPin } from 'lucide-react'
 import { listPickupLocationsForOperator } from '@/api/client'
 import type { Location } from '@/api/types'
 import {
@@ -10,6 +10,7 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { browserLocale, pickLocalized } from '@/lib/locale'
+import { hasPlaceDetails, placeDetails, telHref } from '@/lib/placeDetails'
 import { tr } from '@/lib/strings'
 import { useVariant } from '@/lib/variant'
 import { cn } from '@/lib/utils'
@@ -74,6 +75,7 @@ export function PickupLocationPicker({
   const [selected, setSelected] = useState<string | null>(
     initialLocationId ?? null,
   )
+  const [expanded, setExpanded] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const locale = browserLocale()
@@ -123,7 +125,11 @@ export function PickupLocationPicker({
             {locations.map((loc) => {
               const name = pickLocalized(loc.name, loc.name_localized, locale)
               const isSelected = selected === loc.location_id
-              return (
+              const details = placeDetails(loc, locale)
+              const hasDetails = hasPlaceDetails(details)
+              const isOpen = expanded === loc.location_id
+              const panelId = `pickup-details-${loc.location_id}`
+              const card = (
                 // landr-3mo4: pickup locations as option-cards — leading pin
                 // tile (check when selected), raised surface, shared brand
                 // selected state, ≥44px tap height.
@@ -166,6 +172,69 @@ export function PickupLocationPicker({
                   </span>
                   <span className="text-sm">{name}</span>
                 </label>
+              )
+              if (!hasDetails) return card
+              // landr-mi9s4.3: the chevron sits OUTSIDE the label so toggling
+              // the details never changes the selection.
+              return (
+                <div key={loc.location_id} className="flex flex-col gap-1">
+                  <div className="flex items-stretch gap-1">
+                    <div className="min-w-0 flex-1 [&>label]:h-full">{card}</div>
+                    <button
+                      type="button"
+                      className={cn(
+                        'tap-44 flex w-11 shrink-0 items-center justify-center border border-border bg-surface-raised text-muted-foreground hover:border-primary/40',
+                        tokens.optionCardRadius,
+                        tokens.focusRing,
+                      )}
+                      aria-expanded={isOpen}
+                      aria-controls={panelId}
+                      aria-label={tr(
+                        isOpen ? 'pickupDetailsHideTemplate' : 'pickupDetailsShowTemplate',
+                        locale,
+                      ).replace('{name}', name)}
+                      onClick={() => setExpanded(isOpen ? null : loc.location_id)}
+                      data-testid={`pickup-details-toggle-${loc.location_id}`}
+                    >
+                      <ChevronDown
+                        className={cn('size-4 transition-transform', isOpen && 'rotate-180')}
+                        aria-hidden
+                      />
+                    </button>
+                  </div>
+                  {isOpen ? (
+                    <div
+                      id={panelId}
+                      data-testid={`pickup-details-${loc.location_id}`}
+                      className="flex flex-col gap-1.5 rounded-lg bg-surface-well p-3 text-sm"
+                    >
+                      {details.description ? (
+                        <p className="whitespace-pre-line">{details.description}</p>
+                      ) : null}
+                      {details.address ? (
+                        <p className="text-muted-foreground">{details.address}</p>
+                      ) : null}
+                      {details.mapsUrl ? (
+                        <a
+                          href={details.mapsUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="w-fit text-primary underline underline-offset-2"
+                        >
+                          {tr('pickupOpenInGoogleMaps', locale)}
+                        </a>
+                      ) : null}
+                      {details.phone ? (
+                        <a
+                          href={telHref(details.phone)}
+                          className="w-fit text-primary underline underline-offset-2"
+                        >
+                          {details.phone}
+                        </a>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </div>
               )
             })}
             </fieldset>

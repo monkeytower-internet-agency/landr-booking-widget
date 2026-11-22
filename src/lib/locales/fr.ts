@@ -166,6 +166,9 @@ export const fr: Bundle = {
 
   pickupLocationTitle: 'Lieu de prise en charge',
   pickupLocationCue: 'choisir votre lieu de prise en charge',
+  pickupDetailsShowTemplate: 'Afficher les détails de {name}',
+  pickupDetailsHideTemplate: 'Masquer les détails de {name}',
+  pickupOpenInGoogleMaps: 'Ouvrir dans Google Maps',
   chooseWhereWePickYouUp: 'Choisissez où nous venons vous chercher',
   loadingPickupLocations: 'Chargement des lieux de prise en charge…',
   noPickupLocationsConfigured: 'Aucun lieu de prise en charge configuré : contactez l’organisateur',

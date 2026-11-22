@@ -142,6 +142,9 @@ export const deInformal: Bundle = {
 
   pickupLocationTitle: 'Abholort',
   pickupLocationCue: 'Abholort wählen',
+  pickupDetailsShowTemplate: 'Details zu {name} anzeigen',
+  pickupDetailsHideTemplate: 'Details zu {name} ausblenden',
+  pickupOpenInGoogleMaps: 'In Google Maps öffnen',
   chooseWhereWePickYouUp: 'Wo sollen wir dich abholen?',
   loadingPickupLocations: 'Abholorte werden geladen…',
   noPickupLocationsConfigured: 'Keine Abholorte hinterlegt – bitte wende dich an den Anbieter',

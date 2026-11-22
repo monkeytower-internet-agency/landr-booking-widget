@@ -145,6 +145,9 @@ export const tr: Bundle = {
 
   pickupLocationTitle: 'Alınış noktası',
   pickupLocationCue: 'alınış noktanızı seçin',
+  pickupDetailsShowTemplate: '{name} ayrıntılarını göster',
+  pickupDetailsHideTemplate: '{name} ayrıntılarını gizle',
+  pickupOpenInGoogleMaps: 'Google Haritalar’da aç',
   chooseWhereWePickYouUp: 'Sizi nereden alacağımızı seçin',
   loadingPickupLocations: 'Alınış noktaları yükleniyor…',
   noPickupLocationsConfigured: 'Tanımlı alınış noktası yok — lütfen işletmeyle iletişime geçin',
