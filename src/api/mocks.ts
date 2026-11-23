@@ -326,6 +326,10 @@ export const mockLocations: Location[] = [
     parent_id: null,
     role_type: { code: 'beach', label: 'Beach' },
     place_roles: ['pickup'],
+    description: 'Meet at the blue kiosk next to the lifeguard tower.',
+    description_localized: { de: 'Treffpunkt am blauen Kiosk neben dem Rettungsturm.' },
+    address: 'Ölüdeniz Beach Promenade, Fethiye',
+    phone: '+90 252 000 00 00',
   },
   {
     location_id: 'aaaaaaaa-0000-0000-0000-000000000002',
