@@ -7142,10 +7142,11 @@ export interface paths {
          * Upsert Bank Details
          * @description Create/rotate/clear this operator's bank details.
          *
-         *     Auth is deliberately the SAME any-role dependency the Stripe/Holded
-         *     credentials above use (landr-yx73's REVISION overrides the ticket's
-         *     original owner-only decision) — an operator who can write a live Stripe
-         *     secret key can certainly write their own IBAN.
+         *     Auth is deliberately the SAME dependency the Stripe/Holded credentials
+         *     above use (landr-yx73's REVISION overrides the ticket's original
+         *     owner-only decision), now owner/admin (landr-ti6b0.15): an operator who
+         *     can write a live Stripe secret key can certainly write their own IBAN, and
+         *     staff can do neither.
          *
          *     Body fields ``iban`` / ``bic`` / ``account_holder`` are each sparse-merge:
          *     omitted = untouched, null = clear, blank = 422 ``blank_not_allowed``.
