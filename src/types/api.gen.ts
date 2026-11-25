@@ -1426,6 +1426,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/landr-staff/needs-you": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Needs You */
+        get: operations["get_needs_you"];
+        /** Put Needs You */
+        put: operations["put_needs_you"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/landr-staff/operators": {
         parameters: {
             query?: never;
@@ -22589,6 +22607,13 @@ export interface components {
          * @enum {string}
          */
         Need: "pickup_locations" | "staff_scheduling" | "resources_equipment" | "partners_hotels" | "multiple_languages" | "payments_online" | "invoicing" | "other";
+        /** NeedsYouIn */
+        NeedsYouIn: {
+            /** At */
+            at?: string | null;
+            /** Count */
+            count: number;
+        };
         /** NewContact */
         NewContact: {
             /** First Name */
@@ -34130,6 +34155,63 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+        };
+    };
+    get_needs_you: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    put_needs_you: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NeedsYouIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
