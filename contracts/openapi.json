@@ -20276,6 +20276,33 @@
         "title": "Need",
         "type": "string"
       },
+      "NeedsYouIn": {
+        "properties": {
+          "at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At"
+          },
+          "count": {
+            "maximum": 100000.0,
+            "minimum": 0.0,
+            "title": "Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "count"
+        ],
+        "title": "NeedsYouIn",
+        "type": "object"
+      },
       "NewContact": {
         "properties": {
           "first_name": {
@@ -50692,6 +50719,80 @@
         "summary": "Get My Capabilities",
         "tags": [
           "landr-staff-capabilities"
+        ]
+      }
+    },
+    "/api/landr-staff/needs-you": {
+      "get": {
+        "operationId": "get_needs_you",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Needs You",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Needs You",
+        "tags": [
+          "landr-staff-needs-you"
+        ]
+      },
+      "put": {
+        "operationId": "put_needs_you",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NeedsYouIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Put Needs You",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Put Needs You",
+        "tags": [
+          "landr-staff-needs-you"
         ]
       }
     },
