@@ -3217,6 +3217,44 @@
         "title": "BoardCheck",
         "type": "object"
       },
+      "BoardItem": {
+        "additionalProperties": false,
+        "description": "One public-board item: a guided tour (its open dates are listed) or an\noffer (teaser + booking link). List order is display order.",
+        "properties": {
+          "kind": {
+            "enum": [
+              "tour",
+              "offer"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "product_id": {
+            "title": "Product Id",
+            "type": "string"
+          },
+          "teaser": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "enum": [
+                "en",
+                "de",
+                "es"
+              ]
+            },
+            "title": "Teaser",
+            "type": "object"
+          }
+        },
+        "required": [
+          "product_id",
+          "kind"
+        ],
+        "title": "BoardItem",
+        "type": "object"
+      },
       "BookingCalendarEvent": {
         "description": "Parsed calendar event for client-side Google Calendar / Outlook deep-links.\n\nlandr-odsr: mirrors the widget's ``BookingCalendarEvent`` TypeScript interface\n(src/api/types.ts) exactly \u2014 field names must not diverge or the confirmation\nscreen goes blank (landr-9ut4).",
         "properties": {
@@ -40541,6 +40579,21 @@
               }
             ],
             "title": "Board Enabled"
+          },
+          "board_items": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/BoardItem"
+                },
+                "maxItems": 24,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Board Items"
           },
           "currency": {
             "anyOf": [

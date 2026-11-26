@@ -17093,6 +17093,24 @@ export interface components {
             status: "ok" | "board_not_found" | "no_access" | "board_closed" | "member_not_found" | "not_configured" | "error";
         };
         /**
+         * BoardItem
+         * @description One public-board item: a guided tour (its open dates are listed) or an
+         *     offer (teaser + booking link). List order is display order.
+         */
+        BoardItem: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "tour" | "offer";
+            /** Product Id */
+            product_id: string;
+            /** Teaser */
+            teaser?: {
+                [key: string]: string;
+            };
+        };
+        /**
          * BookingCalendarEvent
          * @description Parsed calendar event for client-side Google Calendar / Outlook deep-links.
          *
@@ -29803,6 +29821,8 @@ export interface components {
         SettingsPut: {
             /** Board Enabled */
             board_enabled?: boolean | null;
+            /** Board Items */
+            board_items?: components["schemas"]["BoardItem"][] | null;
             /** Currency */
             currency?: string | null;
             /** Footer Text */
