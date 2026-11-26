@@ -8148,6 +8148,73 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/on-site": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get On Site Summary */
+        get: operations["staff_on_site_summary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/on-site/lines": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add On Site Line
+         * @description Sell an add-on on the spot. Guards in order: 409
+         *     ``booking_locked_for_edit`` (cancelled / closed / invoiced); 422
+         *     ``product_not_addon_of_booking`` (not a sellable add-on of a product on
+         *     this booking); 422 ``addon_max_qty`` (with ``max_qty`` and ``on_booking``);
+         *     422 ``day_not_on_line`` (a picked day the parent line does not have); 409
+         *     ``custom_offer_applied`` (an operator-paid add-on on a booking whose price
+         *     is a custom offer — the office re-offers instead); 422 ``un_priceable``.
+         *     No payment request is sent: the money is collected right after.
+         */
+        post: operations["staff_on_site_add_line"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/on-site/payments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Record On Site Payment
+         * @description Record a cash / bank / other payment for a live booking with an open
+         *     balance; part payments allowed. 409s as the office route
+         *     (``booking_not_live``, ``no_balance_due``, ``amount_exceeds_balance_due``,
+         *     ``booking_cancelled``). The guest gets the usual receipt.
+         */
+        post: operations["staff_on_site_record_payment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/bookings/{booking_id}/participants/{participant_id}/accepted-languages": {
         parameters: {
             query?: never;
@@ -24384,6 +24451,119 @@ export interface components {
             tax_total: number;
         } & {
             [key: string]: unknown;
+        };
+        /** OnSiteAddonOut */
+        OnSiteAddonOut: {
+            /** Max Qty */
+            max_qty?: number | null;
+            /** Name */
+            name: string;
+            /**
+             * On Booking
+             * @default 0
+             */
+            on_booking: number;
+            /** Paid To Performer */
+            paid_to_performer: boolean;
+            /** Product Id */
+            product_id: string;
+            /** Unit Price */
+            unit_price: string;
+        };
+        /** OnSiteLineIn */
+        OnSiteLineIn: {
+            /** Client Request Key */
+            client_request_key: string;
+            /** Note */
+            note?: string | null;
+            /** Product Id */
+            product_id: string;
+            /**
+             * Quantity
+             * @default 1
+             */
+            quantity: number;
+            /** Selected Days */
+            selected_days?: string[] | null;
+        };
+        /** OnSiteLineOut */
+        OnSiteLineOut: {
+            /** Amount To Collect */
+            amount_to_collect: string;
+            /** Booking Id */
+            booking_id: string;
+            /** Booking Product Id */
+            booking_product_id: string;
+            /** Currency */
+            currency: string;
+            /** Line Gross */
+            line_gross: string;
+            /** Paid To Performer */
+            paid_to_performer: boolean;
+            /** Product Id */
+            product_id: string;
+            /** Quantity */
+            quantity: number;
+            /**
+             * Replayed
+             * @default false
+             */
+            replayed: boolean;
+        };
+        /** OnSitePaymentIn */
+        OnSitePaymentIn: {
+            /** Amount */
+            amount?: number | string | null;
+            /** Client Request Key */
+            client_request_key: string;
+            /**
+             * Method
+             * @enum {string}
+             */
+            method: "cash" | "bank_transfer" | "other";
+            /** Note */
+            note?: string | null;
+        };
+        /** OnSitePaymentOut */
+        OnSitePaymentOut: {
+            /** Amount */
+            amount: string;
+            /** Amount To Collect */
+            amount_to_collect: string;
+            /** Booking Id */
+            booking_id: string;
+            /** Currency */
+            currency: string;
+            /** Method */
+            method: string;
+            /** Payment Id */
+            payment_id: string;
+            /** Receipt Sent */
+            receipt_sent: boolean;
+            /**
+             * Replayed
+             * @default false
+             */
+            replayed: boolean;
+        };
+        /** OnSiteSummaryOut */
+        OnSiteSummaryOut: {
+            /** Addons */
+            addons?: components["schemas"]["OnSiteAddonOut"][];
+            /** Addons Blocked Reason */
+            addons_blocked_reason?: string | null;
+            /** Amount To Collect */
+            amount_to_collect: string;
+            /** Booking Id */
+            booking_id: string;
+            /** Booking Ref */
+            booking_ref: string;
+            /** Can Collect */
+            can_collect: boolean;
+            /** Currency */
+            currency: string;
+            /** Participant Count */
+            participant_count: number;
         };
         /** OnboardingCallConfig */
         OnboardingCallConfig: {
@@ -45905,6 +46085,110 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_on_site_summary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnSiteSummaryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_on_site_add_line: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OnSiteLineIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnSiteLineOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_on_site_record_payment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OnSitePaymentIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnSitePaymentOut"];
+                };
             };
             /** @description Validation Error */
             422: {
