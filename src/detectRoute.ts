@@ -113,3 +113,16 @@ export function startsAtDates(search: string): boolean {
   const params = new URLSearchParams(search)
   return params.get('start') === 'dates' && Boolean(params.get('product'))
 }
+
+/**
+ * `?date=YYYY-MM-DD` — with `?product=<slug>&start=dates`, the date picker of
+ * that product opens with this day already chosen (the shuttle board's tour
+ * links). Anything that is not a real calendar day is ignored (null).
+ */
+export function deepLinkDate(search: string): string | null {
+  const raw = new URLSearchParams(search).get('date')
+  if (!raw || !/^\d{4}-\d{2}-\d{2}$/.test(raw)) return null
+  const d = new Date(`${raw}T00:00:00Z`)
+  if (Number.isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== raw) return null
+  return raw
+}

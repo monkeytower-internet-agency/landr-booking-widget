@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { detectRoute, invitePathToken, shortLinkCode, startsAtDates } from './detectRoute'
+import { deepLinkDate, detectRoute, invitePathToken, shortLinkCode, startsAtDates } from './detectRoute'
 
 /**
  * Path-based route detection (landr-sgnd). The widget is otherwise a
@@ -275,5 +275,17 @@ describe('shortLinkCode (/s/{code})', () => {
     expect(shortLinkCode('/s/')).toBeNull()
     expect(shortLinkCode('/i/abc')).toBeNull()
     expect(shortLinkCode('/s/a/b')).toBeNull()
+  })
+})
+
+describe('deepLinkDate', () => {
+  it('reads a real calendar day', () => {
+    expect(deepLinkDate('?product=x&start=dates&date=2026-12-05')).toBe('2026-12-05')
+  })
+  it('ignores anything else', () => {
+    expect(deepLinkDate('')).toBeNull()
+    expect(deepLinkDate('?date=2026-02-30')).toBeNull()
+    expect(deepLinkDate('?date=tomorrow')).toBeNull()
+    expect(deepLinkDate('?date=2026-1-5')).toBeNull()
   })
 })
