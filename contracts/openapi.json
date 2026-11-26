@@ -2301,6 +2301,22 @@
               }
             ],
             "title": "Provider Role Id"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "enum": [
+                  "proposed",
+                  "accepted"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "landr-5ndxl.2: owner/admin only (pre-accept after a verbal yes). Omitted: accepted when the staff resource accepts jobs automatically, else proposed",
+            "title": "Status"
           }
         },
         "required": [
@@ -2308,6 +2324,49 @@
           "assignment_date"
         ],
         "title": "AssignmentIn",
+        "type": "object"
+      },
+      "AssignmentMove": {
+        "properties": {
+          "assignment_date": {
+            "format": "date",
+            "title": "Assignment Date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "assignment_date"
+        ],
+        "title": "AssignmentMove",
+        "type": "object"
+      },
+      "AssignmentRespondIn": {
+        "properties": {
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "status": {
+            "enum": [
+              "accepted",
+              "declined"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "AssignmentRespondIn",
         "type": "object"
       },
       "AuthMethodsOut": {
@@ -20237,6 +20296,17 @@
               }
             ],
             "title": "Role Code"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
           }
         },
         "required": [
@@ -37437,6 +37507,18 @@
             "title": "Attributes",
             "type": "object"
           },
+          "auto_accept_assignments": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "landr-5ndxl.2: staff resource accepts new booking-day assignments automatically (omitted = true); false = proposed, the performer answers",
+            "title": "Auto Accept Assignments"
+          },
           "capacity": {
             "anyOf": [
               {
@@ -37715,6 +37797,11 @@
             "additionalProperties": true,
             "title": "Attributes",
             "type": "object"
+          },
+          "auto_accept_assignments": {
+            "default": true,
+            "title": "Auto Accept Assignments",
+            "type": "boolean"
           },
           "capacity": {
             "anyOf": [
@@ -38042,6 +38129,17 @@
               }
             ],
             "title": "Attributes"
+          },
+          "auto_accept_assignments": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Auto Accept Assignments"
           },
           "capacity": {
             "anyOf": [
@@ -97568,6 +97666,124 @@
           }
         ],
         "summary": "Delete Assignment",
+        "tags": [
+          "staff-providers"
+        ]
+      },
+      "patch": {
+        "description": "Move an assignment to another day of the same booking (landr-5ndxl.2).\n\nThe new day needs a new answer: status goes back to accepted/proposed by\nthe person's automatic-acceptance switch and the old answer is cleared. The\nperformer is notified that the job moved. 409 ``assignment_exists`` when the\nperson already has that booking-day.",
+        "operationId": "move_assignment",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "assignment_id",
+            "required": true,
+            "schema": {
+              "title": "Assignment Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignmentMove"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Move Assignment",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Move Assignment",
+        "tags": [
+          "staff-providers"
+        ]
+      }
+    },
+    "/api/staff/provider-assignments/{assignment_id}/respond": {
+      "post": {
+        "description": "Accept or decline a booking-day assignment (landr-5ndxl.2).\n\nThe caller is the person the job is for (``resources.user_id`` of the\nassignment's provider) or an owner/admin answering for them. Re-answering is\nallowed until the day: 409 ``assignment_in_past`` once ``assignment_date``\nis before today in the operator's timezone. 404 on an unknown or removed\nassignment. A decline (not a repeated one) alerts the operator's\nowner/admin/staff by bell, push and email. Behind the staff-only feature key\n``performer_mode`` (403 ``feature_disabled``).",
+        "operationId": "respond_to_assignment",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "assignment_id",
+            "required": true,
+            "schema": {
+              "title": "Assignment Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignmentRespondIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Respond To Assignment",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Respond To Assignment",
         "tags": [
           "staff-providers"
         ]
