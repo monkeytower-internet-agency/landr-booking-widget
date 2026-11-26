@@ -5420,6 +5420,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/public/punch-cards/{operator_slug}/balance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Public Balance
+         * @description Rides left on a card, by its code. Reveals nothing else: no id, no
+         *     last name, no ledger. Unknown code, unknown operator and a switched-off
+         *     feature all answer the same 404.
+         */
+        post: operations["public_punch_card_balance"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/public/resource-calendars/{token}.ics": {
         parameters: {
             query?: never;
@@ -12361,6 +12383,98 @@ export interface paths {
         patch: operations["patch_provider"];
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/punch-card-types": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Card Types */
+        get: operations["staff_list_punch_card_types"];
+        put?: never;
+        /** Create Card Type */
+        post: operations["staff_create_punch_card_type"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/punch-card-types/{type_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Card Type
+         * @description Delete a type; archive it instead once a card was sold from it (the
+         *     sold cards keep their type, the type just leaves the sell dialog).
+         */
+        delete: operations["staff_delete_punch_card_type"];
+        options?: never;
+        head?: never;
+        /** Update Card Type */
+        patch: operations["staff_update_punch_card_type"];
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/punch-cards": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Cards */
+        get: operations["staff_list_punch_cards"];
+        put?: never;
+        /** Sell Card */
+        post: operations["staff_sell_punch_card"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/punch-cards/{card_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Card */
+        get: operations["staff_get_punch_card"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/punch-cards/{card_id}/adjust": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Adjust Card */
+        post: operations["staff_adjust_punch_card"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/reschedule-requests": {
         parameters: {
             query?: never;
@@ -15552,6 +15666,18 @@ export interface components {
             /** Unavailable Reason */
             unavailable_reason?: ("sold_out" | "unit_taken") | null;
         };
+        /** AdjustIn */
+        AdjustIn: {
+            /** Delta */
+            delta: number;
+            /**
+             * Kind
+             * @default adjust
+             */
+            kind: string;
+            /** Reason */
+            reason: string;
+        };
         /** AgentChannelTermsOut */
         AgentChannelTermsOut: {
             /** Enabled */
@@ -16432,6 +16558,11 @@ export interface components {
             status: string;
         } & {
             [key: string]: unknown;
+        };
+        /** BalanceIn */
+        BalanceIn: {
+            /** Code */
+            code: string;
         };
         /**
          * BankDetailsIn
@@ -17809,6 +17940,33 @@ export interface components {
         CapabilityKey: {
             /** Key */
             key: string;
+        };
+        /** CardTypeIn */
+        CardTypeIn: {
+            /** Label */
+            label: string;
+            /** Price Cents */
+            price_cents: number;
+            /** Rides */
+            rides: number;
+            /**
+             * Sort
+             * @default 0
+             */
+            sort: number;
+        };
+        /** CardTypePatch */
+        CardTypePatch: {
+            /** Active */
+            active?: boolean | null;
+            /** Label */
+            label?: string | null;
+            /** Price Cents */
+            price_cents?: number | null;
+            /** Rides */
+            rides?: number | null;
+            /** Sort */
+            sort?: number | null;
         };
         /**
          * CatalogueAddon
@@ -29061,6 +29219,13 @@ export interface components {
             /** Target Product Ids */
             target_product_ids: string[];
         };
+        /** SellIn */
+        SellIn: {
+            /** Card Type Id */
+            card_type_id: string;
+            /** Holder Name */
+            holder_name: string;
+        };
         /**
          * SendConfirmationBody
          * @description ``email_override`` (landr-j6clr.1) plus the payment-link switch.
@@ -40201,6 +40366,43 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FixedDateWindow"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_punch_card_balance: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BalanceIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */
@@ -53481,6 +53683,293 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["ProviderPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_list_punch_card_types: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    }[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_create_punch_card_type: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CardTypeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_delete_punch_card_type: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                type_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_update_punch_card_type: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                type_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CardTypePatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_list_punch_cards: {
+        parameters: {
+            query?: {
+                q?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    }[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_sell_punch_card: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SellIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_get_punch_card: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                card_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_adjust_punch_card: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                card_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdjustIn"];
             };
         };
         responses: {
