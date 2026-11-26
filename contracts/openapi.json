@@ -3217,6 +3217,38 @@
         "title": "BoardCheck",
         "type": "object"
       },
+      "BoardIn": {
+        "properties": {
+          "card_code": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Card Code"
+          },
+          "settle_fees": {
+            "default": false,
+            "title": "Settle Fees",
+            "type": "boolean"
+          },
+          "via": {
+            "default": "cash",
+            "enum": [
+              "cash",
+              "punch"
+            ],
+            "title": "Via",
+            "type": "string"
+          }
+        },
+        "title": "BoardIn",
+        "type": "object"
+      },
       "BoardItem": {
         "additionalProperties": false,
         "description": "One public-board item: a guided tour (its open dates are listed) or an\noffer (teaser + booking link). List order is display order.",
@@ -6396,6 +6428,24 @@
           "seat_cap"
         ],
         "title": "CarSpec",
+        "type": "object"
+      },
+      "CardIn": {
+        "properties": {
+          "card_code": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Card Code"
+          }
+        },
+        "title": "CardIn",
         "type": "object"
       },
       "CardTypeIn": {
@@ -21040,17 +21090,6 @@
           }
         },
         "title": "NextStep",
-        "type": "object"
-      },
-      "NoShowIn": {
-        "properties": {
-          "charge_cancellation_fee": {
-            "default": false,
-            "title": "Charge Cancellation Fee",
-            "type": "boolean"
-          }
-        },
-        "title": "NoShowIn",
         "type": "object"
       },
       "NoShowOut": {
@@ -47192,6 +47231,17 @@
         "title": "SessionIn",
         "type": "object"
       },
+      "app__routers__staff_bookings_no_show__NoShowIn": {
+        "properties": {
+          "charge_cancellation_fee": {
+            "default": false,
+            "title": "Charge Cancellation Fee",
+            "type": "boolean"
+          }
+        },
+        "title": "NoShowIn",
+        "type": "object"
+      },
       "app__routers__staff_commission__RuleIn": {
         "properties": {
           "active": {
@@ -48072,6 +48122,24 @@
           }
         },
         "title": "SignupIn",
+        "type": "object"
+      },
+      "app__routers__staff_shuttle_boarding__NoShowIn": {
+        "properties": {
+          "card_code": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Card Code"
+          }
+        },
+        "title": "NoShowIn",
         "type": "object"
       },
       "app__routers__staff_verifications__RejectIn": {
@@ -68711,7 +68779,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/NoShowIn"
+                "$ref": "#/components/schemas/app__routers__staff_bookings_no_show__NoShowIn"
               }
             }
           },
@@ -91944,6 +92012,71 @@
         ]
       }
     },
+    "/api/staff/operators/{operator_id}/shuttle/boarding": {
+      "get": {
+        "operationId": "staff_shuttle_boarding_day",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "day",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Day"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Staff Shuttle Boarding Day",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Boarding",
+        "tags": [
+          "staff-shuttle-boarding"
+        ]
+      }
+    },
     "/api/staff/operators/{operator_id}/shuttle/cars/{car_id}": {
       "delete": {
         "operationId": "staff_shuttle_delete_car",
@@ -93008,6 +93141,74 @@
         ]
       }
     },
+    "/api/staff/operators/{operator_id}/shuttle/signups/{signup_id}/board": {
+      "post": {
+        "operationId": "staff_shuttle_board_signup",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "signup_id",
+            "required": true,
+            "schema": {
+              "title": "Signup Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BoardIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Staff Shuttle Board Signup",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Board",
+        "tags": [
+          "staff-shuttle-boarding"
+        ]
+      }
+    },
     "/api/staff/operators/{operator_id}/shuttle/signups/{signup_id}/cancel": {
       "post": {
         "operationId": "staff_shuttle_cancel_signup",
@@ -93063,6 +93264,207 @@
         "summary": "Cancel Signup",
         "tags": [
           "staff-shuttle"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/shuttle/signups/{signup_id}/card": {
+      "put": {
+        "operationId": "staff_shuttle_signup_card",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "signup_id",
+            "required": true,
+            "schema": {
+              "title": "Signup Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CardIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Staff Shuttle Signup Card",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Signup Card",
+        "tags": [
+          "staff-shuttle-boarding"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/shuttle/signups/{signup_id}/no-show": {
+      "post": {
+        "operationId": "staff_shuttle_no_show_signup",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "signup_id",
+            "required": true,
+            "schema": {
+              "title": "Signup Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/app__routers__staff_shuttle_boarding__NoShowIn"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Staff Shuttle No Show Signup",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "No Show",
+        "tags": [
+          "staff-shuttle-boarding"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/shuttle/signups/{signup_id}/unmark": {
+      "post": {
+        "operationId": "staff_shuttle_unmark_signup",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "signup_id",
+            "required": true,
+            "schema": {
+              "title": "Signup Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Staff Shuttle Unmark Signup",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Unmark",
+        "tags": [
+          "staff-shuttle-boarding"
         ]
       }
     },
