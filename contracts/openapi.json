@@ -92790,6 +92790,64 @@
         ]
       }
     },
+    "/api/staff/operators/{operator_id}/shuttle/departures/{departure_id}/restore": {
+      "post": {
+        "operationId": "staff_shuttle_restore_departure",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "departure_id",
+            "required": true,
+            "schema": {
+              "title": "Departure Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Staff Shuttle Restore Departure",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Restore Departure",
+        "tags": [
+          "staff-shuttle"
+        ]
+      }
+    },
     "/api/staff/operators/{operator_id}/shuttle/departures/{departure_id}/signups": {
       "post": {
         "operationId": "staff_shuttle_add_signup",
