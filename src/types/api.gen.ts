@@ -5454,6 +5454,76 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/public/shuttle/board": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Board */
+        get: operations["public_shuttle_board_by_host"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/shuttle/signups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Signup */
+        post: operations["public_shuttle_signup_by_host"];
+        /** Cancel Signup */
+        delete: operations["public_shuttle_cancel_by_host"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/shuttle/{slug}/board": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Board */
+        get: operations["public_shuttle_board"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/shuttle/{slug}/signups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Signup */
+        post: operations["public_shuttle_signup"];
+        /** Cancel Signup */
+        delete: operations["public_shuttle_cancel"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/public/signup": {
         parameters: {
             query?: never;
@@ -29258,6 +29328,26 @@ export interface components {
             signer_email: string;
         };
         /**
+         * SignupIn
+         * @description Nothing about the operator is accepted here (``extra="forbid"``).
+         */
+        SignupIn: {
+            /** Departure Id */
+            departure_id: string;
+            /** Display Name */
+            display_name: string;
+            /**
+             * Kind
+             * @default pilot
+             * @enum {string}
+             */
+            kind: "pilot" | "tandem";
+            /** Meeting Point Id */
+            meeting_point_id?: string | null;
+            /** Seats */
+            seats: number;
+        };
+        /**
          * SignupRequest
          * @description POST /api/public/signup body.
          *
@@ -40173,6 +40263,224 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ShortLinkResolveOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_shuttle_board_by_host: {
+        parameters: {
+            query?: {
+                slug?: string | null;
+            };
+            header?: {
+                "x-shuttle-tokens"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_shuttle_signup_by_host: {
+        parameters: {
+            query?: {
+                slug?: string | null;
+            };
+            header?: {
+                "x-shuttle-device"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SignupIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_shuttle_cancel_by_host: {
+        parameters: {
+            query?: {
+                slug?: string | null;
+            };
+            header?: {
+                "x-shuttle-token"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_shuttle_board: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-shuttle-tokens"?: string | null;
+            };
+            path: {
+                slug: string | null;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_shuttle_signup: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-shuttle-device"?: string | null;
+            };
+            path: {
+                slug: string | null;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SignupIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_shuttle_cancel: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-shuttle-token"?: string | null;
+            };
+            path: {
+                slug: string | null;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */

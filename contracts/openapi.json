@@ -40167,6 +40167,56 @@
         "title": "SignoffRelayIn",
         "type": "object"
       },
+      "SignupIn": {
+        "additionalProperties": false,
+        "description": "Nothing about the operator is accepted here (``extra=\"forbid\"``).",
+        "properties": {
+          "departure_id": {
+            "maxLength": 64,
+            "title": "Departure Id",
+            "type": "string"
+          },
+          "display_name": {
+            "maxLength": 200,
+            "title": "Display Name",
+            "type": "string"
+          },
+          "kind": {
+            "default": "pilot",
+            "enum": [
+              "pilot",
+              "tandem"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "meeting_point_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meeting Point Id"
+          },
+          "seats": {
+            "maximum": 8.0,
+            "minimum": 1.0,
+            "title": "Seats",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "departure_id",
+          "display_name",
+          "seats"
+        ],
+        "title": "SignupIn",
+        "type": "object"
+      },
       "SignupRequest": {
         "description": "POST /api/public/signup body.\n\n`name` is the operator/business display name (-> operators.name). `slug` is\nthe desired public handle. `turnstile_token` is the Cloudflare widget's\nclient response token. `password` is the new account password (GoTrue\nenforces its own minimum; we keep a soft floor here). `locale` selects the\nverification-email language (any `public.ui_locales` code or\nbrowser tag such as `es-ES`; bundled en/de/es/tr, else en; defaults en).\n\nBoth field names and their marketing-site aliases are accepted (back-compat):\n  name / operator_name, slug / operator_slug  (landr-oqrz.1)\n\n`preset_key` (optional, landr-k9pji.2) pre-selects the onboarding path,\ne.g. `solo_pilot` from the website's solo landing CTA. One of\n`app/services/onboarding_flow.py` FLOW_KEYS or a live operator-template\nslug (landr-m6tp4.1; stored as that template's preset key), else 422\n`unknown_preset_key`. Blank = not sent. Stored on the operator only; the\nwizard applies the template.\n\n`plan` (optional, landr-243rh.11) is a package *hint*: only `personal` is\nhonoured, anything else is dropped to None (Solo). The package is resolved\nserver-side (see `_resolve_plan_slug`); the client never names a package id.",
         "properties": {
@@ -60293,6 +60343,424 @@
         "summary": "Resolve Short Link",
         "tags": [
           "public-short-links"
+        ]
+      }
+    },
+    "/api/public/shuttle/board": {
+      "get": {
+        "operationId": "public_shuttle_board_by_host",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "slug",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Slug"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-shuttle-tokens",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Shuttle-Tokens"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Public Shuttle Board By Host",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Board",
+        "tags": [
+          "public-shuttle"
+        ]
+      }
+    },
+    "/api/public/shuttle/signups": {
+      "delete": {
+        "operationId": "public_shuttle_cancel_by_host",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "slug",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Slug"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-shuttle-token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Shuttle-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Public Shuttle Cancel By Host",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Cancel Signup",
+        "tags": [
+          "public-shuttle"
+        ]
+      },
+      "post": {
+        "operationId": "public_shuttle_signup_by_host",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "slug",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Slug"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-shuttle-device",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Shuttle-Device"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignupIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Public Shuttle Signup By Host",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Signup",
+        "tags": [
+          "public-shuttle"
+        ]
+      }
+    },
+    "/api/public/shuttle/{slug}/board": {
+      "get": {
+        "operationId": "public_shuttle_board",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Slug"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-shuttle-tokens",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Shuttle-Tokens"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Public Shuttle Board",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Board",
+        "tags": [
+          "public-shuttle"
+        ]
+      }
+    },
+    "/api/public/shuttle/{slug}/signups": {
+      "delete": {
+        "operationId": "public_shuttle_cancel",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Slug"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-shuttle-token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Shuttle-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Public Shuttle Cancel",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Cancel Signup",
+        "tags": [
+          "public-shuttle"
+        ]
+      },
+      "post": {
+        "operationId": "public_shuttle_signup",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Slug"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-shuttle-device",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Shuttle-Device"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignupIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Public Shuttle Signup",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Signup",
+        "tags": [
+          "public-shuttle"
         ]
       }
     },
