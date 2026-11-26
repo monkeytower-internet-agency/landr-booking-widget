@@ -12383,6 +12383,27 @@ export interface paths {
         patch: operations["patch_provider"];
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/punch-card-credits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Open Credits
+         * @description Open recommendation credits of the pilot named ``holder_name``: what the
+         *     sell dialog deducts from their next card of ``card_type_id``.
+         */
+        get: operations["staff_punch_card_credits"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/punch-card-types": {
         parameters: {
             query?: never;
@@ -18245,6 +18266,13 @@ export interface components {
             label: string;
             /** Price Cents */
             price_cents: number;
+            /**
+             * Reward Cents
+             * @default 500
+             */
+            reward_cents: number;
+            /** Reward Enabled */
+            reward_enabled?: boolean | null;
             /** Rides */
             rides: number;
             /**
@@ -18261,6 +18289,10 @@ export interface components {
             label?: string | null;
             /** Price Cents */
             price_cents?: number | null;
+            /** Reward Cents */
+            reward_cents?: number | null;
+            /** Reward Enabled */
+            reward_enabled?: boolean | null;
             /** Rides */
             rides?: number | null;
             /** Sort */
@@ -29605,6 +29637,8 @@ export interface components {
             card_type_id: string;
             /** Holder Name */
             holder_name: string;
+            /** Recommender Code */
+            recommender_code?: string | null;
         };
         /**
          * SendConfirmationBody
@@ -54104,6 +54138,42 @@ export interface operations {
                 "application/json": components["schemas"]["ProviderPatch"];
             };
         };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_punch_card_credits: {
+        parameters: {
+            query: {
+                holder_name: string;
+                card_type_id?: string | null;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {

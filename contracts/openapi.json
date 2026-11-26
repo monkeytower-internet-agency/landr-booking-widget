@@ -6374,6 +6374,24 @@
             "title": "Price Cents",
             "type": "integer"
           },
+          "reward_cents": {
+            "default": 500,
+            "maximum": 10000000.0,
+            "minimum": 0.0,
+            "title": "Reward Cents",
+            "type": "integer"
+          },
+          "reward_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reward Enabled"
+          },
           "rides": {
             "maximum": 1000.0,
             "minimum": 1.0,
@@ -6432,6 +6450,30 @@
               }
             ],
             "title": "Price Cents"
+          },
+          "reward_cents": {
+            "anyOf": [
+              {
+                "maximum": 10000000.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reward Cents"
+          },
+          "reward_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reward Enabled"
           },
           "rides": {
             "anyOf": [
@@ -40001,6 +40043,18 @@
             "minLength": 1,
             "title": "Holder Name",
             "type": "string"
+          },
+          "recommender_code": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recommender Code"
           }
         },
         "required": [
@@ -84584,6 +84638,81 @@
         "summary": "Patch Provider",
         "tags": [
           "staff-providers"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/punch-card-credits": {
+      "get": {
+        "description": "Open recommendation credits of the pilot named ``holder_name``: what the\nsell dialog deducts from their next card of ``card_type_id``.",
+        "operationId": "staff_punch_card_credits",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "holder_name",
+            "required": true,
+            "schema": {
+              "title": "Holder Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "card_type_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Card Type Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Staff Punch Card Credits",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Open Credits",
+        "tags": [
+          "staff-punch-cards"
         ]
       }
     },
