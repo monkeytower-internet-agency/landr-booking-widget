@@ -182,7 +182,7 @@ import {
   writeStoredProgress,
 } from './bookingPersistence'
 import { resolveAgentToken, sanitizeAgentToken, writeStoredAgentToken } from '@/lib/agentReferral'
-import { detectRoute, invitePathToken, startsAtDates } from './detectRoute'
+import { deepLinkDate, detectRoute, invitePathToken, startsAtDates } from './detectRoute'
 import { LandingPage } from '@/components/booking/LandingPage'
 import { TierBadge } from '@/components/TierBadge'
 import {
@@ -239,6 +239,7 @@ function readQueryParams() {
       campaign: null as string | null,
       agent: null as string | null,
       startAtDates: false,
+      date: null as string | null,
     }
   }
   const params = new URLSearchParams(window.location.search)
@@ -297,6 +298,7 @@ function readQueryParams() {
     // product opens on the date picker; the product-detail step is skipped and
     // no back link / crumb leads to it.
     startAtDates: startsAtDates(window.location.search),
+    date: deepLinkDate(window.location.search),
   }
 }
 
@@ -489,6 +491,7 @@ function BookingFlowApp() {
     campaign: queryCampaign,
     agent: queryAgent,
     startAtDates,
+    date: deepLinkDay,
   } = useMemo(() => readQueryParams(), [])
   // landr-5lrov: an invite link (`/i/<token>`) carries NO `?w=` — the widget
   // token comes back with the invite prefill and is adopted here, so every
@@ -2997,7 +3000,9 @@ function BookingFlowApp() {
               step.selection?.kind === 'slot' ? step.selection.slot : undefined
             }
             onLiveSlotChange={onLiveSlotChange}
-            initialDate={step.carry?.date}
+            initialDate={
+              step.carry?.date ?? (opensOnDates(step.product) ? (deepLinkDay ?? undefined) : undefined)
+            }
             initialStartTime={step.carry?.startTime}
             onSelectAlternative={onSelectAlternative}
             onConfirm={(slot, forced, forcedReasons) =>
@@ -3147,7 +3152,9 @@ function BookingFlowApp() {
             initialSelectedDays={
               step.selection?.kind === 'days'
                 ? step.selection.selectedDays
-                : undefined
+                : opensOnDates(step.product) && deepLinkDay
+                  ? [deepLinkDay]
+                  : undefined
             }
             onConfirm={(selectedDays, forcedDays, forcedReasons) =>
               afterSelection(step.product, {
