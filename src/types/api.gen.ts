@@ -10488,6 +10488,42 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/link-partners": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Link Partners */
+        get: operations["list_link_partners"];
+        put?: never;
+        /** Create Link Partner */
+        post: operations["create_link_partner"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/link-partners/{partner_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Link Partner */
+        delete: operations["delete_link_partner"];
+        options?: never;
+        head?: never;
+        /** Patch Link Partner */
+        patch: operations["patch_link_partner"];
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/links": {
         parameters: {
             query?: never;
@@ -22941,6 +22977,48 @@ export interface components {
             resource_name?: string | null;
             /** Updated At */
             updated_at: string;
+        };
+        /** LinkPartnerIn */
+        LinkPartnerIn: {
+            /** Contact */
+            contact?: string | null;
+            /** Group Id */
+            group_id?: string | null;
+            /** Name */
+            name: string;
+        };
+        /** LinkPartnerOut */
+        LinkPartnerOut: {
+            /** Contact */
+            contact: string | null;
+            /** Contract Id */
+            contract_id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Group Id */
+            group_id: string | null;
+            /** Group Name */
+            group_name: string | null;
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Paused */
+            paused: boolean;
+            /** Referral Url */
+            referral_url: string | null;
+        };
+        /** LinkPartnerPatch */
+        LinkPartnerPatch: {
+            /** Contact */
+            contact?: string | null;
+            /** Name */
+            name?: string | null;
+            /** Paused */
+            paused?: boolean | null;
         };
         /** LinkSetIn */
         LinkSetIn: {
@@ -49934,6 +50012,138 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_link_partners: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LinkPartnerOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_link_partner: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LinkPartnerIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LinkPartnerOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_link_partner: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                partner_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_link_partner: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                partner_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LinkPartnerPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LinkPartnerOut"];
                 };
             };
             /** @description Validation Error */
