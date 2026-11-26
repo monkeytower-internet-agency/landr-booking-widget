@@ -23447,6 +23447,316 @@
         "title": "OfferTotals",
         "type": "object"
       },
+      "OnSiteAddonOut": {
+        "properties": {
+          "max_qty": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Qty"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "on_booking": {
+            "default": 0,
+            "title": "On Booking",
+            "type": "integer"
+          },
+          "paid_to_performer": {
+            "title": "Paid To Performer",
+            "type": "boolean"
+          },
+          "product_id": {
+            "title": "Product Id",
+            "type": "string"
+          },
+          "unit_price": {
+            "title": "Unit Price",
+            "type": "string"
+          }
+        },
+        "required": [
+          "product_id",
+          "name",
+          "unit_price",
+          "paid_to_performer"
+        ],
+        "title": "OnSiteAddonOut",
+        "type": "object"
+      },
+      "OnSiteLineIn": {
+        "properties": {
+          "client_request_key": {
+            "maxLength": 100,
+            "minLength": 8,
+            "pattern": "^[A-Za-z0-9_\\-:.]+$",
+            "title": "Client Request Key",
+            "type": "string"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "product_id": {
+            "title": "Product Id",
+            "type": "string"
+          },
+          "quantity": {
+            "default": 1,
+            "maximum": 99.0,
+            "minimum": 1.0,
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "selected_days": {
+            "anyOf": [
+              {
+                "items": {
+                  "format": "date",
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selected Days"
+          }
+        },
+        "required": [
+          "product_id",
+          "client_request_key"
+        ],
+        "title": "OnSiteLineIn",
+        "type": "object"
+      },
+      "OnSiteLineOut": {
+        "properties": {
+          "amount_to_collect": {
+            "title": "Amount To Collect",
+            "type": "string"
+          },
+          "booking_id": {
+            "title": "Booking Id",
+            "type": "string"
+          },
+          "booking_product_id": {
+            "title": "Booking Product Id",
+            "type": "string"
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "line_gross": {
+            "title": "Line Gross",
+            "type": "string"
+          },
+          "paid_to_performer": {
+            "title": "Paid To Performer",
+            "type": "boolean"
+          },
+          "product_id": {
+            "title": "Product Id",
+            "type": "string"
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "replayed": {
+            "default": false,
+            "title": "Replayed",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "booking_id",
+          "booking_product_id",
+          "product_id",
+          "quantity",
+          "line_gross",
+          "currency",
+          "paid_to_performer",
+          "amount_to_collect"
+        ],
+        "title": "OnSiteLineOut",
+        "type": "object"
+      },
+      "OnSitePaymentIn": {
+        "properties": {
+          "amount": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount"
+          },
+          "client_request_key": {
+            "maxLength": 100,
+            "minLength": 8,
+            "pattern": "^[A-Za-z0-9_\\-:.]+$",
+            "title": "Client Request Key",
+            "type": "string"
+          },
+          "method": {
+            "enum": [
+              "cash",
+              "bank_transfer",
+              "other"
+            ],
+            "title": "Method",
+            "type": "string"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "required": [
+          "method",
+          "client_request_key"
+        ],
+        "title": "OnSitePaymentIn",
+        "type": "object"
+      },
+      "OnSitePaymentOut": {
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "string"
+          },
+          "amount_to_collect": {
+            "title": "Amount To Collect",
+            "type": "string"
+          },
+          "booking_id": {
+            "title": "Booking Id",
+            "type": "string"
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "method": {
+            "title": "Method",
+            "type": "string"
+          },
+          "payment_id": {
+            "title": "Payment Id",
+            "type": "string"
+          },
+          "receipt_sent": {
+            "title": "Receipt Sent",
+            "type": "boolean"
+          },
+          "replayed": {
+            "default": false,
+            "title": "Replayed",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "booking_id",
+          "payment_id",
+          "amount",
+          "currency",
+          "method",
+          "amount_to_collect",
+          "receipt_sent"
+        ],
+        "title": "OnSitePaymentOut",
+        "type": "object"
+      },
+      "OnSiteSummaryOut": {
+        "properties": {
+          "addons": {
+            "items": {
+              "$ref": "#/components/schemas/OnSiteAddonOut"
+            },
+            "title": "Addons",
+            "type": "array"
+          },
+          "addons_blocked_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Addons Blocked Reason"
+          },
+          "amount_to_collect": {
+            "title": "Amount To Collect",
+            "type": "string"
+          },
+          "booking_id": {
+            "title": "Booking Id",
+            "type": "string"
+          },
+          "booking_ref": {
+            "title": "Booking Ref",
+            "type": "string"
+          },
+          "can_collect": {
+            "title": "Can Collect",
+            "type": "boolean"
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "participant_count": {
+            "title": "Participant Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "booking_id",
+          "booking_ref",
+          "participant_count",
+          "currency",
+          "amount_to_collect",
+          "can_collect"
+        ],
+        "title": "OnSiteSummaryOut",
+        "type": "object"
+      },
       "OnboardingCallConfig": {
         "properties": {
           "enabled": {
@@ -69492,6 +69802,196 @@
         "summary": "Dismiss Offer Unsent",
         "tags": [
           "staff-bookings"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/on-site": {
+      "get": {
+        "operationId": "staff_on_site_summary",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "title": "Booking Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OnSiteSummaryOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get On Site Summary",
+        "tags": [
+          "staff-bookings-on-site"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/on-site/lines": {
+      "post": {
+        "description": "Sell an add-on on the spot. Guards in order: 409\n``booking_locked_for_edit`` (cancelled / closed / invoiced); 422\n``product_not_addon_of_booking`` (not a sellable add-on of a product on\nthis booking); 422 ``addon_max_qty`` (with ``max_qty`` and ``on_booking``);\n422 ``day_not_on_line`` (a picked day the parent line does not have); 409\n``custom_offer_applied`` (an operator-paid add-on on a booking whose price\nis a custom offer \u2014 the office re-offers instead); 422 ``un_priceable``.\nNo payment request is sent: the money is collected right after.",
+        "operationId": "staff_on_site_add_line",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "title": "Booking Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OnSiteLineIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OnSiteLineOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Add On Site Line",
+        "tags": [
+          "staff-bookings-on-site"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/on-site/payments": {
+      "post": {
+        "description": "Record a cash / bank / other payment for a live booking with an open\nbalance; part payments allowed. 409s as the office route\n(``booking_not_live``, ``no_balance_due``, ``amount_exceeds_balance_due``,\n``booking_cancelled``). The guest gets the usual receipt.",
+        "operationId": "staff_on_site_record_payment",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "title": "Booking Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OnSitePaymentIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OnSitePaymentOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Record On Site Payment",
+        "tags": [
+          "staff-bookings-on-site"
         ]
       }
     },
