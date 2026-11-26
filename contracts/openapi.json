@@ -11249,6 +11249,15 @@
             ],
             "title": "Retrieve State"
           },
+          "scope": {
+            "default": "own",
+            "enum": [
+              "own",
+              "team"
+            ],
+            "title": "Scope",
+            "type": "string"
+          },
           "semantic_state": {
             "anyOf": [
               {
@@ -20906,6 +20915,94 @@
           "effective"
         ],
         "title": "MyAgentRatesOut",
+        "type": "object"
+      },
+      "MyAssignmentOut": {
+        "properties": {
+          "assignment_date": {
+            "title": "Assignment Date",
+            "type": "string"
+          },
+          "assignment_id": {
+            "title": "Assignment Id",
+            "type": "string"
+          },
+          "booking_id": {
+            "title": "Booking Id",
+            "type": "string"
+          },
+          "booking_ref": {
+            "title": "Booking Ref",
+            "type": "string"
+          },
+          "first_pickup_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Pickup Time"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "participant_count": {
+            "default": 0,
+            "title": "Participant Count",
+            "type": "integer"
+          },
+          "product_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Name"
+          },
+          "role_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role Code"
+          },
+          "role_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role Label"
+          }
+        },
+        "required": [
+          "assignment_id",
+          "booking_id",
+          "booking_ref",
+          "assignment_date"
+        ],
+        "title": "MyAssignmentOut",
         "type": "object"
       },
       "MyLanguageIn": {
@@ -74549,6 +74646,16 @@
               ],
               "title": "To"
             }
+          },
+          {
+            "in": "query",
+            "name": "mine",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Mine",
+              "type": "boolean"
+            }
           }
         ],
         "responses": {
@@ -79649,6 +79756,92 @@
         "summary": "Message Recipient Count",
         "tags": [
           "staff-day-messages"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/my-assignments": {
+      "get": {
+        "description": "The caller's own live booking-day assignments, sorted by date \u2014 the\nperformer's \"my jobs\" list (landr-5ndxl.1).\n\nWindow defaults to today .. today + 14 in the operator's timezone; at most\n62 days (422 ``range_exceeds_max_days``). The caller's staff resource is\n``resources.user_id``; without one 403 ``no_provider_for_user``. Behind the\nstaff-only feature key ``performer_mode`` (403 ``feature_disabled``). Only live\nbookings (not deleted, live semantic state) are listed.",
+        "operationId": "staff_my_assignments",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "From"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "To"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MyAssignmentOut"
+                  },
+                  "title": "Response Staff My Assignments",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List My Assignments",
+        "tags": [
+          "staff-providers"
         ]
       }
     },
