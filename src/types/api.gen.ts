@@ -11055,6 +11055,33 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/my-assignments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List My Assignments
+         * @description The caller's own live booking-day assignments, sorted by date — the
+         *     performer's "my jobs" list (landr-5ndxl.1).
+         *
+         *     Window defaults to today .. today + 14 in the operator's timezone; at most
+         *     62 days (422 ``range_exceeds_max_days``). The caller's staff resource is
+         *     ``resources.user_id``; without one 403 ``no_provider_for_user``. Behind the
+         *     staff-only feature key ``performer_mode`` (403 ``feature_disabled``). Only live
+         *     bookings (not deleted, live semantic state) are listed.
+         */
+        get: operations["staff_my_assignments"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/offers": {
         parameters: {
             query?: never;
@@ -20007,6 +20034,12 @@ export interface components {
             retrieve_note?: string | null;
             /** Retrieve State */
             retrieve_state?: string | null;
+            /**
+             * Scope
+             * @default own
+             * @enum {string}
+             */
+            scope: "own" | "team";
             /** Semantic State */
             semantic_state?: string | null;
             /** Service Role */
@@ -23440,6 +23473,32 @@ export interface components {
             /** Contract Id */
             contract_id: string;
             effective: components["schemas"]["AgentEffectiveTermsOut"];
+        };
+        /** MyAssignmentOut */
+        MyAssignmentOut: {
+            /** Assignment Date */
+            assignment_date: string;
+            /** Assignment Id */
+            assignment_id: string;
+            /** Booking Id */
+            booking_id: string;
+            /** Booking Ref */
+            booking_ref: string;
+            /** First Pickup Time */
+            first_pickup_time?: string | null;
+            /** Notes */
+            notes?: string | null;
+            /**
+             * Participant Count
+             * @default 0
+             */
+            participant_count: number;
+            /** Product Name */
+            product_name?: string | null;
+            /** Role Code */
+            role_code?: string | null;
+            /** Role Label */
+            role_label?: string | null;
         };
         /** MyLanguageIn */
         MyLanguageIn: {
@@ -48505,6 +48564,7 @@ export interface operations {
                 date?: string | null;
                 from?: string | null;
                 to?: string | null;
+                mine?: boolean;
             };
             header?: never;
             path: {
@@ -51397,6 +51457,40 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_my_assignments: {
+        parameters: {
+            query?: {
+                from?: string | null;
+                to?: string | null;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MyAssignmentOut"][];
                 };
             };
             /** @description Validation Error */
