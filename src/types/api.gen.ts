@@ -15734,6 +15734,43 @@ export interface paths {
         delete: operations["delete_assignment"];
         options?: never;
         head?: never;
+        /**
+         * Move Assignment
+         * @description Move an assignment to another day of the same booking (landr-5ndxl.2).
+         *
+         *     The new day needs a new answer: status goes back to accepted/proposed by
+         *     the person's automatic-acceptance switch and the old answer is cleared. The
+         *     performer is notified that the job moved. 409 ``assignment_exists`` when the
+         *     person already has that booking-day.
+         */
+        patch: operations["move_assignment"];
+        trace?: never;
+    };
+    "/api/staff/provider-assignments/{assignment_id}/respond": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Respond To Assignment
+         * @description Accept or decline a booking-day assignment (landr-5ndxl.2).
+         *
+         *     The caller is the person the job is for (``resources.user_id`` of the
+         *     assignment's provider) or an owner/admin answering for them. Re-answering is
+         *     allowed until the day: 409 ``assignment_in_past`` once ``assignment_date``
+         *     is before today in the operator's timezone. 404 on an unknown or removed
+         *     assignment. A decline (not a repeated one) alerts the operator's
+         *     owner/admin/staff by bell, push and email. Behind the staff-only feature key
+         *     ``performer_mode`` (403 ``feature_disabled``).
+         */
+        post: operations["respond_to_assignment"];
+        delete?: never;
+        options?: never;
+        head?: never;
         patch?: never;
         trace?: never;
     };
@@ -16982,6 +17019,29 @@ export interface components {
             provider_id: string;
             /** Provider Role Id */
             provider_role_id?: string | null;
+            /**
+             * Status
+             * @description landr-5ndxl.2: owner/admin only (pre-accept after a verbal yes). Omitted: accepted when the staff resource accepts jobs automatically, else proposed
+             */
+            status?: ("proposed" | "accepted") | null;
+        };
+        /** AssignmentMove */
+        AssignmentMove: {
+            /**
+             * Assignment Date
+             * Format: date
+             */
+            assignment_date: string;
+        };
+        /** AssignmentRespondIn */
+        AssignmentRespondIn: {
+            /** Note */
+            note?: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "accepted" | "declined";
         };
         /** AuthMethodsOut */
         AuthMethodsOut: {
@@ -23263,6 +23323,8 @@ export interface components {
             provider_id: string;
             /** Role Code */
             role_code?: string | null;
+            /** Status */
+            status?: string | null;
         };
         /**
          * ManifestUnit
@@ -28897,6 +28959,11 @@ export interface components {
             attributes?: {
                 [key: string]: unknown;
             };
+            /**
+             * Auto Accept Assignments
+             * @description landr-5ndxl.2: staff resource accepts new booking-day assignments automatically (omitted = true); false = proposed, the performer answers
+             */
+            auto_accept_assignments?: boolean | null;
             /** Capacity */
             capacity?: number | null;
             /** Capacity Min */
@@ -28987,6 +29054,11 @@ export interface components {
             attributes: {
                 [key: string]: unknown;
             };
+            /**
+             * Auto Accept Assignments
+             * @default true
+             */
+            auto_accept_assignments: boolean;
             /** Capacity */
             capacity?: number | null;
             /** Capacity Min */
@@ -29090,6 +29162,8 @@ export interface components {
             attributes?: {
                 [key: string]: unknown;
             } | null;
+            /** Auto Accept Assignments */
+            auto_accept_assignments?: boolean | null;
             /** Capacity */
             capacity?: number | null;
             /** Capacity Min */
@@ -61148,6 +61222,80 @@ export interface operations {
                 content: {
                     "application/json": {
                         [key: string]: string;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    move_assignment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                assignment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssignmentMove"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    respond_to_assignment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                assignment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssignmentRespondIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
                     };
                 };
             };
