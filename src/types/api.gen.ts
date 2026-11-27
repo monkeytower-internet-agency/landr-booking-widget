@@ -9261,7 +9261,10 @@ export interface paths {
         put?: never;
         /**
          * Mark Payout Paid
-         * @description Mark one Sales agent's earned commission for a month as paid.
+         * @description Mark one Sales agent's (or performer's, ``recipient_kind='provider'``,
+         *     landr-5ndxl.6) earned commission for a month as paid. A report: no money
+         *     moves. For a performer the month is the one of each line's last job day
+         *     and 404 is ``provider_not_found``.
          *
          *     Creates a NEW paid batch (never reuses one) and claims the agent's EARNED,
          *     unbatched commissions of ``period`` plus their open adjustments, all in one
@@ -11149,6 +11152,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/my-earnings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * My Earnings
+         * @description The caller's OWN performer earnings: one row per job (booking
+         *     reference, job days, own role, own amount, currency, status, payout month,
+         *     paid date, the minus lines that correct it) and totals PER CURRENCY.
+         *     ``from`` / ``to`` narrow by the job's last day. Always the caller's own
+         *     user id. 403 ``no_provider_for_user`` without a staff resource,
+         *     ``feature_disabled`` while ``performer_mode`` is off.
+         */
+        get: operations["staff_my_earnings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/offers": {
         parameters: {
             query?: never;
@@ -12435,6 +12463,62 @@ export interface paths {
          *     config already exists (1:1 with the product — use PATCH to edit it).
          */
         post: operations["create_subscription_config"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/provider-earnings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Provider Earnings
+         * @description The operator's performer earnings lines, newest first (a report),
+         *     one page: ``limit`` rows from ``offset`` (page on until a short page).
+         *
+         *     One line per (booking, performer) from ``commissions WHERE
+         *     recipient_kind='provider'``: the job days, the contract's rate kind, the
+         *     share of the booking's operator-paid net, amount, status and
+         *     ``status_label`` (earned | paid | reversed | no_contract | no_commission)
+         *     plus the open minus lines (``open_adjustments``) a reversal after payout
+         *     left for the next payout. Filters (in SQL): ``recipient_user_id`` /
+         *     ``provider_id``, ``status_filter``, ``period`` (YYYY-MM of the last job day,
+         *     the payout month mark-paid claims by), ``from`` / ``to`` on the last job
+         *     day. owner / admin / finance; behind ``performer_mode``.
+         */
+        get: operations["commission_list_provider_earnings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/provider-earnings/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Provider Earnings Summary
+         * @description Per performer and currency: earned / paid / reversed totals,
+         *     ``no_contract_count``, the signed ``open_adjustments_total`` (minus lines
+         *     from reversals after a payout, whatever their month) and ``payable_total``
+         *     = earned (of ``period`` when given) + open adjustments: what Mark paid for
+         *     that month pays. Every matching line counts (paged to the end, the month
+         *     filtered in SQL). owner / admin / finance; behind ``performer_mode``.
+         */
+        get: operations["commission_provider_earnings_summary"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -23629,6 +23713,62 @@ export interface components {
             /** Role Label */
             role_label?: string | null;
         };
+        /** MyEarningLine */
+        MyEarningLine: {
+            /** Amount */
+            amount: string;
+            /** Currency */
+            currency: string;
+            /** Days */
+            days: string[];
+            /** Id */
+            id: string;
+            /** Minus Lines */
+            minus_lines: components["schemas"]["MyEarningMinusLine"][];
+            /** Paid At */
+            paid_at: string | null;
+            /** Payout Month */
+            payout_month: string | null;
+            /** Reference */
+            reference: string;
+            /** Role */
+            role: string | null;
+            /** Status */
+            status: string;
+        };
+        /** MyEarningMinusLine */
+        MyEarningMinusLine: {
+            /** Amount */
+            amount: string;
+            /** Currency */
+            currency: string;
+            /** Id */
+            id: string;
+            /** Paid At */
+            paid_at: string | null;
+            /** Settled */
+            settled: boolean;
+        };
+        /** MyEarningTotal */
+        MyEarningTotal: {
+            /** Currency */
+            currency: string;
+            /** Earned */
+            earned: string;
+            /** Minus Open */
+            minus_open: string;
+            /** Paid */
+            paid: string;
+            /** Payable */
+            payable: string;
+        };
+        /** MyEarningsOut */
+        MyEarningsOut: {
+            /** Rows */
+            rows: components["schemas"]["MyEarningLine"][];
+            /** Totals */
+            totals: components["schemas"]["MyEarningTotal"][];
+        };
         /** MyLanguageIn */
         MyLanguageIn: {
             /** Language */
@@ -25800,9 +25940,9 @@ export interface components {
             period: string;
             /**
              * Recipient Kind
-             * @constant
+             * @enum {string}
              */
-            recipient_kind: "agent";
+            recipient_kind: "agent" | "provider";
             /**
              * Recipient User Id
              * Format: uuid
@@ -51862,6 +52002,40 @@ export interface operations {
             };
         };
     };
+    staff_my_earnings: {
+        parameters: {
+            query?: {
+                from?: string | null;
+                to?: string | null;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MyEarningsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_offers: {
         parameters: {
             query?: never;
@@ -54788,6 +54962,83 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    commission_list_provider_earnings: {
+        parameters: {
+            query?: {
+                recipient_user_id?: string | null;
+                provider_id?: string | null;
+                status_filter?: ("earned" | "paid" | "reversed" | "no_commission") | null;
+                period?: string | null;
+                from?: string | null;
+                to?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    }[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    commission_provider_earnings_summary: {
+        parameters: {
+            query?: {
+                period?: string | null;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    }[];
                 };
             };
             /** @description Validation Error */
