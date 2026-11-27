@@ -21003,6 +21003,11 @@
             "title": "Assignment Id",
             "type": "string"
           },
+          "auto_accept": {
+            "default": true,
+            "title": "Auto Accept",
+            "type": "boolean"
+          },
           "booking_id": {
             "title": "Booking Id",
             "type": "string"
@@ -21049,6 +21054,17 @@
             ],
             "title": "Product Name"
           },
+          "responded_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Responded At"
+          },
           "role_code": {
             "anyOf": [
               {
@@ -21070,6 +21086,16 @@
               }
             ],
             "title": "Role Label"
+          },
+          "status": {
+            "default": "accepted",
+            "enum": [
+              "proposed",
+              "accepted",
+              "declined"
+            ],
+            "title": "Status",
+            "type": "string"
           }
         },
         "required": [
@@ -80645,6 +80671,18 @@
                 }
               ],
               "title": "To"
+            }
+          },
+          {
+            "description": "Also list the caller's declined jobs (status 'declined').",
+            "in": "query",
+            "name": "include_declined",
+            "required": false,
+            "schema": {
+              "default": false,
+              "description": "Also list the caller's declined jobs (status 'declined').",
+              "title": "Include Declined",
+              "type": "boolean"
             }
           }
         ],

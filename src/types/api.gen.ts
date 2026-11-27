@@ -23741,6 +23741,11 @@ export interface components {
             assignment_date: string;
             /** Assignment Id */
             assignment_id: string;
+            /**
+             * Auto Accept
+             * @default true
+             */
+            auto_accept: boolean;
             /** Booking Id */
             booking_id: string;
             /** Booking Ref */
@@ -23756,10 +23761,18 @@ export interface components {
             participant_count: number;
             /** Product Name */
             product_name?: string | null;
+            /** Responded At */
+            responded_at?: string | null;
             /** Role Code */
             role_code?: string | null;
             /** Role Label */
             role_label?: string | null;
+            /**
+             * Status
+             * @default accepted
+             * @enum {string}
+             */
+            status: "proposed" | "accepted" | "declined";
         };
         /** MyEarningLine */
         MyEarningLine: {
@@ -52048,6 +52061,8 @@ export interface operations {
             query?: {
                 from?: string | null;
                 to?: string | null;
+                /** @description Also list the caller's declined jobs (status 'declined'). */
+                include_declined?: boolean;
             };
             header?: never;
             path: {
