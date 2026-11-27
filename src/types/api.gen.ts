@@ -11177,6 +11177,48 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/my-unavailability": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List My Unavailability */
+        get: operations["list_my_unavailability"];
+        put?: never;
+        /**
+         * Add My Unavailability
+         * @description Add days off. Overlapping or touching days of the person's own merge into
+         *     one row; days the office already marked off are skipped (nothing is stored
+         *     for them and the office rows are never touched). Returns the person's own
+         *     resulting rows that cover the requested range (empty when the office already
+         *     had every day).
+         */
+        post: operations["add_my_unavailability"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/my-unavailability/{period_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete My Unavailability */
+        delete: operations["delete_my_unavailability"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/offers": {
         parameters: {
             query?: never;
@@ -17097,6 +17139,12 @@ export interface components {
              * Format: date
              */
             assignment_date: string;
+            /**
+             * Force
+             * @description landr-5ndxl.3: owner/admin only. Assign a person who is out of service that day anyway (otherwise 409 provider_unavailable)
+             * @default false
+             */
+            force: boolean;
             /** Notes */
             notes?: string | null;
             /** Provider Id */
@@ -23804,6 +23852,22 @@ export interface components {
             /** Urgency */
             urgency?: ("standard" | "emergency" | "medical_police") | null;
         };
+        /** MyUnavailabilityIn */
+        MyUnavailabilityIn: {
+            /**
+             * End Date
+             * Format: date
+             * @description inclusive
+             */
+            end_date: string;
+            /** Reason */
+            reason?: string | null;
+            /**
+             * Start Date
+             * Format: date
+             */
+            start_date: string;
+        };
         /** MyUnitRequestIn */
         MyUnitRequestIn: {
             /** Note */
@@ -29285,6 +29349,11 @@ export interface components {
             type_code?: string | null;
             /** Type Label */
             type_label?: string | null;
+            /**
+             * Unavailable On
+             * @description landr-5ndxl.3: only with ?on=YYYY-MM-DD — true when the resource is out of service that day (out_of_service row, or outside its in_service seasons)
+             */
+            unavailable_on?: boolean | null;
             /** Updated At */
             updated_at: string;
         };
@@ -32275,6 +32344,12 @@ export interface components {
             reason?: string | null;
             /** Resource Id */
             resource_id: string;
+            /**
+             * Self Declared
+             * @description landr-5ndxl.3: written by the person themselves, not the office
+             * @default false
+             */
+            self_declared: boolean;
             /**
              * Start Date
              * Format: date
@@ -52036,6 +52111,104 @@ export interface operations {
             };
         };
     };
+    list_my_unavailability: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnavailabilityOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_my_unavailability: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MyUnavailabilityIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnavailabilityOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_my_unavailability: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                period_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatusOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_offers: {
         parameters: {
             query?: never;
@@ -57194,6 +57367,8 @@ export interface operations {
                 active?: boolean | null;
                 /** @description landr-lmudr.40: how type_id/facet match — 'home' (the home type only: use it for capacity, approvals, schedule and rental stock), 'label' (extra labels only) or 'any' (either; default) */
                 membership?: "home" | "label" | "any";
+                /** @description landr-5ndxl.3: a day (YYYY-MM-DD); every row then carries unavailable_on (the person picker greys out who is off that day) */
+                on?: string | null;
             };
             header?: never;
             path: {

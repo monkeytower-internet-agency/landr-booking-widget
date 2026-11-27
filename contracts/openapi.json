@@ -2274,6 +2274,12 @@
             "title": "Assignment Date",
             "type": "string"
           },
+          "force": {
+            "default": false,
+            "description": "landr-5ndxl.3: owner/admin only. Assign a person who is out of service that day anyway (otherwise 409 provider_unavailable)",
+            "title": "Force",
+            "type": "boolean"
+          },
           "notes": {
             "anyOf": [
               {
@@ -21388,6 +21394,39 @@
         "title": "MyStatusIn",
         "type": "object"
       },
+      "MyUnavailabilityIn": {
+        "properties": {
+          "end_date": {
+            "description": "inclusive",
+            "format": "date",
+            "title": "End Date",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "start_date": {
+            "format": "date",
+            "title": "Start Date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "start_date",
+          "end_date"
+        ],
+        "title": "MyUnavailabilityIn",
+        "type": "object"
+      },
       "MyUnitRequestIn": {
         "additionalProperties": false,
         "properties": {
@@ -38255,6 +38294,18 @@
             ],
             "title": "Type Label"
           },
+          "unavailable_on": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "landr-5ndxl.3: only with ?on=YYYY-MM-DD \u2014 true when the resource is out of service that day (out_of_service row, or outside its in_service seasons)",
+            "title": "Unavailable On"
+          },
           "updated_at": {
             "title": "Updated At",
             "type": "string"
@@ -46260,6 +46311,12 @@
           "resource_id": {
             "title": "Resource Id",
             "type": "string"
+          },
+          "self_declared": {
+            "default": false,
+            "description": "landr-5ndxl.3: written by the person themselves, not the office",
+            "title": "Self Declared",
+            "type": "boolean"
           },
           "start_date": {
             "format": "date",
@@ -80710,6 +80767,173 @@
         ]
       }
     },
+    "/api/staff/operators/{operator_id}/my-unavailability": {
+      "get": {
+        "operationId": "list_my_unavailability",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/UnavailabilityOut"
+                  },
+                  "title": "Response List My Unavailability",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List My Unavailability",
+        "tags": [
+          "staff-my-availability"
+        ]
+      },
+      "post": {
+        "description": "Add days off. Overlapping or touching days of the person's own merge into\none row; days the office already marked off are skipped (nothing is stored\nfor them and the office rows are never touched). Returns the person's own\nresulting rows that cover the requested range (empty when the office already\nhad every day).",
+        "operationId": "add_my_unavailability",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MyUnavailabilityIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/UnavailabilityOut"
+                  },
+                  "title": "Response Add My Unavailability",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Add My Unavailability",
+        "tags": [
+          "staff-my-availability"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/my-unavailability/{period_id}": {
+      "delete": {
+        "operationId": "delete_my_unavailability",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "period_id",
+            "required": true,
+            "schema": {
+              "title": "Period Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Delete My Unavailability",
+        "tags": [
+          "staff-my-availability"
+        ]
+      }
+    },
     "/api/staff/operators/{operator_id}/offers": {
       "get": {
         "operationId": "list_offers",
@@ -90423,6 +90647,25 @@
               ],
               "title": "Membership",
               "type": "string"
+            }
+          },
+          {
+            "description": "landr-5ndxl.3: a day (YYYY-MM-DD); every row then carries unavailable_on (the person picker greys out who is off that day)",
+            "in": "query",
+            "name": "on",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "landr-5ndxl.3: a day (YYYY-MM-DD); every row then carries unavailable_on (the person picker greys out who is off that day)",
+              "title": "On"
             }
           }
         ],
