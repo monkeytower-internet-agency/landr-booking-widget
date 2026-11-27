@@ -21075,6 +21075,188 @@
         "title": "MyAssignmentOut",
         "type": "object"
       },
+      "MyEarningLine": {
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "string"
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "days": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Days",
+            "type": "array"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "minus_lines": {
+            "items": {
+              "$ref": "#/components/schemas/MyEarningMinusLine"
+            },
+            "title": "Minus Lines",
+            "type": "array"
+          },
+          "paid_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paid At"
+          },
+          "payout_month": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payout Month"
+          },
+          "reference": {
+            "title": "Reference",
+            "type": "string"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "reference",
+          "days",
+          "role",
+          "amount",
+          "currency",
+          "status",
+          "payout_month",
+          "paid_at",
+          "minus_lines"
+        ],
+        "title": "MyEarningLine",
+        "type": "object"
+      },
+      "MyEarningMinusLine": {
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "string"
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "paid_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paid At"
+          },
+          "settled": {
+            "title": "Settled",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "amount",
+          "currency",
+          "settled",
+          "paid_at"
+        ],
+        "title": "MyEarningMinusLine",
+        "type": "object"
+      },
+      "MyEarningTotal": {
+        "properties": {
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "earned": {
+            "title": "Earned",
+            "type": "string"
+          },
+          "minus_open": {
+            "title": "Minus Open",
+            "type": "string"
+          },
+          "paid": {
+            "title": "Paid",
+            "type": "string"
+          },
+          "payable": {
+            "title": "Payable",
+            "type": "string"
+          }
+        },
+        "required": [
+          "currency",
+          "earned",
+          "paid",
+          "minus_open",
+          "payable"
+        ],
+        "title": "MyEarningTotal",
+        "type": "object"
+      },
+      "MyEarningsOut": {
+        "properties": {
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/MyEarningLine"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "totals": {
+            "items": {
+              "$ref": "#/components/schemas/MyEarningTotal"
+            },
+            "title": "Totals",
+            "type": "array"
+          }
+        },
+        "required": [
+          "totals",
+          "rows"
+        ],
+        "title": "MyEarningsOut",
+        "type": "object"
+      },
       "MyLanguageIn": {
         "additionalProperties": false,
         "properties": {
@@ -27728,7 +27910,10 @@
             "type": "string"
           },
           "recipient_kind": {
-            "const": "agent",
+            "enum": [
+              "agent",
+              "provider"
+            ],
             "title": "Recipient Kind",
             "type": "string"
           },
@@ -73935,7 +74120,7 @@
     },
     "/api/staff/operators/{operator_id}/commissions/payouts/mark-paid": {
       "post": {
-        "description": "Mark one Sales agent's earned commission for a month as paid.\n\nCreates a NEW paid batch (never reuses one) and claims the agent's EARNED,\nunbatched commissions of ``period`` plus their open adjustments, all in one\ntransaction. 404 ``agent_not_found`` when the user has no agent contract at\nthis operator, 409 ``nothing_to_pay`` when nothing is earned in the month\n(or open reversals outweigh it). Held, projected and reversed rows are\nnever payable. owner / admin / finance.",
+        "description": "Mark one Sales agent's (or performer's, ``recipient_kind='provider'``,\nlandr-5ndxl.6) earned commission for a month as paid. A report: no money\nmoves. For a performer the month is the one of each line's last job day\nand 404 is ``provider_not_found``.\n\nCreates a NEW paid batch (never reuses one) and claims the agent's EARNED,\nunbatched commissions of ``period`` plus their open adjustments, all in one\ntransaction. 404 ``agent_not_found`` when the user has no agent contract at\nthis operator, 409 ``nothing_to_pay`` when nothing is earned in the month\n(or open reversals outweigh it). Held, projected and reversed rows are\nnever payable. owner / admin / finance.",
         "operationId": "commission_mark_payout_paid",
         "parameters": [
           {
@@ -80443,6 +80628,88 @@
         ]
       }
     },
+    "/api/staff/operators/{operator_id}/my-earnings": {
+      "get": {
+        "description": "The caller's OWN performer earnings: one row per job (booking\nreference, job days, own role, own amount, currency, status, payout month,\npaid date, the minus lines that correct it) and totals PER CURRENCY.\n``from`` / ``to`` narrow by the job's last day. Always the caller's own\nuser id. 403 ``no_provider_for_user`` without a staff resource,\n``feature_disabled`` while ``performer_mode`` is off.",
+        "operationId": "staff_my_earnings",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "From"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "To"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyEarningsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "My Earnings",
+        "tags": [
+          "staff-commission"
+        ]
+      }
+    },
     "/api/staff/operators/{operator_id}/offers": {
       "get": {
         "operationId": "list_offers",
@@ -85590,6 +85857,259 @@
         "summary": "Create Subscription Config",
         "tags": [
           "staff-subscriptions"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/provider-earnings": {
+      "get": {
+        "description": "The operator's performer earnings lines, newest first (a report),\none page: ``limit`` rows from ``offset`` (page on until a short page).\n\nOne line per (booking, performer) from ``commissions WHERE\nrecipient_kind='provider'``: the job days, the contract's rate kind, the\nshare of the booking's operator-paid net, amount, status and\n``status_label`` (earned | paid | reversed | no_contract | no_commission)\nplus the open minus lines (``open_adjustments``) a reversal after payout\nleft for the next payout. Filters (in SQL): ``recipient_user_id`` /\n``provider_id``, ``status_filter``, ``period`` (YYYY-MM of the last job day,\nthe payout month mark-paid claims by), ``from`` / ``to`` on the last job\nday. owner / admin / finance; behind ``performer_mode``.",
+        "operationId": "commission_list_provider_earnings",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "recipient_user_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Recipient User Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "provider_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Provider Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status_filter",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "earned",
+                    "paid",
+                    "reversed",
+                    "no_commission"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status Filter"
+            }
+          },
+          {
+            "in": "query",
+            "name": "period",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^\\d{4}-(0[1-9]|1[0-2])$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Period"
+            }
+          },
+          {
+            "in": "query",
+            "name": "from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "From"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "To"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 500,
+              "maximum": 1000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "title": "Response Commission List Provider Earnings",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Provider Earnings",
+        "tags": [
+          "staff-commission"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/provider-earnings/summary": {
+      "get": {
+        "description": "Per performer and currency: earned / paid / reversed totals,\n``no_contract_count``, the signed ``open_adjustments_total`` (minus lines\nfrom reversals after a payout, whatever their month) and ``payable_total``\n= earned (of ``period`` when given) + open adjustments: what Mark paid for\nthat month pays. Every matching line counts (paged to the end, the month\nfiltered in SQL). owner / admin / finance; behind ``performer_mode``.",
+        "operationId": "commission_provider_earnings_summary",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "period",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^\\d{4}-(0[1-9]|1[0-2])$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Period"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "title": "Response Commission Provider Earnings Summary",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Provider Earnings Summary",
+        "tags": [
+          "staff-commission"
         ]
       }
     },
