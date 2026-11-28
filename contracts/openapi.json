@@ -86040,6 +86040,58 @@
         ]
       }
     },
+    "/api/staff/operators/{operator_id}/products/auto-illustrations": {
+      "post": {
+        "description": "landr-r8ed0 \u2014 add a generated illustration to every live product of the\noperator that has no image. Writer roles only; the rows are filtered by the\npath operator (the membership dependency checks the caller belongs to it).\nIdempotent: products that already have an image are left alone.",
+        "operationId": "add_illustrations_to_products_without_images",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "integer"
+                  },
+                  "title": "Response Add Illustrations To Products Without Images",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Add Illustrations To Products Without Images",
+        "tags": [
+          "staff-products"
+        ]
+      }
+    },
     "/api/staff/operators/{operator_id}/products/remove-samples": {
       "post": {
         "description": "landr-lxrt7.1 \u2014 soft-delete every sample product of the operator: cloned\nfrom a template (``template_origin_slug`` set), still unpublished\n(``is_publicly_listed`` false) and never booked. Same soft-delete as the\nsingle delete. ``skipped`` counts the samples that were kept because they\nare published or have bookings. Scoped to the path operator (the membership\ndependency checks the caller belongs to it).",
