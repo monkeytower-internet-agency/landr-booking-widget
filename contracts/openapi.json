@@ -43259,6 +43259,63 @@
         "title": "ShuttleMeetingPoint",
         "type": "object"
       },
+      "ShuttlePilotDecisionIn": {
+        "additionalProperties": false,
+        "properties": {
+          "decision": {
+            "enum": [
+              "approved",
+              "declined"
+            ],
+            "title": "Decision",
+            "type": "string"
+          }
+        },
+        "required": [
+          "decision"
+        ],
+        "title": "ShuttlePilotDecisionIn",
+        "type": "object"
+      },
+      "ShuttlePilotProfileIn": {
+        "additionalProperties": false,
+        "properties": {
+          "display_name": {
+            "maxLength": 200,
+            "title": "Display Name",
+            "type": "string"
+          },
+          "glider": {
+            "maxLength": 200,
+            "title": "Glider",
+            "type": "string"
+          },
+          "stay_from": {
+            "format": "date",
+            "title": "Stay From",
+            "type": "string"
+          },
+          "stay_to": {
+            "format": "date",
+            "title": "Stay To",
+            "type": "string"
+          },
+          "whatsapp": {
+            "maxLength": 40,
+            "title": "Whatsapp",
+            "type": "string"
+          }
+        },
+        "required": [
+          "display_name",
+          "glider",
+          "stay_from",
+          "stay_to",
+          "whatsapp"
+        ],
+        "title": "ShuttlePilotProfileIn",
+        "type": "object"
+      },
       "SignedUrlResponse": {
         "properties": {
           "expires_in": {
@@ -64112,6 +64169,73 @@
         ]
       }
     },
+    "/api/public/shuttle/me/profile": {
+      "put": {
+        "description": "Give or edit the short profile this operator asks of its pilots: board\nname, glider, days on the island, WhatsApp number. The first one decides\n``approval`` (pending while \"Approve new pilots\" is on, else approved);\na later edit keeps the decision. Errors ``422 {\"error\": name_* |\nglider_invalid | stay_invalid | whatsapp_invalid}``.",
+        "operationId": "public_shuttle_me_profile_by_host",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "slug",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Slug"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShuttlePilotProfileIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Public Shuttle Me Profile By Host",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Save My Profile",
+        "tags": [
+          "public-shuttle"
+        ]
+      }
+    },
     "/api/public/shuttle/me/signups/{signup_id}": {
       "delete": {
         "description": "Cancel one of the caller's sign-ups (same rules as the token cancel:\nlate window, fee, not after boarding).",
@@ -64700,6 +64824,73 @@
           }
         ],
         "summary": "Adopt Signups",
+        "tags": [
+          "public-shuttle"
+        ]
+      }
+    },
+    "/api/public/shuttle/{slug}/me/profile": {
+      "put": {
+        "description": "Give or edit the short profile this operator asks of its pilots: board\nname, glider, days on the island, WhatsApp number. The first one decides\n``approval`` (pending while \"Approve new pilots\" is on, else approved);\na later edit keeps the decision. Errors ``422 {\"error\": name_* |\nglider_invalid | stay_invalid | whatsapp_invalid}``.",
+        "operationId": "public_shuttle_me_profile",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Slug"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShuttlePilotProfileIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Public Shuttle Me Profile",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Save My Profile",
         "tags": [
           "public-shuttle"
         ]
@@ -97140,6 +97331,191 @@
         "summary": "List Shuttle Pilots",
         "tags": [
           "staff-punch-cards"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/shuttle-pilots/new": {
+      "get": {
+        "description": "Pilots of THIS operator in ``approval`` state (pending: oldest first),\nplus the pending count for the badge.",
+        "operationId": "staff_list_new_shuttle_pilots",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "approval",
+            "required": false,
+            "schema": {
+              "default": "pending",
+              "enum": [
+                "pending",
+                "approved",
+                "declined"
+              ],
+              "title": "Approval",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Staff List New Shuttle Pilots",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List New Pilots",
+        "tags": [
+          "staff-shuttle"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/shuttle-pilots/new/count": {
+      "get": {
+        "operationId": "staff_count_new_shuttle_pilots",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "integer"
+                  },
+                  "title": "Response Staff Count New Shuttle Pilots",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Count New Pilots",
+        "tags": [
+          "staff-shuttle"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/shuttle-pilots/{user_id}/approval": {
+      "post": {
+        "description": "Approve or decline one pilot of this operator (idempotent; a decision\ncan be changed later).",
+        "operationId": "staff_decide_shuttle_pilot",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShuttlePilotDecisionIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Staff Decide Shuttle Pilot",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Decide Pilot",
+        "tags": [
+          "staff-shuttle"
         ]
       }
     },
