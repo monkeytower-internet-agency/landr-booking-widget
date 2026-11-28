@@ -3296,6 +3296,18 @@
             ],
             "title": "Card Code"
           },
+          "card_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Card Id"
+          },
           "settle_fees": {
             "default": false,
             "title": "Settle Fees",
@@ -6495,6 +6507,29 @@
         "title": "CarSpec",
         "type": "object"
       },
+      "CardCheckoutIn": {
+        "additionalProperties": false,
+        "properties": {
+          "cancel_url": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Cancel Url",
+            "type": "string"
+          },
+          "return_url": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Return Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "return_url",
+          "cancel_url"
+        ],
+        "title": "CardCheckoutIn",
+        "type": "object"
+      },
       "CardIn": {
         "properties": {
           "card_code": {
@@ -6559,6 +6594,54 @@
           "other"
         ],
         "title": "CardNameForms",
+        "type": "object"
+      },
+      "CardOrderIn": {
+        "additionalProperties": false,
+        "properties": {
+          "cancel_url": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cancel Url"
+          },
+          "pay": {
+            "enum": [
+              "online",
+              "cash"
+            ],
+            "title": "Pay",
+            "type": "string"
+          },
+          "return_url": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Return Url"
+          },
+          "type_id": {
+            "format": "uuid",
+            "title": "Type Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type_id",
+          "pay"
+        ],
+        "title": "CardOrderIn",
         "type": "object"
       },
       "CardTypeIn": {
@@ -8064,6 +8147,29 @@
           "items"
         ],
         "title": "ChecklistTemplateUpdate",
+        "type": "object"
+      },
+      "CollectCardIn": {
+        "properties": {
+          "card_id": {
+            "format": "uuid",
+            "title": "Card Id",
+            "type": "string"
+          },
+          "via": {
+            "default": "cash",
+            "enum": [
+              "cash",
+              "card_terminal"
+            ],
+            "title": "Via",
+            "type": "string"
+          }
+        },
+        "required": [
+          "card_id"
+        ],
+        "title": "CollectCardIn",
         "type": "object"
       },
       "ColorIn": {
@@ -64399,6 +64505,281 @@
         ]
       }
     },
+    "/api/public/shuttle/me/cards": {
+      "post": {
+        "description": "Order a ride card of one of the operator's card types. ``cash``: the\ncard stays ordered (no rides) until the driver ticks \"cash collected\".\n``online``: answers ``checkout_url`` (Stripe Checkout) when the return\nURLs are given; the webhook or\n``POST /me/cards/{id}/confirm`` marks it paid. Buying a type the pilot\nalready has an open order of returns that order. Errors: 404\n``punch_card_type_not_found``, 409 ``punch_card_type_inactive`` /\n``online_unavailable``.",
+        "operationId": "public_shuttle_me_order_card_by_host",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "slug",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Slug"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CardOrderIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Public Shuttle Me Order Card By Host",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Order Card",
+        "tags": [
+          "public-shuttle"
+        ]
+      }
+    },
+    "/api/public/shuttle/me/cards/{card_id}": {
+      "delete": {
+        "description": "Withdraw an open (unpaid) order; a paid card answers 409\n``card_already_paid``.",
+        "operationId": "public_shuttle_me_cancel_card_by_host",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "card_id",
+            "required": true,
+            "schema": {
+              "title": "Card Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "slug",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Slug"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Public Shuttle Me Cancel Card By Host",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Cancel Card Order",
+        "tags": [
+          "public-shuttle"
+        ]
+      }
+    },
+    "/api/public/shuttle/me/cards/{card_id}/checkout": {
+      "post": {
+        "description": "Pay an ordered card online (again): ``{checkout_url}``.",
+        "operationId": "public_shuttle_me_card_checkout_by_host",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "card_id",
+            "required": true,
+            "schema": {
+              "title": "Card Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "slug",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Slug"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CardCheckoutIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Public Shuttle Me Card Checkout By Host",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Card Checkout",
+        "tags": [
+          "public-shuttle"
+        ]
+      }
+    },
+    "/api/public/shuttle/me/cards/{card_id}/confirm": {
+      "post": {
+        "description": "Back from Checkout: settle the card if Stripe says it is paid (the\nwebhook does the same, idempotently). ``{paid, ...the /me body}``.",
+        "operationId": "public_shuttle_me_card_confirm_by_host",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "card_id",
+            "required": true,
+            "schema": {
+              "title": "Card Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "slug",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Slug"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Public Shuttle Me Card Confirm By Host",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Card Confirm",
+        "tags": [
+          "public-shuttle"
+        ]
+      }
+    },
     "/api/public/shuttle/me/profile": {
       "put": {
         "description": "Give or edit the short profile this operator asks of its pilots: board\nname, glider, days on the island, WhatsApp number. The first one decides\n``approval`` (pending while \"Approve new pilots\" is on, else approved);\na later edit keeps the decision. Errors ``422 {\"error\": name_* |\nglider_invalid | stay_invalid | whatsapp_invalid}``.",
@@ -65054,6 +65435,281 @@
           }
         ],
         "summary": "Adopt Signups",
+        "tags": [
+          "public-shuttle"
+        ]
+      }
+    },
+    "/api/public/shuttle/{slug}/me/cards": {
+      "post": {
+        "description": "Order a ride card of one of the operator's card types. ``cash``: the\ncard stays ordered (no rides) until the driver ticks \"cash collected\".\n``online``: answers ``checkout_url`` (Stripe Checkout) when the return\nURLs are given; the webhook or\n``POST /me/cards/{id}/confirm`` marks it paid. Buying a type the pilot\nalready has an open order of returns that order. Errors: 404\n``punch_card_type_not_found``, 409 ``punch_card_type_inactive`` /\n``online_unavailable``.",
+        "operationId": "public_shuttle_me_order_card",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Slug"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CardOrderIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Public Shuttle Me Order Card",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Order Card",
+        "tags": [
+          "public-shuttle"
+        ]
+      }
+    },
+    "/api/public/shuttle/{slug}/me/cards/{card_id}": {
+      "delete": {
+        "description": "Withdraw an open (unpaid) order; a paid card answers 409\n``card_already_paid``.",
+        "operationId": "public_shuttle_me_cancel_card",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "card_id",
+            "required": true,
+            "schema": {
+              "title": "Card Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Slug"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Public Shuttle Me Cancel Card",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Cancel Card Order",
+        "tags": [
+          "public-shuttle"
+        ]
+      }
+    },
+    "/api/public/shuttle/{slug}/me/cards/{card_id}/checkout": {
+      "post": {
+        "description": "Pay an ordered card online (again): ``{checkout_url}``.",
+        "operationId": "public_shuttle_me_card_checkout",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "card_id",
+            "required": true,
+            "schema": {
+              "title": "Card Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Slug"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CardCheckoutIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Public Shuttle Me Card Checkout",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Card Checkout",
+        "tags": [
+          "public-shuttle"
+        ]
+      }
+    },
+    "/api/public/shuttle/{slug}/me/cards/{card_id}/confirm": {
+      "post": {
+        "description": "Back from Checkout: settle the card if Stripe says it is paid (the\nwebhook does the same, idempotently). ``{paid, ...the /me body}``.",
+        "operationId": "public_shuttle_me_card_confirm",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "card_id",
+            "required": true,
+            "schema": {
+              "title": "Card Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Slug"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Public Shuttle Me Card Confirm",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Card Confirm",
         "tags": [
           "public-shuttle"
         ]
@@ -99378,6 +100034,75 @@
           }
         ],
         "summary": "Signup Card",
+        "tags": [
+          "staff-shuttle-boarding"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/shuttle/signups/{signup_id}/collect-card": {
+      "post": {
+        "description": "landr-0l93b.3: the driver ticks \"cash collected\" for a ride card the\nrider ordered on their account; the card is paid and holds its rides.",
+        "operationId": "staff_shuttle_collect_card",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "signup_id",
+            "required": true,
+            "schema": {
+              "title": "Signup Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CollectCardIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Staff Shuttle Collect Card",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Collect Card",
         "tags": [
           "staff-shuttle-boarding"
         ]
