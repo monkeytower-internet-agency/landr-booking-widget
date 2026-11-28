@@ -34143,6 +34143,36 @@
         "title": "ProductLineIn",
         "type": "object"
       },
+      "ProductLocationsIn": {
+        "properties": {
+          "location_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 50,
+            "title": "Location Ids",
+            "type": "array"
+          }
+        },
+        "title": "ProductLocationsIn",
+        "type": "object"
+      },
+      "ProductLocationsOut": {
+        "properties": {
+          "location_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Location Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "location_ids"
+        ],
+        "title": "ProductLocationsOut",
+        "type": "object"
+      },
       "ProductOffer": {
         "description": "An offers row as the API returns it. Exported as ``Offer``; the class\nname keeps the OpenAPI component distinct from the widget-flow ``Offer``\nenum that already exists in the schema.",
         "properties": {
@@ -41550,11 +41580,17 @@
       },
       "Season": {
         "additionalProperties": false,
+        "description": "The shuttle season. Board tours are closed by default and switched on per\nday in evening planning (landr-vj5vc); ``open_tour_days`` opens every season\nday (from today) of every board tour at once instead (landr-50qbz.6).",
         "properties": {
           "from": {
             "format": "date",
             "title": "From",
             "type": "string"
+          },
+          "open_tour_days": {
+            "default": false,
+            "title": "Open Tour Days",
+            "type": "boolean"
           },
           "to": {
             "format": "date",
@@ -87129,6 +87165,126 @@
         "summary": "Patch Window",
         "tags": [
           "staff-fixed-date-windows"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/products/{product_id}/locations": {
+      "get": {
+        "operationId": "staff_get_product_locations",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "title": "Product Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductLocationsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Product Locations",
+        "tags": [
+          "staff-product-locations"
+        ]
+      },
+      "put": {
+        "operationId": "staff_put_product_locations",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "title": "Product Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductLocationsIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductLocationsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Put Product Locations",
+        "tags": [
+          "staff-product-locations"
         ]
       }
     },
