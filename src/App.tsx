@@ -116,6 +116,7 @@ import { FullyBookedNotice } from '@/components/booking/FullyBookedNotice'
 import { ShopComingSoonStub } from '@/components/booking/ShopComingSoonStub'
 import { StayRangePicker } from '@/components/booking/StayRangePicker'
 import { withStayPartyCap } from '@/components/booking/stayFlow'
+import { withSlotPartyCap } from '@/lib/slotPartyCap'
 import { SingleDatePicker } from '@/components/booking/SingleDatePicker'
 import {
   getContactPagePrefill,
@@ -3204,7 +3205,9 @@ function BookingFlowApp() {
 
         {step.name === 'details' ? (
           <DetailsStep
-            product={withStayPartyCap(step.product)}
+            // landr-v56gf: a timed slot limited by a shared pool (two tandem
+            // pilots) takes no more guests than it has pilots free.
+            product={withSlotPartyCap(withStayPartyCap(step.product), step.selection)}
             selection={step.selection}
             serviceRoles={serviceRoles}
             // landr-4uyu: operator contact email for the participant-max

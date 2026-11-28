@@ -1180,6 +1180,13 @@ export interface AvailabilitySlot {
    * step by itself.
    */
   accommodation_bookable?: boolean | null
+  /**
+   * landr-f987a.2: where this row's seat numbers come from — the product's
+   * own cap (`product`), a shared resource pool (`resources`, e.g. the
+   * pilots free in that time slot since landr-v56gf) or nothing (`none`).
+   * Optional: older API revisions omit it.
+   */
+  seat_limit_source?: 'product' | 'resources' | 'none'
 }
 
 export interface Participant {
