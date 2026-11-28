@@ -12547,11 +12547,12 @@
         "type": "object"
       },
       "DetailsProductForms": {
-        "description": "The custom forms of one product line. ``modules`` are the product\nflow's ``custom_form`` modules in the exact shape of\n``GET /api/public/operators/{token}/products/{id}/flow`` (form key /\nversion / name / ordered fields with visibility_rule, scope ...).",
+        "description": "The custom forms of one product line. ``steps`` are the product\nflow's ``custom_form`` steps in the exact shape of\n``GET /api/public/operators/{token}/products/{id}/flow`` (form key /\nversion / name / ordered fields with visibility_rule, scope ...).",
         "properties": {
           "modules": {
+            "deprecated": true,
             "items": {
-              "$ref": "#/components/schemas/FlowModuleDef"
+              "$ref": "#/components/schemas/FlowStepDef"
             },
             "title": "Modules",
             "type": "array"
@@ -12563,6 +12564,13 @@
           "product_name": {
             "title": "Product Name",
             "type": "string"
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/FlowStepDef"
+            },
+            "title": "Steps",
+            "type": "array"
           }
         },
         "required": [
@@ -15526,36 +15534,6 @@
         "title": "FlowGuestAttribute",
         "type": "object"
       },
-      "FlowModuleDef": {
-        "additionalProperties": true,
-        "description": "One module from the public_get_product_flow RPC. Mirrors the\nwidget's ``FlowModuleDef`` TypeScript interface.",
-        "properties": {
-          "form": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/FlowFormDef"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "kind": {
-            "title": "Kind",
-            "type": "string"
-          },
-          "position": {
-            "title": "Position",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "kind",
-          "position"
-        ],
-        "title": "FlowModuleDef",
-        "type": "object"
-      },
       "FlowRange": {
         "description": "One range of an attribute collected as ``ranges`` (landr-zcb24.6): ``min`` is\nstored when the guest picks it, ``max`` is the EXCLUSIVE upper edge (the next\nrange's ``min``; null = open-ended), ``label`` reads '<45 kg', '45-80 kg', '120+ kg'.",
         "properties": {
@@ -15584,6 +15562,36 @@
           "label"
         ],
         "title": "FlowRange",
+        "type": "object"
+      },
+      "FlowStepDef": {
+        "additionalProperties": true,
+        "description": "One Booking step from the public_get_product_flow RPC. Mirrors the\nwidget's ``FlowStepDef`` TypeScript interface.",
+        "properties": {
+          "form": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FlowFormDef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "position": {
+            "title": "Position",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "kind",
+          "position"
+        ],
+        "title": "FlowStepDef",
         "type": "object"
       },
       "ForecastItem": {
@@ -32984,7 +32992,7 @@
       },
       "ProductFlowResponse": {
         "additionalProperties": true,
-        "description": "Response of GET \u2026/products/{id}/flow. Mirrors the widget's\n``ProductFlowResponse`` TypeScript interface (src/api/flowTypes.ts).\n``modules`` is null for products with no configured flow (legacy\nshape) or list of modules otherwise.",
+        "description": "Response of GET \u2026/products/{id}/flow. Mirrors the widget's\n``ProductFlowResponse`` TypeScript interface (src/api/flowTypes.ts).\n``steps`` is null for products with no configured flow (legacy\nshape) or the list of Booking steps otherwise. ``modules`` is the same\nlist under its former name, kept for ONE promotion so a widget deployed\nbefore the API keeps working (landr-rqzoa.2 removes it).",
         "properties": {
           "age_bands": {
             "items": {
@@ -33046,7 +33054,7 @@
             "anyOf": [
               {
                 "items": {
-                  "$ref": "#/components/schemas/FlowModuleDef"
+                  "$ref": "#/components/schemas/FlowStepDef"
                 },
                 "type": "array"
               },
@@ -33054,7 +33062,23 @@
                 "type": "null"
               }
             ],
+            "deprecated": true,
+            "description": "Deprecated alias of ``steps`` (removed in landr-rqzoa.2).",
             "title": "Modules"
+          },
+          "steps": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/FlowStepDef"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Steps"
           }
         },
         "title": "ProductFlowResponse",
@@ -43257,6 +43281,63 @@
           "place"
         ],
         "title": "ShuttleMeetingPoint",
+        "type": "object"
+      },
+      "ShuttlePilotDecisionIn": {
+        "additionalProperties": false,
+        "properties": {
+          "decision": {
+            "enum": [
+              "approved",
+              "declined"
+            ],
+            "title": "Decision",
+            "type": "string"
+          }
+        },
+        "required": [
+          "decision"
+        ],
+        "title": "ShuttlePilotDecisionIn",
+        "type": "object"
+      },
+      "ShuttlePilotProfileIn": {
+        "additionalProperties": false,
+        "properties": {
+          "display_name": {
+            "maxLength": 200,
+            "title": "Display Name",
+            "type": "string"
+          },
+          "glider": {
+            "maxLength": 200,
+            "title": "Glider",
+            "type": "string"
+          },
+          "stay_from": {
+            "format": "date",
+            "title": "Stay From",
+            "type": "string"
+          },
+          "stay_to": {
+            "format": "date",
+            "title": "Stay To",
+            "type": "string"
+          },
+          "whatsapp": {
+            "maxLength": 40,
+            "title": "Whatsapp",
+            "type": "string"
+          }
+        },
+        "required": [
+          "display_name",
+          "glider",
+          "stay_from",
+          "stay_to",
+          "whatsapp"
+        ],
+        "title": "ShuttlePilotProfileIn",
         "type": "object"
       },
       "SignedUrlResponse": {
@@ -62852,7 +62933,7 @@
     },
     "/api/public/operators/{token}/products/{product_id}/flow": {
       "get": {
-        "description": "landr-71kz.2 / EPIC A: the product's ordered booking-flow modules.\n\nThin FastAPI wrapper over the SECURITY DEFINER RPC\n``public_get_product_flow``. The widget calls this after the customer picks a\nproduct to learn which modules (selection, participants, accommodation,\ncustom_form, \u2026) to render in which order, with the attached form definition\n(key/version/name + ordered fields) inlined for custom_form modules.\n\nReturns ``{\"modules\": null}`` when the product has no configured flow \u2014 the\nLEGACY path the widget reproduces bit-for-bit (zero config = today's\nhardcoded flow). Keyed on the opaque widget_token (resolved to the slug\nhere); an unknown token 404s via ``_resolve_operator_by_token``.\n\nlandr-tm48v.2: ``eligible`` + ``eligibility_reason_key`` -- may the product\nbe booked on these dates (``products.eligibility_rules`` through the offer\nevaluator, without a party: ``attribute_missing.<key>`` = ask the guests,\nthen judge them with POST /offers/evaluate, which never puts guest data in\na URL). Present when the product has eligibility rules or the caller sent\n``arrival`` / ``departure``; absent otherwise, so the legacy wire shape\nstays as it was. 422 ``bad_dates`` for a departure without an arrival,\nbefore it, or more than a year after it.",
+        "description": "landr-71kz.2 / EPIC A: the product's ordered booking-flow Booking steps.\n\nThin FastAPI wrapper over the SECURITY DEFINER RPC\n``public_get_product_flow``. The widget calls this after the customer picks a\nproduct to learn which steps (selection, participants, accommodation,\ncustom_form, \u2026) to render in which order, with the attached form definition\n(key/version/name + ordered fields) inlined for custom_form steps.\n\nReturns ``{\"steps\": null, \"modules\": null}`` when the product has no configured flow \u2014 the\nLEGACY path the widget reproduces bit-for-bit (zero config = today's\nhardcoded flow). Keyed on the opaque widget_token (resolved to the slug\nhere); an unknown token 404s via ``_resolve_operator_by_token``.\n\nlandr-tm48v.2: ``eligible`` + ``eligibility_reason_key`` -- may the product\nbe booked on these dates (``products.eligibility_rules`` through the offer\nevaluator, without a party: ``attribute_missing.<key>`` = ask the guests,\nthen judge them with POST /offers/evaluate, which never puts guest data in\na URL). Present when the product has eligibility rules or the caller sent\n``arrival`` / ``departure``; absent otherwise, so the legacy wire shape\nstays as it was. 422 ``bad_dates`` for a departure without an arrival,\nbefore it, or more than a year after it.",
         "operationId": "get_product_flow",
         "parameters": [
           {
@@ -64112,6 +64193,73 @@
         ]
       }
     },
+    "/api/public/shuttle/me/profile": {
+      "put": {
+        "description": "Give or edit the short profile this operator asks of its pilots: board\nname, glider, days on the island, WhatsApp number. The first one decides\n``approval`` (pending while \"Approve new pilots\" is on, else approved);\na later edit keeps the decision. Errors ``422 {\"error\": name_* |\nglider_invalid | stay_invalid | whatsapp_invalid}``.",
+        "operationId": "public_shuttle_me_profile_by_host",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "slug",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Slug"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShuttlePilotProfileIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Public Shuttle Me Profile By Host",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Save My Profile",
+        "tags": [
+          "public-shuttle"
+        ]
+      }
+    },
     "/api/public/shuttle/me/signups/{signup_id}": {
       "delete": {
         "description": "Cancel one of the caller's sign-ups (same rules as the token cancel:\nlate window, fee, not after boarding).",
@@ -64700,6 +64848,73 @@
           }
         ],
         "summary": "Adopt Signups",
+        "tags": [
+          "public-shuttle"
+        ]
+      }
+    },
+    "/api/public/shuttle/{slug}/me/profile": {
+      "put": {
+        "description": "Give or edit the short profile this operator asks of its pilots: board\nname, glider, days on the island, WhatsApp number. The first one decides\n``approval`` (pending while \"Approve new pilots\" is on, else approved);\na later edit keeps the decision. Errors ``422 {\"error\": name_* |\nglider_invalid | stay_invalid | whatsapp_invalid}``.",
+        "operationId": "public_shuttle_me_profile",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Slug"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShuttlePilotProfileIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Public Shuttle Me Profile",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Save My Profile",
         "tags": [
           "public-shuttle"
         ]
@@ -97140,6 +97355,191 @@
         "summary": "List Shuttle Pilots",
         "tags": [
           "staff-punch-cards"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/shuttle-pilots/new": {
+      "get": {
+        "description": "Pilots of THIS operator in ``approval`` state (pending: oldest first),\nplus the pending count for the badge.",
+        "operationId": "staff_list_new_shuttle_pilots",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "approval",
+            "required": false,
+            "schema": {
+              "default": "pending",
+              "enum": [
+                "pending",
+                "approved",
+                "declined"
+              ],
+              "title": "Approval",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Staff List New Shuttle Pilots",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List New Pilots",
+        "tags": [
+          "staff-shuttle"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/shuttle-pilots/new/count": {
+      "get": {
+        "operationId": "staff_count_new_shuttle_pilots",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "integer"
+                  },
+                  "title": "Response Staff Count New Shuttle Pilots",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Count New Pilots",
+        "tags": [
+          "staff-shuttle"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/shuttle-pilots/{user_id}/approval": {
+      "post": {
+        "description": "Approve or decline one pilot of this operator (idempotent; a decision\ncan be changed later).",
+        "operationId": "staff_decide_shuttle_pilot",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShuttlePilotDecisionIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Staff Decide Shuttle Pilot",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Decide Pilot",
+        "tags": [
+          "staff-shuttle"
         ]
       }
     },

@@ -654,7 +654,7 @@ describe('BookingForm — review-only screen (landr-8c03)', () => {
 describe('BookingForm — submit payload (landr-8c03 + landr-cip6 + landr-vyaz)', () => {
   // landr-kcxx5.10: the resolved product flow App hands BookingForm (labels for 422 form errors).
 const INTAKE_FLOW: ProductFlowResponse = {
-  modules: [
+  steps: [
     {
       kind: 'custom_form',
       position: 0,

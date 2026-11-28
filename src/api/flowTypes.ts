@@ -97,7 +97,7 @@ export interface FlowFormDef {
 }
 
 /** One module from the public_get_product_flow RPC. */
-export interface FlowModuleDef {
+export interface FlowStepDef {
   kind: string
   position: number
   form: FlowFormDef | null
@@ -158,7 +158,9 @@ export interface FlowAgeBand {
 
 /** Top-level response of GET …/products/{id}/flow. */
 export interface ProductFlowResponse {
-  modules: FlowModuleDef[] | null
+  steps: FlowStepDef[] | null
+  /** Deprecated former name of `steps`; the API sends both for one promotion (landr-rqzoa.2 drops it). */
+  modules?: FlowStepDef[] | null
   /**
    * The attributes to ask per guest (union over the product and every offer
    * that can be shown for it). Absent = nothing to ask.

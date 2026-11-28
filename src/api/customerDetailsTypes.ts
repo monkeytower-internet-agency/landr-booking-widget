@@ -4,12 +4,14 @@
  * because the form definitions are exactly the public_get_product_flow shape.
  * customerDetailsTypes.contract.test.ts pins them to the generated schema.
  */
-import type { FlowModuleDef } from './flowTypes'
+import type { FlowStepDef } from './flowTypes'
 
 export interface DetailsProductForms {
   product_id: string
   product_name: string
-  modules: FlowModuleDef[]
+  steps: FlowStepDef[]
+  /** Deprecated former name of `steps` (API alias for one promotion, landr-rqzoa.2 drops it). */
+  modules?: FlowStepDef[]
 }
 
 /** One person of the booking; participants come first, then guests. */

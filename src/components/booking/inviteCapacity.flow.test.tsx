@@ -172,7 +172,7 @@ beforeEach(() => {
   mocks.getHotelsForOperator.mockResolvedValue([])
   mocks.getHotelRoomsForHotel.mockResolvedValue([])
   mocks.requestSubscriptionPerkOtp.mockResolvedValue({ ok: true })
-  mocks.getProductFlow.mockResolvedValue({ modules: null })
+  mocks.getProductFlow.mockResolvedValue({ steps: null })
   mocks.estimateBookingPrice.mockResolvedValue({
     line_items: [],
     operator_total: '0.00',

@@ -19,14 +19,14 @@ describe('collectForms', () => {
     const details: CustomerDetails = {
       pending: true,
       forms: [
-        { product_id: 'p1', product_name: 'Tandem', modules: [declarationsModule(), insuranceModule()] },
-        { product_id: 'p2', product_name: 'Dinner', modules: [declarationsModule()] },
+        { product_id: 'p1', product_name: 'Tandem', steps: [declarationsModule(), insuranceModule()] },
+        { product_id: 'p2', product_name: 'Dinner', steps: [declarationsModule()] },
       ],
     }
     const steps = collectForms(details)
     expect(steps.map((s) => s.form.key)).toEqual(['declarations', 'insurance'])
     expect(steps[0].productName).toBe('Tandem')
-    expect(steps[0].flow.modules?.[0].form?.key).toBe('declarations')
+    expect(steps[0].flow.steps?.[0].form?.key).toBe('declarations')
   })
 
   it('orders modules by position and skips non custom_form modules', () => {
@@ -36,7 +36,7 @@ describe('collectForms', () => {
         {
           product_id: 'p1',
           product_name: 'Tandem',
-          modules: [
+          steps: [
             insuranceModule(5),
             { kind: 'language', position: 1, form: null },
             declarationsModule(2),

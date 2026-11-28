@@ -40,7 +40,7 @@ function field(
 
 function flowOf(fields: FlowFieldDef[]): ProductFlowResponse {
   return {
-    modules: [
+    steps: [
       {
         kind: 'custom_form',
         position: 0,

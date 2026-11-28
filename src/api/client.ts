@@ -1022,7 +1022,8 @@ export async function estimateBookingPrice(
 /**
  * landr-71kz.4: fetch the product's operator-configured booking flow.
  * GET /api/public/operators/{token}/products/{productId}/flow
- * Returns {modules: [...]} or {modules: null} (legacy/no-flow path).
+ * Returns {steps: [...]} or {steps: null} (legacy/no-flow path); an API that
+ * still names the list `modules` (before landr-rqzoa.1) is mapped to `steps`.
  * A network/404 error is NOT thrown — the caller receives null, which
  * the buildFlowPlan() legacy fallback handles. NEVER throws (widget has no
  * error boundary — bd memory landr-9ut4).
@@ -1031,11 +1032,15 @@ export async function getProductFlow(
   operatorToken: string,
   productId: string,
 ): Promise<ProductFlowResponse | null> {
-  if (mocksEnabled()) return { modules: null }
+  if (mocksEnabled()) return { steps: null }
   try {
-    return await http<ProductFlowResponse>(
+    const flow = await http<ProductFlowResponse>(
       `/api/public/operators/${encodeURIComponent(operatorToken)}/products/${encodeURIComponent(productId)}/flow`,
     )
+    // landr-rqzoa.1: an API deployed before the rename sends only `modules`.
+    return flow && flow.steps === undefined && flow.modules !== undefined
+      ? { ...flow, steps: flow.modules }
+      : flow
   } catch {
     // Network error / 404 / malformed response → null → legacy plan.
     return null
@@ -1415,9 +1420,14 @@ export async function getBookingByToken(
 export async function getBookingDetails(
   token: string,
 ): Promise<CustomerDetails> {
-  return http<CustomerDetails>(
+  const details = await http<CustomerDetails>(
     `/api/public/bookings/${encodeURIComponent(token)}/details`,
   )
+  // landr-rqzoa.1: an API deployed before the rename names each product's list `modules`.
+  return {
+    ...details,
+    forms: (details.forms ?? []).map((f) => ({ ...f, steps: f.steps ?? f.modules ?? [] })),
+  }
 }
 
 /**

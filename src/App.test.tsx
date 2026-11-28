@@ -34,7 +34,7 @@ const { mocks } = vi.hoisted(() => ({
     getHotelsForOperator: vi.fn(),
     getHotelRoomsForHotel: vi.fn(),
     estimateBookingPrice: vi.fn(),
-    // landr-71kz.10: the product-flow RPC. Default {modules: null} (legacy/no
+    // landr-71kz.10: the product-flow RPC. Default {steps: null} (legacy/no
     // custom-form). Per-test overrides supply a custom_form module to exercise
     // the data path.
     getProductFlow: vi.fn(),
@@ -81,7 +81,7 @@ vi.mock('@/api/client', async (importOriginal) => {
 // step override getProductFlow with this.
 function declarationsFlow() {
   return {
-    modules: [
+    steps: [
       {
         kind: 'custom_form',
         position: 0,
@@ -234,7 +234,7 @@ describe('App', () => {
     mocks.requestSubscriptionPerkOtp.mockResolvedValue({ ok: true })
     // landr-71kz.10: default to no remote flow → legacy plan → no custom-form /
     // declarations step. Tests that exercise the data path override this.
-    mocks.getProductFlow.mockResolvedValue({ modules: null })
+    mocks.getProductFlow.mockResolvedValue({ steps: null })
     mocks.estimateBookingPrice.mockResolvedValue({
       line_items: [],
       operator_total: '0.00',
@@ -1117,7 +1117,7 @@ describe('App', () => {
       ]
       mocks.listProducts.mockResolvedValue(products)
       mocks.getProductFlow.mockImplementation(async (_token: string, id: string) =>
-        id === 'p-action' && opts.actionFlow ? opts.actionFlow : { modules: null },
+        id === 'p-action' && opts.actionFlow ? opts.actionFlow : { steps: null },
       )
       const pickDay = async () => {
         const find = () =>
@@ -1246,7 +1246,7 @@ describe('App', () => {
     it('switching into a participants-first product keeps the day through the participants step', async () => {
       const { pickDay } = switchSetup({
         actionFlow: {
-          modules: [
+          steps: [
             { kind: 'participants', position: 1 },
             { kind: 'selection', position: 2 },
           ],
@@ -4412,7 +4412,7 @@ describe('App', () => {
     const value = (name: string) =>
       document.querySelector<HTMLInputElement>(`input[name="${name}"]`)!.value
 
-    function setup(modules: { kind: string; position: number }[]) {
+    function setup(steps: { kind: string; position: number }[]) {
       mocks.getOperatorSettings.mockResolvedValue({
         slug: 'test-operator',
         expose_seats_to_customer: false,
@@ -4431,7 +4431,7 @@ describe('App', () => {
       ])
       // day2 has a single seat → short for a party of 2.
       mocks.getAvailability.mockResolvedValue([slotFor(day1, 10), slotFor(day2, 1)])
-      mocks.getProductFlow.mockResolvedValue({ modules })
+      mocks.getProductFlow.mockResolvedValue({ steps })
       mocks.submitBooking.mockResolvedValue({
         booking_id: 'b-rmcsu-6',
         semantic_state: 'pending',
@@ -4715,8 +4715,8 @@ describe('App', () => {
       const iso = today.toISOString().slice(0, 10)
       const base = declarationsFlow()
       mocks.getProductFlow.mockResolvedValue({
-        modules: [
-          ...base.modules,
+        steps: [
+          ...base.steps,
           {
             kind: 'custom_form',
             position: 1,
@@ -4996,7 +4996,7 @@ describe('App', () => {
       const today = new Date()
       today.setHours(12, 0, 0, 0)
       const iso = today.toISOString().slice(0, 10)
-      // Default mock returns {modules: null} → legacy plan → no custom-form step.
+      // Default mock returns {steps: null} → legacy plan → no custom-form step.
       mocks.listProducts.mockResolvedValue([
         makeProduct({
           product_id: 'svc-2',
@@ -6076,7 +6076,7 @@ describe('App', () => {
         slug: 'para42',
         expose_seats_to_customer: false,
       })
-      mocks.getProductFlow.mockResolvedValue({ modules: null })
+      mocks.getProductFlow.mockResolvedValue({ steps: null })
       mocks.getAvailability.mockResolvedValue(openDay())
       mocks.submitBooking.mockResolvedValue({
         booking_id: 'b-any',
@@ -6391,7 +6391,7 @@ describe('App', () => {
   describe('per-participant guide language (landr-r6e5x.4)', () => {
     function languageFlow() {
       return {
-        modules: [
+        steps: [
           {
             kind: 'custom_form',
             position: 0,
@@ -6607,7 +6607,7 @@ describe('App', () => {
         slug: 'para42',
         expose_seats_to_customer: false,
       })
-      mocks.getProductFlow.mockResolvedValue({ modules: null })
+      mocks.getProductFlow.mockResolvedValue({ steps: null })
       mocks.listProducts.mockResolvedValue([
         makeProduct({
           product_kind: 'service',
@@ -6696,7 +6696,7 @@ describe('App', () => {
         expose_seats_to_customer: false,
       })
       mocks.getProductFlow.mockResolvedValue({
-        modules: null,
+        steps: null,
         guest_attributes: [
           { key: 'weight_kg', label: 'Weight', value_type: 'number', unit: 'kg' },
         ],
@@ -6784,7 +6784,7 @@ describe('App', () => {
         expose_seats_to_customer: false,
       })
       mocks.getProductFlow.mockResolvedValue({
-        modules: null,
+        steps: null,
         guest_attributes: [
           {
             key: 'weight_kg',
@@ -6860,7 +6860,7 @@ describe('App', () => {
         expose_seats_to_customer: false,
       })
       mocks.getProductFlow.mockResolvedValue({
-        modules: null,
+        steps: null,
         guest_attributes: [
           { key: 'age', label: 'Age', value_type: 'integer', unit: 'years' },
           { key: 'weight_kg', label: 'Weight', value_type: 'number', unit: 'kg' },
@@ -6983,7 +6983,7 @@ describe('App', () => {
         slug: 'para42',
         expose_seats_to_customer: false,
       })
-      mocks.getProductFlow.mockResolvedValue({ modules: null })
+      mocks.getProductFlow.mockResolvedValue({ steps: null })
       mocks.listProducts.mockResolvedValue([
         makeProduct({
           product_kind: 'service',
@@ -7108,7 +7108,7 @@ describe('App', () => {
     ) {
       const today = new Date()
       today.setHours(12, 0, 0, 0)
-      mocks.getProductFlow.mockResolvedValue({ modules: null })
+      mocks.getProductFlow.mockResolvedValue({ steps: null })
       mocks.listProducts.mockResolvedValue([product])
       mocks.getAvailability.mockResolvedValue([
         {

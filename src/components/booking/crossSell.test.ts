@@ -301,7 +301,7 @@ describe('lineNeeds', () => {
   })
 
   it('asks for the forms the main flow has not answered, once per key', () => {
-    const flow = { modules: [formModule('waiver'), formModule('medical')] }
+    const flow = { steps: [formModule('waiver'), formModule('medical')] }
     const a = lineOf(product('a'), flow)
     const b = lineOf(product('b'), flow)
     const needs = lineNeeds([a, b], ctx)
@@ -325,7 +325,7 @@ describe('inlineModulesPending', () => {
   it('clears as the customer answers each inline module', () => {
     const line = lineOf(
       product('a', { guide_languages: ['de', 'fr'], needs_pickup: true }),
-      { modules: [formModule('medical')] },
+      { steps: [formModule('medical')] },
     )
     const base = { languages: null, formKeys: [], pickupLocationId: null }
     expect(inlineModulesPending([line], ctx, base)).toBe(true)

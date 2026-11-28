@@ -87,7 +87,7 @@ export const PENDING_DETAILS: CustomerDetails = {
     {
       product_id: 'p1',
       product_name: 'Tandem Flight',
-      modules: [declarationsModule()],
+      steps: [declarationsModule()],
     },
   ],
   people: PEOPLE,

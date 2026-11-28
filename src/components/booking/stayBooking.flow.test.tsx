@@ -185,7 +185,7 @@ beforeEach(() => {
   mocks.getHotelsForOperator.mockResolvedValue([])
   mocks.getHotelRoomsForHotel.mockResolvedValue([])
   mocks.getOffers.mockImplementation(offersAnswer([breakfast]))
-  mocks.getProductFlow.mockResolvedValue({ modules: null })
+  mocks.getProductFlow.mockResolvedValue({ steps: null })
   mocks.estimateBookingPrice.mockResolvedValue(estimate)
   mocks.listProducts.mockResolvedValue([stay])
   mocks.submitBooking.mockResolvedValue({

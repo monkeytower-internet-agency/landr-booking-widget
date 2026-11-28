@@ -45,7 +45,7 @@ describe('localizeFieldError', () => {
 
   it('findFlowField resolves a field by form and field key', () => {
     const flow = {
-      modules: [
+      steps: [
         { kind: 'custom_form', position: 0, form: { key: 'f1', version: 1, name: 'F', name_localized: null, fields: [weight] } },
       ],
     }

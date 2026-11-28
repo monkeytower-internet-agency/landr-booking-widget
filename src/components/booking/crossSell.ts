@@ -329,7 +329,7 @@ export function lineNeeds(
       needs.ageGuests = refine.guests
       agesClaimed = true
     }
-    for (const m of line.flow?.modules ?? []) {
+    for (const m of line.flow?.steps ?? []) {
       if (m.kind !== 'custom_form' || m.form == null) continue
       const key = m.form.key
       if (answered.has(key) || claimed.has(key)) continue

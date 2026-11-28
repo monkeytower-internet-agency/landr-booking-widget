@@ -39,8 +39,8 @@ import {
   isBookableKind,
   planHasParticipantsFirst,
   productHasHotelOffering,
-  type FlowModule,
-  type FlowModuleKind,
+  type FlowStep,
+  type FlowStepKind,
   type RemoteFlow,
 } from './flowPlan'
 
@@ -337,7 +337,7 @@ export type Step =
     }
   // landr-71kz.10: the legacy hardcoded `declarations` Step variant has been
   // retired. Para42's eligibility declarations are now an operator-configured
-  // `custom_form` module (form_key `customer_declarations`), rendered by the
+  // `custom_form` step (form_key `customer_declarations`), rendered by the
   // `custom-form` Step variant below and submitted as `form_responses` — the
   // server mirrors that form into bookings.customer_declarations +
   // customer_language. The data path replaces the constant-driven branch.
@@ -509,7 +509,7 @@ export function deriveAccommodationMode(
 
 // ─── Plan walks (landr-71kz.3, remote flow activated in landr-71kz.10) ────────
 //
-// The routing helpers below are thin plan-index WALKS over the FlowModule[] the
+// The routing helpers below are thin plan-index WALKS over the FlowStep[] the
 // funnel is configured with, instead of hardcoded `if (hotel) … else if (pickup)
 // …` ladders. With a null/absent remoteFlow `buildFlowPlan` yields the LEGACY
 // plan, so the walk reproduces today's routing bit-for-bit — proven by the
@@ -517,10 +517,10 @@ export function deriveAccommodationMode(
 //
 // landr-71kz.10: the helpers now take an OPTIONAL `remoteFlow`. When App.tsx has
 // fetched a product's operator-configured flow, it threads it here so the plan
-// includes `custom_form` modules in their configured positions. The forward
+// includes `custom_form` steps in their configured positions. The forward
 // routing into a custom-form step is driven by `customFormKeysBeforeReview`
 // (which reads the formKeys off the plan); the BACKWARD walks treat `custom_form`
-// like any other middle module (always live; reconstructed via the `custom-form`
+// like any other middle step (always live; reconstructed via the `custom-form`
 // Step variant). When `remoteFlow` is undefined/null every helper falls back to
 // the legacy plan — identical to before this change.
 //
@@ -538,25 +538,25 @@ export function deriveAccommodationMode(
 //
 
 /**
- * The middle module kinds (everything strictly between participants and review)
+ * The middle step kinds (everything strictly between participants and review)
  * of the plan for a product + (optional) remote flow. The pinned frame
  * (selection, participants, review) is dropped because the routing helpers only
  * ever choose among the middle steps + the review terminus. With `remoteFlow`
- * absent this is the legacy plan; with it present, `custom_form` modules appear
+ * absent this is the legacy plan; with it present, `custom_form` steps appear
  * in their configured order.
  */
 function planMiddleKinds(
   product: Product,
   remoteFlow?: RemoteFlow | null,
-): FlowModuleKind[] {
-  const plan: FlowModule[] = buildFlowPlan(product, {}, remoteFlow ?? null)
+): FlowStepKind[] {
+  const plan: FlowStep[] = buildFlowPlan(product, {}, remoteFlow ?? null)
   return plan
     .map((m) => m.kind)
     .filter((k) => k !== 'selection' && k !== 'participants' && k !== 'review')
 }
 
 /**
- * landr-71kz.10: the ordered library keys of the `custom_form` modules in the
+ * landr-71kz.10: the ordered library keys of the `custom_form` steps in the
  * plan, in their configured positions. Empty when there is no remote flow (the
  * legacy plan never contains a custom_form). Drives the FORWARD routing into the
  * custom-form step chain before review.
@@ -565,9 +565,9 @@ export function customFormKeysBeforeReview(
   product: Product,
   remoteFlow?: RemoteFlow | null,
 ): string[] {
-  const plan: FlowModule[] = buildFlowPlan(product, {}, remoteFlow ?? null)
+  const plan: FlowStep[] = buildFlowPlan(product, {}, remoteFlow ?? null)
   return plan
-    .filter((m): m is FlowModule & { formKey: string } =>
+    .filter((m): m is FlowStep & { formKey: string } =>
       m.kind === 'custom_form' && typeof m.formKey === 'string',
     )
     .map((m) => m.formKey)
@@ -586,7 +586,7 @@ export function customFormsWithoutResponse(
   formResponses: readonly { form_key: string }[],
 ): { form_key: string; name: string }[] | undefined {
   const names = new Map<string, string>()
-  for (const m of flow?.modules ?? []) {
+  for (const m of flow?.steps ?? []) {
     if (m.kind === 'custom_form' && m.form && typeof m.form.name === 'string') {
       names.set(m.form.key, m.form.name)
     }
@@ -602,7 +602,7 @@ export function customFormsWithoutResponse(
  * landr-rmcsu.6: does this product's flow run the participants step BEFORE the
  * dates step? Only when the operator stored the participants row ahead of the
  * selection row (see buildFlowPlan); the legacy plan and every other flow keep
- * today's dates-first order. Either way every middle module runs after BOTH.
+ * today's dates-first order. Either way every middle step runs after BOTH.
  */
 export function participantsBeforeSelection(
   product: Product,
@@ -636,7 +636,7 @@ export function frameBackStep(
 }
 
 /**
- * Runtime predicate: is this potential middle module actually LIVE for the
+ * Runtime predicate: is this potential middle step actually LIVE for the
  * current booking state? Encodes the runtime gate (hotel-skips-pickup) so the
  * plan walk yields the realised path.
  *
@@ -646,7 +646,7 @@ export function frameBackStep(
  * v1).
  */
 function isModuleLive(
-  kind: FlowModuleKind,
+  kind: FlowStepKind,
   ctx: {
     hotelLocationId?: string | null
   },
@@ -661,7 +661,7 @@ function isModuleLive(
 }
 
 /**
- * Walk BACKWARD from `review` (or from a given module) to find the LIVE module
+ * Walk BACKWARD from `review` (or from a given step) to find the LIVE step
  * that immediately precedes it. Returns null when nothing live precedes it (the
  * walk has reached the implicit participants/details frame). `fromKind`
  * undefined means "the step before review".
@@ -670,8 +670,8 @@ function liveModuleBefore(
   product: Product,
   remoteFlow: RemoteFlow | null | undefined,
   ctx: { hotelLocationId?: string | null },
-  fromKind?: FlowModuleKind,
-): FlowModuleKind | null {
+  fromKind?: FlowStepKind,
+): FlowStepKind | null {
   const kinds = planMiddleKinds(product, remoteFlow)
   const start = fromKind ? kinds.indexOf(fromKind) : kinds.length
   for (let i = start - 1; i >= 0; i -= 1) {
@@ -730,23 +730,23 @@ export function stepAfterAccommodation(
 ): Step {
   // landr-71kz.3: plan walk for the post-accommodation forward target. The
   // legacy forward contract out of this call is EXACTLY three branches, and
-  // no other module may be a forward target here:
+  // no other step may be a forward target here:
   //   1. hotel booked (hotelLocationId != null) → fill-form (hotel is pickup);
   //   2. else needs_pickup → pick-pickup;
   //   3. else fill-form (pickup null).
-  // The ONLY middle module that can terminate the post-accommodation search is
+  // The ONLY middle step that can terminate the post-accommodation search is
   // `pickup`. It is "live forward" iff it is in the plan (needs_pickup) AND no
   // hotel was booked (landr-4r80: a booked hotel becomes the pickup point, so
-  // the free picker is skipped). Any other module (custom_form, declarations)
+  // the free picker is skipped). Any other step (custom_form, declarations)
   // is upstream-of or layered-on and must not divert this branch.
   //
-  // Historical note (PR #119 review; the service_addons module is since
-  // retired): an earlier walk let ANY live module
+  // Historical note (PR #119 review; the service_addons step is since
+  // retired): an earlier walk let ANY live step
   // terminate the search and, for a no-hotel product, started at index 0 (no
-  // accommodation module ⇒ indexOf === -1 ⇒ start at the first middle), so a
+  // accommodation step ⇒ indexOf === -1 ⇒ start at the first middle), so a
   // product with service add-ons + needs_pickup wrongly terminated on
   // service_addons → fill-form, skipping the pickup picker. We now look up
-  // the `pickup` module directly and apply only its forward gate.
+  // the `pickup` step directly and apply only its forward gate.
   // The pickup gate is purely product-driven (needs_pickup), identical in the
   // legacy and remote plans, and the custom-form chain is layered on AFTER this
   // call by App's pre-review router — so this lookup stays on the legacy plan.
@@ -854,7 +854,7 @@ export interface StepBeforeReviewArgs {
   // landr-a4fy: carry the breakfast map back for pick-accommodation restoration.
   breakfastMap?: PartyBreakfastMap
   // landr-71kz.10: the operator-configured remote flow (when fetched) so the
-  // backward walk sees the custom_form modules in their configured positions.
+  // backward walk sees the custom_form steps in their configured positions.
   // Absent → legacy plan (no custom forms), identical to before.
   remoteFlow?: RemoteFlow | null
   // landr-71kz.10: prior custom-form answers keyed by form_key, so a back hop
@@ -901,15 +901,15 @@ function reconstructCustomFormStep(
 }
 
 /**
- * Reconstruct the upstream Step for a given middle module kind from the
+ * Reconstruct the upstream Step for a given middle step kind from the
  * provenance bag, with its previously-confirmed state restored. The single
- * place that maps a plan module → a concrete back-nav Step, so the routing
+ * place that maps a plan step → a concrete back-nav Step, so the routing
  * helpers stay declarative walks. `accommodation` covers package + shared-double
  * + guiding-only opt-out (the forward path always inserts it when the product
  * offers a hotel); `null` is the implicit details frame.
  */
 function reconstructStepForModule(
-  kind: FlowModuleKind | null,
+  kind: FlowStepKind | null,
   args: StepBeforeReviewArgs,
 ): Step {
   switch (kind) {
@@ -960,7 +960,7 @@ function reconstructStepForModule(
 }
 
 /**
- * Backward walk for the REVIEW back-target. Resolves which middle module the
+ * Backward walk for the REVIEW back-target. Resolves which middle step the
  * review/declarations step returns to. This is NOT a pure mirror of the forward
  * walk: on a hotel-offering product the customer always returns to
  * `accommodation` (never the pickup picker), EVEN on the guiding-only opt-out
@@ -975,7 +975,7 @@ function reconstructStepForModule(
  *   - else pickup live (needs_pickup, no hotel) → pickup.
  *   - else details.
  */
-function reviewBackModule(args: StepBeforeReviewArgs): FlowModuleKind | null {
+function reviewBackModule(args: StepBeforeReviewArgs): FlowStepKind | null {
   // The custom_form chain is walked separately (stepBeforeReview); this resolves
   // only the NON-custom-form middles, so it stays on the legacy plan.
   const kinds = planMiddleKinds(args.product)
@@ -1382,8 +1382,8 @@ const BREADCRUMB_STEPS: ReadonlySet<Step['name']> = new Set([
 /**
  * The funnel step that preceded pick-pickup on the way forward, reconstructed
  * with its prior state. landr-71kz.3: a backward plan walk from the `pickup`
- * module over the preceding live middles — hotel offering → accommodation (the
- * `accommodation` module is always present + live when the product offers a
+ * step over the preceding live middles — hotel offering → accommodation (the
+ * `accommodation` step is always present + live when the product offers a
  * hotel); else details. Reuses reconstructStepForModule so the back-nav Step
  * shapes live in one place.
  */

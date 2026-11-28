@@ -1126,9 +1126,9 @@ function notFound(path: string): Error {
 export function demoFlow(template: DemoTemplate, id: string): ProductFlowResponse {
   const hit = findOffer(template, id)
   const cat = template.catalogue?.products.find((c) => c.slug === hit?.product.slug)
-  if (!cat?.required_attributes?.includes('age')) return { modules: null }
+  if (!cat?.required_attributes?.includes('age')) return { steps: null }
   return {
-    modules: null,
+    steps: null,
     age_needed: true,
     age_collect_as: 'ranges',
     age_bands: [

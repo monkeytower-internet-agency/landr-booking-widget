@@ -561,7 +561,7 @@ describe('breadcrumb navigation (landr)', () => {
   const NO_DECL = {}
   const CUSTOM_FORM_FLOW = {
     remoteFlow: {
-      modules: [{ kind: 'custom_form', position: 0, form: { key: 'waiver' } }],
+      steps: [{ kind: 'custom_form', position: 0, form: { key: 'waiver' } }],
     },
   }
 
@@ -1044,7 +1044,7 @@ describe('language step routing (landr-r6e5x.4)', () => {
   })
 
   const declarationsFlow = {
-    modules: [
+    steps: [
       { kind: 'custom_form', position: 0, form: { key: 'customer_declarations' } },
     ],
   }
@@ -1197,7 +1197,7 @@ describe('productEntryStep (landr-6eita.1)', () => {
 describe('participants position in the step machine (landr-rmcsu.6)', () => {
   // The operator stored participants ahead of the dates step.
   const PARTICIPANTS_FIRST = {
-    modules: [
+    steps: [
       { kind: 'participants', position: 1 },
       { kind: 'selection', position: 2 },
     ],
@@ -1205,7 +1205,7 @@ describe('participants position in the step machine (landr-rmcsu.6)', () => {
   // Declared after accommodation — realised as today's order, because every
   // middle needs the party.
   const PARTICIPANTS_AFTER_ACCOMMODATION = {
-    modules: [
+    steps: [
       { kind: 'selection', position: 1 },
       { kind: 'accommodation', position: 2 },
       { kind: 'participants', position: 3 },
@@ -1376,7 +1376,7 @@ describe('participants position in the step machine (landr-rmcsu.6)', () => {
 
 describe('customFormsWithoutResponse (staff review: forms the customer completes)', () => {
   const flow = (...keys: string[]) => ({
-    modules: keys.map((key, position) => ({
+    steps: keys.map((key, position) => ({
       kind: 'custom_form' as const,
       position,
       form: { key, version: 1, name: `Form ${key}`, name_localized: null, fields: [] },

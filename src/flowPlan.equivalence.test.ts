@@ -2,7 +2,7 @@
  * landr-71kz.3 — EQUIVALENCE SUITE (the acceptance bar).
  *
  * The step machine was refactored from hardcoded `if (hotel) … else if (pickup)
- * …` ladders into plan-index WALKS over the FlowModule[] that `buildFlowPlan`
+ * …` ladders into plan-index WALKS over the FlowStep[] that `buildFlowPlan`
  * yields. With a null remoteFlow that plan is the LEGACY plan, and this suite
  * proves the walk reproduces TODAY's routing BIT-FOR-BIT across EVERY
  * hotel_offering × needs_pickup × declarations permutation.
@@ -32,7 +32,7 @@ import {
   stepBeforeReview,
   type Step,
 } from './appStepMachine'
-import { buildFlowPlan, planHasParticipantsFirst, type FlowModule } from './flowPlan'
+import { buildFlowPlan, planHasParticipantsFirst, type FlowStep } from './flowPlan'
 
 // ─── Fixtures (mirroring appStepMachine.test.ts) ────────────────────────────
 
@@ -333,7 +333,7 @@ describe('legacy-plan ≡ current routing — stepBefore mirrors the trail (all 
 // ─── buildFlowPlan: legacy plan structure ───────────────────────────────────
 
 describe('buildFlowPlan — legacy plan (remoteFlow === null)', () => {
-  function kinds(plan: FlowModule[]): string[] {
+  function kinds(plan: FlowStep[]): string[] {
     return plan.map((m) => m.kind)
   }
 
@@ -413,7 +413,7 @@ describe('buildFlowPlan — tolerant parse (malformed remoteFlow → legacy, nev
   function product() {
     return makeProduct({ hotel_offering: 'optional', needs_pickup: true })
   }
-  function build(remote: unknown): FlowModule[] {
+  function build(remote: unknown): FlowStep[] {
     // The signature is permissive at the call boundary on purpose — the wire
     // payload is untyped. Cast through unknown so the test can shove garbage in.
     return buildFlowPlan(product(), { slug: 'para42' }, remote as never)
@@ -423,18 +423,24 @@ describe('buildFlowPlan — tolerant parse (malformed remoteFlow → legacy, nev
     expect(build(null)).toEqual(legacy)
   })
 
-  it('{modules: null} → legacy plan', () => {
+  it('{steps: null} → legacy plan', () => {
+    expect(build({ steps: null })).toEqual(legacy)
+  })
+
+  it('landr-rqzoa.1: a flow that still names the list `modules` (API before the rename) parses like `steps`', () => {
+    const rows = [{ kind: 'custom_form', position: 3, form: { key: 'waiver' } }]
+    expect(build({ modules: rows })).toEqual(build({ steps: rows }))
     expect(build({ modules: null })).toEqual(legacy)
   })
 
-  it('modules not an array → legacy plan', () => {
-    expect(build({ modules: 'oops' })).toEqual(legacy)
-    expect(build({ modules: 42 })).toEqual(legacy)
-    expect(build({ modules: { 0: 'x' } })).toEqual(legacy)
+  it('steps not an array → legacy plan', () => {
+    expect(build({ steps: 'oops' })).toEqual(legacy)
+    expect(build({ steps: 42 })).toEqual(legacy)
+    expect(build({ steps: { 0: 'x' } })).toEqual(legacy)
   })
 
   it('a retired service_addons-only flow is a deliberate minimal flow: no legacy fallback, nothing injected', () => {
-    const plan = build({ modules: [{ kind: 'service_addons', position: 1 }] })
+    const plan = build({ steps: [{ kind: 'service_addons', position: 1 }] })
     const kinds = plan.map((m) => m.kind)
     expect(kinds).not.toContain('service_addons')
     expect(kinds).not.toContain('accommodation')
@@ -448,7 +454,7 @@ describe('buildFlowPlan — tolerant parse (malformed remoteFlow → legacy, nev
   })
 
   it('modules array full of garbage entries → legacy plan (every entry unparseable)', () => {
-    expect(build({ modules: [null, 1, 'x', {}, { kind: 'nope' }] })).toEqual(legacy)
+    expect(build({ steps: [null, 1, 'x', {}, { kind: 'nope' }] })).toEqual(legacy)
   })
 
   it('NEVER throws across a battery of hostile inputs', () => {
@@ -460,12 +466,12 @@ describe('buildFlowPlan — tolerant parse (malformed remoteFlow → legacy, nev
       NaN,
       [],
       {},
-      { modules: undefined },
-      { modules: [undefined] },
-      { modules: [{ kind: 123 }] },
-      { modules: [{ kind: 'custom_form' }] }, // missing form key
-      { modules: [{ kind: 'custom_form', form: {} }] },
-      { modules: [{ kind: 'custom_form', form: { key: 99 } }] },
+      { steps: undefined },
+      { steps: [undefined] },
+      { steps: [{ kind: 123 }] },
+      { steps: [{ kind: 'custom_form' }] }, // missing form key
+      { steps: [{ kind: 'custom_form', form: {} }] },
+      { steps: [{ kind: 'custom_form', form: { key: 99 } }] },
       Symbol('x') as unknown,
       (() => {}) as unknown,
     ]
@@ -489,7 +495,7 @@ describe('buildFlowPlan — well-formed remoteFlow overrides the order', () => {
 
   it('honours the remote module order, framed by selection/participants…review', () => {
     const plan = buildFlowPlan(product(), {}, {
-      modules: [
+      steps: [
         { kind: 'pickup', position: 0 },
         { kind: 'accommodation', position: 1 },
         { kind: 'custom_form', position: 2, form: { key: 'waiver' } },
@@ -509,14 +515,14 @@ describe('buildFlowPlan — well-formed remoteFlow overrides the order', () => {
 
   it('accepts the flat form_key shape too', () => {
     const plan = buildFlowPlan(product(), {}, {
-      modules: [{ kind: 'custom_form', form_key: 'health' }],
+      steps: [{ kind: 'custom_form', form_key: 'health' }],
     })
     expect(plan.find((m) => m.kind === 'custom_form')!.formKey).toBe('health')
   })
 
   it('drops accommodation from a remote flow when the product offers no hotel', () => {
     const plan = buildFlowPlan(makeProduct({ hotel_offering: 'none' }), {}, {
-      modules: [{ kind: 'accommodation' }, { kind: 'custom_form', form: { key: 'q1' } }],
+      steps: [{ kind: 'accommodation' }, { kind: 'custom_form', form: { key: 'q1' } }],
     })
     expect(plan.map((m) => m.kind)).toEqual([
       'selection',
@@ -528,7 +534,7 @@ describe('buildFlowPlan — well-formed remoteFlow overrides the order', () => {
 
   it('skips unknown module kinds silently (forward-compat)', () => {
     const plan = buildFlowPlan(product(), {}, {
-      modules: [
+      steps: [
         { kind: 'future_kind_xyz' },
         { kind: 'pickup' },
         { kind: 'another_unknown' },
@@ -543,7 +549,7 @@ describe('buildFlowPlan — well-formed remoteFlow overrides the order', () => {
   })
 
   it('an explicitly empty modules array is a valid minimal flow (selection → participants → review)', () => {
-    const plan = buildFlowPlan(product(), {}, { modules: [] })
+    const plan = buildFlowPlan(product(), {}, { steps: [] })
     expect(plan.map((m) => m.kind)).toEqual([
       'selection',
       'participants',
@@ -557,7 +563,7 @@ describe('buildFlowPlan — well-formed remoteFlow overrides the order', () => {
     // The plan must still land in position order — array order must not leak
     // through — proving the builder doesn't just trust RPC ordering.
     const plan = buildFlowPlan(product(), {}, {
-      modules: [
+      steps: [
         { kind: 'custom_form', position: 2, form: { key: 'waiver' } },
         { kind: 'accommodation', position: 1 },
         { kind: 'pickup', position: 0 },
@@ -575,7 +581,7 @@ describe('buildFlowPlan — well-formed remoteFlow overrides the order', () => {
 
   it('landr-2ed0: modules missing a position keep their relative array order (stable sort)', () => {
     const plan = buildFlowPlan(product(), {}, {
-      modules: [{ kind: 'pickup' }, { kind: 'accommodation' }],
+      steps: [{ kind: 'pickup' }, { kind: 'accommodation' }],
     })
     expect(plan.map((m) => m.kind)).toEqual([
       'selection',
@@ -588,7 +594,7 @@ describe('buildFlowPlan — well-formed remoteFlow overrides the order', () => {
 
   it('does NOT inject the legacy declarations step on the remote path', () => {
     const plan = buildFlowPlan(product(), { slug: 'para42' }, {
-      modules: [{ kind: 'pickup' }],
+      steps: [{ kind: 'pickup' }],
     })
     expect(plan.map((m) => m.kind)).not.toContain('declarations')
   })
@@ -604,7 +610,7 @@ describe('buildFlowPlan — well-formed remoteFlow overrides the order', () => {
     const plan = buildFlowPlan(
       makeProduct({ hotel_offering: 'none', needs_pickup: true }),
       {},
-      { modules: [{ kind: 'accommodation' }] },
+      { steps: [{ kind: 'accommodation' }] },
     )
     expect(plan.map((m) => m.kind)).toEqual(['selection', 'participants', 'review'])
   })
@@ -613,14 +619,14 @@ describe('buildFlowPlan — well-formed remoteFlow overrides the order', () => {
 // ─── landr-rmcsu.6: the stored participants position ────────────────────────
 
 describe('buildFlowPlan — participants position (landr-rmcsu.6)', () => {
-  const kinds = (plan: FlowModule[]) => plan.map((m) => m.kind)
+  const kinds = (plan: FlowStep[]) => plan.map((m) => m.kind)
   function product() {
     return makeProduct({ hotel_offering: 'optional', needs_pickup: false })
   }
 
   it('dev guided-day shape (selection 1, participants 2): today\'s order', () => {
     const plan = buildFlowPlan(product(), {}, {
-      modules: [
+      steps: [
         { kind: 'selection', position: 1 },
         { kind: 'participants', position: 2 },
         { kind: 'accommodation', position: 3 },
@@ -639,7 +645,7 @@ describe('buildFlowPlan — participants position (landr-rmcsu.6)', () => {
 
   it('places participants among the middles by its stored position', () => {
     const plan = buildFlowPlan(product(), {}, {
-      modules: [
+      steps: [
         { kind: 'selection', position: 1 },
         { kind: 'accommodation', position: 2 },
         { kind: 'participants', position: 3 },
@@ -658,7 +664,7 @@ describe('buildFlowPlan — participants position (landr-rmcsu.6)', () => {
 
   it('participants stored before selection run first; middles follow both', () => {
     const plan = buildFlowPlan(product(), {}, {
-      modules: [
+      steps: [
         { kind: 'accommodation', position: 3 },
         { kind: 'selection', position: 2 },
         { kind: 'participants', position: 1 },
@@ -677,7 +683,7 @@ describe('buildFlowPlan — participants position (landr-rmcsu.6)', () => {
 
   it('selection stays first whatever its stored position when participants follow it', () => {
     const plan = buildFlowPlan(product(), {}, {
-      modules: [
+      steps: [
         { kind: 'accommodation', position: 1 },
         { kind: 'selection', position: 2 },
         { kind: 'participants', position: 3 },
@@ -688,7 +694,7 @@ describe('buildFlowPlan — participants position (landr-rmcsu.6)', () => {
 
   it('no participants row → right after selection (never lost)', () => {
     const plan = buildFlowPlan(product(), {}, {
-      modules: [
+      steps: [
         { kind: 'accommodation', position: 1 },
         { kind: 'selection', position: 5 },
       ],
@@ -698,7 +704,7 @@ describe('buildFlowPlan — participants position (landr-rmcsu.6)', () => {
 
   it('no selection row → selection first, participants by position', () => {
     const plan = buildFlowPlan(product(), {}, {
-      modules: [
+      steps: [
         { kind: 'participants', position: 1 },
         { kind: 'accommodation', position: 2 },
       ],
@@ -713,7 +719,7 @@ describe('buildFlowPlan — participants position (landr-rmcsu.6)', () => {
     expect(
       kinds(
         buildFlowPlan(p, {}, {
-          modules: [
+          steps: [
             { kind: 'selection', position: 1 },
             { kind: 'participants', position: 2 },
           ],
@@ -724,7 +730,7 @@ describe('buildFlowPlan — participants position (landr-rmcsu.6)', () => {
     expect(
       kinds(
         buildFlowPlan(p, {}, {
-          modules: [
+          steps: [
             { kind: 'participants', position: 1 },
             { kind: 'selection', position: 2 },
           ],
@@ -739,7 +745,7 @@ describe('buildFlowPlan — participants position (landr-rmcsu.6)', () => {
 
   it('equal positions keep today\'s order (participants not strictly before)', () => {
     const plan = buildFlowPlan(product(), {}, {
-      modules: [
+      steps: [
         { kind: 'participants', position: 1 },
         { kind: 'selection', position: 1 },
       ],
