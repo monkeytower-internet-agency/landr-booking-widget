@@ -20340,6 +20340,28 @@
         "title": "LocationRoleTypePatch",
         "type": "object"
       },
+      "LoginIn": {
+        "additionalProperties": false,
+        "properties": {
+          "email": {
+            "maxLength": 320,
+            "minLength": 3,
+            "title": "Email",
+            "type": "string"
+          },
+          "locale": {
+            "default": "en",
+            "maxLength": 35,
+            "title": "Locale",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email"
+        ],
+        "title": "LoginIn",
+        "type": "object"
+      },
       "MachineDecideResult": {
         "description": "`GET|POST .../{machine_token}/decide/{yes|no}` 200 body.\n\n``recorded`` is true whenever the decision is on record after the call \u2014\nfreshly, or (``already_recorded``) because it already was.",
         "properties": {
@@ -20757,6 +20779,21 @@
           "skipped_not_found"
         ],
         "title": "MarkTicketsShippedOut",
+        "type": "object"
+      },
+      "MePatch": {
+        "additionalProperties": false,
+        "properties": {
+          "display_name": {
+            "maxLength": 200,
+            "title": "Display Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "display_name"
+        ],
+        "title": "MePatch",
         "type": "object"
       },
       "MeetingPoint": {
@@ -27057,6 +27094,27 @@
           "avg_cost_per_session_usd"
         ],
         "title": "OperatorUsage",
+        "type": "object"
+      },
+      "OwnerIn": {
+        "properties": {
+          "user_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Id"
+          }
+        },
+        "required": [
+          "user_id"
+        ],
+        "title": "OwnerIn",
         "type": "object"
       },
       "PackagePriceIn": {
@@ -41954,6 +42012,18 @@
             "title": "Holder Name",
             "type": "string"
           },
+          "owner_user_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner User Id"
+          },
           "recommender_code": {
             "anyOf": [
               {
@@ -49519,15 +49589,34 @@
             ],
             "title": "Card Code"
           },
+          "card_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Card Id"
+          },
           "departure_id": {
             "maxLength": 64,
             "title": "Departure Id",
             "type": "string"
           },
           "display_name": {
-            "maxLength": 200,
-            "title": "Display Name",
-            "type": "string"
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
           },
           "kind": {
             "default": "pilot",
@@ -49559,7 +49648,6 @@
         },
         "required": [
           "departure_id",
-          "display_name",
           "seats"
         ],
         "title": "SignupIn",
@@ -63756,7 +63844,335 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Read Board",
+        "tags": [
+          "public-shuttle"
+        ]
+      }
+    },
+    "/api/public/shuttle/login": {
+      "post": {
+        "description": "Mail a 6-digit sign-in code. Always ``202 {}`` (whether or not the\naddress has an account); the client verifies the code with\n``supabase.auth.verifyOtp({email, token, type: \"email\"})``.",
+        "operationId": "public_shuttle_login_by_host",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "slug",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Slug"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Public Shuttle Login By Host",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Login",
+        "tags": [
+          "public-shuttle"
+        ]
+      }
+    },
+    "/api/public/shuttle/me": {
+      "get": {
+        "description": "The signed-in pilot's board name, cards and rides at this operator.\nFails closed: it upserts ``shuttle_pilots`` (a write).",
+        "operationId": "public_shuttle_me_by_host",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "slug",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Slug"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Public Shuttle Me By Host",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Read Me",
+        "tags": [
+          "public-shuttle"
+        ]
+      },
+      "patch": {
+        "description": "Set the board name sign-ups default to (same rules as a sign-up name).",
+        "operationId": "public_shuttle_me_update_by_host",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "slug",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Slug"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MePatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Public Shuttle Me Update By Host",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Update Me",
+        "tags": [
+          "public-shuttle"
+        ]
+      }
+    },
+    "/api/public/shuttle/me/adopt": {
+      "post": {
+        "description": "Link this phone's anonymous sign-ups (their device tokens in\n``X-Shuttle-Tokens``) to the caller. Only this operator's sign-ups that\nbelong to no account yet are touched.",
+        "operationId": "public_shuttle_adopt_signups_by_host",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "slug",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Slug"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-shuttle-tokens",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Shuttle-Tokens"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Public Shuttle Adopt Signups By Host",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Adopt Signups",
+        "tags": [
+          "public-shuttle"
+        ]
+      }
+    },
+    "/api/public/shuttle/me/signups/{signup_id}": {
+      "delete": {
+        "description": "Cancel one of the caller's sign-ups (same rules as the token cancel:\nlate window, fee, not after boarding).",
+        "operationId": "public_shuttle_me_cancel_by_host",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "signup_id",
+            "required": true,
+            "schema": {
+              "title": "Signup Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "slug",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Slug"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Public Shuttle Me Cancel By Host",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Cancel My Signup",
         "tags": [
           "public-shuttle"
         ]
@@ -63898,6 +64314,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Create Signup",
         "tags": [
           "public-shuttle"
@@ -64016,7 +64437,335 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Read Board",
+        "tags": [
+          "public-shuttle"
+        ]
+      }
+    },
+    "/api/public/shuttle/{slug}/login": {
+      "post": {
+        "description": "Mail a 6-digit sign-in code. Always ``202 {}`` (whether or not the\naddress has an account); the client verifies the code with\n``supabase.auth.verifyOtp({email, token, type: \"email\"})``.",
+        "operationId": "public_shuttle_login",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Slug"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Public Shuttle Login",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Login",
+        "tags": [
+          "public-shuttle"
+        ]
+      }
+    },
+    "/api/public/shuttle/{slug}/me": {
+      "get": {
+        "description": "The signed-in pilot's board name, cards and rides at this operator.\nFails closed: it upserts ``shuttle_pilots`` (a write).",
+        "operationId": "public_shuttle_me",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Slug"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Public Shuttle Me",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Read Me",
+        "tags": [
+          "public-shuttle"
+        ]
+      },
+      "patch": {
+        "description": "Set the board name sign-ups default to (same rules as a sign-up name).",
+        "operationId": "public_shuttle_me_update",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Slug"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MePatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Public Shuttle Me Update",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Update Me",
+        "tags": [
+          "public-shuttle"
+        ]
+      }
+    },
+    "/api/public/shuttle/{slug}/me/adopt": {
+      "post": {
+        "description": "Link this phone's anonymous sign-ups (their device tokens in\n``X-Shuttle-Tokens``) to the caller. Only this operator's sign-ups that\nbelong to no account yet are touched.",
+        "operationId": "public_shuttle_adopt_signups",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Slug"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-shuttle-tokens",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Shuttle-Tokens"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Public Shuttle Adopt Signups",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Adopt Signups",
+        "tags": [
+          "public-shuttle"
+        ]
+      }
+    },
+    "/api/public/shuttle/{slug}/me/signups/{signup_id}": {
+      "delete": {
+        "description": "Cancel one of the caller's sign-ups (same rules as the token cancel:\nlate window, fee, not after boarding).",
+        "operationId": "public_shuttle_me_cancel",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "signup_id",
+            "required": true,
+            "schema": {
+              "title": "Signup Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Slug"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Public Shuttle Me Cancel",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Cancel My Signup",
         "tags": [
           "public-shuttle"
         ]
@@ -64158,6 +64907,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Create Signup",
         "tags": [
           "public-shuttle"
@@ -89424,6 +90178,75 @@
         ]
       }
     },
+    "/api/staff/operators/{operator_id}/punch-cards/{card_id}/owner": {
+      "post": {
+        "description": "Link the card to a pilot account of this operator's board, or unlink\nit (``user_id: null``): staff fix-ups (landr-hep11.1).",
+        "operationId": "staff_set_punch_card_owner",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "card_id",
+            "required": true,
+            "schema": {
+              "title": "Card Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OwnerIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Staff Set Punch Card Owner",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Set Card Owner",
+        "tags": [
+          "staff-punch-cards"
+        ]
+      }
+    },
     "/api/staff/operators/{operator_id}/reschedule-requests": {
       "get": {
         "operationId": "list_reschedule_requests",
@@ -96238,6 +97061,85 @@
         "summary": "Create Short Link",
         "tags": [
           "staff-widget-short-links"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/shuttle-pilots": {
+      "get": {
+        "description": "Pilots who signed in on THIS operator's board, last sign-in first,\nfor the \"sell to a pilot\" dialog. ``q`` matches the board name or the\nemail (case-insensitive). Never lists platform users who did not use\nthis operator's board.",
+        "operationId": "staff_list_shuttle_pilots",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "title": "Response Staff List Shuttle Pilots",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Shuttle Pilots",
+        "tags": [
+          "staff-punch-cards"
         ]
       }
     },

@@ -5493,6 +5493,96 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/public/shuttle/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Login
+         * @description Mail a 6-digit sign-in code. Always ``202 {}`` (whether or not the
+         *     address has an account); the client verifies the code with
+         *     ``supabase.auth.verifyOtp({email, token, type: "email"})``.
+         */
+        post: operations["public_shuttle_login_by_host"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/shuttle/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Me
+         * @description The signed-in pilot's board name, cards and rides at this operator.
+         *     Fails closed: it upserts ``shuttle_pilots`` (a write).
+         */
+        get: operations["public_shuttle_me_by_host"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Me
+         * @description Set the board name sign-ups default to (same rules as a sign-up name).
+         */
+        patch: operations["public_shuttle_me_update_by_host"];
+        trace?: never;
+    };
+    "/api/public/shuttle/me/adopt": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Adopt Signups
+         * @description Link this phone's anonymous sign-ups (their device tokens in
+         *     ``X-Shuttle-Tokens``) to the caller. Only this operator's sign-ups that
+         *     belong to no account yet are touched.
+         */
+        post: operations["public_shuttle_adopt_signups_by_host"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/shuttle/me/signups/{signup_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Cancel My Signup
+         * @description Cancel one of the caller's sign-ups (same rules as the token cancel:
+         *     late window, fee, not after boarding).
+         */
+        delete: operations["public_shuttle_me_cancel_by_host"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/public/shuttle/signups": {
         parameters: {
             query?: never;
@@ -5540,6 +5630,96 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/shuttle/{slug}/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Login
+         * @description Mail a 6-digit sign-in code. Always ``202 {}`` (whether or not the
+         *     address has an account); the client verifies the code with
+         *     ``supabase.auth.verifyOtp({email, token, type: "email"})``.
+         */
+        post: operations["public_shuttle_login"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/shuttle/{slug}/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Me
+         * @description The signed-in pilot's board name, cards and rides at this operator.
+         *     Fails closed: it upserts ``shuttle_pilots`` (a write).
+         */
+        get: operations["public_shuttle_me"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Me
+         * @description Set the board name sign-ups default to (same rules as a sign-up name).
+         */
+        patch: operations["public_shuttle_me_update"];
+        trace?: never;
+    };
+    "/api/public/shuttle/{slug}/me/adopt": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Adopt Signups
+         * @description Link this phone's anonymous sign-ups (their device tokens in
+         *     ``X-Shuttle-Tokens``) to the caller. Only this operator's sign-ups that
+         *     belong to no account yet are touched.
+         */
+        post: operations["public_shuttle_adopt_signups"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/shuttle/{slug}/me/signups/{signup_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Cancel My Signup
+         * @description Cancel one of the caller's sign-ups (same rules as the token cancel:
+         *     late window, fee, not after boarding).
+         */
+        delete: operations["public_shuttle_me_cancel"];
         options?: never;
         head?: never;
         patch?: never;
@@ -12930,6 +13110,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/punch-cards/{card_id}/owner": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Set Card Owner
+         * @description Link the card to a pilot account of this operator's board, or unlink
+         *     it (``user_id: null``): staff fix-ups (landr-hep11.1).
+         */
+        post: operations["staff_set_punch_card_owner"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/reschedule-requests": {
         parameters: {
             query?: never;
@@ -14836,6 +15037,29 @@ export interface paths {
         put?: never;
         /** Create Short Link */
         post: operations["staff_create_widget_short_link"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/shuttle-pilots": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Shuttle Pilots
+         * @description Pilots who signed in on THIS operator's board, last sign-in first,
+         *     for the "sell to a pilot" dialog. ``q`` matches the board name or the
+         *     email (case-insensitive). Never lists platform users who did not use
+         *     this operator's board.
+         */
+        get: operations["staff_list_shuttle_pilots"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -23666,6 +23890,16 @@ export interface components {
             /** Sort Order */
             sort_order?: number | null;
         };
+        /** LoginIn */
+        LoginIn: {
+            /** Email */
+            email: string;
+            /**
+             * Locale
+             * @default en
+             */
+            locale: string;
+        };
         /**
          * MachineDecideResult
          * @description `GET|POST .../{machine_token}/decide/{yes|no}` 200 body.
@@ -23836,6 +24070,11 @@ export interface components {
             skipped_done: string[];
             /** Skipped Not Found */
             skipped_not_found: string[];
+        };
+        /** MePatch */
+        MePatch: {
+            /** Display Name */
+            display_name: string;
         };
         /** MeetingPoint */
         MeetingPoint: {
@@ -25921,6 +26160,11 @@ export interface components {
             tokens: components["schemas"]["UsageTokens"];
             /** Turns */
             turns: number;
+        };
+        /** OwnerIn */
+        OwnerIn: {
+            /** User Id */
+            user_id: string | null;
         };
         /** PackagePriceIn */
         PackagePriceIn: {
@@ -30899,6 +31143,8 @@ export interface components {
             card_type_id: string;
             /** Holder Name */
             holder_name: string;
+            /** Owner User Id */
+            owner_user_id?: string | null;
             /** Recommender Code */
             recommender_code?: string | null;
         };
@@ -33796,10 +34042,12 @@ export interface components {
         app__routers__public_shuttle__SignupIn: {
             /** Card Code */
             card_code?: string | null;
+            /** Card Id */
+            card_id?: string | null;
             /** Departure Id */
             departure_id: string;
             /** Display Name */
-            display_name: string;
+            display_name?: string | null;
             /**
              * Kind
              * @default pilot
@@ -42388,6 +42636,183 @@ export interface operations {
             };
         };
     };
+    public_shuttle_login_by_host: {
+        parameters: {
+            query?: {
+                slug?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoginIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_shuttle_me_by_host: {
+        parameters: {
+            query?: {
+                slug?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_shuttle_me_update_by_host: {
+        parameters: {
+            query?: {
+                slug?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MePatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_shuttle_adopt_signups_by_host: {
+        parameters: {
+            query?: {
+                slug?: string | null;
+            };
+            header?: {
+                "x-shuttle-tokens"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_shuttle_me_cancel_by_host: {
+        parameters: {
+            query?: {
+                slug?: string | null;
+            };
+            header?: never;
+            path: {
+                signup_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     public_shuttle_signup_by_host: {
         parameters: {
             query?: {
@@ -42502,6 +42927,182 @@ export interface operations {
                 "x-shuttle-tokens"?: string | null;
             };
             path: {
+                slug: string | null;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_shuttle_login: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string | null;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoginIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_shuttle_me: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string | null;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_shuttle_me_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string | null;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MePatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_shuttle_adopt_signups: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-shuttle-tokens"?: string | null;
+            };
+            path: {
+                slug: string | null;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_shuttle_me_cancel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                signup_id: string;
                 slug: string | null;
             };
             cookie?: never;
@@ -56800,6 +57401,44 @@ export interface operations {
             };
         };
     };
+    staff_set_punch_card_owner: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                card_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OwnerIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_reschedule_requests: {
         parameters: {
             query?: {
@@ -60266,6 +60905,42 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ShortLinkCreateOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_list_shuttle_pilots: {
+        parameters: {
+            query?: {
+                q?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    }[];
                 };
             };
             /** @description Validation Error */
