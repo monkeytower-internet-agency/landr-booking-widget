@@ -31543,6 +31543,8 @@ export interface components {
             footer_text?: string | null;
             /** Late Cancel Minutes */
             late_cancel_minutes?: number | null;
+            /** Late Signup Minutes */
+            late_signup_minutes?: number | null;
             /** Meeting Points */
             meeting_points?: components["schemas"]["MeetingPoint"][] | null;
             /** Min Riders */
@@ -31687,6 +31689,8 @@ export interface components {
             footer_text?: string | null;
             /** Late Cancel Minutes */
             late_cancel_minutes?: number | null;
+            /** Late Signup Minutes */
+            late_signup_minutes?: number | null;
             /** Meeting Points */
             meeting_points?: components["schemas"]["ShuttleMeetingPoint"][];
             /** Min Riders */
