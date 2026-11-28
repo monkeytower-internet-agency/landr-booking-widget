@@ -100074,6 +100074,65 @@
         ]
       }
     },
+    "/api/staff/operators/{operator_id}/shuttle/signups/{signup_id}/collect": {
+      "post": {
+        "description": "landr-gksfo: the driver took this boarded rider's cash (usually at the takeoff).",
+        "operationId": "staff_shuttle_collect_signup",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "signup_id",
+            "required": true,
+            "schema": {
+              "title": "Signup Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Staff Shuttle Collect Signup",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Collect",
+        "tags": [
+          "staff-shuttle-boarding"
+        ]
+      }
+    },
     "/api/staff/operators/{operator_id}/shuttle/signups/{signup_id}/collect-card": {
       "post": {
         "description": "landr-0l93b.3: the driver ticks \"cash collected\" for a ride card the\nrider ordered on their account; the card is paid and holds its rides.",
@@ -100213,6 +100272,64 @@
           }
         ],
         "summary": "No Show",
+        "tags": [
+          "staff-shuttle-boarding"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/shuttle/signups/{signup_id}/uncollect": {
+      "post": {
+        "operationId": "staff_shuttle_uncollect_signup",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "signup_id",
+            "required": true,
+            "schema": {
+              "title": "Signup Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Staff Shuttle Uncollect Signup",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Uncollect",
         "tags": [
           "staff-shuttle-boarding"
         ]
