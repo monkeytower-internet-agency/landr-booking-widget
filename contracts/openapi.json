@@ -21177,6 +21177,154 @@
         "title": "MissingGuestKeyOut",
         "type": "object"
       },
+      "ModuleListOut": {
+        "properties": {
+          "can_switch": {
+            "title": "Can Switch",
+            "type": "boolean"
+          },
+          "modules": {
+            "items": {
+              "$ref": "#/components/schemas/ModuleOut"
+            },
+            "title": "Modules",
+            "type": "array"
+          },
+          "operator_id": {
+            "title": "Operator Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "operator_id",
+          "can_switch",
+          "modules"
+        ],
+        "title": "ModuleListOut",
+        "type": "object"
+      },
+      "ModuleOut": {
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "kinds": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Kinds",
+            "type": "array"
+          },
+          "live_items": {
+            "title": "Live Items",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "power_ups": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Power Ups",
+            "type": "array"
+          },
+          "state": {
+            "enum": [
+              "on",
+              "off",
+              "available",
+              "locked"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "switched_on": {
+            "title": "Switched On",
+            "type": "boolean"
+          },
+          "unlocked_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unlocked By"
+          }
+        },
+        "required": [
+          "key",
+          "name",
+          "kinds",
+          "state",
+          "switched_on",
+          "live_items",
+          "power_ups"
+        ],
+        "title": "ModuleOut",
+        "type": "object"
+      },
+      "ModuleSwitchIn": {
+        "additionalProperties": false,
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "title": "ModuleSwitchIn",
+        "type": "object"
+      },
+      "ModuleSwitchOut": {
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "live_items": {
+            "title": "Live Items",
+            "type": "integer"
+          },
+          "switched": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Switched",
+            "type": "array"
+          }
+        },
+        "required": [
+          "key",
+          "enabled",
+          "switched",
+          "live_items"
+        ],
+        "title": "ModuleSwitchOut",
+        "type": "object"
+      },
       "MultiDaySavingsOut": {
         "additionalProperties": true,
         "description": "Congrats-card payload (landr-nva1a.1): ``days`` = longest\nconsecutive run (streak pricing) or total priced days (total-days\npricing); ``amount`` = the summed multi-day saving.",
@@ -29531,6 +29679,14 @@
             ],
             "title": "Description"
           },
+          "enhances": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Enhances",
+            "type": "array"
+          },
           "key": {
             "title": "Key",
             "type": "string"
@@ -33847,6 +34003,18 @@
             ],
             "title": "Min Nights"
           },
+          "module_key": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Module Key"
+          },
           "name": {
             "maxLength": 200,
             "minLength": 1,
@@ -34896,6 +35064,18 @@
               }
             ],
             "title": "Min Nights"
+          },
+          "module_key": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Module Key"
           },
           "name": {
             "anyOf": [
@@ -83385,6 +83565,121 @@
         "summary": "Message Recipient Count",
         "tags": [
           "staff-day-messages"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/modules": {
+      "get": {
+        "description": "Every active module with its state for the operator.",
+        "operationId": "list_modules",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModuleListOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Modules",
+        "tags": [
+          "staff-modules"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/modules/{key}": {
+      "put": {
+        "description": "Switch one module on or off (owner / admin).",
+        "operationId": "switch_module",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "title": "Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModuleSwitchIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModuleSwitchOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Switch Module",
+        "tags": [
+          "staff-modules"
         ]
       }
     },
