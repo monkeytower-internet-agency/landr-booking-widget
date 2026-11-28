@@ -3,9 +3,9 @@
  *
  * EPIC A makes the widget's step order operator-configurable. Today the
  * sequence is hardcoded in `appStepMachine.ts` (and Para42's declarations are
- * literal constants in `App.tsx`). This module turns that into DATA: a
+ * literal constants in `App.tsx`). This step turns that into DATA: a
  * `buildFlowPlan(product, settings, remoteFlow)` builder that returns the
- * ordered list of `FlowModule`s the funnel walks.
+ * ordered list of `FlowStep`s the funnel walks.
  *
  * THE REGRESSION SAFETY NET: with `remoteFlow === null` (the only path live
  * today — the `public_get_product_flow` RPC and its dashboard editor land in
@@ -20,17 +20,17 @@
  * TOLERANT PARSE — the widget has NO error boundary (bd memory landr-9ut4: a
  * single thrown error during render BLANKS the whole widget). So every
  * remote-config code path here is wrapped to degrade to `null` (→ legacy
- * plan) on ANY malformation. This module NEVER throws.
+ * plan) on ANY malformation. This step NEVER throws.
  */
 import type { HotelOffering, ProductKind } from '@/api/types'
 
 /**
- * The module kinds a flow can be composed of. Mirrors
+ * The step kinds a flow can be composed of. Mirrors
  * `public.product_flow_modules.module_kind` CHECK
  * (`selection, participants, accommodation, service_addons, pickup,
  * custom_form`) minus `service_addons` (retired: offers are picked on the
  * review step, so a stored `service_addons` row is skipped) plus `review`, a
- * widget-internal frame module the DB does not store as a row:
+ * widget-internal frame step the DB does not store as a row:
  *
  *   - `selection` — date / slot picker (always present; first, unless the
  *                   operator stored `participants` ahead of it — landr-rmcsu.6)
@@ -43,10 +43,10 @@ import type { HotelOffering, ProductKind } from '@/api/types'
  *   - `review` — the fill-form submit screen (pinned last, always present)
  *
  * landr-71kz.10: the legacy widget-internal `declarations` kind has been retired
- * — Para42's eligibility declarations are now a `custom_form` module delivered
+ * — Para42's eligibility declarations are now a `custom_form` step delivered
  * via the remote flow.
  */
-export type FlowModuleKind =
+export type FlowStepKind =
   | 'selection'
   | 'participants'
   | 'accommodation'
@@ -56,12 +56,12 @@ export type FlowModuleKind =
 
 /**
  * One entry in the ordered flow plan. `kind` discriminates; `formKey` is set
- * ONLY for `custom_form` modules (the operator-form library key the renderer
+ * ONLY for `custom_form` steps (the operator-form library key the renderer
  * — landr-71kz.4 — resolves to a field set).
  */
-export interface FlowModule {
-  kind: FlowModuleKind
-  /** Present only on `custom_form` modules. The operator form library key. */
+export interface FlowStep {
+  kind: FlowStepKind
+  /** Present only on `custom_form` steps. The operator form library key. */
   formKey?: string
 }
 
@@ -78,12 +78,12 @@ export interface FlowSettings {
 
 /**
  * The remote flow contract, mirroring the anon RPC `public_get_product_flow`
- * (`{modules: [{kind, position, form?}], ...}` — landr-71kz.2). Carried as a
+ * (`{steps: [{kind, position, form?}], ...}` — landr-71kz.2). Carried as a
  * permissive shape because it arrives off the wire and is parsed defensively:
- * `null` (or `{modules: null}`) is the legacy sentinel; anything malformed is
+ * `null` (or `{steps: null}`) is the legacy sentinel; anything malformed is
  * coerced to `null` and falls back to the legacy plan.
  */
-export interface RemoteFlowModule {
+export interface RemoteFlowStep {
   kind?: unknown
   position?: unknown
   form?: { key?: unknown } | null
@@ -91,7 +91,9 @@ export interface RemoteFlowModule {
 }
 
 export interface RemoteFlow {
-  modules?: RemoteFlowModule[] | null
+  steps?: RemoteFlowStep[] | null
+  /** Deprecated alias of `steps` (the API drops it after one promotion, landr-rqzoa.2). */
+  modules?: RemoteFlowStep[] | null
 }
 
 /**
@@ -123,14 +125,14 @@ export function productHasHotelOffering(product: {
 }
 
 /**
- * Build the LEGACY plan — the exact module sequence the widget walks TODAY,
+ * Build the LEGACY plan — the exact step sequence the widget walks TODAY,
  * derived purely from the product gates. This is the regression safety net; the
  * ported equivalence suite proves it ≡ the old hardcoded routing across every
  * permutation.
  *
- * landr-71kz.10: the legacy plan no longer injects a `declarations` module. The
+ * landr-71kz.10: the legacy plan no longer injects a `declarations` step. The
  * old hardcoded Para42 declarations step has been retired — declarations are now
- * an operator-configured `custom_form` module that arrives via the REMOTE flow
+ * an operator-configured `custom_form` step that arrives via the REMOTE flow
  * (and only via it). A product with NO remote flow gets a pure product-gated
  * plan (no declarations), so `settings` no longer influences the legacy plan; it
  * is retained on the signature for API stability and forward-compat.
@@ -145,7 +147,7 @@ export function productHasHotelOffering(product: {
  *                        walk applies the runtime hotel gate, exactly as today)
  *   → review
  *
- * NOTE: `pickup` is listed as a POTENTIAL module; its runtime gate
+ * NOTE: `pickup` is listed as a POTENTIAL step; its runtime gate
  * (hotel-is-pickup) is applied by the step-machine walk, NOT by pruning them from the plan — this keeps the plan a
  * faithful description of the configured order while the dynamic skips stay
  * where they already live (and stay testable in isolation).
@@ -153,11 +155,11 @@ export function productHasHotelOffering(product: {
 function buildLegacyPlan(
   product: { product_kind: ProductKind; hotel_offering?: HotelOffering; needs_pickup?: boolean },
   settings: FlowSettings | null | undefined,
-): FlowModule[] {
+): FlowStep[] {
   void settings // retained for API stability; no longer influences the legacy plan (landr-71kz.10).
-  const plan: FlowModule[] = [{ kind: 'selection' }, { kind: 'participants' }]
+  const plan: FlowStep[] = [{ kind: 'selection' }, { kind: 'participants' }]
   if (productHasHotelOffering(product)) plan.push({ kind: 'accommodation' })
-  // pickup is a potential module whenever the product needs a pickup; the
+  // pickup is a potential step whenever the product needs a pickup; the
   // hotel-is-pickup runtime skip (landr-4r80) is applied by the walk.
   if (product.needs_pickup) plan.push({ kind: 'pickup' })
   plan.push({ kind: 'review' })
@@ -165,7 +167,7 @@ function buildLegacyPlan(
 }
 
 /**
- * The valid module kinds a remote flow may name for its MIDDLE modules. The
+ * The valid step kinds a remote flow may name for its MIDDLE steps. The
  * frame (`selection`, `participants`, `review`) is supplied by the builder:
  * `review` is never a row, and the `selection` / `participants` rows only
  * contribute their stored positions (landr-rmcsu.6), parsed in
@@ -179,11 +181,11 @@ const REMOTE_MIDDLE_KINDS: ReadonlySet<string> = new Set([
 ])
 
 /**
- * Parse a single remote module into a `FlowModule`, or `null` to skip it.
+ * Parse a single remote step into a `FlowStep`, or `null` to skip it.
  * Defensive: returns `null` for unknown/missing kinds and for `custom_form`
- * modules missing a usable form key. Never throws.
+ * steps missing a usable form key. Never throws.
  */
-function parseRemoteModule(raw: RemoteFlowModule): FlowModule | null {
+function parseRemoteStep(raw: RemoteFlowStep): FlowStep | null {
   const kind = typeof raw?.kind === 'string' ? raw.kind : null
   if (kind == null || !REMOTE_MIDDLE_KINDS.has(kind)) return null
   if (kind === 'custom_form') {
@@ -197,19 +199,19 @@ function parseRemoteModule(raw: RemoteFlowModule): FlowModule | null {
     if (!formKey) return null // a custom_form with no form is meaningless — skip it.
     return { kind: 'custom_form', formKey }
   }
-  return { kind: kind as FlowModuleKind }
+  return { kind: kind as FlowStepKind }
 }
 
 /**
  * Build the ordered flow plan for a product.
  *
  *   - `remoteFlow === null` → the LEGACY plan (today's routing, bit-for-bit).
- *   - a well-formed `remoteFlow` → `selection` first, the remote middle modules
+ *   - a well-formed `remoteFlow` → `selection` first, the remote middle steps
  *     in stored `position` order (each still subject to the product gates:
  *     accommodation is dropped when the product offers no hotel; unknown kinds
  *     are skipped), `review` last. landr-rmcsu.6 (ok, 2026-10-14 — operators
  *     may order steps as long as the logic allows):
- *       · `participants` is a positioned module among the middles; a remote
+ *       · `participants` is a positioned step among the middles; a remote
  *         flow WITHOUT a participants row gets it right after `selection`.
  *       · `selection` stays first whatever its stored position — EXCEPT that a
  *         participants row stored strictly before the selection row moves
@@ -225,7 +227,7 @@ function parseRemoteModule(raw: RemoteFlowModule): FlowModule | null {
  *     pricing, per-participant forms). The legacy `declarations` step is NOT
  *     injected on the remote path — operators configuring a flow express
  *     declarations as a `custom_form` instead.
- *   - ANY malformation (not an object, `modules` not an array, every module
+ *   - ANY malformation (not an object, `steps` not an array, every step
  *     unparseable, or a thrown error) → falls back to the LEGACY plan. NEVER
  *     throws (the widget has no error boundary — landr-9ut4).
  */
@@ -238,7 +240,7 @@ export function buildFlowPlan(
   },
   settings: FlowSettings | null | undefined,
   remoteFlow: RemoteFlow | null | undefined,
-): FlowModule[] {
+): FlowStep[] {
   const plan = buildFlowPlanRaw(product, settings, remoteFlow)
   // landr-zy2wm.2: operator with exactly one pickup location — it is
   // auto-selected, so the picker step is dropped from the realised plan while
@@ -254,28 +256,30 @@ function buildFlowPlanRaw(
   product: { product_kind: ProductKind; hotel_offering?: HotelOffering; needs_pickup?: boolean },
   settings: FlowSettings | null | undefined,
   remoteFlow: RemoteFlow | null | undefined,
-): FlowModule[] {
+): FlowStep[] {
   // The legacy sentinel: explicit null/undefined remote flow.
   if (remoteFlow == null) return buildLegacyPlan(product, settings)
   try {
-    const modules = remoteFlow.modules
-    // {modules: null} is the RPC's own legacy sentinel; anything that isn't an
+    // `steps` is canonical; `modules` is the former name the API still sends for one
+    // promotion (landr-rqzoa.1), so a widget deployed before the API keeps parsing.
+    const steps = remoteFlow.steps !== undefined ? remoteFlow.steps : remoteFlow.modules
+    // {steps: null} is the RPC's own legacy sentinel; anything that isn't an
     // array is malformed → legacy.
-    if (modules == null) return buildLegacyPlan(product, settings)
-    if (!Array.isArray(modules)) return buildLegacyPlan(product, settings)
+    if (steps == null) return buildLegacyPlan(product, settings)
+    if (!Array.isArray(steps)) return buildLegacyPlan(product, settings)
 
-    // landr-2ed0: correctness must NOT depend on the RPC returning modules in
+    // landr-2ed0: correctness must NOT depend on the RPC returning steps in
     // `position` order — that's an undocumented coupling with the server. Each
-    // parsed middle module is carried alongside its declared `position` (and
+    // parsed middle step is carried alongside its declared `position` (and
     // its original array index, as a stable tie-break for equal/missing
     // positions) so the final middle sequence can be DEFENSIVELY re-sorted by
     // `position` ascending here, regardless of the order the RPC sent them in.
-    const middleEntries: PositionedModule[] = []
+    const middleEntries: PositionedStep[] = []
     // landr-rmcsu.6: the `selection` / `participants` data rows are no longer
     // dropped — their stored positions decide where participants sit. Only the
     // FIRST row of each counts (the DB has a unique index since landr-rmcsu.1).
     let selectionPosition: number | null = null
-    let participantsEntry: PositionedModule | null = null
+    let participantsEntry: PositionedStep | null = null
     // landr-f4dm: track how many entries parsed successfully SEPARATELY from
     // how many survived the product gate below. This distinguishes "every
     // entry was unparseable garbage" (→ fall back to legacy) from "entries
@@ -285,8 +289,8 @@ function buildFlowPlanRaw(
     // a flow holding only them has always meant "legacy middles" and must
     // keep doing so (landr-ws0ce owns that auto-injection question).
     let parsedCount = 0
-    modules.forEach((raw, index) => {
-      // A missing/non-numeric position falls back to the module's original
+    steps.forEach((raw, index) => {
+      // A missing/non-numeric position falls back to the step's original
       // array index, so unpositioned entries keep the RPC's given order
       // relative to each other (and to positioned entries at the same rank).
       const position =
@@ -298,7 +302,7 @@ function buildFlowPlanRaw(
       }
       if (kind === 'participants') {
         if (!participantsEntry) {
-          participantsEntry = { module: { kind: 'participants' }, position, index }
+          participantsEntry = { step: { kind: 'participants' }, position, index }
         }
         return
       }
@@ -308,8 +312,8 @@ function buildFlowPlanRaw(
         parsedCount += 1
         return
       }
-      const parsed = parseRemoteModule(raw)
-      if (!parsed) return // unknown / malformed module → skip silently.
+      const parsed = parseRemoteStep(raw)
+      if (!parsed) return // unknown / malformed step → skip silently.
       parsedCount += 1
       // Product gate: accommodation only when the product actually offers a
       // hotel. The pickup hotel-skip stays a runtime decision in the walk,
@@ -317,24 +321,24 @@ function buildFlowPlanRaw(
       if (parsed.kind === 'accommodation' && !productHasHotelOffering(product)) {
         return
       }
-      middleEntries.push({ module: parsed, position, index })
+      middleEntries.push({ step: parsed, position, index })
     })
 
     // Assigned inside the forEach callback, so TS narrows them to their
     // initialisers here — re-widen explicitly.
-    const participants = participantsEntry as PositionedModule | null
+    const participants = participantsEntry as PositionedStep | null
     const selectionPos = selectionPosition as number | null
     // landr-rmcsu.6: participants precede the dates step only when BOTH rows
     // exist and participants is stored strictly before selection.
     const participantsFirst =
       participants !== null && selectionPos !== null && participants.position < selectionPos
 
-    // Zero modules parsed out of a non-empty array means the payload was
+    // Zero steps parsed out of a non-empty array means the payload was
     // garbage or held only the frame rows (not a deliberate middle choice) →
-    // legacy middles. When at least one module parsed — even if the product
+    // legacy middles. When at least one step parsed — even if the product
     // gate then dropped all of them (e.g. an accommodation-only remote flow on
     // a no-hotel product) — that is a VALID minimal flow, not a parse failure.
-    if (parsedCount === 0 && modules.length > 0) {
+    if (parsedCount === 0 && steps.length > 0) {
       const legacy = buildLegacyPlan(product, settings)
       return participantsFirst ? withParticipantsFirst(legacy) : legacy
     }
@@ -357,7 +361,7 @@ function buildFlowPlanRaw(
         { kind: 'review' },
       ]
     }
-    // participants is a positioned module among the middles; selection first
+    // participants is a positioned step among the middles; selection first
     // regardless of its stored position, review last.
     return [
       { kind: 'selection' },
@@ -371,9 +375,9 @@ function buildFlowPlanRaw(
   }
 }
 
-/** A plan module carried with its stored position + array index (sort keys). */
-interface PositionedModule {
-  module: FlowModule
+/** A plan step carried with its stored position + array index (sort keys). */
+interface PositionedStep {
+  step: FlowStep
   position: number
   index: number
 }
@@ -382,14 +386,14 @@ interface PositionedModule {
  * Stable sort by position ascending; ties broken by original array order so a
  * same/absent position never reshuffles equal-ranked entries.
  */
-function sortByPosition(entries: PositionedModule[]): FlowModule[] {
+function sortByPosition(entries: PositionedStep[]): FlowStep[] {
   return [...entries]
     .sort((a, b) => a.position - b.position || a.index - b.index)
-    .map((entry) => entry.module)
+    .map((entry) => entry.step)
 }
 
 /** Move `participants` to the head of a plan (ahead of `selection`). */
-function withParticipantsFirst(plan: FlowModule[]): FlowModule[] {
+function withParticipantsFirst(plan: FlowStep[]): FlowStep[] {
   return [{ kind: 'participants' }, ...plan.filter((m) => m.kind !== 'participants')]
 }
 
@@ -399,7 +403,7 @@ function withParticipantsFirst(plan: FlowModule[]): FlowModule[] {
  * row ahead of the selection row; the legacy plan and every flow without both
  * rows answer false (today's dates-first order).
  */
-export function planHasParticipantsFirst(plan: readonly FlowModule[]): boolean {
+export function planHasParticipantsFirst(plan: readonly FlowStep[]): boolean {
   const p = plan.findIndex((m) => m.kind === 'participants')
   const s = plan.findIndex((m) => m.kind === 'selection')
   return p >= 0 && s >= 0 && p < s

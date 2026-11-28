@@ -37,7 +37,7 @@ vi.mock('@/api/client', () => ({
 
 function makeFlow(overrides?: Partial<ProductFlowResponse>): ProductFlowResponse {
   return {
-    modules: [
+    steps: [
       {
         kind: 'custom_form',
         position: 0,
@@ -130,15 +130,15 @@ describe('CustomFormStep — fetch error', () => {
   })
 
   it('shows a fetch error when the form key is not in the flow', async () => {
-    mocks.getProductFlow.mockResolvedValue({ modules: [] })
+    mocks.getProductFlow.mockResolvedValue({ steps: [] })
     renderStep({ formKey: 'nonexistent' })
     await waitFor(() => {
       expect(screen.getByTestId('cf-fetch-error')).toBeTruthy()
     })
   })
 
-  it('shows a fetch error when the flow returns modules: null', async () => {
-    mocks.getProductFlow.mockResolvedValue({ modules: null })
+  it('shows a fetch error when the flow returns steps: null', async () => {
+    mocks.getProductFlow.mockResolvedValue({ steps: null })
     renderStep()
     await waitFor(() => {
       expect(screen.getByTestId('cf-fetch-error')).toBeTruthy()
@@ -342,7 +342,7 @@ describe('CustomFormStep — no-throw guarantee', () => {
   })
 
   it('does not crash when getProductFlow returns a completely malformed response', async () => {
-    mocks.getProductFlow.mockResolvedValue({ modules: 'bad' as never })
+    mocks.getProductFlow.mockResolvedValue({ steps: 'bad' as never })
     expect(() => renderStep()).not.toThrow()
     await waitFor(() => {
       expect(screen.getByTestId('cf-fetch-error')).toBeTruthy()
@@ -351,7 +351,7 @@ describe('CustomFormStep — no-throw guarantee', () => {
 
   it('does not crash when a field def has a completely missing type', async () => {
     mocks.getProductFlow.mockResolvedValue({
-      modules: [
+      steps: [
         {
           kind: 'custom_form',
           position: 0,
@@ -390,7 +390,7 @@ describe('CustomFormStep — no-throw guarantee', () => {
 describe('CustomFormStep — checkbox/multiselect field', () => {
   it('sends a list of checked option values on submit', async () => {
     mocks.getProductFlow.mockResolvedValue({
-      modules: [
+      steps: [
         {
           kind: 'custom_form',
           position: 0,
@@ -449,7 +449,7 @@ describe('CustomFormStep — checkbox/multiselect field', () => {
 describe('CustomFormStep — number field sends string', () => {
   it('sends number input value as a string', async () => {
     mocks.getProductFlow.mockResolvedValue({
-      modules: [
+      steps: [
         {
           kind: 'custom_form',
           position: 0,
@@ -505,7 +505,7 @@ describe('CustomFormStep — number field sends string', () => {
 
   it('disables Continue while a number is below min, enables when valid', async () => {
     mocks.getProductFlow.mockResolvedValue({
-      modules: [
+      steps: [
         {
           kind: 'custom_form',
           position: 0,
@@ -565,7 +565,7 @@ describe('CustomFormStep — number field sends string', () => {
   it('fails open on a non-numeric min (bad validation blob, never 500s)', async () => {
     // Simulates the server's C1 fix: non-numeric bounds are skipped, not crashed.
     mocks.getProductFlow.mockResolvedValue({
-      modules: [
+      steps: [
         {
           kind: 'custom_form',
           position: 0,
@@ -647,7 +647,7 @@ describe('CustomFormStep — number field sends string', () => {
 /** The para42 customer_declarations form fixture — mirrors the DB seed from landr-71kz.8. */
 function makePara42Flow(): import('@/api/flowTypes').ProductFlowResponse {
   return {
-    modules: [
+    steps: [
       {
         kind: 'custom_form',
         position: 0,
@@ -825,7 +825,7 @@ describe('CustomFormStep — landr-71kz.9: para42 data-path contract', () => {
 // <input> (covered by App.test.tsx's declarationsFlow fixture, options: null).
 function langFlow(required = true) {
   return {
-    modules: [
+    steps: [
       {
         kind: 'custom_form' as const,
         position: 0,
@@ -986,7 +986,7 @@ describe('CustomFormStep — ranked language picker', () => {
 describe('CustomFormStep — whole checkbox chip is clickable', () => {
   it('toggles when the chip container is clicked (not just the checkmark)', async () => {
     mocks.getProductFlow.mockResolvedValue({
-      modules: [
+      steps: [
         {
           kind: 'custom_form',
           position: 0,

@@ -27,7 +27,7 @@ export function findFlowField(
   formKey: string,
   fieldKey: string,
 ): FlowFieldDef | undefined {
-  for (const mod of flow?.modules ?? []) {
+  for (const mod of flow?.steps ?? []) {
     if (mod.kind !== 'custom_form' || mod.form?.key !== formKey) continue
     const hit = mod.form.fields.find((f) => f.key === fieldKey)
     if (hit) return hit

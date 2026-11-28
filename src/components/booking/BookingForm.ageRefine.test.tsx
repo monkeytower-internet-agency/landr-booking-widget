@@ -65,12 +65,12 @@ const BOOKER: BookerDetails = {
 
 const CHILD = { key: 'child', min_age: 0, max_age: 17 }
 const MAIN_FLOW = {
-  modules: null,
+  steps: null,
   age_needed: true,
   age_bands: [CHILD, { key: 'adult', min_age: 18, max_age: null }],
 } as unknown as ProductFlowResponse
 const EXTRA_FLOW = {
-  modules: null,
+  steps: null,
   age_needed: true,
   age_bands: [
     CHILD,
@@ -212,7 +212,7 @@ describe('review step re-asks the guests an added line splits (landr-zcb24.12)',
   it('asks the adults when the party step asked Adult/Child only and the added line needs bands', async () => {
     vi.mocked(submitBooking).mockResolvedValue({ booking_id: 'b-1', semantic_state: 'pending' })
     renderForm(EXTRA_FLOW, {
-      mainFlow: { modules: null } as unknown as ProductFlowResponse,
+      mainFlow: { steps: null } as unknown as ProductFlowResponse,
       participants: [plainAdult('Ada'), plainAdult('Grace')],
       companions: [companion('Linus', { occupant_age: undefined, guest_attributes: {} })],
     })
@@ -237,7 +237,7 @@ describe('review step re-asks the guests an added line splits (landr-zcb24.12)',
 
   it('asks nobody when Adult/Child was asked and the added line has the single adult band', async () => {
     renderForm(MAIN_FLOW, {
-      mainFlow: { modules: null } as unknown as ProductFlowResponse,
+      mainFlow: { steps: null } as unknown as ProductFlowResponse,
       participants: [plainAdult('Ada'), plainAdult('Grace')],
     })
     await waitFor(() => expect(confirmButton()).not.toBeDisabled())

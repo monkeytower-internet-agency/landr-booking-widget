@@ -159,11 +159,11 @@ function findFormInFlow(
   formKey: string,
   uiLocale?: string,
 ): { form: FlowFormDef | null; error: string | null } {
-  if (!flow || !flow.modules) {
+  if (!flow || !flow.steps) {
     return { form: null, error: tr('noFormConfigForProduct', uiLocale) }
   }
   let found: FlowFormDef | null = null
-  for (const mod of flow.modules) {
+  for (const mod of flow.steps) {
     if (mod.kind === 'custom_form' && mod.form && mod.form.key === formKey) {
       found = mod.form
       break

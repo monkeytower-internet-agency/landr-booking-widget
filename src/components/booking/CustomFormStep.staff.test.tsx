@@ -20,7 +20,7 @@ const STAFF: StaffSession = {
 }
 
 const FLOW: ProductFlowResponse = {
-  modules: [
+  steps: [
     {
       kind: 'custom_form',
       position: 0,

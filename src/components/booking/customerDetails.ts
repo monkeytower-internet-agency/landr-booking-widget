@@ -36,7 +36,7 @@ export function collectForms(details: CustomerDetails): DetailsFormStep[] {
   const seen = new Set<string>()
   const out: DetailsFormStep[] = []
   for (const product of details.forms ?? []) {
-    const modules = [...(product.modules ?? [])].sort(
+    const modules = [...(product.steps ?? [])].sort(
       (a, b) => (a.position ?? 0) - (b.position ?? 0),
     )
     for (const mod of modules) {
@@ -46,7 +46,7 @@ export function collectForms(details: CustomerDetails): DetailsFormStep[] {
       out.push({
         form: mod.form,
         productName: product.product_name,
-        flow: { modules: [mod] },
+        flow: { steps: [mod] },
       })
     }
   }

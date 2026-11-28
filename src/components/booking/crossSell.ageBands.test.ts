@@ -20,7 +20,7 @@ const CTX: CrossSellContext = {
 }
 const NONE: InlineModuleState = { languages: null, formKeys: [], pickupLocationId: null }
 const FLOW = {
-  modules: null,
+  steps: null,
   age_needed: true,
   age_bands: [
     { key: 'child', min_age: 0, max_age: 17 },
@@ -66,7 +66,7 @@ describe('cross-sell lines refine the ages the party step asked (landr-zcb24.12)
     { key: 'adult', min_age: 18, max_age: null },
   ]
   const NEW_CUT = {
-    modules: null,
+    steps: null,
     age_needed: true,
     age_bands: [
       { key: 'child', min_age: 0, max_age: 17 },

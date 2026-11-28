@@ -187,13 +187,13 @@ describe('Add more to this booking (review step)', () => {
     vi.mocked(getOffers).mockReset()
     offerOnMain(offer('camping', { product_kind: 'stay' }))
     vi.mocked(getProductFlow).mockReset()
-    vi.mocked(getProductFlow).mockResolvedValue({ modules: null })
+    vi.mocked(getProductFlow).mockResolvedValue({ steps: null })
     vi.mocked(listPickupLocationsForOperator).mockReset()
     vi.mocked(listPickupLocationsForOperator).mockResolvedValue([])
   })
 
   const flowWith = (key: string, fields: unknown[] = []) => ({
-    modules: [
+    steps: [
       {
         kind: 'custom_form',
         position: 1,
@@ -760,7 +760,7 @@ describe('cross-sell hint cards (landr-f210e.5)', () => {
     vi.mocked(listProducts).mockResolvedValue([MAIN, CAMPING])
     vi.mocked(getOffers).mockReset()
     vi.mocked(getProductFlow).mockReset()
-    vi.mocked(getProductFlow).mockResolvedValue({ modules: null })
+    vi.mocked(getProductFlow).mockResolvedValue({ steps: null })
     vi.mocked(listPickupLocationsForOperator).mockReset()
     vi.mocked(listPickupLocationsForOperator).mockResolvedValue([])
     vi.mocked(getProductSuggestions).mockReset()

@@ -168,8 +168,8 @@ describe('DetailsPage', () => {
     mocks.getBookingDetails.mockResolvedValue({
       ...PENDING_DETAILS,
       forms: [
-        { product_id: 'p1', product_name: 'Tandem', modules: [declarationsModule(), insuranceModule()] },
-        { product_id: 'p2', product_name: 'Dinner', modules: [declarationsModule()] },
+        { product_id: 'p1', product_name: 'Tandem', steps: [declarationsModule(), insuranceModule()] },
+        { product_id: 'p2', product_name: 'Dinner', steps: [declarationsModule()] },
       ],
     })
     mocks.putBookingDetails.mockResolvedValue({ completed: true })

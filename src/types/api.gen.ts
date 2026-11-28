@@ -5103,15 +5103,15 @@ export interface paths {
         };
         /**
          * Get Product Flow
-         * @description landr-71kz.2 / EPIC A: the product's ordered booking-flow modules.
+         * @description landr-71kz.2 / EPIC A: the product's ordered booking-flow Booking steps.
          *
          *     Thin FastAPI wrapper over the SECURITY DEFINER RPC
          *     ``public_get_product_flow``. The widget calls this after the customer picks a
-         *     product to learn which modules (selection, participants, accommodation,
+         *     product to learn which steps (selection, participants, accommodation,
          *     custom_form, …) to render in which order, with the attached form definition
-         *     (key/version/name + ordered fields) inlined for custom_form modules.
+         *     (key/version/name + ordered fields) inlined for custom_form steps.
          *
-         *     Returns ``{"modules": null}`` when the product has no configured flow — the
+         *     Returns ``{"steps": null, "modules": null}`` when the product has no configured flow — the
          *     LEGACY path the widget reproduces bit-for-bit (zero config = today's
          *     hardcoded flow). Keyed on the opaque widget_token (resolved to the slug
          *     here); an unknown token 404s via ``_resolve_operator_by_token``.
@@ -21313,18 +21313,23 @@ export interface components {
         };
         /**
          * DetailsProductForms
-         * @description The custom forms of one product line. ``modules`` are the product
-         *     flow's ``custom_form`` modules in the exact shape of
+         * @description The custom forms of one product line. ``steps`` are the product
+         *     flow's ``custom_form`` steps in the exact shape of
          *     ``GET /api/public/operators/{token}/products/{id}/flow`` (form key /
          *     version / name / ordered fields with visibility_rule, scope ...).
          */
         DetailsProductForms: {
-            /** Modules */
-            modules?: components["schemas"]["FlowModuleDef"][];
+            /**
+             * Modules
+             * @deprecated
+             */
+            modules?: components["schemas"]["FlowStepDef"][];
             /** Product Id */
             product_id: string;
             /** Product Name */
             product_name: string;
+            /** Steps */
+            steps?: components["schemas"]["FlowStepDef"][];
         };
         /** DevToStagingIn */
         DevToStagingIn: {
@@ -22387,20 +22392,6 @@ export interface components {
             value_type: "number" | "integer" | "text" | "choice";
         };
         /**
-         * FlowModuleDef
-         * @description One module from the public_get_product_flow RPC. Mirrors the
-         *     widget's ``FlowModuleDef`` TypeScript interface.
-         */
-        FlowModuleDef: {
-            form?: components["schemas"]["FlowFormDef"] | null;
-            /** Kind */
-            kind: string;
-            /** Position */
-            position: number;
-        } & {
-            [key: string]: unknown;
-        };
-        /**
          * FlowRange
          * @description One range of an attribute collected as ``ranges`` (landr-zcb24.6): ``min`` is
          *     stored when the guest picks it, ``max`` is the EXCLUSIVE upper edge (the next
@@ -22413,6 +22404,20 @@ export interface components {
             max?: number | null;
             /** Min */
             min: number;
+        };
+        /**
+         * FlowStepDef
+         * @description One Booking step from the public_get_product_flow RPC. Mirrors the
+         *     widget's ``FlowStepDef`` TypeScript interface.
+         */
+        FlowStepDef: {
+            form?: components["schemas"]["FlowFormDef"] | null;
+            /** Kind */
+            kind: string;
+            /** Position */
+            position: number;
+        } & {
+            [key: string]: unknown;
         };
         /** ForecastItem */
         ForecastItem: {
@@ -28271,8 +28276,10 @@ export interface components {
          * ProductFlowResponse
          * @description Response of GET …/products/{id}/flow. Mirrors the widget's
          *     ``ProductFlowResponse`` TypeScript interface (src/api/flowTypes.ts).
-         *     ``modules`` is null for products with no configured flow (legacy
-         *     shape) or list of modules otherwise.
+         *     ``steps`` is null for products with no configured flow (legacy
+         *     shape) or the list of Booking steps otherwise. ``modules`` is the same
+         *     list under its former name, kept for ONE promotion so a widget deployed
+         *     before the API keeps working (landr-rqzoa.2 removes it).
          */
         ProductFlowResponse: {
             /** Age Bands */
@@ -28290,8 +28297,14 @@ export interface components {
             eligible?: boolean | null;
             /** Guest Attributes */
             guest_attributes?: components["schemas"]["FlowGuestAttribute"][];
-            /** Modules */
-            modules?: components["schemas"]["FlowModuleDef"][] | null;
+            /**
+             * Modules
+             * @deprecated
+             * @description Deprecated alias of ``steps`` (removed in landr-rqzoa.2).
+             */
+            modules?: components["schemas"]["FlowStepDef"][] | null;
+            /** Steps */
+            steps?: components["schemas"]["FlowStepDef"][] | null;
         } & {
             [key: string]: unknown;
         };

@@ -14002,12 +14002,12 @@ export type Database = {
           },
         ]
       }
-      product_flow_modules: {
+      product_flow_steps: {
         Row: {
           created_at: string
           form_id: string | null
           id: string
-          module_kind: string
+          step_kind: string
           operator_id: string
           position: number
           product_id: string
@@ -14017,7 +14017,7 @@ export type Database = {
           created_at?: string
           form_id?: string | null
           id?: string
-          module_kind: string
+          step_kind: string
           operator_id: string
           position: number
           product_id: string
@@ -14027,7 +14027,7 @@ export type Database = {
           created_at?: string
           form_id?: string | null
           id?: string
-          module_kind?: string
+          step_kind?: string
           operator_id?: string
           position?: number
           product_id?: string
@@ -14035,42 +14035,42 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "product_flow_modules_form_id_operator_id_fkey"
+            foreignKeyName: "product_flow_steps_form_id_operator_id_fkey"
             columns: ["form_id", "operator_id"]
             isOneToOne: false
             referencedRelation: "forms"
             referencedColumns: ["id", "operator_id"]
           },
           {
-            foreignKeyName: "product_flow_modules_operator_id_fkey"
+            foreignKeyName: "product_flow_steps_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
             referencedRelation: "feedback_inbox_operator_summary"
             referencedColumns: ["operator_id"]
           },
           {
-            foreignKeyName: "product_flow_modules_operator_id_fkey"
+            foreignKeyName: "product_flow_steps_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
             referencedRelation: "operator_activation"
             referencedColumns: ["operator_id"]
           },
           {
-            foreignKeyName: "product_flow_modules_operator_id_fkey"
+            foreignKeyName: "product_flow_steps_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "product_flow_modules_operator_id_fkey"
+            foreignKeyName: "product_flow_steps_operator_id_fkey"
             columns: ["operator_id"]
             isOneToOne: false
             referencedRelation: "staff_operator_overview"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "product_flow_modules_product_id_operator_id_fkey"
+            foreignKeyName: "product_flow_steps_product_id_operator_id_fkey"
             columns: ["product_id", "operator_id"]
             isOneToOne: false
             referencedRelation: "products"
