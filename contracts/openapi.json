@@ -12018,6 +12018,57 @@
         "title": "DeclineIn",
         "type": "object"
       },
+      "Departure": {
+        "additionalProperties": false,
+        "properties": {
+          "alt_destination": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alt Destination"
+          },
+          "destination": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Destination",
+            "type": "string"
+          },
+          "min_riders": {
+            "anyOf": [
+              {
+                "maximum": 100.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Riders"
+          },
+          "time": {
+            "title": "Time",
+            "type": "string"
+          },
+          "time_tbc": {
+            "default": false,
+            "title": "Time Tbc",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "time",
+          "destination"
+        ],
+        "title": "Departure",
+        "type": "object"
+      },
       "DeparturePatch": {
         "properties": {
           "alt_destination_id": {
@@ -12235,6 +12286,68 @@
           "payload"
         ],
         "title": "DerivedProposalIn",
+        "type": "object"
+      },
+      "Destination": {
+        "additionalProperties": false,
+        "description": "A shuttle take-off with its fare; exactly one is the ``base`` (ride-card fare).",
+        "properties": {
+          "altitude_m": {
+            "anyOf": [
+              {
+                "maximum": 9000.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Altitude M"
+          },
+          "base": {
+            "default": false,
+            "title": "Base",
+            "type": "boolean"
+          },
+          "fare": {
+            "anyOf": [
+              {
+                "maximum": 100000.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d{0,2}0*$",
+                "type": "string"
+              }
+            ],
+            "title": "Fare"
+          },
+          "name": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "maxLength": 300,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          }
+        },
+        "required": [
+          "name",
+          "fare"
+        ],
+        "title": "Destination",
         "type": "object"
       },
       "DestinationIn": {
@@ -24136,6 +24249,147 @@
         "title": "OnboardingCallPublic",
         "type": "object"
       },
+      "OperatorDetails": {
+        "additionalProperties": false,
+        "description": "Company profile fields (PATCH operator). Only set fields are applied.",
+        "properties": {
+          "country": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Z]{2}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country"
+          },
+          "currency": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Z]{3}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Currency"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "maxLength": 254,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "logo_url": {
+            "anyOf": [
+              {
+                "maxLength": 1000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Logo Url"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone"
+          },
+          "registration": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Registration"
+          },
+          "short_description": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Short Description"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "maxLength": 300,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          },
+          "timezone": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timezone"
+          },
+          "website": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Website"
+          }
+        },
+        "title": "OperatorDetails",
+        "type": "object"
+      },
       "OperatorLinkCalendarOut": {
         "properties": {
           "details": {
@@ -28185,6 +28439,87 @@
         "title": "PendingDecisionSummary",
         "type": "object"
       },
+      "Person": {
+        "additionalProperties": false,
+        "description": "A team member: invited by email; ``driver`` makes them a shuttle driver.",
+        "properties": {
+          "driver": {
+            "default": false,
+            "title": "Driver",
+            "type": "boolean"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "maxLength": 254,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone"
+          },
+          "role": {
+            "default": "staff",
+            "enum": [
+              "owner",
+              "admin",
+              "staff",
+              "field"
+            ],
+            "title": "Role",
+            "type": "string"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "maxLength": 300,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "Person",
+        "type": "object"
+      },
       "PersonalCapHold": {
         "description": "One held request and the deadline the DB enforces for it.",
         "properties": {
@@ -28629,6 +28964,93 @@
           "audience"
         ],
         "title": "PitchLocaleIn",
+        "type": "object"
+      },
+      "Place": {
+        "additionalProperties": false,
+        "description": "A location resource: meeting point, take-off, landing, shop.",
+        "properties": {
+          "detail": {
+            "anyOf": [
+              {
+                "maxLength": 1000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "key": {
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+            "title": "Key",
+            "type": "string"
+          },
+          "lat": {
+            "anyOf": [
+              {
+                "maximum": 90.0,
+                "minimum": -90.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lat"
+          },
+          "lng": {
+            "anyOf": [
+              {
+                "maximum": 180.0,
+                "minimum": -180.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lng"
+          },
+          "map_url": {
+            "anyOf": [
+              {
+                "maxLength": 1000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Map Url"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "maxLength": 300,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          }
+        },
+        "required": [
+          "key",
+          "name"
+        ],
+        "title": "Place",
         "type": "object"
       },
       "PlanChangeIn": {
@@ -31437,6 +31859,265 @@
         "title": "ProdHotfixPr",
         "type": "object"
       },
+      "Product": {
+        "additionalProperties": false,
+        "description": "A bookable product (kind ``service``) or an add-on (``addon_only``).\n\nField meanings follow ``ProductIn`` (app/routers/staff_products.py):\n\n* ``time_shape`` ``single_date`` = one day, ``fixed_window`` = set dates\n  (``windows``), ``days_range`` = several days the guest picks;\n* ``booking_mode`` ``on_request`` = the operator confirms each request,\n  ``scheduled`` = only dates/slots that exist are bookable;\n* ``times`` = daily start times (``daily_start_times``);\n* ``price`` per ``price_unit`` (``guest`` = per person, ``booking`` = flat).",
+        "properties": {
+          "addon_only": {
+            "default": false,
+            "title": "Addon Only",
+            "type": "boolean"
+          },
+          "addons": {
+            "items": {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+              "type": "string"
+            },
+            "maxItems": 20,
+            "title": "Addons",
+            "type": "array"
+          },
+          "booking_mode": {
+            "default": "on_request",
+            "enum": [
+              "scheduled",
+              "on_request"
+            ],
+            "title": "Booking Mode",
+            "type": "string"
+          },
+          "cancellation_hours": {
+            "anyOf": [
+              {
+                "maximum": 1440.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cancellation Hours"
+          },
+          "daily_capacity": {
+            "anyOf": [
+              {
+                "maximum": 10000.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Daily Capacity"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 10000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "duration_minutes": {
+            "anyOf": [
+              {
+                "maximum": 86400.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Minutes"
+          },
+          "group": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Group"
+          },
+          "key": {
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+            "title": "Key",
+            "type": "string"
+          },
+          "max_party_size": {
+            "anyOf": [
+              {
+                "maximum": 1000.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Party Size"
+          },
+          "meeting_place": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meeting Place"
+          },
+          "min_people": {
+            "anyOf": [
+              {
+                "maximum": 1000.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min People"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "price": {
+            "anyOf": [
+              {
+                "maximum": 100000.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d{0,2}0*$",
+                "type": "string"
+              }
+            ],
+            "title": "Price"
+          },
+          "price_unit": {
+            "default": "guest",
+            "enum": [
+              "guest",
+              "booking"
+            ],
+            "title": "Price Unit",
+            "type": "string"
+          },
+          "publicly_listed": {
+            "default": true,
+            "title": "Publicly Listed",
+            "type": "boolean"
+          },
+          "short_description": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Short Description"
+          },
+          "slot_capacity": {
+            "anyOf": [
+              {
+                "maximum": 1000.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slot Capacity"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "maxLength": 300,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          },
+          "time_shape": {
+            "default": "single_date",
+            "enum": [
+              "single_date",
+              "days_range",
+              "fixed_window"
+            ],
+            "title": "Time Shape",
+            "type": "string"
+          },
+          "times": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 48,
+            "title": "Times",
+            "type": "array"
+          },
+          "windows": {
+            "items": {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "format": "date",
+                  "type": "string"
+                }
+              ],
+              "type": "array"
+            },
+            "maxItems": 100,
+            "title": "Windows",
+            "type": "array"
+          }
+        },
+        "required": [
+          "key",
+          "name",
+          "price"
+        ],
+        "title": "Product",
+        "type": "object"
+      },
       "ProductAddon": {
         "additionalProperties": true,
         "description": "One row returned by the offered_addons_for_parent RPC (landr-cip6 /\nepic landr-ie8g; offers only since landr-tm48v.25). Mirrors the widget's ``ProductAddon`` TypeScript\ninterface (src/api/types.ts) field-for-field.",
@@ -32250,6 +32931,42 @@
           }
         },
         "title": "ProductFlowResponse",
+        "type": "object"
+      },
+      "ProductGroup": {
+        "additionalProperties": false,
+        "properties": {
+          "key": {
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+            "title": "Key",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "maxLength": 300,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          }
+        },
+        "required": [
+          "key",
+          "name"
+        ],
+        "title": "ProductGroup",
         "type": "object"
       },
       "ProductGroupIn": {
@@ -39870,6 +40587,68 @@
         "title": "ReviewStartedIn",
         "type": "object"
       },
+      "RideCard": {
+        "additionalProperties": false,
+        "properties": {
+          "label": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          },
+          "price": {
+            "anyOf": [
+              {
+                "maximum": 100000.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d{0,2}0*$",
+                "type": "string"
+              }
+            ],
+            "title": "Price"
+          },
+          "rides": {
+            "maximum": 1000.0,
+            "minimum": 1.0,
+            "title": "Rides",
+            "type": "integer"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "maxLength": 300,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          },
+          "valid_until": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valid Until"
+          }
+        },
+        "required": [
+          "label",
+          "rides",
+          "price"
+        ],
+        "title": "RideCard",
+        "type": "object"
+      },
       "RoleCapabilityLevel": {
         "properties": {
           "level": {
@@ -40746,6 +41525,27 @@
           "body"
         ],
         "title": "ScopedMessagePostIn",
+        "type": "object"
+      },
+      "Season": {
+        "additionalProperties": false,
+        "properties": {
+          "from": {
+            "format": "date",
+            "title": "From",
+            "type": "string"
+          },
+          "to": {
+            "format": "date",
+            "title": "To",
+            "type": "string"
+          }
+        },
+        "required": [
+          "from",
+          "to"
+        ],
+        "title": "Season",
         "type": "object"
       },
       "SeasonIn": {
@@ -41748,6 +42548,167 @@
         "title": "SetupBody",
         "type": "object"
       },
+      "SetupSpec": {
+        "additionalProperties": false,
+        "properties": {
+          "open_questions": {
+            "items": {
+              "maxLength": 500,
+              "type": "string"
+            },
+            "maxItems": 50,
+            "title": "Open Questions",
+            "type": "array"
+          },
+          "operator": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OperatorDetails"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "people": {
+            "items": {
+              "$ref": "#/components/schemas/Person"
+            },
+            "maxItems": 50,
+            "title": "People",
+            "type": "array"
+          },
+          "places": {
+            "items": {
+              "$ref": "#/components/schemas/Place"
+            },
+            "maxItems": 100,
+            "title": "Places",
+            "type": "array"
+          },
+          "product_groups": {
+            "items": {
+              "$ref": "#/components/schemas/ProductGroup"
+            },
+            "maxItems": 50,
+            "title": "Product Groups",
+            "type": "array"
+          },
+          "products": {
+            "items": {
+              "$ref": "#/components/schemas/Product"
+            },
+            "maxItems": 200,
+            "title": "Products",
+            "type": "array"
+          },
+          "shuttle": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Shuttle"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "version": {
+            "const": 1,
+            "default": 1,
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "title": "SetupSpec",
+        "type": "object"
+      },
+      "SetupSpecApplyIn": {
+        "properties": {
+          "expected_plan_hash": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Plan Hash"
+          },
+          "remove_template_samples": {
+            "default": false,
+            "title": "Remove Template Samples",
+            "type": "boolean"
+          },
+          "sections": {
+            "anyOf": [
+              {
+                "items": {
+                  "enum": [
+                    "operator",
+                    "places",
+                    "people",
+                    "product_groups",
+                    "products",
+                    "shuttle"
+                  ],
+                  "type": "string"
+                },
+                "maxItems": 6,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sections"
+          },
+          "spec": {
+            "$ref": "#/components/schemas/SetupSpec"
+          }
+        },
+        "required": [
+          "spec"
+        ],
+        "title": "SetupSpecApplyIn",
+        "type": "object"
+      },
+      "SetupSpecPlanIn": {
+        "properties": {
+          "sections": {
+            "anyOf": [
+              {
+                "items": {
+                  "enum": [
+                    "operator",
+                    "places",
+                    "people",
+                    "product_groups",
+                    "products",
+                    "shuttle"
+                  ],
+                  "type": "string"
+                },
+                "maxItems": 6,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sections"
+          },
+          "spec": {
+            "$ref": "#/components/schemas/SetupSpec"
+          }
+        },
+        "required": [
+          "spec"
+        ],
+        "title": "SetupSpecPlanIn",
+        "type": "object"
+      },
       "ShareMessage": {
         "properties": {
           "message": {
@@ -41877,6 +42838,215 @@
           "query"
         ],
         "title": "ShortLinkResolveOut",
+        "type": "object"
+      },
+      "Shuttle": {
+        "additionalProperties": false,
+        "description": "Shuttle mode (``SettingsPut`` + destinations + ride-card types).",
+        "properties": {
+          "board_items": {
+            "items": {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+              "type": "string"
+            },
+            "maxItems": 24,
+            "title": "Board Items",
+            "type": "array"
+          },
+          "contact_text": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contact Text"
+          },
+          "day_template": {
+            "items": {
+              "$ref": "#/components/schemas/Departure"
+            },
+            "maxItems": 48,
+            "title": "Day Template",
+            "type": "array"
+          },
+          "destinations": {
+            "items": {
+              "$ref": "#/components/schemas/Destination"
+            },
+            "maxItems": 30,
+            "title": "Destinations",
+            "type": "array"
+          },
+          "footer_text": {
+            "anyOf": [
+              {
+                "maxLength": 1000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Footer Text"
+          },
+          "late_cancel_minutes": {
+            "anyOf": [
+              {
+                "maximum": 1440.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Late Cancel Minutes"
+          },
+          "meeting_points": {
+            "items": {
+              "$ref": "#/components/schemas/ShuttleMeetingPoint"
+            },
+            "maxItems": 20,
+            "title": "Meeting Points",
+            "type": "array"
+          },
+          "min_riders": {
+            "anyOf": [
+              {
+                "maximum": 100.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Riders"
+          },
+          "name_display": {
+            "anyOf": [
+              {
+                "enum": [
+                  "first_initial",
+                  "first_name",
+                  "seats_only"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name Display"
+          },
+          "ride_cards": {
+            "items": {
+              "$ref": "#/components/schemas/RideCard"
+            },
+            "maxItems": 20,
+            "title": "Ride Cards",
+            "type": "array"
+          },
+          "season": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Season"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "seats_per_car": {
+            "anyOf": [
+              {
+                "maximum": 100.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seats Per Car"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "maxLength": 300,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          },
+          "welcome_text": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "propertyNames": {
+                  "enum": [
+                    "en",
+                    "de",
+                    "es"
+                  ]
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Welcome Text"
+          }
+        },
+        "title": "Shuttle",
+        "type": "object"
+      },
+      "ShuttleMeetingPoint": {
+        "additionalProperties": false,
+        "properties": {
+          "emoji": {
+            "anyOf": [
+              {
+                "maxLength": 8,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Emoji"
+          },
+          "offset_minutes": {
+            "default": 0,
+            "maximum": 240.0,
+            "minimum": 0.0,
+            "title": "Offset Minutes",
+            "type": "integer"
+          },
+          "place": {
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+            "title": "Place",
+            "type": "string"
+          }
+        },
+        "required": [
+          "place"
+        ],
+        "title": "ShuttleMeetingPoint",
         "type": "object"
       },
       "SignedUrlResponse": {
@@ -94108,6 +95278,124 @@
         "summary": "Setup Drift",
         "tags": [
           "landr-staff-setup-bundle"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/setup-spec/apply": {
+      "post": {
+        "operationId": "staff_setup_spec_apply",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetupSpecApplyIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Staff Setup Spec Apply",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Apply Setup Spec",
+        "tags": [
+          "staff-setup-spec"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/setup-spec/plan": {
+      "post": {
+        "operationId": "staff_setup_spec_plan",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetupSpecPlanIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Staff Setup Spec Plan",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Plan Setup Spec",
+        "tags": [
+          "staff-setup-spec"
         ]
       }
     },

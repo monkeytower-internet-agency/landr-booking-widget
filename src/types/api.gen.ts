@@ -14647,6 +14647,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/setup-spec/apply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Apply Setup Spec */
+        post: operations["staff_setup_spec_apply"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/setup-spec/plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Plan Setup Spec */
+        post: operations["staff_setup_spec_plan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/short-links": {
         parameters: {
             query?: never;
@@ -20570,6 +20604,22 @@ export interface components {
              */
             proposal_id: string;
         };
+        /** Departure */
+        Departure: {
+            /** Alt Destination */
+            alt_destination?: string | null;
+            /** Destination */
+            destination: string;
+            /** Min Riders */
+            min_riders?: number | null;
+            /** Time */
+            time: string;
+            /**
+             * Time Tbc
+             * @default false
+             */
+            time_tbc: boolean;
+        };
         /** DeparturePatch */
         DeparturePatch: {
             /** Alt Destination Id */
@@ -20650,6 +20700,25 @@ export interface components {
             payload: {
                 [key: string]: unknown;
             };
+        };
+        /**
+         * Destination
+         * @description A shuttle take-off with its fare; exactly one is the ``base`` (ride-card fare).
+         */
+        Destination: {
+            /** Altitude M */
+            altitude_m?: number | null;
+            /**
+             * Base
+             * @default false
+             */
+            base: boolean;
+            /** Fare */
+            fare: number | string;
+            /** Name */
+            name: string;
+            /** Source */
+            source?: string | null;
         };
         /** DestinationIn */
         DestinationIn: {
@@ -24868,6 +24937,34 @@ export interface components {
             /** Widget Token */
             widget_token?: string | null;
         };
+        /**
+         * OperatorDetails
+         * @description Company profile fields (PATCH operator). Only set fields are applied.
+         */
+        OperatorDetails: {
+            /** Country */
+            country?: string | null;
+            /** Currency */
+            currency?: string | null;
+            /** Email */
+            email?: string | null;
+            /** Logo Url */
+            logo_url?: string | null;
+            /** Name */
+            name?: string | null;
+            /** Phone */
+            phone?: string | null;
+            /** Registration */
+            registration?: string | null;
+            /** Short Description */
+            short_description?: string | null;
+            /** Source */
+            source?: string | null;
+            /** Timezone */
+            timezone?: string | null;
+            /** Website */
+            website?: string | null;
+        };
         /** OperatorLinkCalendarOut */
         OperatorLinkCalendarOut: {
             /** Details */
@@ -26102,6 +26199,33 @@ export interface components {
             sync_log_id: string;
         };
         /**
+         * Person
+         * @description A team member: invited by email; ``driver`` makes them a shuttle driver.
+         */
+        Person: {
+            /**
+             * Driver
+             * @default false
+             */
+            driver: boolean;
+            /** Email */
+            email?: string | null;
+            /** Name */
+            name: string;
+            /** Note */
+            note?: string | null;
+            /** Phone */
+            phone?: string | null;
+            /**
+             * Role
+             * @default staff
+             * @enum {string}
+             */
+            role: "owner" | "admin" | "staff" | "field";
+            /** Source */
+            source?: string | null;
+        };
+        /**
          * PersonalCapHold
          * @description One held request and the deadline the DB enforces for it.
          */
@@ -26236,6 +26360,26 @@ export interface components {
             headline: string;
             /** Hero Url */
             hero_url?: string | null;
+        };
+        /**
+         * Place
+         * @description A location resource: meeting point, take-off, landing, shop.
+         */
+        Place: {
+            /** Detail */
+            detail?: string | null;
+            /** Key */
+            key: string;
+            /** Lat */
+            lat?: number | null;
+            /** Lng */
+            lng?: number | null;
+            /** Map Url */
+            map_url?: string | null;
+            /** Name */
+            name: string;
+            /** Source */
+            source?: string | null;
         };
         /** PlanChangeIn */
         PlanChangeIn: {
@@ -27246,6 +27390,86 @@ export interface components {
             title: string;
         };
         /**
+         * Product
+         * @description A bookable product (kind ``service``) or an add-on (``addon_only``).
+         *
+         *     Field meanings follow ``ProductIn`` (app/routers/staff_products.py):
+         *
+         *     * ``time_shape`` ``single_date`` = one day, ``fixed_window`` = set dates
+         *       (``windows``), ``days_range`` = several days the guest picks;
+         *     * ``booking_mode`` ``on_request`` = the operator confirms each request,
+         *       ``scheduled`` = only dates/slots that exist are bookable;
+         *     * ``times`` = daily start times (``daily_start_times``);
+         *     * ``price`` per ``price_unit`` (``guest`` = per person, ``booking`` = flat).
+         */
+        Product: {
+            /**
+             * Addon Only
+             * @default false
+             */
+            addon_only: boolean;
+            /** Addons */
+            addons?: string[];
+            /**
+             * Booking Mode
+             * @default on_request
+             * @enum {string}
+             */
+            booking_mode: "scheduled" | "on_request";
+            /** Cancellation Hours */
+            cancellation_hours?: number | null;
+            /** Daily Capacity */
+            daily_capacity?: number | null;
+            /** Description */
+            description?: string | null;
+            /** Duration Minutes */
+            duration_minutes?: number | null;
+            /** Group */
+            group?: string | null;
+            /** Key */
+            key: string;
+            /** Max Party Size */
+            max_party_size?: number | null;
+            /** Meeting Place */
+            meeting_place?: string | null;
+            /** Min People */
+            min_people?: number | null;
+            /** Name */
+            name: string;
+            /** Price */
+            price: number | string;
+            /**
+             * Price Unit
+             * @default guest
+             * @enum {string}
+             */
+            price_unit: "guest" | "booking";
+            /**
+             * Publicly Listed
+             * @default true
+             */
+            publicly_listed: boolean;
+            /** Short Description */
+            short_description?: string | null;
+            /** Slot Capacity */
+            slot_capacity?: number | null;
+            /** Source */
+            source?: string | null;
+            /**
+             * Time Shape
+             * @default single_date
+             * @enum {string}
+             */
+            time_shape: "single_date" | "days_range" | "fixed_window";
+            /** Times */
+            times?: string[];
+            /** Windows */
+            windows?: [
+                string,
+                string
+            ][];
+        };
+        /**
          * ProductAddon
          * @description One row returned by the offered_addons_for_parent RPC (landr-cip6 /
          *     epic landr-ie8g; offers only since landr-tm48v.25). Mirrors the widget's ``ProductAddon`` TypeScript
@@ -27516,6 +27740,15 @@ export interface components {
             modules?: components["schemas"]["FlowModuleDef"][] | null;
         } & {
             [key: string]: unknown;
+        };
+        /** ProductGroup */
+        ProductGroup: {
+            /** Key */
+            key: string;
+            /** Name */
+            name: string;
+            /** Source */
+            source?: string | null;
         };
         /** ProductGroupIn */
         ProductGroupIn: {
@@ -29894,6 +30127,19 @@ export interface components {
              */
             proposal_id: string;
         };
+        /** RideCard */
+        RideCard: {
+            /** Label */
+            label: string;
+            /** Price */
+            price: number | string;
+            /** Rides */
+            rides: number;
+            /** Source */
+            source?: string | null;
+            /** Valid Until */
+            valid_until?: string | null;
+        };
         /** RoleCapabilityLevel */
         RoleCapabilityLevel: {
             /**
@@ -30263,6 +30509,19 @@ export interface components {
              */
             scope: "activity_day" | "booking" | "operator";
         };
+        /** Season */
+        Season: {
+            /**
+             * From
+             * Format: date
+             */
+            from: string;
+            /**
+             * To
+             * Format: date
+             */
+            to: string;
+        };
         /**
          * SeasonIn
          * @description ``PUT /resource-types/{id}/season`` — the Schedule tab's "Set season"
@@ -30627,6 +30886,46 @@ export interface components {
              */
             sending_domain: string;
         };
+        /** SetupSpec */
+        SetupSpec: {
+            /** Open Questions */
+            open_questions?: string[];
+            operator?: components["schemas"]["OperatorDetails"] | null;
+            /** People */
+            people?: components["schemas"]["Person"][];
+            /** Places */
+            places?: components["schemas"]["Place"][];
+            /** Product Groups */
+            product_groups?: components["schemas"]["ProductGroup"][];
+            /** Products */
+            products?: components["schemas"]["Product"][];
+            shuttle?: components["schemas"]["Shuttle"] | null;
+            /**
+             * Version
+             * @default 1
+             * @constant
+             */
+            version: 1;
+        };
+        /** SetupSpecApplyIn */
+        SetupSpecApplyIn: {
+            /** Expected Plan Hash */
+            expected_plan_hash?: string | null;
+            /**
+             * Remove Template Samples
+             * @default false
+             */
+            remove_template_samples: boolean;
+            /** Sections */
+            sections?: ("operator" | "places" | "people" | "product_groups" | "products" | "shuttle")[] | null;
+            spec: components["schemas"]["SetupSpec"];
+        };
+        /** SetupSpecPlanIn */
+        SetupSpecPlanIn: {
+            /** Sections */
+            sections?: ("operator" | "places" | "people" | "product_groups" | "products" | "shuttle")[] | null;
+            spec: components["schemas"]["SetupSpec"];
+        };
         /** ShareMessage */
         ShareMessage: {
             /** Message */
@@ -30675,6 +30974,53 @@ export interface components {
         ShortLinkResolveOut: {
             /** Query */
             query: string;
+        };
+        /**
+         * Shuttle
+         * @description Shuttle mode (``SettingsPut`` + destinations + ride-card types).
+         */
+        Shuttle: {
+            /** Board Items */
+            board_items?: string[];
+            /** Contact Text */
+            contact_text?: string | null;
+            /** Day Template */
+            day_template?: components["schemas"]["Departure"][];
+            /** Destinations */
+            destinations?: components["schemas"]["Destination"][];
+            /** Footer Text */
+            footer_text?: string | null;
+            /** Late Cancel Minutes */
+            late_cancel_minutes?: number | null;
+            /** Meeting Points */
+            meeting_points?: components["schemas"]["ShuttleMeetingPoint"][];
+            /** Min Riders */
+            min_riders?: number | null;
+            /** Name Display */
+            name_display?: ("first_initial" | "first_name" | "seats_only") | null;
+            /** Ride Cards */
+            ride_cards?: components["schemas"]["RideCard"][];
+            season?: components["schemas"]["Season"] | null;
+            /** Seats Per Car */
+            seats_per_car?: number | null;
+            /** Source */
+            source?: string | null;
+            /** Welcome Text */
+            welcome_text?: {
+                [key: string]: string;
+            } | null;
+        };
+        /** ShuttleMeetingPoint */
+        ShuttleMeetingPoint: {
+            /** Emoji */
+            emoji?: string | null;
+            /**
+             * Offset Minutes
+             * @default 0
+             */
+            offset_minutes: number;
+            /** Place */
+            place: string;
         };
         /** SignedUrlResponse */
         SignedUrlResponse: {
@@ -59200,6 +59546,80 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_setup_spec_apply: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetupSpecApplyIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_setup_spec_plan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetupSpecPlanIn"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
