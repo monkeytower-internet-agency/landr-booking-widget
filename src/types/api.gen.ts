@@ -5562,6 +5562,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/public/shuttle/me/profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Save My Profile
+         * @description Give or edit the short profile this operator asks of its pilots: board
+         *     name, glider, days on the island, WhatsApp number. The first one decides
+         *     ``approval`` (pending while "Approve new pilots" is on, else approved);
+         *     a later edit keeps the decision. Errors ``422 {"error": name_* |
+         *     glider_invalid | stay_invalid | whatsapp_invalid}``.
+         */
+        put: operations["public_shuttle_me_profile_by_host"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/public/shuttle/me/signups/{signup_id}": {
         parameters: {
             query?: never;
@@ -5698,6 +5722,30 @@ export interface paths {
          *     belong to no account yet are touched.
          */
         post: operations["public_shuttle_adopt_signups"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/shuttle/{slug}/me/profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Save My Profile
+         * @description Give or edit the short profile this operator asks of its pilots: board
+         *     name, glider, days on the island, WhatsApp number. The first one decides
+         *     ``approval`` (pending while "Approve new pilots" is on, else approved);
+         *     a later edit keeps the decision. Errors ``422 {"error": name_* |
+         *     glider_invalid | stay_invalid | whatsapp_invalid}``.
+         */
+        put: operations["public_shuttle_me_profile"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -15060,6 +15108,65 @@ export interface paths {
         get: operations["staff_list_shuttle_pilots"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/shuttle-pilots/new": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List New Pilots
+         * @description Pilots of THIS operator in ``approval`` state (pending: oldest first),
+         *     plus the pending count for the badge.
+         */
+        get: operations["staff_list_new_shuttle_pilots"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/shuttle-pilots/new/count": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Count New Pilots */
+        get: operations["staff_count_new_shuttle_pilots"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/shuttle-pilots/{user_id}/approval": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Decide Pilot
+         * @description Approve or decline one pilot of this operator (idempotent; a decision
+         *     can be changed later).
+         */
+        post: operations["staff_decide_shuttle_pilot"];
         delete?: never;
         options?: never;
         head?: never;
@@ -31499,6 +31606,33 @@ export interface components {
             /** Place */
             place: string;
         };
+        /** ShuttlePilotDecisionIn */
+        ShuttlePilotDecisionIn: {
+            /**
+             * Decision
+             * @enum {string}
+             */
+            decision: "approved" | "declined";
+        };
+        /** ShuttlePilotProfileIn */
+        ShuttlePilotProfileIn: {
+            /** Display Name */
+            display_name: string;
+            /** Glider */
+            glider: string;
+            /**
+             * Stay From
+             * Format: date
+             */
+            stay_from: string;
+            /**
+             * Stay To
+             * Format: date
+             */
+            stay_to: string;
+            /** Whatsapp */
+            whatsapp: string;
+        };
         /** SignedUrlResponse */
         SignedUrlResponse: {
             /** Expires In */
@@ -42778,6 +42912,43 @@ export interface operations {
             };
         };
     };
+    public_shuttle_me_profile_by_host: {
+        parameters: {
+            query?: {
+                slug?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ShuttlePilotProfileIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     public_shuttle_me_cancel_by_host: {
         parameters: {
             query?: {
@@ -43074,6 +43245,43 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_shuttle_me_profile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string | null;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ShuttlePilotProfileIn"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
@@ -60941,6 +61149,112 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     }[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_list_new_shuttle_pilots: {
+        parameters: {
+            query?: {
+                approval?: "pending" | "approved" | "declined";
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_count_new_shuttle_pilots: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: number;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_decide_shuttle_pilot: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ShuttlePilotDecisionIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */
