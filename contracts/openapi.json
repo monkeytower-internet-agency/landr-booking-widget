@@ -6513,6 +6513,54 @@
         "title": "CardIn",
         "type": "object"
       },
+      "CardName": {
+        "additionalProperties": false,
+        "description": "The operator's own word for the ride card in one language (singular, plural).",
+        "properties": {
+          "one": {
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "One",
+            "type": "string"
+          },
+          "other": {
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Other",
+            "type": "string"
+          }
+        },
+        "required": [
+          "one",
+          "other"
+        ],
+        "title": "CardName",
+        "type": "object"
+      },
+      "CardNameForms": {
+        "additionalProperties": false,
+        "description": "One language's wording of the ride card, singular and plural.",
+        "properties": {
+          "one": {
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "One",
+            "type": "string"
+          },
+          "other": {
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Other",
+            "type": "string"
+          }
+        },
+        "required": [
+          "one",
+          "other"
+        ],
+        "title": "CardNameForms",
+        "type": "object"
+      },
       "CardTypeIn": {
         "properties": {
           "label": {
@@ -42419,6 +42467,20 @@
             ],
             "title": "Board Items"
           },
+          "card_name": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/CardNameForms"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Card Name"
+          },
           "contact_text": {
             "anyOf": [
               {
@@ -42911,6 +42973,27 @@
             "maxItems": 24,
             "title": "Board Items",
             "type": "array"
+          },
+          "card_name": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/CardName"
+                },
+                "propertyNames": {
+                  "enum": [
+                    "en",
+                    "de",
+                    "es"
+                  ]
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Card Name"
           },
           "contact_text": {
             "anyOf": [
