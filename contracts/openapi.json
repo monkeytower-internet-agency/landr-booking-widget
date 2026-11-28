@@ -20582,7 +20582,6 @@
           "emoji": {
             "anyOf": [
               {
-                "maxLength": 8,
                 "type": "string"
               },
               {
