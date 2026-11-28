@@ -182,6 +182,7 @@ import {
   writeStoredProgress,
 } from './bookingPersistence'
 import { resolveAgentToken, sanitizeAgentToken, writeStoredAgentToken } from '@/lib/agentReferral'
+import { limitGroups, parseGroupParam, singleGroup } from '@/lib/groupParam'
 import { deepLinkDate, detectRoute, invitePathToken, startsAtDates } from './detectRoute'
 import { LandingPage } from '@/components/booking/LandingPage'
 import { TierBadge } from '@/components/TierBadge'
@@ -230,6 +231,7 @@ function readQueryParams() {
       token: null as string | null,
       product: null as string | null,
       group: null as string | null,
+      groupList: [] as string[],
       previewToken: null as string | null,
       showSoldOut: false,
       catalog: null as string | null,
@@ -250,7 +252,9 @@ function readQueryParams() {
     // landr-il9f.2: opaque widget token — no slug fallback.
     token: params.get('w') ?? (demo ? demoToken(demo) : null),
     product: params.get('product'),
-    group: params.get('group'),
+    group: singleGroup(parseGroupParam(params.get('group'))),
+    // landr-3tpmm: two or more values limit the category entrance.
+    groupList: parseGroupParam(params.get('group')),
     // landr-otml0.3: invite link — resolved via GET /api/public/invites/{token}.
     // landr-5lrov: the link the API now mints is `/i/<token>` (short, and the
     // token survives link-rewriting mail gateways); `?invite=` stays an
@@ -482,6 +486,7 @@ function BookingFlowApp() {
     token: queryToken,
     product,
     group,
+    groupList,
     previewToken,
     showSoldOut,
     catalog,
@@ -1542,16 +1547,22 @@ function BookingFlowApp() {
           previewToken: previewToken ?? undefined,
         })
         if (cancelled) return
-        setProductGroups(groups)
+        // landr-3tpmm: ?group=a,b limits the entrance (and the back link's
+        // target) to the listed groups; products outside are never listed.
+        const limited = limitGroups(groups, groupList)
+        setProductGroups(limited)
         // Route to pick-category when the operator has >1 non-empty group
         // AND the widget is still on the initial pick-product step.
-        const nonEmpty = groups.filter((g) => g.product_count > 0)
+        const nonEmpty = limited.filter((g) => g.product_count > 0)
         if (nonEmpty.length > 1) {
           setStep((current) =>
             current.name === 'pick-product'
-              ? { name: 'pick-category', groups }
+              ? { name: 'pick-category', groups: limited }
               : current,
           )
+        } else if (groupList.length > 1 && nonEmpty.length === 1) {
+          // Only one listed group is known: behave like a single-group link.
+          setPickedGroupSlug(nonEmpty[0].slug)
         }
       } catch {
         // 404 from the pre-landing API, network error, etc. — degrade
@@ -1562,7 +1573,7 @@ function BookingFlowApp() {
     return () => {
       cancelled = true
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- refetch only when the token changes; group, product and previewToken are read at fetch time
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- refetch only when the token changes; group, groupList, product and previewToken are read at fetch time
   }, [token])
 
   // landr-87n9.2: clear the live-lifted accommodation state. Called on every
@@ -2736,7 +2747,7 @@ function BookingFlowApp() {
           Hidden when no categories were shown (no group was picked, i.e.
           the user is in the flat unscoped list or came from a ?group= link).
         */}
-        {step.name === 'pick-product' && pickedGroupSlug && productGroups ? (
+        {step.name === 'pick-product' && pickedGroupSlug && productGroups && (productGroups.filter((g) => g.product_count > 0).length > 1 || groupList.length < 2) ? (
           <button
             type="button"
             className="text-primary text-sm underline-offset-2 hover:underline self-start"
