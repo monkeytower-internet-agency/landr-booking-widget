@@ -811,8 +811,9 @@ export const it: Bundle = {
   offerOccupancyCap: 'Fino a {expected}: uno per ospite in questa camera',
   offerOccupancyCapMany: 'Fino a {expected}: uno per ospite in queste camere',
 
-  fullyBookedLabel: 'Al completo',
-  fullyBookedBlurb: 'Al momento non ci sono date disponibili per questa attività. Ricontrolla più tardi.',
+  fullyBookedLabel: 'Nuove date in arrivo',
+  fullyBookedBlurb: 'Le nuove date non sono ancora aperte. Ricontrolla presto.',
+  fullyBookedContact: 'Domande o una data in mente? Scrivici:',
   alternativesHeadingDay: 'Disponibile anche in questo giorno',
   alternativesHeadingDays: 'Disponibile anche in questi giorni',
   alternativesHeadingCourses: 'Iniziano anche a {month}',

@@ -720,8 +720,9 @@ export const deInformal: Bundle = {
   offerOccupancyCap: 'Bis zu {expected} — eines pro Gast in diesem Zimmer',
   offerOccupancyCapMany: 'Bis zu {expected} — eines pro Gast in diesen Zimmern',
 
-  fullyBookedLabel: 'Ausgebucht',
-  fullyBookedBlurb: 'Für dieses Angebot gibt es im Moment keine freien Termine. Schau bald wieder vorbei.',
+  fullyBookedLabel: 'Neue Termine folgen in Kürze',
+  fullyBookedBlurb: 'Aktuell sind noch keine neuen Termine geöffnet. Schau bald wieder vorbei.',
+  fullyBookedContact: 'Fragen oder einen Wunschtermin? Schreib uns:',
   alternativesHeadingDay: 'An diesem Tag auch verfügbar',
   alternativesHeadingDays: 'An diesen Tagen auch verfügbar',
   alternativesHeadingCourses: 'Starten auch im {month}',

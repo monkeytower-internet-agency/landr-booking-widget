@@ -726,8 +726,9 @@ export const trInformal: Bundle = {
   offerOccupancyCap: 'En fazla {expected} — bu odada kişi başına bir tane',
   offerOccupancyCapMany: 'En fazla {expected} — bu odalarda kişi başına bir tane',
 
-  fullyBookedLabel: 'Tamamen dolu',
-  fullyBookedBlurb: 'Bu ürün için şu anda uygun tarih yok. Daha sonra tekrar bak.',
+  fullyBookedLabel: 'Yeni tarihler çok yakında',
+  fullyBookedBlurb: 'Yeni tarihler henüz açılmadı. Yakında tekrar bak.',
+  fullyBookedContact: 'Sorun veya aklında bir tarih mi var? Bize yaz:',
   alternativesHeadingDay: 'Bu gün de müsait',
   alternativesHeadingDays: 'Bu günlerde de müsait',
   alternativesHeadingCourses: '{month} ayında başlayanlar',

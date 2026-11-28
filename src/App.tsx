@@ -2922,6 +2922,7 @@ function BookingFlowApp() {
             operatorTimezone={operatorSettings.timezone}
             onSelectAlternative={onSelectAlternative}
             hintNotice={step.fromHint === true}
+            contactEmail={operatorSettings.contact_email ?? null}
           />
         ) : null}
 

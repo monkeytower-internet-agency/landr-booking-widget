@@ -111,7 +111,7 @@ describe('ProductList — bookability visibility (landr-7jgo)', () => {
       expect(screen.getByText('Sold Out Product')).toBeInTheDocument(),
     )
     expect(screen.getByTestId('fully-booked-badge')).toHaveTextContent(
-      /fully booked/i,
+      /next dates coming soon/i,
     )
     // landr-d8rg.6: the bookable product renders a selectable card (role=button
     // labelled by its name); the sold-out one renders a FullyBookedNotice with
@@ -405,7 +405,7 @@ describe('ProductList — sold-out across layouts (landr-d8rg.6)', () => {
       expect(screen.getByTestId('product-grid')).toBeInTheDocument(),
     )
     expect(screen.getByTestId('fully-booked-badge')).toHaveTextContent(
-      /fully booked/i,
+      /next dates coming soon/i,
     )
     // Sold-out has no selectable card; the bookable one does.
     expect(
@@ -424,7 +424,7 @@ describe('ProductList — sold-out across layouts (landr-d8rg.6)', () => {
       expect(screen.getByTestId('product-list')).toBeInTheDocument(),
     )
     expect(screen.getByTestId('fully-booked-badge')).toHaveTextContent(
-      /fully booked/i,
+      /next dates coming soon/i,
     )
     expect(
       screen.getByRole('button', { name: 'Open Product' }),

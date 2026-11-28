@@ -208,7 +208,7 @@ describe('CategoryStep — landr-872c FULLY SOLD-OUT categories', () => {
     )
     const row = screen.getByTestId('category-row-grounded')
     expect(row).toBeDisabled()
-    expect(screen.getByTestId('fully-booked-badge')).toHaveTextContent('Fully booked')
+    expect(screen.getByTestId('fully-booked-badge')).toHaveTextContent('Next dates coming soon')
     fireEvent.click(row)
     expect(onPick).not.toHaveBeenCalled()
     window.localStorage.clear()

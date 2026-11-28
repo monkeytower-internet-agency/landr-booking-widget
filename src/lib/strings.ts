@@ -841,6 +841,7 @@ export type Bundle = {
   // ---- FullyBookedNotice / ViewToggle / catalog ----
   fullyBookedLabel: string
   fullyBookedBlurb: string
+  fullyBookedContact: string
   alternativesHeadingDay: string
   alternativesHeadingDays: string
   alternativesHeadingCourses: string
@@ -1938,8 +1939,9 @@ const en: Bundle = {
   offerOccupancyCap: 'Up to {expected} — one per guest in this room',
   offerOccupancyCapMany: 'Up to {expected} — one per guest in these rooms',
 
-  fullyBookedLabel: 'Fully booked',
-  fullyBookedBlurb: 'There are no upcoming dates for this product right now. Please check back later.',
+  fullyBookedLabel: 'Next dates coming soon',
+  fullyBookedBlurb: 'New dates are not open yet. Please check back soon.',
+  fullyBookedContact: 'Questions or a date in mind? Write to us:',
   alternativesHeadingDay: 'Also available on this day',
   alternativesHeadingDays: 'Also available on these days',
   alternativesHeadingCourses: 'Also starting in {month}',

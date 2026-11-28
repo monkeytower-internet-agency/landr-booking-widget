@@ -726,8 +726,9 @@ export const tr: Bundle = {
   offerOccupancyCap: 'En fazla {expected} — bu odada kişi başına bir tane',
   offerOccupancyCapMany: 'En fazla {expected} — bu odalarda kişi başına bir tane',
 
-  fullyBookedLabel: 'Tamamen dolu',
-  fullyBookedBlurb: 'Bu ürün için şu anda uygun tarih yok. Daha sonra tekrar bakın.',
+  fullyBookedLabel: 'Yeni tarihler çok yakında',
+  fullyBookedBlurb: 'Yeni tarihler henüz açılmadı. Lütfen yakında tekrar bakın.',
+  fullyBookedContact: 'Sorunuz veya aklınızda bir tarih mi var? Bize yazın:',
   alternativesHeadingDay: 'Bu gün de müsait',
   alternativesHeadingDays: 'Bu günlerde de müsait',
   alternativesHeadingCourses: '{month} ayında başlayanlar',
