@@ -12430,6 +12430,24 @@ export interface paths {
         patch: operations["patch_window"];
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/products/{product_id}/locations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Product Locations */
+        get: operations["staff_get_product_locations"];
+        /** Put Product Locations */
+        put: operations["staff_put_product_locations"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/products/{product_id}/pass-tiers": {
         parameters: {
             query?: never;
@@ -28212,6 +28230,16 @@ export interface components {
             /** Slot Start Time */
             slot_start_time?: string | null;
         };
+        /** ProductLocationsIn */
+        ProductLocationsIn: {
+            /** Location Ids */
+            location_ids?: string[];
+        };
+        /** ProductLocationsOut */
+        ProductLocationsOut: {
+            /** Location Ids */
+            location_ids: string[];
+        };
         /**
          * ProductOffer
          * @description An offers row as the API returns it. Exported as ``Offer``; the class
@@ -30651,13 +30679,23 @@ export interface components {
              */
             scope: "activity_day" | "booking" | "operator";
         };
-        /** Season */
+        /**
+         * Season
+         * @description The shuttle season. Board tours are closed by default and switched on per
+         *     day in evening planning (landr-vj5vc); ``open_tour_days`` opens every season
+         *     day (from today) of every board tour at once instead (landr-50qbz.6).
+         */
         Season: {
             /**
              * From
              * Format: date
              */
             from: string;
+            /**
+             * Open Tour Days
+             * @default false
+             */
+            open_tour_days: boolean;
             /**
              * To
              * Format: date
@@ -55553,6 +55591,74 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_get_product_locations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductLocationsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_put_product_locations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProductLocationsIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductLocationsOut"];
                 };
             };
             /** @description Validation Error */
