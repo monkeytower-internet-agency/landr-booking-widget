@@ -18969,6 +18969,26 @@ export interface components {
             /** Card Code */
             card_code?: string | null;
         };
+        /**
+         * CardName
+         * @description The operator's own word for the ride card in one language (singular, plural).
+         */
+        CardName: {
+            /** One */
+            one: string;
+            /** Other */
+            other: string;
+        };
+        /**
+         * CardNameForms
+         * @description One language's wording of the ride card, singular and plural.
+         */
+        CardNameForms: {
+            /** One */
+            one: string;
+            /** Other */
+            other: string;
+        };
         /** CardTypeIn */
         CardTypeIn: {
             /** Label */
@@ -31047,6 +31067,10 @@ export interface components {
             board_enabled?: boolean | null;
             /** Board Items */
             board_items?: components["schemas"]["BoardItem"][] | null;
+            /** Card Name */
+            card_name?: {
+                [key: string]: components["schemas"]["CardNameForms"];
+            } | null;
             /** Contact Text */
             contact_text?: string | null;
             /** Currency */
@@ -31185,6 +31209,10 @@ export interface components {
         Shuttle: {
             /** Board Items */
             board_items?: string[];
+            /** Card Name */
+            card_name?: {
+                [key: string]: components["schemas"]["CardName"];
+            } | null;
             /** Contact Text */
             contact_text?: string | null;
             /** Day Template */
