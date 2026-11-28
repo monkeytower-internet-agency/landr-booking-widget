@@ -33193,6 +33193,8 @@ export interface components {
          * @description Nothing about the operator is accepted here (``extra="forbid"``).
          */
         app__routers__public_shuttle__SignupIn: {
+            /** Card Code */
+            card_code?: string | null;
             /** Departure Id */
             departure_id: string;
             /** Display Name */

@@ -48137,6 +48137,18 @@
         "additionalProperties": false,
         "description": "Nothing about the operator is accepted here (``extra=\"forbid\"``).",
         "properties": {
+          "card_code": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Card Code"
+          },
           "departure_id": {
             "maxLength": 64,
             "title": "Departure Id",
