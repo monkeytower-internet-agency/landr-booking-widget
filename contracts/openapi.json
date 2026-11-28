@@ -42804,6 +42804,19 @@
             ],
             "title": "Late Cancel Minutes"
           },
+          "late_signup_minutes": {
+            "anyOf": [
+              {
+                "maximum": 240.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Late Signup Minutes"
+          },
           "meeting_points": {
             "anyOf": [
               {
@@ -43321,6 +43334,19 @@
               }
             ],
             "title": "Late Cancel Minutes"
+          },
+          "late_signup_minutes": {
+            "anyOf": [
+              {
+                "maximum": 240.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Late Signup Minutes"
           },
           "meeting_points": {
             "items": {
