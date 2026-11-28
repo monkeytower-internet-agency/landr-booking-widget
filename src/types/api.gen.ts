@@ -5420,6 +5420,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/public/punch-cards/{operator_slug}/balance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Public Balance
+         * @description Rides left on a card, by its code. Reveals nothing else: no id, no
+         *     last name, no ledger. Unknown code, unknown operator and a switched-off
+         *     feature all answer the same 404.
+         */
+        post: operations["public_punch_card_balance"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/public/resource-calendars/{token}.ics": {
         parameters: {
             query?: never;
@@ -5446,6 +5468,110 @@ export interface paths {
         };
         /** Resolve Short Link */
         get: operations["public_resolve_short_link"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/shuttle/board": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Board */
+        get: operations["public_shuttle_board_by_host"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/shuttle/signups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Signup */
+        post: operations["public_shuttle_signup_by_host"];
+        /** Cancel Signup */
+        delete: operations["public_shuttle_cancel_by_host"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/shuttle/welcome": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Welcome */
+        get: operations["public_shuttle_welcome_by_host"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/shuttle/{slug}/board": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Board */
+        get: operations["public_shuttle_board"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/shuttle/{slug}/signups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Signup */
+        post: operations["public_shuttle_signup"];
+        /** Cancel Signup */
+        delete: operations["public_shuttle_cancel"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/shuttle/{slug}/welcome": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Welcome */
+        get: operations["public_shuttle_welcome"];
         put?: never;
         post?: never;
         delete?: never;
@@ -8022,6 +8148,73 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/on-site": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get On Site Summary */
+        get: operations["staff_on_site_summary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/on-site/lines": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add On Site Line
+         * @description Sell an add-on on the spot. Guards in order: 409
+         *     ``booking_locked_for_edit`` (cancelled / closed / invoiced); 422
+         *     ``product_not_addon_of_booking`` (not a sellable add-on of a product on
+         *     this booking); 422 ``addon_max_qty`` (with ``max_qty`` and ``on_booking``);
+         *     422 ``day_not_on_line`` (a picked day the parent line does not have); 409
+         *     ``custom_offer_applied`` (an operator-paid add-on on a booking whose price
+         *     is a custom offer — the office re-offers instead); 422 ``un_priceable``.
+         *     No payment request is sent: the money is collected right after.
+         */
+        post: operations["staff_on_site_add_line"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/on-site/payments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Record On Site Payment
+         * @description Record a cash / bank / other payment for a live booking with an open
+         *     balance; part payments allowed. 409s as the office route
+         *     (``booking_not_live``, ``no_balance_due``, ``amount_exceeds_balance_due``,
+         *     ``booking_cancelled``). The guest gets the usual receipt.
+         */
+        post: operations["staff_on_site_record_payment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/bookings/{booking_id}/participants/{participant_id}/accepted-languages": {
         parameters: {
             query?: never;
@@ -9068,7 +9261,10 @@ export interface paths {
         put?: never;
         /**
          * Mark Payout Paid
-         * @description Mark one Sales agent's earned commission for a month as paid.
+         * @description Mark one Sales agent's (or performer's, ``recipient_kind='provider'``,
+         *     landr-5ndxl.6) earned commission for a month as paid. A report: no money
+         *     moves. For a performer the month is the one of each line's last job day
+         *     and 404 is ``provider_not_found``.
          *
          *     Creates a NEW paid batch (never reuses one) and claims the agent's EARNED,
          *     unbatched commissions of ``period`` plus their open adjustments, all in one
@@ -10362,6 +10558,42 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/link-partners": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Link Partners */
+        get: operations["list_link_partners"];
+        put?: never;
+        /** Create Link Partner */
+        post: operations["create_link_partner"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/link-partners/{partner_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Link Partner */
+        delete: operations["delete_link_partner"];
+        options?: never;
+        head?: never;
+        /** Patch Link Partner */
+        patch: operations["patch_link_partner"];
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/links": {
         parameters: {
             query?: never;
@@ -10888,6 +11120,100 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/my-assignments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List My Assignments
+         * @description The caller's own live booking-day assignments, sorted by date — the
+         *     performer's "my jobs" list (landr-5ndxl.1).
+         *
+         *     Window defaults to today .. today + 14 in the operator's timezone; at most
+         *     62 days (422 ``range_exceeds_max_days``). The caller's staff resource is
+         *     ``resources.user_id``; without one 403 ``no_provider_for_user``. Behind the
+         *     staff-only feature key ``performer_mode`` (403 ``feature_disabled``). Only live
+         *     bookings (not deleted, live semantic state) are listed.
+         */
+        get: operations["staff_my_assignments"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/my-earnings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * My Earnings
+         * @description The caller's OWN performer earnings: one row per job (booking
+         *     reference, job days, own role, own amount, currency, status, payout month,
+         *     paid date, the minus lines that correct it) and totals PER CURRENCY.
+         *     ``from`` / ``to`` narrow by the job's last day. Always the caller's own
+         *     user id. 403 ``no_provider_for_user`` without a staff resource,
+         *     ``feature_disabled`` while ``performer_mode`` is off.
+         */
+        get: operations["staff_my_earnings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/my-unavailability": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List My Unavailability */
+        get: operations["list_my_unavailability"];
+        put?: never;
+        /**
+         * Add My Unavailability
+         * @description Add days off. Overlapping or touching days of the person's own merge into
+         *     one row; days the office already marked off are skipped (nothing is stored
+         *     for them and the office rows are never touched). Returns the person's own
+         *     resulting rows that cover the requested range (empty when the office already
+         *     had every day).
+         */
+        post: operations["add_my_unavailability"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/my-unavailability/{period_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete My Unavailability */
+        delete: operations["delete_my_unavailability"];
         options?: never;
         head?: never;
         patch?: never;
@@ -12185,6 +12511,62 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/provider-earnings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Provider Earnings
+         * @description The operator's performer earnings lines, newest first (a report),
+         *     one page: ``limit`` rows from ``offset`` (page on until a short page).
+         *
+         *     One line per (booking, performer) from ``commissions WHERE
+         *     recipient_kind='provider'``: the job days, the contract's rate kind, the
+         *     share of the booking's operator-paid net, amount, status and
+         *     ``status_label`` (earned | paid | reversed | no_contract | no_commission)
+         *     plus the open minus lines (``open_adjustments``) a reversal after payout
+         *     left for the next payout. Filters (in SQL): ``recipient_user_id`` /
+         *     ``provider_id``, ``status_filter``, ``period`` (YYYY-MM of the last job day,
+         *     the payout month mark-paid claims by), ``from`` / ``to`` on the last job
+         *     day. owner / admin / finance; behind ``performer_mode``.
+         */
+        get: operations["commission_list_provider_earnings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/provider-earnings/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Provider Earnings Summary
+         * @description Per performer and currency: earned / paid / reversed totals,
+         *     ``no_contract_count``, the signed ``open_adjustments_total`` (minus lines
+         *     from reversals after a payout, whatever their month) and ``payable_total``
+         *     = earned (of ``period`` when given) + open adjustments: what Mark paid for
+         *     that month pays. Every matching line counts (paged to the end, the month
+         *     filtered in SQL). owner / admin / finance; behind ``performer_mode``.
+         */
+        get: operations["commission_provider_earnings_summary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/provider-role-types": {
         parameters: {
             query?: never;
@@ -12289,6 +12671,119 @@ export interface paths {
          * @deprecated
          */
         patch: operations["patch_provider"];
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/punch-card-credits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Open Credits
+         * @description Open recommendation credits of the pilot named ``holder_name``: what the
+         *     sell dialog deducts from their next card of ``card_type_id``.
+         */
+        get: operations["staff_punch_card_credits"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/punch-card-types": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Card Types */
+        get: operations["staff_list_punch_card_types"];
+        put?: never;
+        /** Create Card Type */
+        post: operations["staff_create_punch_card_type"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/punch-card-types/{type_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Card Type
+         * @description Delete a type; archive it instead once a card was sold from it (the
+         *     sold cards keep their type, the type just leaves the sell dialog).
+         */
+        delete: operations["staff_delete_punch_card_type"];
+        options?: never;
+        head?: never;
+        /** Update Card Type */
+        patch: operations["staff_update_punch_card_type"];
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/punch-cards": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Cards */
+        get: operations["staff_list_punch_cards"];
+        put?: never;
+        /** Sell Card */
+        post: operations["staff_sell_punch_card"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/punch-cards/{card_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Card */
+        get: operations["staff_get_punch_card"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/punch-cards/{card_id}/adjust": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Adjust Card */
+        post: operations["staff_adjust_punch_card"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/staff/operators/{operator_id}/reschedule-requests": {
@@ -14169,6 +14664,383 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/shuttle/boarding": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Boarding */
+        get: operations["staff_shuttle_boarding_day"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/shuttle/cars/{car_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Car */
+        delete: operations["staff_shuttle_delete_car"];
+        options?: never;
+        head?: never;
+        /** Patch Car */
+        patch: operations["staff_shuttle_patch_car"];
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/shuttle/days/{day_date}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Day */
+        get: operations["staff_shuttle_get_day"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/shuttle/days/{day_date}/apply-template": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Apply Template */
+        post: operations["staff_shuttle_apply_template"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/shuttle/days/{day_date}/departures": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add Departure */
+        post: operations["staff_shuttle_add_departure"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/shuttle/days/{day_date}/note": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Put Note */
+        put: operations["staff_shuttle_put_day_note"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/shuttle/days/{day_date}/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Publish */
+        post: operations["staff_shuttle_publish_day"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/shuttle/days/{day_date}/text": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Day Text */
+        get: operations["staff_shuttle_day_text"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/shuttle/departures/{departure_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Patch Departure */
+        patch: operations["staff_shuttle_patch_departure"];
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/shuttle/departures/{departure_id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel Departure */
+        post: operations["staff_shuttle_cancel_departure"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/shuttle/departures/{departure_id}/cars": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add Car */
+        post: operations["staff_shuttle_add_car"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/shuttle/departures/{departure_id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Restore Departure */
+        post: operations["staff_shuttle_restore_departure"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/shuttle/departures/{departure_id}/signups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add Signup */
+        post: operations["staff_shuttle_add_signup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/shuttle/destinations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Destinations */
+        get: operations["staff_shuttle_list_destinations"];
+        put?: never;
+        /** Create Destination */
+        post: operations["staff_shuttle_create_destination"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/shuttle/destinations/{destination_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Patch Destination */
+        patch: operations["staff_shuttle_patch_destination"];
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/shuttle/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Settings */
+        get: operations["staff_shuttle_get_settings"];
+        /** Put Settings */
+        put: operations["staff_shuttle_put_settings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/shuttle/signups/{signup_id}/board": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Board */
+        post: operations["staff_shuttle_board_signup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/shuttle/signups/{signup_id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel Signup */
+        post: operations["staff_shuttle_cancel_signup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/shuttle/signups/{signup_id}/card": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Signup Card */
+        put: operations["staff_shuttle_signup_card"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/shuttle/signups/{signup_id}/no-show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** No Show */
+        post: operations["staff_shuttle_no_show_signup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/shuttle/signups/{signup_id}/unmark": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Unmark */
+        post: operations["staff_shuttle_unmark_signup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/shuttle/today": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Today */
+        get: operations["staff_shuttle_today"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/staffing": {
         parameters: {
             query?: never;
@@ -14988,6 +15860,43 @@ export interface paths {
         delete: operations["delete_assignment"];
         options?: never;
         head?: never;
+        /**
+         * Move Assignment
+         * @description Move an assignment to another day of the same booking (landr-5ndxl.2).
+         *
+         *     The new day needs a new answer: status goes back to accepted/proposed by
+         *     the person's automatic-acceptance switch and the old answer is cleared. The
+         *     performer is notified that the job moved. 409 ``assignment_exists`` when the
+         *     person already has that booking-day.
+         */
+        patch: operations["move_assignment"];
+        trace?: never;
+    };
+    "/api/staff/provider-assignments/{assignment_id}/respond": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Respond To Assignment
+         * @description Accept or decline a booking-day assignment (landr-5ndxl.2).
+         *
+         *     The caller is the person the job is for (``resources.user_id`` of the
+         *     assignment's provider) or an owner/admin answering for them. Re-answering is
+         *     allowed until the day: 409 ``assignment_in_past`` once ``assignment_date``
+         *     is before today in the operator's timezone. 404 on an unknown or removed
+         *     assignment. A decline (not a repeated one) alerts the operator's
+         *     owner/admin/staff by bell, push and email. Behind the staff-only feature key
+         *     ``performer_mode`` (403 ``feature_disabled``).
+         */
+        post: operations["respond_to_assignment"];
+        delete?: never;
+        options?: never;
+        head?: never;
         patch?: never;
         trace?: never;
     };
@@ -15481,6 +16390,18 @@ export interface components {
             stock_remaining?: number | null;
             /** Unavailable Reason */
             unavailable_reason?: ("sold_out" | "unit_taken") | null;
+        };
+        /** AdjustIn */
+        AdjustIn: {
+            /** Delta */
+            delta: number;
+            /**
+             * Kind
+             * @default adjust
+             */
+            kind: string;
+            /** Reason */
+            reason: string;
         };
         /** AgentChannelTermsOut */
         AgentChannelTermsOut: {
@@ -16218,12 +17139,41 @@ export interface components {
              * Format: date
              */
             assignment_date: string;
+            /**
+             * Force
+             * @description landr-5ndxl.3: owner/admin only. Assign a person who is out of service that day anyway (otherwise 409 provider_unavailable)
+             * @default false
+             */
+            force: boolean;
             /** Notes */
             notes?: string | null;
             /** Provider Id */
             provider_id: string;
             /** Provider Role Id */
             provider_role_id?: string | null;
+            /**
+             * Status
+             * @description landr-5ndxl.2: owner/admin only (pre-accept after a verbal yes). Omitted: accepted when the staff resource accepts jobs automatically, else proposed
+             */
+            status?: ("proposed" | "accepted") | null;
+        };
+        /** AssignmentMove */
+        AssignmentMove: {
+            /**
+             * Assignment Date
+             * Format: date
+             */
+            assignment_date: string;
+        };
+        /** AssignmentRespondIn */
+        AssignmentRespondIn: {
+            /** Note */
+            note?: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "accepted" | "declined";
         };
         /** AuthMethodsOut */
         AuthMethodsOut: {
@@ -16362,6 +17312,11 @@ export interface components {
             status: string;
         } & {
             [key: string]: unknown;
+        };
+        /** BalanceIn */
+        BalanceIn: {
+            /** Code */
+            code: string;
         };
         /**
          * BankDetailsIn
@@ -16594,6 +17549,40 @@ export interface components {
              * @enum {string}
              */
             status: "ok" | "board_not_found" | "no_access" | "board_closed" | "member_not_found" | "not_configured" | "error";
+        };
+        /** BoardIn */
+        BoardIn: {
+            /** Card Code */
+            card_code?: string | null;
+            /**
+             * Settle Fees
+             * @default false
+             */
+            settle_fees: boolean;
+            /**
+             * Via
+             * @default cash
+             * @enum {string}
+             */
+            via: "cash" | "punch";
+        };
+        /**
+         * BoardItem
+         * @description One public-board item: a guided tour (its open dates are listed) or an
+         *     offer (teaser + booking link). List order is display order.
+         */
+        BoardItem: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "tour" | "offer";
+            /** Product Id */
+            product_id: string;
+            /** Teaser */
+            teaser?: {
+                [key: string]: string;
+            };
         };
         /**
          * BookingCalendarEvent
@@ -17655,6 +18644,11 @@ export interface components {
          * @enum {string}
          */
         CampaignScope: "booking" | "subscription" | "any";
+        /** CancelIn */
+        CancelIn: {
+            /** Reason */
+            reason?: string | null;
+        };
         /** CancelOperatorContact */
         CancelOperatorContact: {
             /** Email */
@@ -17739,6 +18733,67 @@ export interface components {
         CapabilityKey: {
             /** Key */
             key: string;
+        };
+        /** CarPatch */
+        CarPatch: {
+            /** Driver Provider Id */
+            driver_provider_id?: string | null;
+            /** Resource Id */
+            resource_id?: string | null;
+            /** Seat Cap */
+            seat_cap?: number | null;
+        };
+        /** CarSpec */
+        CarSpec: {
+            /** Driver Provider Id */
+            driver_provider_id?: string | null;
+            /** Resource Id */
+            resource_id?: string | null;
+            /** Seat Cap */
+            seat_cap: number;
+        };
+        /** CardIn */
+        CardIn: {
+            /** Card Code */
+            card_code?: string | null;
+        };
+        /** CardTypeIn */
+        CardTypeIn: {
+            /** Label */
+            label: string;
+            /** Price Cents */
+            price_cents: number;
+            /**
+             * Reward Cents
+             * @default 500
+             */
+            reward_cents: number;
+            /** Reward Enabled */
+            reward_enabled?: boolean | null;
+            /** Rides */
+            rides: number;
+            /**
+             * Sort
+             * @default 0
+             */
+            sort: number;
+        };
+        /** CardTypePatch */
+        CardTypePatch: {
+            /** Active */
+            active?: boolean | null;
+            /** Label */
+            label?: string | null;
+            /** Price Cents */
+            price_cents?: number | null;
+            /** Reward Cents */
+            reward_cents?: number | null;
+            /** Reward Enabled */
+            reward_enabled?: boolean | null;
+            /** Rides */
+            rides?: number | null;
+            /** Sort */
+            sort?: number | null;
         };
         /**
          * CatalogueAddon
@@ -19238,6 +20293,12 @@ export interface components {
             retrieve_note?: string | null;
             /** Retrieve State */
             retrieve_state?: string | null;
+            /**
+             * Scope
+             * @default own
+             * @enum {string}
+             */
+            scope: "own" | "team";
             /** Semantic State */
             semantic_state?: string | null;
             /** Service Role */
@@ -19509,6 +20570,41 @@ export interface components {
              */
             proposal_id: string;
         };
+        /** DeparturePatch */
+        DeparturePatch: {
+            /** Alt Destination Id */
+            alt_destination_id?: string | null;
+            /** Delay Minutes */
+            delay_minutes?: number | null;
+            /** Departs At */
+            departs_at?: string | null;
+            /** Destination Id */
+            destination_id?: string | null;
+            /** Final Destination Id */
+            final_destination_id?: string | null;
+            /** Min Riders */
+            min_riders?: number | null;
+            /** Time Tbc */
+            time_tbc?: boolean | null;
+        };
+        /** DepartureSpec */
+        DepartureSpec: {
+            /** Alt Destination Id */
+            alt_destination_id?: string | null;
+            /** Cars */
+            cars?: components["schemas"]["CarSpec"][] | null;
+            /** Departs At */
+            departs_at: string;
+            /** Destination Id */
+            destination_id: string;
+            /** Min Riders */
+            min_riders?: number | null;
+            /**
+             * Time Tbc
+             * @default false
+             */
+            time_tbc: boolean;
+        };
         /**
          * DerivedCut
          * @description A cut point a rule or a price adds on top of the operator's ``range_cuts``
@@ -19554,6 +20650,31 @@ export interface components {
             payload: {
                 [key: string]: unknown;
             };
+        };
+        /** DestinationIn */
+        DestinationIn: {
+            /** Fare Cents */
+            fare_cents: number;
+            /** Name */
+            name: string;
+            /**
+             * Sort Order
+             * @default 0
+             */
+            sort_order: number;
+        };
+        /** DestinationPatch */
+        DestinationPatch: {
+            /** Active */
+            active?: boolean | null;
+            /** Fare Cents */
+            fare_cents?: number | null;
+            /** Is Base */
+            is_base?: true | null;
+            /** Name */
+            name?: string | null;
+            /** Sort Order */
+            sort_order?: number | null;
         };
         /**
          * DetailsFormAnswers
@@ -22149,6 +23270,48 @@ export interface components {
             /** Updated At */
             updated_at: string;
         };
+        /** LinkPartnerIn */
+        LinkPartnerIn: {
+            /** Contact */
+            contact?: string | null;
+            /** Group Id */
+            group_id?: string | null;
+            /** Name */
+            name: string;
+        };
+        /** LinkPartnerOut */
+        LinkPartnerOut: {
+            /** Contact */
+            contact: string | null;
+            /** Contract Id */
+            contract_id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Group Id */
+            group_id: string | null;
+            /** Group Name */
+            group_name: string | null;
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Paused */
+            paused: boolean;
+            /** Referral Url */
+            referral_url: string | null;
+        };
+        /** LinkPartnerPatch */
+        LinkPartnerPatch: {
+            /** Contact */
+            contact?: string | null;
+            /** Name */
+            name?: string | null;
+            /** Paused */
+            paused?: boolean | null;
+        };
         /** LinkSetIn */
         LinkSetIn: {
             /** Linked Resource Ids */
@@ -22292,6 +23455,8 @@ export interface components {
             provider_id: string;
             /** Role Code */
             role_code?: string | null;
+            /** Status */
+            status?: string | null;
         };
         /**
          * ManifestUnit
@@ -22399,6 +23564,15 @@ export interface components {
             skipped_done: string[];
             /** Skipped Not Found */
             skipped_not_found: string[];
+        };
+        /** MeetingPoint */
+        MeetingPoint: {
+            /** Emoji */
+            emoji?: string | null;
+            /** Location Id */
+            location_id: string;
+            /** Offset Minutes */
+            offset_minutes: number;
         };
         /**
          * MeetingPointBlock
@@ -22561,6 +23735,101 @@ export interface components {
             contract_id: string;
             effective: components["schemas"]["AgentEffectiveTermsOut"];
         };
+        /** MyAssignmentOut */
+        MyAssignmentOut: {
+            /** Assignment Date */
+            assignment_date: string;
+            /** Assignment Id */
+            assignment_id: string;
+            /**
+             * Auto Accept
+             * @default true
+             */
+            auto_accept: boolean;
+            /** Booking Id */
+            booking_id: string;
+            /** Booking Ref */
+            booking_ref: string;
+            /** First Pickup Time */
+            first_pickup_time?: string | null;
+            /** Notes */
+            notes?: string | null;
+            /**
+             * Participant Count
+             * @default 0
+             */
+            participant_count: number;
+            /** Product Name */
+            product_name?: string | null;
+            /** Responded At */
+            responded_at?: string | null;
+            /** Role Code */
+            role_code?: string | null;
+            /** Role Label */
+            role_label?: string | null;
+            /**
+             * Status
+             * @default accepted
+             * @enum {string}
+             */
+            status: "proposed" | "accepted" | "declined";
+        };
+        /** MyEarningLine */
+        MyEarningLine: {
+            /** Amount */
+            amount: string;
+            /** Currency */
+            currency: string;
+            /** Days */
+            days: string[];
+            /** Id */
+            id: string;
+            /** Minus Lines */
+            minus_lines: components["schemas"]["MyEarningMinusLine"][];
+            /** Paid At */
+            paid_at: string | null;
+            /** Payout Month */
+            payout_month: string | null;
+            /** Reference */
+            reference: string;
+            /** Role */
+            role: string | null;
+            /** Status */
+            status: string;
+        };
+        /** MyEarningMinusLine */
+        MyEarningMinusLine: {
+            /** Amount */
+            amount: string;
+            /** Currency */
+            currency: string;
+            /** Id */
+            id: string;
+            /** Paid At */
+            paid_at: string | null;
+            /** Settled */
+            settled: boolean;
+        };
+        /** MyEarningTotal */
+        MyEarningTotal: {
+            /** Currency */
+            currency: string;
+            /** Earned */
+            earned: string;
+            /** Minus Open */
+            minus_open: string;
+            /** Paid */
+            paid: string;
+            /** Payable */
+            payable: string;
+        };
+        /** MyEarningsOut */
+        MyEarningsOut: {
+            /** Rows */
+            rows: components["schemas"]["MyEarningLine"][];
+            /** Totals */
+            totals: components["schemas"]["MyEarningTotal"][];
+        };
         /** MyLanguageIn */
         MyLanguageIn: {
             /** Language */
@@ -22595,6 +23864,22 @@ export interface components {
             status_id?: string | null;
             /** Urgency */
             urgency?: ("standard" | "emergency" | "medical_police") | null;
+        };
+        /** MyUnavailabilityIn */
+        MyUnavailabilityIn: {
+            /**
+             * End Date
+             * Format: date
+             * @description inclusive
+             */
+            end_date: string;
+            /** Reason */
+            reason?: string | null;
+            /**
+             * Start Date
+             * Format: date
+             */
+            start_date: string;
         };
         /** MyUnitRequestIn */
         MyUnitRequestIn: {
@@ -22650,14 +23935,6 @@ export interface components {
             /** Waiting For */
             waiting_for?: ("customer" | "hotel") | null;
         };
-        /** NoShowIn */
-        NoShowIn: {
-            /**
-             * Charge Cancellation Fee
-             * @default false
-             */
-            charge_cancellation_fee: boolean;
-        };
         /** NoShowOut */
         NoShowOut: {
             /** Booking Id */
@@ -22668,6 +23945,11 @@ export interface components {
             new_stage_code: string;
             /** Previous Stage Code */
             previous_stage_code: string | null;
+        };
+        /** NoteIn */
+        NoteIn: {
+            /** Note */
+            note?: string | null;
         };
         /**
          * NotifyMentionsIn
@@ -23448,6 +24730,119 @@ export interface components {
             tax_total: number;
         } & {
             [key: string]: unknown;
+        };
+        /** OnSiteAddonOut */
+        OnSiteAddonOut: {
+            /** Max Qty */
+            max_qty?: number | null;
+            /** Name */
+            name: string;
+            /**
+             * On Booking
+             * @default 0
+             */
+            on_booking: number;
+            /** Paid To Performer */
+            paid_to_performer: boolean;
+            /** Product Id */
+            product_id: string;
+            /** Unit Price */
+            unit_price: string;
+        };
+        /** OnSiteLineIn */
+        OnSiteLineIn: {
+            /** Client Request Key */
+            client_request_key: string;
+            /** Note */
+            note?: string | null;
+            /** Product Id */
+            product_id: string;
+            /**
+             * Quantity
+             * @default 1
+             */
+            quantity: number;
+            /** Selected Days */
+            selected_days?: string[] | null;
+        };
+        /** OnSiteLineOut */
+        OnSiteLineOut: {
+            /** Amount To Collect */
+            amount_to_collect: string;
+            /** Booking Id */
+            booking_id: string;
+            /** Booking Product Id */
+            booking_product_id: string;
+            /** Currency */
+            currency: string;
+            /** Line Gross */
+            line_gross: string;
+            /** Paid To Performer */
+            paid_to_performer: boolean;
+            /** Product Id */
+            product_id: string;
+            /** Quantity */
+            quantity: number;
+            /**
+             * Replayed
+             * @default false
+             */
+            replayed: boolean;
+        };
+        /** OnSitePaymentIn */
+        OnSitePaymentIn: {
+            /** Amount */
+            amount?: number | string | null;
+            /** Client Request Key */
+            client_request_key: string;
+            /**
+             * Method
+             * @enum {string}
+             */
+            method: "cash" | "bank_transfer" | "other";
+            /** Note */
+            note?: string | null;
+        };
+        /** OnSitePaymentOut */
+        OnSitePaymentOut: {
+            /** Amount */
+            amount: string;
+            /** Amount To Collect */
+            amount_to_collect: string;
+            /** Booking Id */
+            booking_id: string;
+            /** Currency */
+            currency: string;
+            /** Method */
+            method: string;
+            /** Payment Id */
+            payment_id: string;
+            /** Receipt Sent */
+            receipt_sent: boolean;
+            /**
+             * Replayed
+             * @default false
+             */
+            replayed: boolean;
+        };
+        /** OnSiteSummaryOut */
+        OnSiteSummaryOut: {
+            /** Addons */
+            addons?: components["schemas"]["OnSiteAddonOut"][];
+            /** Addons Blocked Reason */
+            addons_blocked_reason?: string | null;
+            /** Amount To Collect */
+            amount_to_collect: string;
+            /** Booking Id */
+            booking_id: string;
+            /** Booking Ref */
+            booking_ref: string;
+            /** Can Collect */
+            can_collect: boolean;
+            /** Currency */
+            currency: string;
+            /** Participant Count */
+            participant_count: number;
         };
         /** OnboardingCallConfig */
         OnboardingCallConfig: {
@@ -24622,9 +26017,9 @@ export interface components {
             period: string;
             /**
              * Recipient Kind
-             * @constant
+             * @enum {string}
              */
-            recipient_kind: "agent";
+            recipient_kind: "agent" | "provider";
             /**
              * Recipient User Id
              * Format: uuid
@@ -27067,6 +28462,14 @@ export interface components {
             /** Widget Token */
             widget_token: string;
         };
+        /** PublishIn */
+        PublishIn: {
+            /**
+             * Published
+             * @default true
+             */
+            published: boolean;
+        };
         /** PublishSiteWarningRequest */
         PublishSiteWarningRequest: {
             /** Body */
@@ -27773,6 +29176,11 @@ export interface components {
             attributes?: {
                 [key: string]: unknown;
             };
+            /**
+             * Auto Accept Assignments
+             * @description landr-5ndxl.2: staff resource accepts new booking-day assignments automatically (omitted = true); false = proposed, the performer answers
+             */
+            auto_accept_assignments?: boolean | null;
             /** Capacity */
             capacity?: number | null;
             /** Capacity Min */
@@ -27863,6 +29271,11 @@ export interface components {
             attributes: {
                 [key: string]: unknown;
             };
+            /**
+             * Auto Accept Assignments
+             * @default true
+             */
+            auto_accept_assignments: boolean;
             /** Capacity */
             capacity?: number | null;
             /** Capacity Min */
@@ -27949,6 +29362,11 @@ export interface components {
             type_code?: string | null;
             /** Type Label */
             type_label?: string | null;
+            /**
+             * Unavailable On
+             * @description landr-5ndxl.3: only with ?on=YYYY-MM-DD — true when the resource is out of service that day (out_of_service row, or outside its in_service seasons)
+             */
+            unavailable_on?: boolean | null;
             /** Updated At */
             updated_at: string;
         };
@@ -27966,6 +29384,8 @@ export interface components {
             attributes?: {
                 [key: string]: unknown;
             } | null;
+            /** Auto Accept Assignments */
+            auto_accept_assignments?: boolean | null;
             /** Capacity */
             capacity?: number | null;
             /** Capacity Min */
@@ -28991,6 +30411,15 @@ export interface components {
             /** Target Product Ids */
             target_product_ids: string[];
         };
+        /** SellIn */
+        SellIn: {
+            /** Card Type Id */
+            card_type_id: string;
+            /** Holder Name */
+            holder_name: string;
+            /** Recommender Code */
+            recommender_code?: string | null;
+        };
         /**
          * SendConfirmationBody
          * @description ``email_override`` (landr-j6clr.1) plus the payment-link switch.
@@ -29150,6 +30579,36 @@ export interface components {
             /** Warning */
             warning?: string | null;
         };
+        /** SettingsPut */
+        SettingsPut: {
+            /** Board Enabled */
+            board_enabled?: boolean | null;
+            /** Board Items */
+            board_items?: components["schemas"]["BoardItem"][] | null;
+            /** Contact Text */
+            contact_text?: string | null;
+            /** Currency */
+            currency?: string | null;
+            /** Footer Text */
+            footer_text?: string | null;
+            /** Late Cancel Minutes */
+            late_cancel_minutes?: number | null;
+            /** Meeting Points */
+            meeting_points?: components["schemas"]["MeetingPoint"][] | null;
+            /** Min Riders */
+            min_riders?: number | null;
+            /** Name Display */
+            name_display?: ("first_initial" | "first_name" | "seats_only") | null;
+            /** Seats Per Car */
+            seats_per_car?: number | null;
+            share_texts?: components["schemas"]["ShareTexts"] | null;
+            /** Template */
+            template?: components["schemas"]["DepartureSpec"][] | null;
+            /** Welcome Text */
+            welcome_text?: {
+                [key: string]: string;
+            } | null;
+        };
         /** SetupBody */
         SetupBody: {
             /**
@@ -29176,6 +30635,17 @@ export interface components {
             url?: string | null;
             /** Whatsapp Url */
             whatsapp_url: string | null;
+        };
+        /** ShareTexts */
+        ShareTexts: {
+            /** Greeting */
+            greeting?: {
+                [key: string]: string;
+            } | null;
+            /** Group */
+            group?: {
+                [key: string]: string;
+            } | null;
         };
         /** SharedCalendarIn */
         SharedCalendarIn: {
@@ -30888,6 +32358,12 @@ export interface components {
             /** Resource Id */
             resource_id: string;
             /**
+             * Self Declared
+             * @description landr-5ndxl.3: written by the person themselves, not the office
+             * @default false
+             */
+            self_declared: boolean;
+            /**
              * Start Date
              * Format: date
              */
@@ -31712,6 +33188,26 @@ export interface components {
             /** Notes */
             notes: string;
         };
+        /**
+         * SignupIn
+         * @description Nothing about the operator is accepted here (``extra="forbid"``).
+         */
+        app__routers__public_shuttle__SignupIn: {
+            /** Departure Id */
+            departure_id: string;
+            /** Display Name */
+            display_name: string;
+            /**
+             * Kind
+             * @default pilot
+             * @enum {string}
+             */
+            kind: "pilot" | "tandem";
+            /** Meeting Point Id */
+            meeting_point_id?: string | null;
+            /** Seats */
+            seats: number;
+        };
         /** SessionIn */
         app__routers__public_today__SessionIn: {
             /** Code */
@@ -31729,6 +33225,14 @@ export interface components {
              * @enum {string}
              */
             mode: "onboarding" | "helper";
+        };
+        /** NoShowIn */
+        app__routers__staff_bookings_no_show__NoShowIn: {
+            /**
+             * Charge Cancellation Fee
+             * @default false
+             */
+            charge_cancellation_fee: boolean;
         };
         /** RuleIn */
         app__routers__staff_commission__RuleIn: {
@@ -31964,6 +33468,29 @@ export interface components {
             threshold_max?: number | null;
             /** Threshold Min */
             threshold_min?: number | null;
+        };
+        /** SignupIn */
+        app__routers__staff_shuttle__SignupIn: {
+            /** Display Name */
+            display_name?: string | null;
+            /**
+             * Kind
+             * @default pilot
+             * @enum {string}
+             */
+            kind: "pilot" | "tandem" | "reserved";
+            /** Meeting Location Id */
+            meeting_location_id?: string | null;
+            /**
+             * Seats
+             * @default 1
+             */
+            seats: number;
+        };
+        /** NoShowIn */
+        app__routers__staff_shuttle_boarding__NoShowIn: {
+            /** Card Code */
+            card_code?: string | null;
         };
         /** RejectIn */
         app__routers__staff_verifications__RejectIn: {
@@ -40124,6 +41651,43 @@ export interface operations {
             };
         };
     };
+    public_punch_card_balance: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BalanceIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_resource_calendar: {
         parameters: {
             query?: never;
@@ -40173,6 +41737,290 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ShortLinkResolveOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_shuttle_board_by_host: {
+        parameters: {
+            query?: {
+                slug?: string | null;
+            };
+            header?: {
+                "x-shuttle-tokens"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_shuttle_signup_by_host: {
+        parameters: {
+            query?: {
+                slug?: string | null;
+            };
+            header?: {
+                "x-shuttle-device"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["app__routers__public_shuttle__SignupIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_shuttle_cancel_by_host: {
+        parameters: {
+            query?: {
+                slug?: string | null;
+            };
+            header?: {
+                "x-shuttle-token"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_shuttle_welcome_by_host: {
+        parameters: {
+            query?: {
+                slug?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_shuttle_board: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-shuttle-tokens"?: string | null;
+            };
+            path: {
+                slug: string | null;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_shuttle_signup: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-shuttle-device"?: string | null;
+            };
+            path: {
+                slug: string | null;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["app__routers__public_shuttle__SignupIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_shuttle_cancel: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-shuttle-token"?: string | null;
+            };
+            path: {
+                slug: string | null;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_shuttle_welcome: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string | null;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */
@@ -44394,7 +46242,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["NoShowIn"];
+                "application/json": components["schemas"]["app__routers__staff_bookings_no_show__NoShowIn"];
             };
         };
         responses: {
@@ -44539,6 +46387,110 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_on_site_summary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnSiteSummaryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_on_site_add_line: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OnSiteLineIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnSiteLineOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_on_site_record_payment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OnSitePaymentIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnSitePaymentOut"];
+                };
             };
             /** @description Validation Error */
             422: {
@@ -47198,6 +49150,7 @@ export interface operations {
                 date?: string | null;
                 from?: string | null;
                 to?: string | null;
+                mine?: boolean;
             };
             header?: never;
             path: {
@@ -48718,6 +50671,138 @@ export interface operations {
             };
         };
     };
+    list_link_partners: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LinkPartnerOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_link_partner: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LinkPartnerIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LinkPartnerOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_link_partner: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                partner_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_link_partner: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                partner_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LinkPartnerPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LinkPartnerOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_operator_links: {
         parameters: {
             query?: never;
@@ -49958,6 +52043,174 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_my_assignments: {
+        parameters: {
+            query?: {
+                from?: string | null;
+                to?: string | null;
+                /** @description Also list the caller's declined jobs (status 'declined'). */
+                include_declined?: boolean;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MyAssignmentOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_my_earnings: {
+        parameters: {
+            query?: {
+                from?: string | null;
+                to?: string | null;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MyEarningsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_my_unavailability: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnavailabilityOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_my_unavailability: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MyUnavailabilityIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnavailabilityOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_my_unavailability: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                period_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatusOut"];
                 };
             };
             /** @description Validation Error */
@@ -52910,6 +55163,83 @@ export interface operations {
             };
         };
     };
+    commission_list_provider_earnings: {
+        parameters: {
+            query?: {
+                recipient_user_id?: string | null;
+                provider_id?: string | null;
+                status_filter?: ("earned" | "paid" | "reversed" | "no_commission") | null;
+                period?: string | null;
+                from?: string | null;
+                to?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    }[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    commission_provider_earnings_summary: {
+        parameters: {
+            query?: {
+                period?: string | null;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    }[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_provider_role_types: {
         parameters: {
             query?: never;
@@ -53173,6 +55503,329 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["ProviderPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_punch_card_credits: {
+        parameters: {
+            query: {
+                holder_name: string;
+                card_type_id?: string | null;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_list_punch_card_types: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    }[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_create_punch_card_type: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CardTypeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_delete_punch_card_type: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                type_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_update_punch_card_type: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                type_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CardTypePatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_list_punch_cards: {
+        parameters: {
+            query?: {
+                q?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    }[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_sell_punch_card: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SellIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_get_punch_card: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                card_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_adjust_punch_card: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                card_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdjustIn"];
             };
         };
         responses: {
@@ -54729,6 +57382,8 @@ export interface operations {
                 active?: boolean | null;
                 /** @description landr-lmudr.40: how type_id/facet match — 'home' (the home type only: use it for capacity, approvals, schedule and rental stock), 'label' (extra labels only) or 'any' (either; default) */
                 membership?: "home" | "label" | "any";
+                /** @description landr-5ndxl.3: a day (YYYY-MM-DD); every row then carries unavailable_on (the person picker greys out who is off that day) */
+                on?: string | null;
             };
             header?: never;
             path: {
@@ -56601,6 +59256,904 @@ export interface operations {
             };
         };
     };
+    staff_shuttle_boarding_day: {
+        parameters: {
+            query?: {
+                day?: string | null;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_shuttle_delete_car: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                car_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_shuttle_patch_car: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                car_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CarPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_shuttle_get_day: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                day_date: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_shuttle_apply_template: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                day_date: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_shuttle_add_departure: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                day_date: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DepartureSpec"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_shuttle_put_day_note: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                day_date: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NoteIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_shuttle_publish_day: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                day_date: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PublishIn"] | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_shuttle_day_text: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                day_date: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_shuttle_patch_departure: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                departure_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeparturePatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_shuttle_cancel_departure: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                departure_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["CancelIn"] | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_shuttle_add_car: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                departure_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CarSpec"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_shuttle_restore_departure: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                departure_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_shuttle_add_signup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                departure_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["app__routers__staff_shuttle__SignupIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_shuttle_list_destinations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    }[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_shuttle_create_destination: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DestinationIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_shuttle_patch_destination: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                destination_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DestinationPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_shuttle_get_settings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_shuttle_put_settings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SettingsPut"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_shuttle_board_signup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                signup_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BoardIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_shuttle_cancel_signup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                signup_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_shuttle_signup_card: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                signup_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CardIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_shuttle_no_show_signup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                signup_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["app__routers__staff_shuttle_boarding__NoShowIn"] | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_shuttle_unmark_signup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                signup_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_shuttle_today: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_staffing_day: {
         parameters: {
             query: {
@@ -58110,6 +61663,80 @@ export interface operations {
                 content: {
                     "application/json": {
                         [key: string]: string;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    move_assignment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                assignment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssignmentMove"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    respond_to_assignment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                assignment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssignmentRespondIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
                     };
                 };
             };
