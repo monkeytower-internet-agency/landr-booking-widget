@@ -26541,6 +26541,11 @@ export interface components {
              * @default []
              */
             missing_kinds: string[];
+            /**
+             * Modules
+             * @default []
+             */
+            modules: string[];
             /** Onboarding Preset Key */
             onboarding_preset_key: string | null;
             /** Pitch */
@@ -26561,6 +26566,8 @@ export interface components {
              * @default []
              */
             product_kinds: string[];
+            /** Recommended Plan */
+            recommended_plan?: string | null;
             /**
              * Sellable
              * @default true
@@ -32387,6 +32394,11 @@ export interface components {
              * @enum {string}
              */
             listing_source: "local" | "staging";
+            /**
+             * Modules
+             * @default []
+             */
+            modules: string[];
             /** Name */
             name: string | null;
             /** Onboarding Preset Key */
@@ -33196,6 +33208,11 @@ export interface components {
              * @enum {string}
              */
             flow: "solo" | "company";
+            /**
+             * Modules
+             * @default []
+             */
+            modules: string[];
             /** Onboarding Preset Key */
             onboarding_preset_key: string | null;
             /** Pitch */

@@ -27194,6 +27194,14 @@
             "title": "Missing Kinds",
             "type": "array"
           },
+          "modules": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Modules",
+            "type": "array"
+          },
           "onboarding_preset_key": {
             "anyOf": [
               {
@@ -27249,6 +27257,17 @@
             },
             "title": "Product Kinds",
             "type": "array"
+          },
+          "recommended_plan": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recommended Plan"
           },
           "sellable": {
             "default": true,
@@ -44749,6 +44768,14 @@
             "title": "Listing Source",
             "type": "string"
           },
+          "modules": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Modules",
+            "type": "array"
+          },
           "name": {
             "anyOf": [
               {
@@ -46879,6 +46906,14 @@
             ],
             "title": "Flow",
             "type": "string"
+          },
+          "modules": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Modules",
+            "type": "array"
           },
           "onboarding_preset_key": {
             "anyOf": [
