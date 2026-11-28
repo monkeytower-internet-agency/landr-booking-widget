@@ -5562,6 +5562,95 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/public/shuttle/me/cards": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Order Card
+         * @description Order a ride card of one of the operator's card types. ``cash``: the
+         *     card stays ordered (no rides) until the driver ticks "cash collected".
+         *     ``online``: answers ``checkout_url`` (Stripe Checkout) when the return
+         *     URLs are given; the webhook or
+         *     ``POST /me/cards/{id}/confirm`` marks it paid. Buying a type the pilot
+         *     already has an open order of returns that order. Errors: 404
+         *     ``punch_card_type_not_found``, 409 ``punch_card_type_inactive`` /
+         *     ``online_unavailable``.
+         */
+        post: operations["public_shuttle_me_order_card_by_host"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/shuttle/me/cards/{card_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Cancel Card Order
+         * @description Withdraw an open (unpaid) order; a paid card answers 409
+         *     ``card_already_paid``.
+         */
+        delete: operations["public_shuttle_me_cancel_card_by_host"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/shuttle/me/cards/{card_id}/checkout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Card Checkout
+         * @description Pay an ordered card online (again): ``{checkout_url}``.
+         */
+        post: operations["public_shuttle_me_card_checkout_by_host"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/shuttle/me/cards/{card_id}/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Card Confirm
+         * @description Back from Checkout: settle the card if Stripe says it is paid (the
+         *     webhook does the same, idempotently). ``{paid, ...the /me body}``.
+         */
+        post: operations["public_shuttle_me_card_confirm_by_host"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/public/shuttle/me/profile": {
         parameters: {
             query?: never;
@@ -5722,6 +5811,95 @@ export interface paths {
          *     belong to no account yet are touched.
          */
         post: operations["public_shuttle_adopt_signups"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/shuttle/{slug}/me/cards": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Order Card
+         * @description Order a ride card of one of the operator's card types. ``cash``: the
+         *     card stays ordered (no rides) until the driver ticks "cash collected".
+         *     ``online``: answers ``checkout_url`` (Stripe Checkout) when the return
+         *     URLs are given; the webhook or
+         *     ``POST /me/cards/{id}/confirm`` marks it paid. Buying a type the pilot
+         *     already has an open order of returns that order. Errors: 404
+         *     ``punch_card_type_not_found``, 409 ``punch_card_type_inactive`` /
+         *     ``online_unavailable``.
+         */
+        post: operations["public_shuttle_me_order_card"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/shuttle/{slug}/me/cards/{card_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Cancel Card Order
+         * @description Withdraw an open (unpaid) order; a paid card answers 409
+         *     ``card_already_paid``.
+         */
+        delete: operations["public_shuttle_me_cancel_card"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/shuttle/{slug}/me/cards/{card_id}/checkout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Card Checkout
+         * @description Pay an ordered card online (again): ``{checkout_url}``.
+         */
+        post: operations["public_shuttle_me_card_checkout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/shuttle/{slug}/me/cards/{card_id}/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Card Confirm
+         * @description Back from Checkout: settle the card if Stripe says it is paid (the
+         *     webhook does the same, idempotently). ``{paid, ...the /me body}``.
+         */
+        post: operations["public_shuttle_me_card_confirm"];
         delete?: never;
         options?: never;
         head?: never;
@@ -15573,6 +15751,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/shuttle/signups/{signup_id}/collect-card": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Collect Card
+         * @description landr-0l93b.3: the driver ticks "cash collected" for a ride card the
+         *     rider ordered on their account; the card is paid and holds its rides.
+         */
+        post: operations["staff_shuttle_collect_card"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/shuttle/signups/{signup_id}/no-show": {
         parameters: {
             query?: never;
@@ -18137,6 +18336,8 @@ export interface components {
         BoardIn: {
             /** Card Code */
             card_code?: string | null;
+            /** Card Id */
+            card_id?: string | null;
             /**
              * Settle Fees
              * @default false
@@ -19335,6 +19536,13 @@ export interface components {
             /** Seat Cap */
             seat_cap: number;
         };
+        /** CardCheckoutIn */
+        CardCheckoutIn: {
+            /** Cancel Url */
+            cancel_url: string;
+            /** Return Url */
+            return_url: string;
+        };
         /** CardIn */
         CardIn: {
             /** Card Code */
@@ -19359,6 +19567,23 @@ export interface components {
             one: string;
             /** Other */
             other: string;
+        };
+        /** CardOrderIn */
+        CardOrderIn: {
+            /** Cancel Url */
+            cancel_url?: string | null;
+            /**
+             * Pay
+             * @enum {string}
+             */
+            pay: "online" | "cash";
+            /** Return Url */
+            return_url?: string | null;
+            /**
+             * Type Id
+             * Format: uuid
+             */
+            type_id: string;
         };
         /** CardTypeIn */
         CardTypeIn: {
@@ -19904,6 +20129,20 @@ export interface components {
         ChecklistTemplateUpdate: {
             /** Items */
             items: components["schemas"]["ChecklistTemplateItem"][];
+        };
+        /** CollectCardIn */
+        CollectCardIn: {
+            /**
+             * Card Id
+             * Format: uuid
+             */
+            card_id: string;
+            /**
+             * Via
+             * @default cash
+             * @enum {string}
+             */
+            via: "cash" | "card_terminal";
         };
         /** ColorIn */
         ColorIn: {
@@ -43027,6 +43266,152 @@ export interface operations {
             };
         };
     };
+    public_shuttle_me_order_card_by_host: {
+        parameters: {
+            query?: {
+                slug?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CardOrderIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_shuttle_me_cancel_card_by_host: {
+        parameters: {
+            query?: {
+                slug?: string | null;
+            };
+            header?: never;
+            path: {
+                card_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_shuttle_me_card_checkout_by_host: {
+        parameters: {
+            query?: {
+                slug?: string | null;
+            };
+            header?: never;
+            path: {
+                card_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CardCheckoutIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_shuttle_me_card_confirm_by_host: {
+        parameters: {
+            query?: {
+                slug?: string | null;
+            };
+            header?: never;
+            path: {
+                card_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     public_shuttle_me_profile_by_host: {
         parameters: {
             query?: {
@@ -43355,6 +43740,149 @@ export interface operations {
                 "x-shuttle-tokens"?: string | null;
             };
             path: {
+                slug: string | null;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_shuttle_me_order_card: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string | null;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CardOrderIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_shuttle_me_cancel_card: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                card_id: string;
+                slug: string | null;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_shuttle_me_card_checkout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                card_id: string;
+                slug: string | null;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CardCheckoutIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_shuttle_me_card_confirm: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                card_id: string;
                 slug: string | null;
             };
             cookie?: never;
@@ -62291,6 +62819,44 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["CardIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_shuttle_collect_card: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                signup_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CollectCardIn"];
             };
         };
         responses: {
