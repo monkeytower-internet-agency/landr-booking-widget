@@ -11456,6 +11456,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/modules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Modules
+         * @description Every active module with its state for the operator.
+         */
+        get: operations["list_modules"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/modules/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Switch Module
+         * @description Switch one module on or off (owner / admin).
+         */
+        put: operations["switch_module"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/my-assignments": {
         parameters: {
             query?: never;
@@ -24333,6 +24373,55 @@ export interface components {
             /** Label */
             label: string;
         };
+        /** ModuleListOut */
+        ModuleListOut: {
+            /** Can Switch */
+            can_switch: boolean;
+            /** Modules */
+            modules: components["schemas"]["ModuleOut"][];
+            /** Operator Id */
+            operator_id: string;
+        };
+        /** ModuleOut */
+        ModuleOut: {
+            /** Description */
+            description?: string | null;
+            /** Key */
+            key: string;
+            /** Kinds */
+            kinds: string[];
+            /** Live Items */
+            live_items: number;
+            /** Name */
+            name: string;
+            /** Power Ups */
+            power_ups: string[];
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "on" | "off" | "available" | "locked";
+            /** Switched On */
+            switched_on: boolean;
+            /** Unlocked By */
+            unlocked_by?: string | null;
+        };
+        /** ModuleSwitchIn */
+        ModuleSwitchIn: {
+            /** Enabled */
+            enabled: boolean;
+        };
+        /** ModuleSwitchOut */
+        ModuleSwitchOut: {
+            /** Enabled */
+            enabled: boolean;
+            /** Key */
+            key: string;
+            /** Live Items */
+            live_items: number;
+            /** Switched */
+            switched: string[];
+        };
         /**
          * MultiDaySavingsOut
          * @description Congrats-card payload (landr-nva1a.1): ``days`` = longest
@@ -27058,6 +27147,11 @@ export interface components {
         PowerUpOut: {
             /** Description */
             description?: string | null;
+            /**
+             * Enhances
+             * @default []
+             */
+            enhances: string[];
             /** Key */
             key: string;
             live_items?: components["schemas"]["PowerUpLiveItems"] | null;
@@ -28527,6 +28621,8 @@ export interface components {
             max_party_size?: number | null;
             /** Min Nights */
             min_nights?: number | null;
+            /** Module Key */
+            module_key?: string | null;
             /** Name */
             name: string;
             /** Name Localized */
@@ -28791,6 +28887,8 @@ export interface components {
             max_party_size?: number | null;
             /** Min Nights */
             min_nights?: number | null;
+            /** Module Key */
+            module_key?: string | null;
             /** Name */
             name?: string | null;
             /** Name Localized */
@@ -53713,6 +53811,73 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_modules: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModuleListOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    switch_module: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ModuleSwitchIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModuleSwitchOut"];
                 };
             };
             /** @description Validation Error */
