@@ -20,8 +20,8 @@ describe('offerCountLabel (landr-d8rg.5)', () => {
 // "Fully booked" instead of "0 offers" — reusing FullyBookedNotice's exact
 // copy rather than a second string for the same concept.
 describe('offerCountLabel — landr-872c FULLY SOLD-OUT', () => {
-  it('reads "Fully booked" when product_count > 0 and bookable_count === 0', () => {
-    expect(offerCountLabel({ product_count: 3, bookable_count: 0 })).toBe('Fully booked')
+  it('reads "Next dates coming soon" when product_count > 0 and bookable_count === 0', () => {
+    expect(offerCountLabel({ product_count: 3, bookable_count: 0 })).toBe('Next dates coming soon')
   })
 
   it('reads the normal offer count for a MIXED category (some bookable)', () => {

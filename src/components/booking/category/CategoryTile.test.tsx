@@ -358,7 +358,7 @@ describe('CategoryTile — landr-872c FULLY SOLD-OUT disabled state', () => {
       expect(tile).toBeDisabled()
 
       const badge = screen.getByTestId('fully-booked-badge')
-      expect(badge).toHaveTextContent('Fully booked')
+      expect(badge).toHaveTextContent('Next dates coming soon')
       // The normal count-chip testid must NOT also be present.
       expect(screen.queryByTestId('category-count-chip')).not.toBeInTheDocument()
 

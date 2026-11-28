@@ -41,6 +41,8 @@ interface Props {
   operatorTimezone?: string | null
   /** landr-f210e.5: reached from a cross-sell hint -- say it is also booked on the carried days. */
   hintNotice?: boolean
+  /** u2byj: operator contact email (OperatorSettings.contact_email); shown as a mailto link when set. */
+  contactEmail?: string | null
 }
 
 // Exported (landr-872c) so the Categories layout's disabled category tiles
@@ -50,9 +52,9 @@ interface Props {
 // for callers outside a component render (categoryCopy.ts's offerCountLabel
 // is locale-agnostic pure data); the component itself resolves the live
 // locale via tr() below.
-export const FULLY_BOOKED_LABEL = 'Fully booked'
+export const FULLY_BOOKED_LABEL = 'Next dates coming soon'
 export const FULLY_BOOKED_BLURB =
-  'There are no upcoming dates available for this product right now. Please check back later.'
+  'New dates are not open yet. Please check back soon.'
 
 export function FullyBookedNotice({
   name,
@@ -63,6 +65,7 @@ export function FullyBookedNotice({
   onSelectAlternative,
   operatorTimezone,
   hintNotice,
+  contactEmail,
 }: Props) {
   const locale = browserLocale()
   const detour = useBreadcrumbNav()?.detourBack
@@ -87,6 +90,14 @@ export function FullyBookedNotice({
             ? fmt(tr('crossSellHintFullyBooked', locale), { product: name })
             : tr('fullyBookedBlurb', locale)}
         </p>
+        {!hintNotice && contactEmail?.trim() ? (
+          <p className="mt-2" data-testid="fully-booked-contact">
+            {tr('fullyBookedContact', locale)}{' '}
+            <a className="underline" href={`mailto:${contactEmail.trim()}`}>
+              {contactEmail.trim()}
+            </a>
+          </p>
+        ) : null}
         {productId && !compact ? (
           <div className="mt-4 text-foreground">
             <AlternativesSection
