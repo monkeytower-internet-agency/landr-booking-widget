@@ -46802,6 +46802,19 @@
         "title": "TodayMessagePostIn",
         "type": "object"
       },
+      "TourOfferIn": {
+        "properties": {
+          "offered": {
+            "title": "Offered",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "offered"
+        ],
+        "title": "TourOfferIn",
+        "type": "object"
+      },
       "TourPrefsPatch": {
         "properties": {
           "tours": {
@@ -96018,6 +96031,144 @@
           }
         ],
         "summary": "Day Text",
+        "tags": [
+          "staff-shuttle"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/shuttle/days/{day_date}/tours": {
+      "get": {
+        "operationId": "staff_shuttle_day_tours",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "day_date",
+            "required": true,
+            "schema": {
+              "title": "Day Date",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "title": "Response Staff Shuttle Day Tours",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Day Tours",
+        "tags": [
+          "staff-shuttle"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/shuttle/days/{day_date}/tours/{product_id}": {
+      "put": {
+        "operationId": "staff_shuttle_put_day_tour",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "day_date",
+            "required": true,
+            "schema": {
+              "title": "Day Date",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "title": "Product Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TourOfferIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Staff Shuttle Put Day Tour",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Put Day Tour",
         "tags": [
           "staff-shuttle"
         ]
